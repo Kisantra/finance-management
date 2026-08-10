@@ -10,6 +10,12 @@ Stack frontend **sepenuhnya React/Inertia** — migrasi dari Livewire + TallStac
 
 **Fitur:** Invoice & Pembayaran, Recurring Invoice, Reimbursement, Bank Account & Transaksi, Cash Flow, Loans & Receivables, Multi-role Permission, PDF Generation, Notifications, Feedback System, Multi-language (id/en/zh), Excel Export.
 
+## Dokumentasi Modul (WAJIB DIBACA)
+
+**CRITICAL: Sebelum mengerjakan atau memodifikasi sebuah modul, WAJIB baca dokumentasi modulnya di [`docs/module/`](docs/module/README.md).** Folder itu berisi satu file per modul yang menjelaskan seluruh fitur, cara kerja step-by-step, penjelasan kode mengikuti alur data, keterkaitan antar modul, dan invarian yang tidak boleh dilanggar — mulai dari `docs/module/README.md` (indeks + peta alur data lintas modul). Jangan scanning seluruh codebase untuk memahami sebuah modul; dokumen itu pintu masuknya.
+
+**Aturan pemeliharaan:** perubahan yang mengubah perilaku modul (alur, status, endpoint, aturan bisnis) WAJIB memperbarui dokumen modulnya di commit yang sama.
+
 ## Common Commands
 
 ```bash
@@ -248,7 +254,7 @@ Loading skeleton                  → Skeleton
 
 ### Key Business Logic
 
-**Invoice:** `INV/{seq}/KSN/{mm}.{yy}` — status: `draft → partially_paid → paid`
+**Invoice:** `001/INV/KSN-XXX/I/2026` (seq/INV/{abbrev perusahaan}-{inisial klien}/{bulan romawi}/{tahun}) — nomor baru diisi saat `send`, sebelum itu `null`; status: `draft → sent → partially_paid → paid`
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual
@@ -376,6 +382,7 @@ Berlaku untuk: shadcn/ui components, library React (react-day-picker, cmdk, reac
 
 | File | Purpose |
 |------|---------|
+| **`docs/module/README.md`** | **Indeks dokumentasi per modul + peta alur data lintas modul — WAJIB dibaca sebelum menyentuh modul apa pun** |
 | `MIGRATION_PLAN.md` | Status migrasi, fase & progress |
 | `.claude/design-systems/archipelago.md` | Design system tokens, typography, spacing, color palette |
 | `app/Services/InvoicePrintService.php` | PDF generation |
