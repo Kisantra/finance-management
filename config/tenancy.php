@@ -205,6 +205,8 @@ return [
     'seeder_parameters' => [
         // JANGAN arahkan ke DatabaseSeeder — seeder itu membuat Company (rekursi).
         '--class' => 'Database\\Seeders\\TenantDatabaseSeeder',
-        // '--force' => true, // This needs to be true to seed tenant databases in production
+        // WAJIB true: tanpa ini db:seed di APP_ENV=production menampilkan prompt
+        // konfirmasi yang tak terlihat di dalam pipeline provisioning → menggantung.
+        '--force' => true,
     ],
 ];
