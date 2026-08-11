@@ -139,13 +139,12 @@ return [
         'suffix_storage_path' => true,
 
         /**
-         * By default, asset() calls are made multi-tenant too. You can use global_asset() and mix()
-         * for global, non-tenant-specific assets. However, you might have some issues when using
-         * packages that use asset() calls inside the tenant app. To avoid such issues, you can
-         * disable asset() helper tenancy and explicitly use tenant_asset() calls in places
-         * where you want to use tenant-specific assets (product images, avatars, etc).
+         * DINONAKTIFKAN: aset build Vite bersifat GLOBAL (satu build untuk semua
+         * perusahaan). Bila true, asset() dibelokkan ke route /tenancy/assets saat
+         * tenancy aktif → script/CSS Vite 404 → halaman putih. File per-tenant
+         * (lampiran, logo) diakses via Storage::url(), bukan asset().
          */
-        'asset_helper_tenancy' => true,
+        'asset_helper_tenancy' => false,
     ],
 
     /**
