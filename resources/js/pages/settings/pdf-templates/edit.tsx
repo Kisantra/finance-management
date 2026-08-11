@@ -60,6 +60,7 @@ import {
     Repeat2,
     Layers,
 } from 'lucide-react';
+import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
 
 // ponytail: koordinat px @96dpi. A4 = 794x1123.
@@ -1367,7 +1368,7 @@ export default function PdfTemplateEdit() {
             bands,
         };
         router.post(
-            `/settings/pdf-templates/${template.id}/save`,
+            companyUrl(`/settings/pdf-templates/${template.id}/save`),
             { layout },
             {
                 preserveScroll: true,
@@ -1379,11 +1380,11 @@ export default function PdfTemplateEdit() {
         );
     };
 
-    const openPdf = () => window.open(`/settings/pdf-templates/${template.id}/pdf`, '_blank');
+    const openPdf = () => window.open(companyUrl(`/settings/pdf-templates/${template.id}/pdf`), '_blank');
 
     // B5: open PDF in a new tab with a fixed item count for pagination preview.
     const openPdfWithItems = (n: number) =>
-        window.open(`/settings/pdf-templates/${template.id}/pdf?items=${n}`, '_blank');
+        window.open(companyUrl(`/settings/pdf-templates/${template.id}/pdf?items=${n}`), '_blank');
 
     // â”€â”€ Drop on band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1792,7 +1793,7 @@ export default function PdfTemplateEdit() {
             {/* â”€â”€ Top header bar â”€â”€ */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-900 shrink-0">
                 {/* Left: back + title */}
-                <Button variant="ghost" size="sm" onClick={() => router.visit('/settings/pdf-templates')} className="gap-1.5 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => router.visit(companyUrl('/settings/pdf-templates'))} className="gap-1.5 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 shrink-0">
                     <ArrowLeft className="w-4 h-4" />
                     Kembali
                 </Button>
@@ -2588,7 +2589,7 @@ function TextInspector({
         const formData = new FormData();
         formData.append('name', uploadName.trim());
         formData.append('file', uploadFile);
-        router.post('/settings/pdf-templates/custom-fonts', formData, {
+        router.post(companyUrl('/settings/pdf-templates/custom-fonts'), formData, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -2742,7 +2743,7 @@ function TextInspector({
                                     </span>
                                     <button
                                         onClick={() =>
-                                            router.delete(`/settings/pdf-templates/custom-fonts/${f.id}`, {
+                                            router.delete(companyUrl(`/settings/pdf-templates/custom-fonts/${f.id}`), {
                                                 preserveScroll: true,
                                                 onSuccess: () => toast.success(`Font "${f.name}" dihapus.`),
                                             })

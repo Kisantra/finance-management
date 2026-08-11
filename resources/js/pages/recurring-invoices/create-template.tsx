@@ -17,6 +17,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
 import { CurrencyCell, ServiceLookup, ColDef, useColumnResize, ResizableTh, parseQty } from '@/pages/invoices/create';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -581,7 +582,7 @@ export function TemplateForm({
                             >
                                 {submitLabel}
                             </Button>
-                            <Link href="/recurring-invoices" className="w-full">
+                            <Link href={companyUrl('/recurring-invoices')} className="w-full">
                                 <Button
                                     type="button"
                                     variant="zinc"
@@ -608,7 +609,7 @@ function CreateTemplatePage({ clients, services }: Props) {
             <div className="space-y-6">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/recurring-invoices"
+                        href={companyUrl('/recurring-invoices')}
                         className="h-9 w-9 rounded-xl flex items-center justify-center border border-secondary-200 dark:border-dark-600 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 text-dark-600 dark:text-dark-400" />
@@ -626,7 +627,7 @@ function CreateTemplatePage({ clients, services }: Props) {
                 <TemplateForm
                     clients={clients}
                     services={services}
-                    submitUrl="/recurring-invoices/templates"
+                    submitUrl={companyUrl('/recurring-invoices/templates')}
                     method="post"
                     submitLabel="Simpan Template"
                 />

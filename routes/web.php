@@ -7,6 +7,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BankTransactionController;
 use App\Http\Controllers\CashFlowController;
 use App\Http\Controllers\CashFlowExportController;
+use App\Http\Controllers\ChooseCompanyController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
@@ -27,6 +28,9 @@ use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\TemplateBuilderController;
 use App\Http\Controllers\TransactionCategoryController;
+use App\Http\Middleware\EnsureUserBelongsToCompany;
+use App\Http\Middleware\SetCompanyUrlDefaults;
+use App\Http\Middleware\SetPermissionsTeam;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -37,68 +41,90 @@ use App\Services\FundRequestExportService;
 use App\Services\InvoicePrintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 
 // ============================================================================
 // PUBLIC ROUTES
 // ============================================================================
 
-Route::redirect('/', '/login')->name('home');
+Route::redirect('/', '/choose-company')->name('home');
 
 // ============================================================================
-// AUTHENTICATED ROUTES
+// CENTRAL ROUTES (tanpa konteks perusahaan)
 // ============================================================================
-
-Route::get('/api/transaction-categories', function (Request $request) {
-    $type = $request->input('type');
-
-    $categoryTypes = match ($type) {
-        'credit' => ['income', 'adjustment', 'transfer'],
-        'debit' => ['expense', 'adjustment', 'transfer'],
-        'income' => ['income'],
-        'expense' => ['expense'],
-        'adjustment' => ['adjustment'],
-        'transfer' => ['transfer'],
-        default => ['income', 'expense', 'adjustment', 'transfer'],
-    };
-
-    return TransactionCategory::whereNull('parent_id')
-        ->whereIn('type', $categoryTypes)
-        ->with('children')
-        ->orderBy('type')
-        ->orderBy('label')
-        ->get()
-        ->flatMap(function ($parent) {
-            $items = [];
-            $items[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
-            foreach ($parent->children as $child) {
-                $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
-            }
-
-            return $items;
-        })
-        ->values();
-})->name('api.transaction-categories');
-
-Route::get('/api/bank-accounts', function () {
-    return BankAccount::orderBy('bank_name')
-        ->orderBy('account_name')
-        ->get()
-        ->map(fn ($account) => [
-            'label' => $account->account_name.' ('.$account->bank_name.')',
-            'value' => $account->id,
-        ]);
-})->name('api.bank-accounts');
-
-Route::get('/api/clients', function () {
-    return Client::orderBy('name')
-        ->get(['id', 'name'])
-        ->map(fn ($client) => [
-            'label' => $client->name,
-            'value' => $client->id,
-        ]);
-})->name('api.clients');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/choose-company', ChooseCompanyController::class)->name('choose-company');
+});
+
+// ============================================================================
+// AUTHENTICATED ROUTES — konteks perusahaan aktif (/c/{company}/...)
+// Urutan middleware group: tenancy path → cek keanggotaan → team Spatie → URL defaults
+// ============================================================================
+
+$companyMiddleware = [
+    'auth',
+    'verified',
+    InitializeTenancyByPath::class,
+    EnsureUserBelongsToCompany::class,
+    SetPermissionsTeam::class,
+    SetCompanyUrlDefaults::class,
+];
+
+Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
+
+    Route::get('/api/transaction-categories', function (Request $request) {
+        $type = $request->input('type');
+
+        $categoryTypes = match ($type) {
+            'credit' => ['income', 'adjustment', 'transfer'],
+            'debit' => ['expense', 'adjustment', 'transfer'],
+            'income' => ['income'],
+            'expense' => ['expense'],
+            'adjustment' => ['adjustment'],
+            'transfer' => ['transfer'],
+            default => ['income', 'expense', 'adjustment', 'transfer'],
+        };
+
+        return TransactionCategory::whereNull('parent_id')
+            ->whereIn('type', $categoryTypes)
+            ->with('children')
+            ->orderBy('type')
+            ->orderBy('label')
+            ->get()
+            ->flatMap(function ($parent) {
+                $items = [];
+                $items[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
+                foreach ($parent->children as $child) {
+                    $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
+                }
+
+                return $items;
+            })
+            ->values();
+    })->name('api.transaction-categories');
+
+    Route::get('/api/bank-accounts', function () {
+        return BankAccount::orderBy('bank_name')
+            ->orderBy('account_name')
+            ->get()
+            ->map(fn ($account) => [
+                'label' => $account->account_name.' ('.$account->bank_name.')',
+                'value' => $account->id,
+            ]);
+    })->name('api.bank-accounts');
+
+    Route::get('/api/clients', function () {
+        return Client::orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($client) => [
+                'label' => $client->name,
+                'value' => $client->id,
+            ]);
+    })->name('api.clients');
+});
+
+Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
 
     // ------------------------------------------------------------------------
     // DASHBOARD
@@ -512,6 +538,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
             Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
             Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+        });
+
+        Route::middleware('can:manage companies')->group(function () {
+            Route::get('/companies', [App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('companies.index');
+            Route::post('/companies', [App\Http\Controllers\Admin\CompanyController::class, 'store'])->name('companies.store');
+            Route::post('/companies/{targetCompany}/retry', [App\Http\Controllers\Admin\CompanyController::class, 'retry'])->name('companies.retry');
         });
     });
 

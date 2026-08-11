@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Building2, FileText, KeyRound, User } from 'lucide-react';
 import * as React from 'react';
 import { PageHeader } from '@/components/shared/page-header';
+import { appPath, companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -37,11 +38,11 @@ export function SettingsLayout({ children, title, description, action }: Setting
                     <nav className="rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden bg-white dark:bg-dark-700">
                         {navItems.map((item) => {
                             const Icon = item.icon;
-                            const isActive = url.startsWith(item.href);
+                            const isActive = appPath(url).startsWith(item.href);
                             return (
                                 <Link
                                     key={item.href}
-                                    href={item.href}
+                                    href={companyUrl(item.href)}
                                     className={cn(
                                         'flex items-center gap-3 px-4 py-3 text-sm border-l-2 transition-colors',
                                         isActive

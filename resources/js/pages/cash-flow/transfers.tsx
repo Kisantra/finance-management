@@ -26,6 +26,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import * as cashFlowRoutes from '@/routes/cash-flow';
 import { CashFlowStatsBar } from './components/cash-flow-stats';
@@ -146,7 +147,7 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
         if (filters.date_from) params.set('date_from', filters.date_from);
         if (filters.date_to) params.set('date_to', filters.date_to);
         if (filters.bank_accounts.length > 0) params.set('bank_accounts', filters.bank_accounts.join(','));
-        window.open(`/cash-flow/export/pdf?${params.toString()}`, '_blank');
+        window.open(companyUrl(`/cash-flow/export/pdf?${params.toString()}`), '_blank');
     };
 
     const activeFilterCount =

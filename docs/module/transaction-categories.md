@@ -156,11 +156,11 @@ Modul Loans & Receivables mencatat kas otomatis dengan mencari kategori sistem t
 
 ```php
 // app/Http/Controllers/LoanController.php
-$category = TransactionCategory::where('code', 'FIN-LOAN-IN')->first();
+$category = TransactionCategory::findSystem('FIN-LOAN-IN');
 BankTransaction::create([..., 'category_id' => $category?->id]);
 ```
 
-**PERHATIAN (lihat Jebakan):** lookup ini masih memakai kolom `code`, padahal kolom tersebut sudah di-drop oleh migration 2026-02-05.
+Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, ditambahkan migration `2026_08_11_..._add_system_key_to_transaction_categories.php` sebagai pengganti kolom `code` yang di-drop 2026-02-05). `system_key` sengaja di luar `$fillable`; hanya seeder/migration yang mengisinya. Helper: `TransactionCategory::findSystem($key)` dan `$category->isSystem()`.
 
 ## Keterkaitan Antar Modul
 
@@ -179,7 +179,7 @@ BankTransaction::create([..., 'category_id' => $category?->id]);
 - **Reassign harus setipe** (`income` → `income`, dst.) dan dieksekusi atomik dalam `DB::transaction`; ketiga relasi (`bank_transactions`, `fund_request_items`, `reimbursements`) selalu dipindah bersama — jika menambah tabel baru ber-`category_id`, wajib menambahkannya ke `destroy()` dan `withCount` di `index()`.
 - **Mengubah `type` kategori yang sudah dipakai tidak diguard** — transaksinya akan berpindah/lenyap dari halaman cash-flow terkait (halaman memfilter berdasar tipe kategori). Lakukan dengan sadar.
 - **`pl_group` NULL = belum masuk P&L.** Kategori income/expense tanpa `pl_group` tidak terklasifikasi di Laba Rugi; gunakan filter `unclassified` untuk audit.
-- **JEBAKAN AKTIF — kolom `code` sudah tidak ada.** Skema saat ini (pasca migration `2026_02_05_..._remove_code_add_parent_id`) tidak lagi punya kolom `code`, tetapi `LoanController` dan `ReceivableController` masih menjalankan `TransactionCategory::where('code', 'FIN-LOAN-IN')` dll. Query ke kolom yang tidak ada akan melempar `QueryException` saat fitur loan/receivable membuat transaksi otomatis. Perbaikan yang konsisten: identifikasi kategori sistem dengan mekanisme lain (mis. label/seeder id) atau kembalikan kolom `code` — jangan menulis kode baru yang bergantung pada `code`.
+- **[DIPERBAIKI 2026-08-11] Bug kolom `code`.** Lookup lama `where('code', ...)` (kolom sudah di-drop 2026-02-05) diganti kolom `system_key` + `TransactionCategory::findSystem()`. **Kategori ber-`system_key` diproteksi controller**: `update()` dan `destroy()` menolaknya — jangan melonggarkan proteksi ini, modul Loans/Receivables bergantung pada identitas kategori tersebut. Kode baru yang butuh kategori sistem WAJIB memakai `findSystem()`, bukan label.
 - `store()` punya dua mode respons (redirect vs JSON 201 `wantsJson()`); jaga kompatibilitas keduanya saat mengubah method ini.
 
 ## File Kunci

@@ -21,6 +21,7 @@ import { AppLayout } from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
+import { companyUrl } from '@/lib/company';
 import { formatCurrency } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -494,7 +495,7 @@ export default function Dashboard() {
                 {/* Recent Reimbursements */}
                 <Card>
                     <CardHeader>
-                        <SectionHeader title="Reimburse Terbaru" href="/reimbursements" />
+                        <SectionHeader title="Reimburse Terbaru" href={companyUrl('/reimbursements')} />
                     </CardHeader>
                     <CardContent className="space-y-2.5">
                         {recentReimbursements.length === 0 && (
@@ -522,7 +523,7 @@ export default function Dashboard() {
                 {/* Recent Fund Requests */}
                 <Card>
                     <CardHeader>
-                        <SectionHeader title="Pengajuan Dana" href="/fund-requests" />
+                        <SectionHeader title="Pengajuan Dana" href={companyUrl('/fund-requests')} />
                     </CardHeader>
                     <CardContent className="space-y-2.5">
                         {recentFundRequests.length === 0 && (
@@ -551,7 +552,7 @@ export default function Dashboard() {
                 {/* Pending Invoices */}
                 <Card>
                     <CardHeader>
-                        <SectionHeader title="Invoice Tertunda" href="/invoices" />
+                        <SectionHeader title="Invoice Tertunda" href={companyUrl('/invoices')} />
                     </CardHeader>
                     <CardContent className="space-y-2.5">
                         {pendingInvoices.length === 0 && (

@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import * as React from 'react';
 import { TemplateForm } from './create-template';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
 
 /* ─────────────────────────────────── types ─── */
@@ -62,7 +63,7 @@ function EditTemplatePage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-3">
                     <Link
-                        href="/recurring-invoices"
+                        href={companyUrl('/recurring-invoices')}
                         className="h-9 w-9 rounded-xl flex items-center justify-center border border-secondary-200 dark:border-dark-600 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 text-dark-600 dark:text-dark-400" />
@@ -80,7 +81,7 @@ function EditTemplatePage() {
                 <TemplateForm
                     clients={clients}
                     services={services}
-                    submitUrl={`/recurring-invoices/templates/${template.id}`}
+                    submitUrl={companyUrl(`/recurring-invoices/templates/${template.id}`)}
                     method="put"
                     submitLabel="Perbarui Template"
                     isEdit={true}

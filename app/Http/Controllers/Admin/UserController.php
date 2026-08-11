@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BulkDestroyUserRequest;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -96,6 +96,12 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'email_verified_at' => now(),
         ]);
+
+        // User baru masuk ke organization & perusahaan aktif admin yang membuatnya
+        $user->organization()->associate(auth()->user()->organization_id)->save();
+        if ($companyId = getPermissionsTeamId()) {
+            $user->companies()->syncWithoutDetaching([$companyId]);
+        }
 
         $user->assignRole($validated['role']);
 

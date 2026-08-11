@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -17,6 +18,10 @@ class MasterPermissionSeeder extends Seeder
     {
         // Clear cache
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Role dibuat GLOBAL (company_id NULL) — definisi sama untuk semua
+        // perusahaan; assignment ke user tetap per perusahaan (Spatie teams).
+        setPermissionsTeamId(null);
 
         $this->command->info('🚀 Starting Master Permission Seeder...');
         $this->command->newLine();
@@ -173,6 +178,9 @@ class MasterPermissionSeeder extends Seeder
 
             // User Management
             'manage users',
+
+            // Company Management (provisioning perusahaan — admin only)
+            'manage companies',
 
             // Feedbacks
             'view feedbacks',
@@ -409,13 +417,19 @@ class MasterPermissionSeeder extends Seeder
         if ($adminUsers->isEmpty()) {
             $this->command->warn('  ⚠ No admin users found!');
 
-            // Option 1: Assign first user as admin
+            // Assign first user as admin — dalam konteks perusahaan pertamanya
+            // (Spatie teams: assignment butuh company_id)
             $firstUser = User::first();
-            if ($firstUser) {
+            $companyId = $firstUser?->companies()->value('companies.id')
+                ?? Company::query()->value('id');
+
+            if ($firstUser && $companyId) {
+                setPermissionsTeamId($companyId);
                 $firstUser->assignRole('admin');
-                $this->command->info("  ✓ Assigned admin role to: {$firstUser->email}");
+                setPermissionsTeamId(null);
+                $this->command->info("  ✓ Assigned admin role to: {$firstUser->email} (company: {$companyId})");
             } else {
-                $this->command->error('  ✗ No users in database to assign admin role!');
+                $this->command->error('  ✗ No users/companies in database to assign admin role!');
             }
         } else {
             $this->command->line("  ✓ Admin users: {$adminUsers->count()}");

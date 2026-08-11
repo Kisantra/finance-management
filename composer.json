@@ -21,6 +21,7 @@
         "ngekoding/terbilang": "^1.0",
         "predis/predis": "^3.4",
         "spatie/laravel-permission": "^6.21",
+        "stancl/tenancy": "^3.10",
         "stichoza/google-translate-php": "^5.3"
     },
     "require-dev": {

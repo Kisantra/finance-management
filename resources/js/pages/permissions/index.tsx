@@ -62,6 +62,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -213,8 +214,8 @@ function RoleFormDialog({
             },
             onError: () => toast.error('Periksa kembali isian form.'),
         };
-        if (mode === 'create') post('/admin/roles', opts);
-        else if (editingRole) put(`/admin/roles/${editingRole.id}`, opts);
+        if (mode === 'create') post(companyUrl('/admin/roles'), opts);
+        else if (editingRole) put(companyUrl(`/admin/roles/${editingRole.id}`), opts);
     };
 
     return (
@@ -337,7 +338,7 @@ export default function PermissionsIndex() {
     const togglePermission = (permissionId: number) => {
         if (!canManagePermissions || !selectedRole) return;
         router.post(
-            '/admin/permissions/toggle',
+            companyUrl('/admin/permissions/toggle'),
             { role_id: selectedRole.id, permission_id: permissionId },
             {
                 preserveScroll: true,
@@ -354,7 +355,7 @@ export default function PermissionsIndex() {
     const syncModule = (module: string, action: 'grant' | 'revoke') => {
         if (!canManagePermissions || !selectedRole) return;
         router.post(
-            '/admin/permissions/sync-module',
+            companyUrl('/admin/permissions/sync-module'),
             { role_id: selectedRole.id, module, action },
             {
                 preserveScroll: true,
@@ -371,7 +372,7 @@ export default function PermissionsIndex() {
     const syncAll = (action: 'grant' | 'revoke') => {
         if (!canManagePermissions || !selectedRole) return;
         router.post(
-            '/admin/permissions/sync-all',
+            companyUrl('/admin/permissions/sync-all'),
             { role_id: selectedRole.id, action },
             {
                 preserveScroll: true,
@@ -390,7 +391,7 @@ export default function PermissionsIndex() {
     const confirmDeleteRole = () => {
         if (!deletingRole) return;
         setDeleteProcessing(true);
-        router.delete(`/admin/roles/${deletingRole.id}`, {
+        router.delete(companyUrl(`/admin/roles/${deletingRole.id}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Peran berhasil dihapus.');
@@ -408,7 +409,7 @@ export default function PermissionsIndex() {
     const confirmDeletePermission = () => {
         if (!deletingPermission) return;
         setDeleteProcessing(true);
-        router.delete(`/admin/permissions/${deletingPermission.id}`, {
+        router.delete(companyUrl(`/admin/permissions/${deletingPermission.id}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Permission berhasil dihapus.');

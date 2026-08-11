@@ -13,6 +13,7 @@ import {
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { SegmentedOption } from '@/components/ui/segmented-control';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { companyUrl } from '@/lib/company';
 import { formatCurrency } from '@/lib/utils';
 
 type PrintType = 'full' | 'dp' | 'pelunasan';
@@ -131,7 +132,7 @@ export function PrintInvoiceDialog({
     const handlePreview = () => {
         const query = buildQuery();
         if (query === null) return;
-        window.open(`/invoice/${invoiceId}/preview?${query}`, '_blank');
+        window.open(companyUrl(`/invoice/${invoiceId}/preview?${query}`), '_blank');
         onOpenChange(false);
     };
 
@@ -139,7 +140,7 @@ export function PrintInvoiceDialog({
         const query = buildQuery();
         if (query === null) return;
         const link = document.createElement('a');
-        link.href = `/invoice/${invoiceId}/download?${query}`;
+        link.href = companyUrl(`/invoice/${invoiceId}/download?${query}`);
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\BankAccount;
 use App\Models\Loan;
+use App\Models\TransactionCategory;
 use App\Models\User;
+use Database\Seeders\TransactionCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -22,6 +24,8 @@ class LoanControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(TransactionCategorySeeder::class);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -94,6 +98,7 @@ class LoanControllerTest extends TestCase
             'bank_account_id' => $this->bankAccount->id,
             'amount' => 5000000,
             'transaction_type' => 'credit',
+            'category_id' => TransactionCategory::findSystem('FIN-LOAN-IN')->id,
         ]);
 
         $this->assertSame($initialBalance + 5000000, $this->bankAccount->fresh()->balance);
@@ -139,6 +144,15 @@ class LoanControllerTest extends TestCase
         $this->assertDatabaseHas('bank_transactions', [
             'bank_account_id' => $this->bankAccount->id,
             'transaction_type' => 'debit',
+            'amount' => 1000000,
+            'category_id' => TransactionCategory::findSystem('FIN-LOAN-OUT')->id,
+        ]);
+
+        $this->assertDatabaseHas('bank_transactions', [
+            'bank_account_id' => $this->bankAccount->id,
+            'transaction_type' => 'debit',
+            'amount' => 50000,
+            'category_id' => TransactionCategory::findSystem('EXP-INTEREST')->id,
         ]);
 
         $this->assertLessThan($initialBalance, $this->bankAccount->fresh()->balance);

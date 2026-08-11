@@ -1,9 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
+import { appPath, companyUrl } from '@/lib/company';
 import {
     ArrowLeftRight,
     Briefcase,
     Building2,
     ChevronLeft,
+    ChevronsUpDown,
     CreditCard,
     FileBarChart,
     FileText,
@@ -21,6 +23,12 @@ import {
     X,
 } from 'lucide-react';
 import * as React from 'react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -200,7 +208,7 @@ const NAV: NavSection[] = [
     },
     {
         title: 'Administrasi',
-        anyPermission: ['view feedbacks', 'view permissions', 'manage users'],
+        anyPermission: ['view feedbacks', 'view permissions', 'manage users', 'manage companies'],
         items: [
             {
                 label: 'Feedback',
@@ -222,6 +230,13 @@ const NAV: NavSection[] = [
                 icon: <UserCog className="w-4 h-4 shrink-0" />,
                 permission: 'manage users',
                 matchPrefix: '/admin/users',
+            },
+            {
+                label: 'Perusahaan',
+                href: '/admin/companies',
+                icon: <Building2 className="w-4 h-4 shrink-0" />,
+                permission: 'manage companies',
+                matchPrefix: '/admin/companies',
             },
         ],
     },
@@ -266,7 +281,7 @@ function NavLink({
 
     return (
         <Link
-            href={item.href}
+            href={companyUrl(item.href)}
             onClick={onClick}
             title={collapsed ? item.label : undefined}
             className={cn(
@@ -298,10 +313,11 @@ function NavLink({
 }
 
 export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarProps) {
-    const { auth, actionCounts } = usePage<SharedProps>().props;
+    const { auth, actionCounts, company, companies } = usePage<SharedProps>().props;
     const permissions = auth.permissions;
     const user = auth.user;
-    const currentUrl = usePage().url;
+    // Path aplikasi tanpa prefix /c/{slug} — semua matchPrefix NAV tetap valid
+    const currentUrl = appPath(usePage().url);
 
     const can = (permission: string) => permissions.includes(permission);
     const canAny = (perms: string[]) => perms.some((p) => permissions.includes(p));
@@ -340,19 +356,50 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
             )}
             data-sidebar-collapsed={collapsed}
         >
-            {/* Brand */}
+            {/* Brand / company switcher */}
             <div className="h-14 flex items-center gap-2.5 px-3 shrink-0 border-b border-gray-100 dark:border-white/6">
                 <div className="w-8 h-8 rounded-lg bg-primary-600 dark:bg-primary-500 flex items-center justify-center shrink-0 shadow-sm shadow-primary-600/30">
                     <img src="/images/kisantra.png" alt="Logo" className="w-5 h-5 object-contain" />
                 </div>
                 {!collapsed && (
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
-                            KISANTRA
-                        </p>
-                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium tracking-wide leading-tight">
-                            Finance Management
-                        </p>
+                        {companies.length > 1 ? (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger className="flex w-full items-center gap-1 text-left group">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight leading-tight truncate">
+                                            {company?.name ?? 'Pilih Perusahaan'}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium tracking-wide leading-tight">
+                                            Ganti perusahaan
+                                        </p>
+                                    </div>
+                                    <ChevronsUpDown className="w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-zinc-500 group-hover:text-gray-600 dark:group-hover:text-zinc-300" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-52">
+                                    {companies.map((option) => (
+                                        <DropdownMenuItem key={option.slug} asChild>
+                                            {/* <a> full reload: seluruh konteks (props, permission, notifikasi) dihitung ulang */}
+                                            <a
+                                                href={`/c/${option.slug}/dashboard`}
+                                                className={cn(option.slug === company?.slug && 'font-semibold text-primary-600 dark:text-primary-400')}
+                                            >
+                                                {option.name}
+                                            </a>
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : (
+                            <>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight leading-tight truncate">
+                                    {company?.name ?? 'Finance'}
+                                </p>
+                                <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium tracking-wide leading-tight">
+                                    Finance Management
+                                </p>
+                            </>
+                        )}
                     </div>
                 )}
                 <button
@@ -444,14 +491,14 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                         </div>
                         <div className="p-1">
                             <Link
-                                href="/settings/profile"
+                                href={companyUrl('/settings/profile')}
                                 className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
                             >
                                 <Users className="w-3.5 h-3.5 opacity-60" />
                                 Profil Saya
                             </Link>
                             <Link
-                                href="/settings/company"
+                                href={companyUrl('/settings/company')}
                                 className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
                             >
                                 <Building2 className="w-3.5 h-3.5 opacity-60" />

@@ -6,15 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
+use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
 class Feedback extends Model
 {
-    use HasFactory;
+    use CentralConnection, HasFactory;
 
     protected $table = 'feedbacks';
 
     protected $fillable = [
         'user_id',
+        'company_id',
         'title',
         'description',
         'type',
@@ -149,7 +151,7 @@ class Feedback extends Model
 
     public function hasAttachment(): bool
     {
-        return !empty($this->attachment_path);
+        return ! empty($this->attachment_path);
     }
 
     public function getAttachmentUrlAttribute(): ?string
@@ -159,10 +161,11 @@ class Feedback extends Model
 
     public function getAttachmentTypeAttribute(): ?string
     {
-        if (!$this->hasAttachment()) {
+        if (! $this->hasAttachment()) {
             return null;
         }
         $extension = pathinfo($this->attachment_name, PATHINFO_EXTENSION);
+
         return strtolower($extension);
     }
 

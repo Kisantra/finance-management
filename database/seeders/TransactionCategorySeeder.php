@@ -9,7 +9,8 @@ class TransactionCategorySeeder extends Seeder
 {
     public function run(): void
     {
-        // Parent categories
+        // Parent categories — system_key menandai kategori sistem yang dipakai
+        // otomatis oleh modul Loans/Receivables (tidak boleh diedit/dihapus user)
         $parents = [
             ['type' => 'expense', 'label' => 'Operational Expenses'],
             ['type' => 'expense', 'label' => 'PENGELUARAN LAIN-LAIN'],
@@ -17,20 +18,24 @@ class TransactionCategorySeeder extends Seeder
             ['type' => 'expense', 'label' => 'CAPEX'],
             ['type' => 'income', 'label' => 'Penghasilan'],
             ['type' => 'transfer', 'label' => 'Transfer Internal'],
-            ['type' => 'financing', 'label' => 'Penerimaan Pinjaman'],
-            ['type' => 'financing', 'label' => 'Pembayaran Pokok Pinjaman'],
+            ['type' => 'financing', 'label' => 'Penerimaan Pinjaman', 'system_key' => 'FIN-LOAN-IN'],
+            ['type' => 'financing', 'label' => 'Pembayaran Pokok Pinjaman', 'system_key' => 'FIN-LOAN-OUT'],
             ['type' => 'financing', 'label' => 'Setoran Modal'],
             ['type' => 'financing', 'label' => 'Penarikan Modal'],
-            ['type' => 'financing', 'label' => 'Piutang Diberikan'],
-            ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima'],
-            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman'],
-            ['type' => 'income', 'label' => 'Pendapatan Bunga'],
+            ['type' => 'financing', 'label' => 'Piutang Diberikan', 'system_key' => 'FIN-RCV-OUT'],
+            ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima', 'system_key' => 'FIN-RCV-IN'],
+            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman', 'system_key' => 'EXP-INTEREST'],
+            ['type' => 'income', 'label' => 'Pendapatan Bunga', 'system_key' => 'REV-INTEREST'],
         ];
 
         foreach ($parents as $parent) {
-            TransactionCategory::firstOrCreate(
+            $category = TransactionCategory::firstOrCreate(
                 ['type' => $parent['type'], 'label' => $parent['label'], 'parent_id' => null]
             );
+
+            if (isset($parent['system_key']) && $category->system_key !== $parent['system_key']) {
+                $category->forceFill(['system_key' => $parent['system_key']])->save();
+            }
         }
 
         // Child categories: 'parent_label' => children

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class CompanyProfile extends Model
 {
@@ -33,57 +34,45 @@ class CompanyProfile extends Model
         'ppn_rate' => 'decimal:2',
     ];
 
-    // Model CompanyProfile.php
-    public function getLogoBase64Attribute(): string
+    /**
+     * Aset dibaca dari Storage disk 'public' (konvensi upload saat ini);
+     * fallback ke public_path() untuk file lama di public/images/.
+     */
+    private function assetBase64(?string $path): string
     {
-        if (! $this->logo_path) {
+        if (! $path) {
             return '';
         }
 
-        $fullPath = public_path($this->logo_path);
+        if (Storage::disk('public')->exists($path)) {
+            return 'data:image/png;base64,'.base64_encode(Storage::disk('public')->get($path));
+        }
 
-        return file_exists($fullPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($fullPath))
+        $legacyPath = public_path($path);
+
+        return file_exists($legacyPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($legacyPath))
             : '';
+    }
+
+    public function getLogoBase64Attribute(): string
+    {
+        return $this->assetBase64($this->logo_path);
     }
 
     public function getSignatureBase64Attribute(): string
     {
-        if (! $this->signature_path) {
-            return '';
-        }
-
-        $fullPath = public_path($this->signature_path);
-
-        return file_exists($fullPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($fullPath))
-            : '';
+        return $this->assetBase64($this->signature_path);
     }
 
     public function getLetterHeadBase64Attribute(): string
     {
-        if (! $this->letter_head_path) {
-            return '';
-        }
-
-        $fullPath = public_path($this->letter_head_path);
-
-        return file_exists($fullPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($fullPath))
-            : '';
+        return $this->assetBase64($this->letter_head_path);
     }
 
     public function getStampBase64Attribute(): string
     {
-        if (! $this->stamp_path) {
-            return '';
-        }
-
-        $fullPath = public_path($this->stamp_path);
-
-        return file_exists($fullPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($fullPath))
-            : '';
+        return $this->assetBase64($this->stamp_path);
     }
 
     /**

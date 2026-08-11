@@ -3,6 +3,7 @@ import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import * as React from 'react';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationDrawer } from '@/components/notifications/notification-drawer';
+import { appPath, companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -40,13 +41,15 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
     '/feedbacks': [{ label: 'Administrasi' }, { label: 'Feedback' }],
     '/permissions': [{ label: 'Administrasi' }, { label: 'Izin & Peran' }],
     '/admin/users': [{ label: 'Administrasi' }, { label: 'Pengguna' }],
+    '/admin/companies': [{ label: 'Administrasi' }, { label: 'Perusahaan' }],
     '/settings/profile': [{ label: 'Pengaturan' }, { label: 'Profil' }],
     '/settings/password': [{ label: 'Pengaturan' }, { label: 'Kata Sandi' }],
     '/settings/company': [{ label: 'Pengaturan' }, { label: 'Profil Perusahaan' }],
 };
 
 function getBreadcrumbs(url: string): BreadcrumbItem[] {
-    const path = url.split('?')[0];
+    // BREADCRUMB_MAP berpikir dalam path aplikasi — kupas prefix /c/{slug}
+    const path = appPath(url).split('?')[0];
 
     if (BREADCRUMB_MAP[path]) return BREADCRUMB_MAP[path];
 
@@ -139,7 +142,7 @@ export function Header({ onMenuClick, darkMode, onToggleDark }: HeaderProps) {
             {/* Breadcrumb */}
             <nav className="flex items-center gap-1 text-sm flex-1 overflow-x-auto scrollbar-none">
                 <Link
-                    href="/dashboard"
+                    href={companyUrl('/dashboard')}
                     className="shrink-0 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
                 >
                     <svg
@@ -178,7 +181,7 @@ export function Header({ onMenuClick, darkMode, onToggleDark }: HeaderProps) {
                             </span>
                         ) : crumb.href ? (
                             <Link
-                                href={crumb.href}
+                                href={companyUrl(crumb.href)}
                                 className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors text-sm whitespace-nowrap shrink-0"
                             >
                                 {crumb.label}

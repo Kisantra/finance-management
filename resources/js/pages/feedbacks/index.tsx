@@ -53,6 +53,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -245,8 +246,8 @@ function FeedbackFormDialog({
             },
             onError: () => toast.error('Periksa kembali isian form.'),
         };
-        if (mode === 'create') post('/feedbacks', opts);
-        else if (editingFeedback) put(`/feedbacks/${editingFeedback.id}`, opts);
+        if (mode === 'create') post(companyUrl('/feedbacks'), opts);
+        else if (editingFeedback) put(companyUrl(`/feedbacks/${editingFeedback.id}`), opts);
     };
 
     return (
@@ -376,7 +377,7 @@ function RespondDialog({
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!feedback) return;
-        post(`/feedbacks/${feedback.id}/respond`, {
+        post(companyUrl(`/feedbacks/${feedback.id}/respond`), {
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);
@@ -479,7 +480,7 @@ function ShowFeedbackDialog({
 
     const changeStatus = (status: string) => {
         router.post(
-            `/feedbacks/${feedback.id}/status`,
+            companyUrl(`/feedbacks/${feedback.id}/status`),
             { status },
             {
                 preserveScroll: true,
@@ -653,7 +654,7 @@ export default function FeedbacksIndex() {
 
     const apply = (patch: Partial<Filters> & { page?: number }) => {
         router.get(
-            '/feedbacks',
+            companyUrl('/feedbacks'),
             {
                 tab: patch.tab ?? filters.tab,
                 search: patch.search ?? search ?? undefined,
@@ -670,7 +671,7 @@ export default function FeedbacksIndex() {
     };
 
     const openShow = (id: number) => {
-        router.get('/feedbacks', { ...filters, show: id }, {
+        router.get(companyUrl('/feedbacks'), { ...filters, show: id }, {
             preserveScroll: true,
             preserveState: true,
             only: ['showFeedback'],
@@ -680,13 +681,13 @@ export default function FeedbacksIndex() {
 
     const closeShow = () => {
         setShowOpen(false);
-        router.get('/feedbacks', filters, { preserveScroll: true, preserveState: true, only: ['showFeedback'], replace: true });
+        router.get(companyUrl('/feedbacks'), filters, { preserveScroll: true, preserveState: true, only: ['showFeedback'], replace: true });
     };
 
     const confirmDelete = () => {
         if (!deletingFeedback) return;
         setDeleteProcessing(true);
-        router.delete(`/feedbacks/${deletingFeedback.id}`, {
+        router.delete(companyUrl(`/feedbacks/${deletingFeedback.id}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Feedback berhasil dihapus.');
@@ -703,7 +704,7 @@ export default function FeedbacksIndex() {
         setStatusFilter('');
         setTypeFilter('');
         setPriorityFilter('');
-        router.get('/feedbacks', { tab: filters.tab }, { preserveScroll: true, replace: true });
+        router.get(companyUrl('/feedbacks'), { tab: filters.tab }, { preserveScroll: true, replace: true });
     };
 
     const activeFilterCount = [search, statusFilter, typeFilter, priorityFilter].filter(Boolean).length;

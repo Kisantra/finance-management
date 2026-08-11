@@ -20,6 +20,7 @@ import { CurrencyInput } from '@/components/shared/currency-input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -838,7 +839,7 @@ export function InvoiceForm({
                             <Button
                                 type="button"
                                 variant="zinc"
-                                onClick={() => router.get('/invoices')}
+                                onClick={() => router.get(companyUrl('/invoices'))}
                                 className="w-full"
                             >
                                 Batal
@@ -867,7 +868,7 @@ function CreateInvoicePage({ clients, services, nextSeq, companyInitials }: Prop
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => router.get('/invoices')}
+                            onClick={() => router.get(companyUrl('/invoices'))}
                             className="h-9 w-9 rounded-xl flex items-center justify-center border border-secondary-200 dark:border-dark-600 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4 text-dark-600 dark:text-dark-400" />
@@ -888,7 +889,7 @@ function CreateInvoicePage({ clients, services, nextSeq, companyInitials }: Prop
                     services={services}
                     nextSeq={nextSeq}
                     companyInitials={companyInitials}
-                    submitUrl="/invoices"
+                    submitUrl={companyUrl('/invoices')}
                     method="post"
                     submitLabel="Simpan sebagai Draft"
                 />

@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { companyUrl } from '@/lib/company';
 
 export interface QuickAddCategoryResult {
     id: number;
@@ -63,7 +64,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
             const body: Record<string, unknown> = { label: label.trim(), type };
             if (mode === 'child') body.parent_id = parentId;
 
-            const res = await fetch('/transaction-categories', {
+            const res = await fetch(companyUrl('/transaction-categories'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

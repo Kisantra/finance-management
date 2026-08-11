@@ -37,6 +37,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -192,9 +193,9 @@ function UserFormDialog({
             },
         };
         if (mode === 'create') {
-            post('/admin/users', opts);
+            post(companyUrl('/admin/users'), opts);
         } else if (editingUser) {
-            put(`/admin/users/${editingUser.id}`, opts);
+            put(companyUrl(`/admin/users/${editingUser.id}`), opts);
         }
     };
 
@@ -446,7 +447,7 @@ export default function UsersIndex() {
 
     const apply = (patch: Partial<Filters & { page: number }>) => {
         router.get(
-            '/admin/users',
+            companyUrl('/admin/users'),
             {
                 search: patch.search ?? search ?? undefined,
                 role: patch.role ?? roleFilter ?? undefined,
@@ -469,7 +470,7 @@ export default function UsersIndex() {
         setSearch('');
         setRoleFilter('');
         setStatusFilter('');
-        router.get('/admin/users', {}, { preserveScroll: true, replace: true });
+        router.get(companyUrl('/admin/users'), {}, { preserveScroll: true, replace: true });
     };
 
     const activeFilterCount = [search, roleFilter, statusFilter].filter(Boolean).length;
@@ -489,7 +490,7 @@ export default function UsersIndex() {
     const confirmDelete = () => {
         if (!deletingUser) return;
         setDeleteProcessing(true);
-        router.delete(`/admin/users/${deletingUser.id}`, {
+        router.delete(companyUrl(`/admin/users/${deletingUser.id}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Pengguna berhasil dihapus.');
@@ -504,7 +505,7 @@ export default function UsersIndex() {
         if (selected.length === 0) return;
         setDeleteProcessing(true);
         router.post(
-            '/admin/users/bulk-delete',
+            companyUrl('/admin/users/bulk-delete'),
             { ids: selected },
             {
                 preserveScroll: true,

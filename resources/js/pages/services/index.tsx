@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { formatCurrency, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -167,14 +168,14 @@ export default function ServicesIndex() {
     React.useEffect(() => {
         if (!isMounted.current) { isMounted.current = true; return; }
         const t = setTimeout(() => {
-            router.get('/services', { search: search || undefined, type: typeFilter || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+            router.get(companyUrl('/services'), { search: search || undefined, type: typeFilter || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
         }, 300);
         return () => clearTimeout(t);
     }, [search]);
 
     function handleTypeFilter(val: string) {
         setTypeFilter(val);
-        router.get('/services', { search: search || undefined, type: val || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+        router.get(companyUrl('/services'), { search: search || undefined, type: val || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
     }
 
     /* ── Create form ── */
@@ -182,7 +183,7 @@ export default function ServicesIndex() {
 
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
-        createForm.post('/services', {
+        createForm.post(companyUrl('/services'), {
             onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Layanan berhasil ditambahkan.'); },
             onError: (errs) => toastErrors(errs, 'CreateService'),
         });
@@ -199,7 +200,7 @@ export default function ServicesIndex() {
     function submitEdit(e: React.FormEvent) {
         e.preventDefault();
         if (!editTarget) return;
-        editForm.put(`/services/${editTarget.id}`, {
+        editForm.put(companyUrl(`/services/${editTarget.id}`), {
             onSuccess: () => { setEditTarget(null); toast.success('Layanan berhasil diperbarui.'); },
             onError: (errs) => toastErrors(errs, 'UpdateService'),
         });
@@ -210,7 +211,7 @@ export default function ServicesIndex() {
 
     function confirmDelete() {
         if (!deleteTarget) return;
-        deleteForm.delete(`/services/${deleteTarget.id}`, {
+        deleteForm.delete(companyUrl(`/services/${deleteTarget.id}`), {
             onSuccess: () => { setDeleteTarget(null); toast.success('Layanan berhasil dihapus.'); },
             onError: (errs) => toastErrors(errs, 'DeleteService'),
         });
@@ -327,11 +328,11 @@ export default function ServicesIndex() {
                             </span>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm" disabled={services.current_page <= 1}
-                                    onClick={() => router.get('/services', { ...filters, page: services.current_page - 1 }, { preserveState: true })}>
+                                    onClick={() => router.get(companyUrl('/services'), { ...filters, page: services.current_page - 1 }, { preserveState: true })}>
                                     Sebelumnya
                                 </Button>
                                 <Button variant="outline" size="sm" disabled={services.current_page >= services.last_page}
-                                    onClick={() => router.get('/services', { ...filters, page: services.current_page + 1 }, { preserveState: true })}>
+                                    onClick={() => router.get(companyUrl('/services'), { ...filters, page: services.current_page + 1 }, { preserveState: true })}>
                                     Berikutnya
                                 </Button>
                             </div>

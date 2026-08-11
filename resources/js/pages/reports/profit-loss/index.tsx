@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -272,7 +273,7 @@ function UncatRow({ row, type, onSelect, processing }: UncatRowProps) {
                     <span className="tabular-nums text-sm text-dark-700 dark:text-dark-300">{formatCurrency(row.amount)}</span>
                 </div>
                 <p className="text-[11px] text-dark-500 dark:text-dark-400">
-                    Transaksi tanpa kategori — beri kategori lewat halaman <a href="/bank-accounts" className="underline">Transaksi</a>.
+                    Transaksi tanpa kategori — beri kategori lewat halaman <a href={companyUrl('/bank-accounts')} className="underline">Transaksi</a>.
                 </p>
             </div>
         );
@@ -322,7 +323,7 @@ function UncategorizedPanel({
 
     function handleSelect(categoryId: number, plGroup: string) {
         setProcessingId(categoryId);
-        router.patch(`/transaction-categories/${categoryId}/pl-group`, { pl_group: plGroup }, {
+        router.patch(companyUrl(`/transaction-categories/${categoryId}/pl-group`), { pl_group: plGroup }, {
             preserveScroll: true,
             preserveState: true,
             onFinish: () => setProcessingId(null),
@@ -406,7 +407,7 @@ export default function ProfitLossIndex() {
     const activePreset = detectPreset(filters.start_date, filters.end_date);
 
     function navigate(s: Date, e: Date) {
-        router.get('/reports/profit-loss', {
+        router.get(companyUrl('/reports/profit-loss'), {
             start_date: formatDateFns(s, 'yyyy-MM-dd'),
             end_date: formatDateFns(e, 'yyyy-MM-dd'),
         }, { preserveState: false });
@@ -419,7 +420,7 @@ export default function ProfitLossIndex() {
         navigate(r.start, r.end);
     }
 
-    const pdfUrl = `/reports/profit-loss/pdf?start_date=${filters.start_date}&end_date=${filters.end_date}`;
+    const pdfUrl = companyUrl(`/reports/profit-loss/pdf?start_date=${filters.start_date}&end_date=${filters.end_date}`);
 
     const presets: { key: PresetKey; label: string }[] = [
         { key: 'this_month', label: 'Bulan ini' },

@@ -22,7 +22,9 @@ class ViewServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('*', function ($view) {
-            $companyProfile = once(fn() => CompanyProfile::first());
+            // company_profiles adalah tabel TENANT — hanya query saat konteks
+            // perusahaan aktif; view central (login, pemilih perusahaan) dapat null.
+            $companyProfile = once(fn () => tenant() ? CompanyProfile::first() : null);
             $view->with('companyProfile', $companyProfile);
         });
     }

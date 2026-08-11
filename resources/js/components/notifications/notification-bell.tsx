@@ -17,6 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { NotificationItem, SharedProps } from '@/types';
 
@@ -68,7 +69,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
     const openNotification = (item: NotificationItem) => {
         setOpen(false);
         router.post(
-            `/notifications/${item.id}/read`,
+            companyUrl(`/notifications/${item.id}/read`),
             {},
             {
                 preserveScroll: true,
@@ -77,7 +78,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
                 onSuccess: () => {
                     const url = (item.data as { url?: string } | null)?.url;
                     if (url) {
-                        router.visit(url);
+                        router.visit(companyUrl(url));
                     }
                 },
             },
@@ -87,7 +88,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
     const markAllRead = (e: React.MouseEvent) => {
         e.stopPropagation();
         router.post(
-            '/notifications/mark-all-read',
+            companyUrl('/notifications/mark-all-read'),
             {},
             {
                 preserveScroll: true,

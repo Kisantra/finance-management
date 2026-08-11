@@ -107,10 +107,10 @@ $debtorType = $validated['type'] === 'employee_loan' ? User::class : Client::cla
 1. Reviewer (punya `approve receivables`) membuka `ApproveReceivableDialog` pada baris `pending_approval`: pilih aksi approve/reject, rekening sumber pencairan (wajib jika approve), catatan.
 2. `POST /receivables/{receivable}/approve` → middleware `can:approve receivables` + double-check `abort_if(! auth()->user()->can('approve receivables'), 403)` di controller → guard status `pending_approval`.
 3. Validasi `ApproveReceivableRequest`: `action` in:approve,reject; `bank_account_id` `required_if:action,approve`; `notes` max:500.
-4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori by code `FIN-RCV-OUT`, lalu status → `active` + `approved_by/at` + `review_notes`:
+4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori sistem `FIN-RCV-OUT` via `TransactionCategory::findSystem()`, lalu status → `active` + `approved_by/at` + `review_notes`:
 ```php
 // app/Http/Controllers/ReceivableController.php:286-296
-$category = TransactionCategory::where('code', 'FIN-RCV-OUT')->first();
+$category = TransactionCategory::findSystem('FIN-RCV-OUT');
 
 BankTransaction::create([
     'bank_account_id' => $validated['bank_account_id'],
@@ -133,8 +133,8 @@ BankTransaction::create([
 4. Dalam `DB::transaction`:
    - `ReceivablePayment::create` (`total_paid = pokok + bunga`).
    - **Hanya jika** `payment_method === 'bank_transfer' && bank_account_id` terisi:
-     - pokok > 0 → `BankTransaction` **credit** kategori code `FIN-RCV-IN`;
-     - bunga > 0 → `BankTransaction` **credit** kategori code `REV-INTEREST` (pendapatan bunga → baris "Pendapatan Lain" di P&L).
+     - pokok > 0 → `BankTransaction` **credit** kategori sistem `FIN-RCV-IN` (findSystem);
+     - bunga > 0 → `BankTransaction` **credit** kategori sistem `REV-INTEREST` (findSystem) (pendapatan bunga → baris "Pendapatan Lain" di P&L).
    - Jika akumulasi pokok terbayar ≥ pokok → status `paid_off`.
 5. Metode `cash` / `payroll_deduction` hanya tercatat di `receivable_payments` — **tidak menyentuh saldo rekening sama sekali** (dan karenanya tidak pernah muncul di P&L yang berbasis `bank_transactions`).
 
@@ -154,7 +154,7 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 
 ## Invarian & Jebakan
 
-- **[BUG AKTIF — sama dengan modul Loans]** Lookup `TransactionCategory::where('code', 'FIN-RCV-OUT' | 'FIN-RCV-IN' | 'REV-INTEREST')` menunjuk kolom `code` yang **sudah dihapus** oleh migration `2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` (diverifikasi tidak ada di skema MySQL live). Di produksi MySQL query ini melempar `Unknown column 'code'` → **approve (pencairan) dan pay via bank_transfer gagal 500** dan transaksi rollback. Tes lolos hanya karena suite memakai SQLite in-memory (`phpunit.xml`), yang mem-fallback `"code"` menjadi string literal sehingga hasilnya diam-diam `null`.
+- **[DIPERBAIKI 2026-08-11 — sama dengan modul Loans]** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`). Coverage baru `tests/Feature/ReceivableControllerTest.php` menguji approve/pay (termasuk assertion `category_id` terisi) dan berjalan di MySQL. Catatan perbaikan ikutan: approve/pay kini null-safe terhadap key request opsional (`notes`, `reference_number`, `bank_account_id`) yang sebelumnya diakses langsung.
 - Workflow state machine ketat, dijaga `abort_if` per endpoint: edit hanya `draft|rejected`; submit hanya `draft`; approve/reject hanya `pending_approval`; pay hanya `active`; delete hanya `draft` tanpa payment. `paid_off` dan `rejected` final (rejected bisa "hidup lagi" hanya lewat edit → reset ke draft).
 - **Pencairan memakai tanggal hari ini (`now()`), bukan `loan_date`** — jika approval terlambat, tanggal mutasi bank ≠ tanggal pinjam di record piutang.
 - `disbursement_account` hanyalah string informasi dari pemohon; rekening sumber dana sesungguhnya dipilih reviewer saat approve (`bank_account_id`). Keduanya bisa tidak konsisten.

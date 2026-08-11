@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -225,20 +226,20 @@ export default function TransactionCategoriesIndex() {
     React.useEffect(() => {
         if (!isMounted.current) { isMounted.current = true; return; }
         const t = setTimeout(() => {
-            router.get('/transaction-categories', { search: search || undefined, type: typeFilter || undefined, pl_status: plStatus || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+            router.get(companyUrl('/transaction-categories'), { search: search || undefined, type: typeFilter || undefined, pl_status: plStatus || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
         }, 300);
         return () => clearTimeout(t);
     }, [search]);
 
     function handleTypeFilter(val: string) {
         setTypeFilter(val);
-        router.get('/transaction-categories', { search: search || undefined, type: val || undefined, pl_status: plStatus || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+        router.get(companyUrl('/transaction-categories'), { search: search || undefined, type: val || undefined, pl_status: plStatus || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
     }
 
     function toggleUnclassified() {
         const next = plStatus === 'unclassified' ? '' : 'unclassified';
         setPlStatus(next);
-        router.get('/transaction-categories', { search: search || undefined, type: typeFilter || undefined, pl_status: next || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+        router.get(companyUrl('/transaction-categories'), { search: search || undefined, type: typeFilter || undefined, pl_status: next || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
     }
 
     /* ── Create form ── */
@@ -246,7 +247,7 @@ export default function TransactionCategoriesIndex() {
 
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
-        createForm.post('/transaction-categories', {
+        createForm.post(companyUrl('/transaction-categories'), {
             onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Kategori berhasil ditambahkan.'); },
             onError: (errs) => toastErrors(errs, 'CreateCategory'),
         });
@@ -263,7 +264,7 @@ export default function TransactionCategoriesIndex() {
     function submitEdit(e: React.FormEvent) {
         e.preventDefault();
         if (!editTarget) return;
-        editForm.put(`/transaction-categories/${editTarget.id}`, {
+        editForm.put(companyUrl(`/transaction-categories/${editTarget.id}`), {
             onSuccess: () => { setEditTarget(null); toast.success('Kategori berhasil diperbarui.'); },
             onError: (errs) => toastErrors(errs, 'UpdateCategory'),
         });
@@ -292,7 +293,7 @@ export default function TransactionCategoriesIndex() {
     function confirmDelete() {
         if (!deleteTarget) return;
         setDeleteProcessing(true);
-        router.delete(`/transaction-categories/${deleteTarget.id}`, {
+        router.delete(companyUrl(`/transaction-categories/${deleteTarget.id}`), {
             data: reassignToId ? { reassign_to_id: reassignToId } : {},
             preserveScroll: true,
             onSuccess: () => { setDeleteTarget(null); setReassignToId(null); toast.success('Kategori berhasil dihapus.'); },
@@ -472,11 +473,11 @@ export default function TransactionCategoriesIndex() {
                             </span>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm" disabled={categories.current_page <= 1}
-                                    onClick={() => router.get('/transaction-categories', { ...filters, page: categories.current_page - 1 }, { preserveState: true })}>
+                                    onClick={() => router.get(companyUrl('/transaction-categories'), { ...filters, page: categories.current_page - 1 }, { preserveState: true })}>
                                     Sebelumnya
                                 </Button>
                                 <Button variant="outline" size="sm" disabled={categories.current_page >= categories.last_page}
-                                    onClick={() => router.get('/transaction-categories', { ...filters, page: categories.current_page + 1 }, { preserveState: true })}>
+                                    onClick={() => router.get(companyUrl('/transaction-categories'), { ...filters, page: categories.current_page + 1 }, { preserveState: true })}>
                                     Berikutnya
                                 </Button>
                             </div>

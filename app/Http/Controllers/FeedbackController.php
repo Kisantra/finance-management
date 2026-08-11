@@ -95,6 +95,7 @@ class FeedbackController extends Controller
 
             $feedback = Feedback::create([
                 'user_id' => auth()->id(),
+                'company_id' => tenant()?->getTenantKey(),
                 'title' => $validated['title'],
                 'description' => $validated['description'],
                 'type' => $validated['type'],

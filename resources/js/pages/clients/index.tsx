@@ -31,6 +31,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -309,7 +310,7 @@ export default function ClientsIndex() {
     }, [search]);
 
     function applyFilters(overrides: Partial<Filters> = {}) {
-        router.get('/clients', {
+        router.get(companyUrl('/clients'), {
             search: (overrides.search ?? search) || undefined,
             type: (overrides.type ?? typeFilter) || undefined,
             status: (overrides.status ?? statusFilter) || undefined,
@@ -319,12 +320,12 @@ export default function ClientsIndex() {
 
     function handleTypeFilter(val: string) {
         setTypeFilter(val);
-        router.get('/clients', { search: search || undefined, type: val || undefined, status: statusFilter || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+        router.get(companyUrl('/clients'), { search: search || undefined, type: val || undefined, status: statusFilter || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
     }
 
     function handleStatusFilter(val: string) {
         setStatusFilter(val);
-        router.get('/clients', { search: search || undefined, type: typeFilter || undefined, status: val || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
+        router.get(companyUrl('/clients'), { search: search || undefined, type: typeFilter || undefined, status: val || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
     }
 
     /* ── Create form ── */
@@ -332,7 +333,7 @@ export default function ClientsIndex() {
 
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
-        createForm.post('/clients', {
+        createForm.post(companyUrl('/clients'), {
             onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Klien berhasil ditambahkan.'); },
             onError: (errs) => toastErrors(errs, 'CreateClient'),
         });
@@ -361,7 +362,7 @@ export default function ClientsIndex() {
     function submitEdit(e: React.FormEvent) {
         e.preventDefault();
         if (!editTarget) return;
-        editForm.put(`/clients/${editTarget.id}`, {
+        editForm.put(companyUrl(`/clients/${editTarget.id}`), {
             onSuccess: () => { setEditTarget(null); toast.success('Klien berhasil diperbarui.'); },
             onError: (errs) => toastErrors(errs, 'UpdateClient'),
         });
@@ -372,7 +373,7 @@ export default function ClientsIndex() {
 
     function confirmDelete() {
         if (!deleteTarget) return;
-        deleteForm.delete(`/clients/${deleteTarget.id}`, {
+        deleteForm.delete(companyUrl(`/clients/${deleteTarget.id}`), {
             onSuccess: () => { setDeleteTarget(null); toast.success('Klien berhasil dihapus.'); },
             onError: (errs) => toastErrors(errs, 'DeleteClient'),
         });
@@ -541,7 +542,7 @@ export default function ClientsIndex() {
                                 from: clients.from,
                                 to: clients.to,
                             }}
-                            onPageChange={(page) => router.get('/clients', { ...filters, page }, { preserveState: true })}
+                            onPageChange={(page) => router.get(companyUrl('/clients'), { ...filters, page }, { preserveState: true })}
                         />
                     </div>
                 </div>

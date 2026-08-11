@@ -28,6 +28,20 @@ class TransactionCategory extends Model
     ];
 
     /**
+     * Lookup kategori sistem berdasarkan system_key (mis. FIN-LOAN-IN).
+     * system_key sengaja di luar $fillable agar tidak bisa diubah lewat form.
+     */
+    public static function findSystem(string $key): ?self
+    {
+        return static::where('system_key', $key)->first();
+    }
+
+    public function isSystem(): bool
+    {
+        return $this->system_key !== null;
+    }
+
+    /**
      * Parent category relationship (using ID instead of code)
      */
     public function parent(): BelongsTo

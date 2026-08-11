@@ -108,6 +108,10 @@ class TransactionCategoryController extends Controller
 
     public function update(UpdateTransactionCategoryRequest $request, TransactionCategory $transactionCategory): RedirectResponse
     {
+        if ($transactionCategory->isSystem()) {
+            return redirect()->back()->withErrors(['update' => 'Kategori sistem tidak dapat diubah karena dipakai otomatis oleh modul Pinjaman/Piutang.']);
+        }
+
         $transactionCategory->update($request->validated());
 
         return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
@@ -130,6 +134,10 @@ class TransactionCategoryController extends Controller
 
     public function destroy(Request $request, TransactionCategory $transactionCategory): RedirectResponse
     {
+        if ($transactionCategory->isSystem()) {
+            return redirect()->back()->withErrors(['delete' => 'Kategori sistem tidak dapat dihapus karena dipakai otomatis oleh modul Pinjaman/Piutang.']);
+        }
+
         if ($transactionCategory->children()->exists()) {
             return redirect()->back()->withErrors(['delete' => 'Kategori ini memiliki sub-kategori. Hapus sub-kategori terlebih dahulu.']);
         }

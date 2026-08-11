@@ -21,10 +21,10 @@ class BankAccountFactory extends Factory
 
     public function definition(): array
     {
-        $initialBalance = $this->faker->randomFloat(2, 1000000, 100000000);
+        $initialBalance = $this->faker->numberBetween(1000000, 100000000);
 
         return [
-            'account_name' => $this->faker->company . ' - Operational',
+            'account_name' => $this->faker->company.' - Operational',
             'account_number' => $this->faker->numerify('##########'),
             'bank_name' => $this->faker->randomElement($this->banks),
             'branch' => $this->faker->city,

@@ -115,7 +115,7 @@ class PdfTemplateControllerTest extends TestCase
 
         $this->actingAs($this->admin)
             ->delete("/settings/pdf-templates/{$template->id}")
-            ->assertRedirect('/settings/pdf-templates');
+            ->assertRedirect('/c/test-company/settings/pdf-templates');
 
         $this->assertDatabaseMissing('pdf_templates', ['id' => $template->id]);
     }
@@ -411,7 +411,7 @@ class PdfTemplateControllerTest extends TestCase
     {
         $this->actingAs($this->admin)
             ->get('/template-builder-test')
-            ->assertRedirect('/settings/pdf-templates');
+            ->assertRedirect('/c/test-company/settings/pdf-templates');
     }
 
     public function test_old_sandbox_save_still_works(): void

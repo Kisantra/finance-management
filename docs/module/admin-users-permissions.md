@@ -9,9 +9,45 @@
 | `users` | `name`, `email`, `password`, `phone_number`, `status` enum(`active`,`inactive`), `locale`, `email_verified_at` | Akun pengguna. `status` dicek via `User::isActive()`. |
 | `roles` | `name`, `icon`, `guard_name` | Tabel Spatie + kolom custom `icon` (nama icon lucide, mis. `shield-check`). |
 | `permissions` | `name`, `guard_name` | Format nama: `"{aksi} {modul}"`, mis. `view invoices`, `manage users`. |
-| `model_has_roles` | `role_id`, `model_type`, `model_id` | Pivot user ↔ role (Spatie). |
-| `model_has_permissions` | `permission_id`, `model_type`, `model_id` | Pivot permission langsung ke user (tidak dipakai aplikasi — semua lewat role). |
-| `role_has_permissions` | `permission_id`, `role_id` | Pivot role ↔ permission. |
+| `model_has_roles` | `company_id`, `role_id`, `model_type`, `model_id` | Pivot user ↔ role (Spatie), **scoped per perusahaan** — PK komposit dimulai `company_id`. |
+| `model_has_permissions` | `company_id`, `permission_id`, `model_type`, `model_id` | Pivot permission langsung ke user (tidak dipakai aplikasi — semua lewat role). |
+| `role_has_permissions` | `permission_id`, `role_id` | Pivot role ↔ permission (tidak ter-scope team). |
+
+## Multi-Tenancy: Spatie Teams (sejak 2026-08-11)
+
+Fitur **teams** Spatie AKTIF dengan `team_foreign_key = company_id` (**string** — mengikuti `companies.id` yang berupa slug, mis. `kisantra`). Konsekuensi yang wajib dipahami:
+
+- **Role bersifat GLOBAL** (`roles.company_id = NULL`) — definisi role & permission sama untuk semua perusahaan. **Assignment role per (user, perusahaan)** — Budi bisa `finance manager` di PT A sekaligus `staff` di PT B.
+- **Konteks team WAJIB di-set sebelum permission check / assignRole.** Di HTTP ini otomatis: middleware `app/Http/Middleware/SetPermissionsTeam.php` (terdaftar sebelum `HandleInertiaRequests` di `bootstrap/app.php`) membaca `tenant()` (routing `/c/{company}`, Tahap 2) dengan fallback keanggotaan pertama user (`company_user`). Di seeder/job/command: panggil `setPermissionsTeamId()` manual — tanpa konteks, `assignRole` GAGAL (kolom `company_id` NOT NULL di pivot).
+- **Membuat role global** di kode: `setPermissionsTeamId(null)` dulu (pola di `MasterPermissionSeeder`).
+- **Keanggotaan perusahaan** hidup di pivot `company_user` (user_id, company_id) — TANPA kolom role; role selalu dari Spatie teams. `UserController@store` otomatis meng-attach user baru ke perusahaan aktif admin pembuatnya.
+- Di test, `Tests\TestCase::setUp()` men-set team default `test-company`; test isolasi lihat `tests/Feature/CompanyPermissionIsolationTest.php`.
+- Impor user deployment lama: `php artisan central:import-users {connection} --organization= --company=` (`app/Services/CentralUserImportService.php`, idempoten).
+
+### Provisioning Perusahaan (`/admin/companies`, sejak Tahap 4)
+
+Halaman **Perusahaan** (permission baru `manage companies`, admin only — migration
+`2026_08_11_120000_add_manage_companies_permission_to_roles.php`) untuk membuat perusahaan
+baru di organization admin yang login:
+
+1. Form: nama, **kode URL/slug (permanen — menjadi `/c/{slug}`, nama DB `tenant_{slug}`,
+   path storage)**, **singkatan dokumen (permanen, manual — dipakai nomor invoice)**.
+   Validasi slug: regex `^[a-z0-9]+(-[a-z0-9]+)*$`, unik. Kuota organization dicek
+   (`Organization::hasReachedCompanyQuota()`).
+2. `Company::create()` → pipeline SINKRON: CreateDatabase → MigrateDatabase →
+   SeedDatabase (`TenantDatabaseSeeder`) → **`App\Jobs\MarkCompanyActive`** (status → `active`).
+   Gagal di tengah → status **`failed`** + tombol **Coba Ulang** (drop DB setengah jadi →
+   hapus baris tanpa event → create ulang). Pembuat otomatis jadi anggota + role `admin`
+   di perusahaan baru (`grantCreatorAccess`).
+3. File: `app/Http/Controllers/Admin/CompanyController.php`,
+   `app/Http/Requests/Admin/StoreCompanyRequest.php`,
+   `resources/js/pages/admin/companies/index.tsx`;
+   test `tests/Feature/Admin/CompanyControllerTest.php`.
+
+**⚠ Invarian validasi lintas-database:** rule `unique:`/`exists:` yang menunjuk tabel
+CENTRAL (users, companies) WAJIB diprefix koneksi central — `unique:mysql.users` — karena
+di dalam konteks tenant, koneksi default validator menunjuk DB perusahaan. Sudah diterapkan
+di StoreUserRequest/UpdateUserRequest/BulkDestroyUserRequest/StoreCompanyRequest.
 
 ## Struktur Permission — Sumber Kebenaran: `MasterPermissionSeeder`
 

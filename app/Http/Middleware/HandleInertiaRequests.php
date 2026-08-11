@@ -44,9 +44,26 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'avatar' => $user->avatar ?? null,
                 ] : null,
-                'permissions' => $user ? $user->getAllPermissions()->pluck('name')->toArray() : [],
-                'roles' => $user ? $user->getRoleNames()->toArray() : [],
+                // Closure (lazy): dievaluasi saat render — SETELAH middleware
+                // tenancy + SetPermissionsTeam men-set konteks perusahaan aktif
+                'permissions' => fn () => $user ? $user->getAllPermissions()->pluck('name')->toArray() : [],
+                'roles' => fn () => $user ? $user->getRoleNames()->toArray() : [],
             ],
+            'company' => fn () => tenant() ? [
+                'slug' => tenant()->getTenantKey(),
+                'name' => tenant('name'),
+                'abbreviation' => tenant('abbreviation'),
+            ] : null,
+            'companies' => fn () => $user
+                ? $user->companies()
+                    ->where('status', 'active')
+                    ->get(['companies.id', 'name', 'abbreviation'])
+                    ->map(fn ($company) => [
+                        'slug' => $company->getTenantKey(),
+                        'name' => $company->name,
+                        'abbreviation' => $company->abbreviation,
+                    ])->values()->toArray()
+                : [],
             'locale' => app()->getLocale(),
             'flash' => [
                 'success' => session('success'),
@@ -55,7 +72,8 @@ class HandleInertiaRequests extends Middleware
                 'info' => session('info'),
             ],
             'notifications' => fn () => $user ? $this->getNotifications($user->id) : null,
-            'actionCounts' => fn () => $user ? $this->getActionCounts($user) : null,
+            // Query ke tabel TENANT — hanya dalam konteks perusahaan aktif
+            'actionCounts' => fn () => $user && tenant() ? $this->getActionCounts($user) : null,
         ];
     }
 
@@ -92,7 +110,13 @@ class HandleInertiaRequests extends Middleware
 
     private function getNotifications(int $userId): array
     {
-        $recent = AppNotification::forUser($userId)
+        // Notifikasi tersimpan central; tampilkan milik perusahaan aktif + yang
+        // tanpa konteks perusahaan (company_id NULL)
+        $companyScope = fn ($query) => $query->when(tenant(), fn ($q) => $q->where(
+            fn ($sub) => $sub->whereNull('company_id')->orWhere('company_id', tenant()->getTenantKey())
+        ));
+
+        $recent = $companyScope(AppNotification::forUser($userId))
             ->recent()
             ->orderByDesc('created_at')
             ->limit(10)
@@ -111,7 +135,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'recent' => $recent->values()->toArray(),
-            'unread_count' => AppNotification::forUser($userId)->unread()->count(),
+            'unread_count' => $companyScope(AppNotification::forUser($userId))->unread()->count(),
         ];
     }
 }

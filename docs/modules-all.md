@@ -94,11 +94,19 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.
   Komponen wajib pakai katalog di CLAUDE.md (Combobox, DatePicker, CurrencyInput, FileUpload, dll.).
 - **Workflow status**: state machine hidup di model (`canSubmit()`, `approve()`, dst.), bukan controller.
-- **⚠ Kategori sistem Loans/Receivables**: `LoanController`/`ReceivableController` masih mencari
-  kategori via `where('code', 'FIN-LOAN-IN')` dst., padahal kolom `code` **sudah di-drop** oleh
-  migration `2026_02_05_..._refactor_transaction_categories...` — lookup ini bug laten
-  (`QueryException`) yang harus diperbaiki sebelum fitur transaksi otomatis loan/receivable dipakai.
-  Detail di [loans.md](#loans) / [receivables.md](#receivables).
+- **Kategori sistem Loans/Receivables** (bug `code` SUDAH DIPERBAIKI 2026-08-11): kategori sistem
+  kini diidentifikasi lewat kolom `system_key` (`FIN-LOAN-IN` dst.) via
+  `TransactionCategory::findSystem()`; kategori ber-`system_key` tidak bisa diedit/dihapus dari UI.
+  Detail di [transaction-categories.md](#transaction-categories), [loans.md](#loans),
+  [receivables.md](#receivables).
+- **Multi-tenancy (Tahap 1–2 selesai)**: satu database per perusahaan (stancl/tenancy v3).
+  Semua route aplikasi ber-prefix **`/c/{company}`** (slug); migration bisnis di
+  `database/migrations/tenant/` (jalankan `tenants:migrate`, bukan `migrate`); Spatie teams
+  (`company_id` string) dengan role global + assignment per perusahaan; model central
+  (User/Role/Permission/Organization/AppNotification/Feedback) memakai trait `CentralConnection`;
+  session/cache/queue di koneksi central. Frontend: literal path WAJIB lewat `companyUrl()`
+  (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
+  di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.
 
 ---
@@ -1303,11 +1311,11 @@ Modul Loans & Receivables mencatat kas otomatis dengan mencari kategori sistem t
 
 ```php
 // app/Http/Controllers/LoanController.php
-$category = TransactionCategory::where('code', 'FIN-LOAN-IN')->first();
+$category = TransactionCategory::findSystem('FIN-LOAN-IN');
 BankTransaction::create([..., 'category_id' => $category?->id]);
 ```
 
-**PERHATIAN (lihat Jebakan):** lookup ini masih memakai kolom `code`, padahal kolom tersebut sudah di-drop oleh migration 2026-02-05.
+Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, ditambahkan migration `2026_08_11_..._add_system_key_to_transaction_categories.php` sebagai pengganti kolom `code` yang di-drop 2026-02-05). `system_key` sengaja di luar `$fillable`; hanya seeder/migration yang mengisinya. Helper: `TransactionCategory::findSystem($key)` dan `$category->isSystem()`.
 
 ## Keterkaitan Antar Modul
 
@@ -1326,7 +1334,7 @@ BankTransaction::create([..., 'category_id' => $category?->id]);
 - **Reassign harus setipe** (`income` → `income`, dst.) dan dieksekusi atomik dalam `DB::transaction`; ketiga relasi (`bank_transactions`, `fund_request_items`, `reimbursements`) selalu dipindah bersama — jika menambah tabel baru ber-`category_id`, wajib menambahkannya ke `destroy()` dan `withCount` di `index()`.
 - **Mengubah `type` kategori yang sudah dipakai tidak diguard** — transaksinya akan berpindah/lenyap dari halaman cash-flow terkait (halaman memfilter berdasar tipe kategori). Lakukan dengan sadar.
 - **`pl_group` NULL = belum masuk P&L.** Kategori income/expense tanpa `pl_group` tidak terklasifikasi di Laba Rugi; gunakan filter `unclassified` untuk audit.
-- **JEBAKAN AKTIF — kolom `code` sudah tidak ada.** Skema saat ini (pasca migration `2026_02_05_..._remove_code_add_parent_id`) tidak lagi punya kolom `code`, tetapi `LoanController` dan `ReceivableController` masih menjalankan `TransactionCategory::where('code', 'FIN-LOAN-IN')` dll. Query ke kolom yang tidak ada akan melempar `QueryException` saat fitur loan/receivable membuat transaksi otomatis. Perbaikan yang konsisten: identifikasi kategori sistem dengan mekanisme lain (mis. label/seeder id) atau kembalikan kolom `code` — jangan menulis kode baru yang bergantung pada `code`.
+- **[DIPERBAIKI 2026-08-11] Bug kolom `code`.** Lookup lama `where('code', ...)` (kolom sudah di-drop 2026-02-05) diganti kolom `system_key` + `TransactionCategory::findSystem()`. **Kategori ber-`system_key` diproteksi controller**: `update()` dan `destroy()` menolaknya — jangan melonggarkan proteksi ini, modul Loans/Receivables bergantung pada identitas kategori tersebut. Kode baru yang butuh kategori sistem WAJIB memakai `findSystem()`, bukan label.
 - `store()` punya dua mode respons (redirect vs JSON 201 `wantsJson()`); jaga kompatibilitas keduanya saat mengubah method ini.
 
 ## File Kunci
@@ -1808,13 +1816,13 @@ Nomor berikutnya diturunkan dari `id` terakhir + 1 (bukan dari nomor terbesar), 
 1. User klik "Tambah" di `resources/js/pages/loans/index.tsx` → dialog form (useForm Inertia, `forceFormData: true` karena ada upload file).
 2. `POST /loans` → middleware `can:create loans` → validasi `StoreLoanRequest` (`app/Http/Requests/StoreLoanRequest.php`): `loan_number` required+unique, `principal_amount` integer min:1, `interest_type` in:fixed,percentage, `maturity_date` after:start_date, `contract_attachment` mimes pdf/jpg/jpeg/png max 5 MB, dan **`bank_account_id` required** (rekening penampung dana).
 3. File kontrak (jika ada) disimpan ke `storage/app/public/loans/`.
-4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori dicari by code sistem `FIN-LOAN-IN`.
+4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori sistem `FIN-LOAN-IN` via `TransactionCategory::findSystem()`.
 5. Respons `back()->with('success')` → toast + tabel ter-refresh; saldo rekening naik otomatis (saldo bank = computed, bukan stored).
 
 **Penjelasan kode:**
 ```php
 // app/Http/Controllers/LoanController.php:133-143
-$category = TransactionCategory::where('code', 'FIN-LOAN-IN')->first();
+$category = TransactionCategory::findSystem('FIN-LOAN-IN');
 
 BankTransaction::create([
     'bank_account_id' => $validated['bank_account_id'],
@@ -1826,7 +1834,7 @@ BankTransaction::create([
     'category_id' => $category?->id,
 ]);
 ```
-Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id`. **PERHATIAN: kolom `code` sudah tidak ada di tabel `transaction_categories`** — lihat bagian Invarian & Jebakan.
+Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id` dan kolom `system_key` (lihat transaction-categories.md).
 
 ### Edit Pinjaman (Update)
 
@@ -1855,8 +1863,8 @@ Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kat
 4. Guard tambahan controller: minimal salah satu dari pokok/bunga harus > 0, kalau tidak `back()->withErrors(...)`.
 5. Dalam `DB::transaction`:
    - `LoanPayment::create` dengan `total_paid = principal + interest`.
-   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori code `FIN-LOAN-OUT` (pembayaran pokok).
-   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori code `EXP-INTEREST` (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
+   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori sistem `FIN-LOAN-OUT` (findSystem) (pembayaran pokok).
+   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori sistem `EXP-INTEREST` (findSystem) (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
    - Jika akumulasi pokok terbayar ≥ `principal_amount` → `$loan->update(['status' => 'paid_off'])`.
 6. Respons `back()` → dialog tertutup, status/sisa ter-update, saldo rekening berkurang.
 
@@ -1881,13 +1889,13 @@ Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman.
-- **Transaction Categories** — transaksi diberi kategori sistem via lookup `code` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
+- **Transaction Categories** — transaksi diberi kategori sistem via `findSystem()` — kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
 - **Profit & Loss** — pokok pinjaman (masuk/keluar) tidak boleh memengaruhi laba; hanya bunga (`EXP-INTEREST`) yang masuk P&L. Pemisahan ini bergantung sepenuhnya pada kategori transaksi.
 - **Permission System** — 5 permission (`view/create/edit/delete/pay loans`) di `database/seeders/MasterPermissionSeeder.php:156-160`; role `admin` dan `finance manager` mendapatkannya.
 
 ## Invarian & Jebakan
 
-- **[BUG AKTIF] Lookup kategori `where('code', ...)` menunjuk kolom yang sudah dihapus.** Migration `database/migrations/2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` men-drop kolom `code` dan `parent_code` dari `transaction_categories` (diverifikasi juga di skema MySQL live — kolom `code` tidak ada). Akibatnya di **produksi (MySQL)** `TransactionCategory::where('code', 'FIN-LOAN-IN')->first()` melempar `SQLSTATE[42S22] Unknown column 'code'` → `DB::transaction` rollback → **create loan dan pay loan gagal 500**. Tes feature (`tests/Feature/LoanControllerTest.php`) tetap hijau karena suite memakai SQLite in-memory (`phpunit.xml:26-27`) dan SQLite mem-fallback identifier ber-kutip-ganda yang tak dikenal menjadi string literal, sehingga query diam-diam mengembalikan `null` dan `$category?->id` menjadi `null`. Perbaikan yang benar: ganti mekanisme lookup (mis. by `label`/kolom penanda sistem baru) — jangan andalkan `code`.
+- **[DIPERBAIKI 2026-08-11] Bug lookup kolom `code`.** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`); test suite juga sudah berjalan di MySQL (bukan SQLite) dan `LoanControllerTest` meng-assert `category_id` terisi, sehingga regresi serupa akan tertangkap. Jangan menulis lookup kategori sistem dengan cara lain.
 - Status hanya dua nilai: `active → paid_off`; transisi satu arah dan otomatis (tidak ada tombol "tandai lunas" manual, tidak ada jalan kembali ke `active`).
 - Edit/hapus loan **tidak mengoreksi** `BankTransaction` yang sudah dibuat — mengubah `principal_amount` atau menghapus loan meninggalkan mutasi bank lama apa adanya. Koreksi harus manual lewat modul Bank Transactions.
 - Tidak ada cap pembayaran: `principal_paid` boleh melebihi sisa pokok (langsung `paid_off`), `interest_paid` boleh melebihi sisa bunga. Sisa bunga hanya informasi tampilan.
@@ -2020,10 +2028,10 @@ $debtorType = $validated['type'] === 'employee_loan' ? User::class : Client::cla
 1. Reviewer (punya `approve receivables`) membuka `ApproveReceivableDialog` pada baris `pending_approval`: pilih aksi approve/reject, rekening sumber pencairan (wajib jika approve), catatan.
 2. `POST /receivables/{receivable}/approve` → middleware `can:approve receivables` + double-check `abort_if(! auth()->user()->can('approve receivables'), 403)` di controller → guard status `pending_approval`.
 3. Validasi `ApproveReceivableRequest`: `action` in:approve,reject; `bank_account_id` `required_if:action,approve`; `notes` max:500.
-4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori by code `FIN-RCV-OUT`, lalu status → `active` + `approved_by/at` + `review_notes`:
+4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori sistem `FIN-RCV-OUT` via `TransactionCategory::findSystem()`, lalu status → `active` + `approved_by/at` + `review_notes`:
 ```php
 // app/Http/Controllers/ReceivableController.php:286-296
-$category = TransactionCategory::where('code', 'FIN-RCV-OUT')->first();
+$category = TransactionCategory::findSystem('FIN-RCV-OUT');
 
 BankTransaction::create([
     'bank_account_id' => $validated['bank_account_id'],
@@ -2046,8 +2054,8 @@ BankTransaction::create([
 4. Dalam `DB::transaction`:
    - `ReceivablePayment::create` (`total_paid = pokok + bunga`).
    - **Hanya jika** `payment_method === 'bank_transfer' && bank_account_id` terisi:
-     - pokok > 0 → `BankTransaction` **credit** kategori code `FIN-RCV-IN`;
-     - bunga > 0 → `BankTransaction` **credit** kategori code `REV-INTEREST` (pendapatan bunga → baris "Pendapatan Lain" di P&L).
+     - pokok > 0 → `BankTransaction` **credit** kategori sistem `FIN-RCV-IN` (findSystem);
+     - bunga > 0 → `BankTransaction` **credit** kategori sistem `REV-INTEREST` (findSystem) (pendapatan bunga → baris "Pendapatan Lain" di P&L).
    - Jika akumulasi pokok terbayar ≥ pokok → status `paid_off`.
 5. Metode `cash` / `payroll_deduction` hanya tercatat di `receivable_payments` — **tidak menyentuh saldo rekening sama sekali** (dan karenanya tidak pernah muncul di P&L yang berbasis `bank_transactions`).
 
@@ -2067,7 +2075,7 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 
 ## Invarian & Jebakan
 
-- **[BUG AKTIF — sama dengan modul Loans]** Lookup `TransactionCategory::where('code', 'FIN-RCV-OUT' | 'FIN-RCV-IN' | 'REV-INTEREST')` menunjuk kolom `code` yang **sudah dihapus** oleh migration `2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` (diverifikasi tidak ada di skema MySQL live). Di produksi MySQL query ini melempar `Unknown column 'code'` → **approve (pencairan) dan pay via bank_transfer gagal 500** dan transaksi rollback. Tes lolos hanya karena suite memakai SQLite in-memory (`phpunit.xml`), yang mem-fallback `"code"` menjadi string literal sehingga hasilnya diam-diam `null`.
+- **[DIPERBAIKI 2026-08-11 — sama dengan modul Loans]** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`). Coverage baru `tests/Feature/ReceivableControllerTest.php` menguji approve/pay (termasuk assertion `category_id` terisi) dan berjalan di MySQL. Catatan perbaikan ikutan: approve/pay kini null-safe terhadap key request opsional (`notes`, `reference_number`, `bank_account_id`) yang sebelumnya diakses langsung.
 - Workflow state machine ketat, dijaga `abort_if` per endpoint: edit hanya `draft|rejected`; submit hanya `draft`; approve/reject hanya `pending_approval`; pay hanya `active`; delete hanya `draft` tanpa payment. `paid_off` dan `rejected` final (rejected bisa "hidup lagi" hanya lewat edit → reset ke draft).
 - **Pencairan memakai tanggal hari ini (`now()`), bukan `loan_date`** — jika approval terlambat, tanggal mutasi bank ≠ tanggal pinjam di record piutang.
 - `disbursement_account` hanyalah string informasi dari pemohon; rekening sumber dana sesungguhnya dipilih reviewer saat approve (`bank_account_id`). Keduanya bisa tidak konsisten.
@@ -2782,9 +2790,45 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 | `users` | `name`, `email`, `password`, `phone_number`, `status` enum(`active`,`inactive`), `locale`, `email_verified_at` | Akun pengguna. `status` dicek via `User::isActive()`. |
 | `roles` | `name`, `icon`, `guard_name` | Tabel Spatie + kolom custom `icon` (nama icon lucide, mis. `shield-check`). |
 | `permissions` | `name`, `guard_name` | Format nama: `"{aksi} {modul}"`, mis. `view invoices`, `manage users`. |
-| `model_has_roles` | `role_id`, `model_type`, `model_id` | Pivot user ↔ role (Spatie). |
-| `model_has_permissions` | `permission_id`, `model_type`, `model_id` | Pivot permission langsung ke user (tidak dipakai aplikasi — semua lewat role). |
-| `role_has_permissions` | `permission_id`, `role_id` | Pivot role ↔ permission. |
+| `model_has_roles` | `company_id`, `role_id`, `model_type`, `model_id` | Pivot user ↔ role (Spatie), **scoped per perusahaan** — PK komposit dimulai `company_id`. |
+| `model_has_permissions` | `company_id`, `permission_id`, `model_type`, `model_id` | Pivot permission langsung ke user (tidak dipakai aplikasi — semua lewat role). |
+| `role_has_permissions` | `permission_id`, `role_id` | Pivot role ↔ permission (tidak ter-scope team). |
+
+## Multi-Tenancy: Spatie Teams (sejak 2026-08-11)
+
+Fitur **teams** Spatie AKTIF dengan `team_foreign_key = company_id` (**string** — mengikuti `companies.id` yang berupa slug, mis. `kisantra`). Konsekuensi yang wajib dipahami:
+
+- **Role bersifat GLOBAL** (`roles.company_id = NULL`) — definisi role & permission sama untuk semua perusahaan. **Assignment role per (user, perusahaan)** — Budi bisa `finance manager` di PT A sekaligus `staff` di PT B.
+- **Konteks team WAJIB di-set sebelum permission check / assignRole.** Di HTTP ini otomatis: middleware `app/Http/Middleware/SetPermissionsTeam.php` (terdaftar sebelum `HandleInertiaRequests` di `bootstrap/app.php`) membaca `tenant()` (routing `/c/{company}`, Tahap 2) dengan fallback keanggotaan pertama user (`company_user`). Di seeder/job/command: panggil `setPermissionsTeamId()` manual — tanpa konteks, `assignRole` GAGAL (kolom `company_id` NOT NULL di pivot).
+- **Membuat role global** di kode: `setPermissionsTeamId(null)` dulu (pola di `MasterPermissionSeeder`).
+- **Keanggotaan perusahaan** hidup di pivot `company_user` (user_id, company_id) — TANPA kolom role; role selalu dari Spatie teams. `UserController@store` otomatis meng-attach user baru ke perusahaan aktif admin pembuatnya.
+- Di test, `Tests\TestCase::setUp()` men-set team default `test-company`; test isolasi lihat `tests/Feature/CompanyPermissionIsolationTest.php`.
+- Impor user deployment lama: `php artisan central:import-users {connection} --organization= --company=` (`app/Services/CentralUserImportService.php`, idempoten).
+
+### Provisioning Perusahaan (`/admin/companies`, sejak Tahap 4)
+
+Halaman **Perusahaan** (permission baru `manage companies`, admin only — migration
+`2026_08_11_120000_add_manage_companies_permission_to_roles.php`) untuk membuat perusahaan
+baru di organization admin yang login:
+
+1. Form: nama, **kode URL/slug (permanen — menjadi `/c/{slug}`, nama DB `tenant_{slug}`,
+   path storage)**, **singkatan dokumen (permanen, manual — dipakai nomor invoice)**.
+   Validasi slug: regex `^[a-z0-9]+(-[a-z0-9]+)*$`, unik. Kuota organization dicek
+   (`Organization::hasReachedCompanyQuota()`).
+2. `Company::create()` → pipeline SINKRON: CreateDatabase → MigrateDatabase →
+   SeedDatabase (`TenantDatabaseSeeder`) → **`App\Jobs\MarkCompanyActive`** (status → `active`).
+   Gagal di tengah → status **`failed`** + tombol **Coba Ulang** (drop DB setengah jadi →
+   hapus baris tanpa event → create ulang). Pembuat otomatis jadi anggota + role `admin`
+   di perusahaan baru (`grantCreatorAccess`).
+3. File: `app/Http/Controllers/Admin/CompanyController.php`,
+   `app/Http/Requests/Admin/StoreCompanyRequest.php`,
+   `resources/js/pages/admin/companies/index.tsx`;
+   test `tests/Feature/Admin/CompanyControllerTest.php`.
+
+**⚠ Invarian validasi lintas-database:** rule `unique:`/`exists:` yang menunjuk tabel
+CENTRAL (users, companies) WAJIB diprefix koneksi central — `unique:mysql.users` — karena
+di dalam konteks tenant, koneksi default validator menunjuk DB perusahaan. Sudah diterapkan
+di StoreUserRequest/UpdateUserRequest/BulkDestroyUserRequest/StoreCompanyRequest.
 
 ## Struktur Permission — Sumber Kebenaran: `MasterPermissionSeeder`
 

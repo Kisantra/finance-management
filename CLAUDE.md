@@ -233,6 +233,12 @@ Loading skeleton                  → Skeleton
 
 ## Modules Overview
 
+> **Multi-tenancy:** semua route modul di bawah kini ber-prefix **`/c/{company}`**
+> (mis. `/c/kisantra/invoices`) — satu database per perusahaan via stancl/tenancy.
+> Migration bisnis ada di `database/migrations/tenant/` (`php artisan tenants:migrate`).
+> Di React, bangun URL dengan `companyUrl()` dari `@/lib/company` (JANGAN literal path);
+> pencocokan URL aktif pakai `appPath()`. Detail: `docs/multi-tenancy-runbook-eksekusi.md`.
+
 | Module | Route | Fitur / Halaman |
 |--------|-------|-----------------|
 | Dashboard | `/dashboard` | Overview stats |
@@ -251,6 +257,7 @@ Loading skeleton                  → Skeleton
 | Settings | `/settings/*` | Profile, Password, Company, PDF Templates |
 | Users | `/admin/users` | Index, Create, Edit, Delete |
 | Permissions/Roles | `/permissions` | Permissions + Roles CRUD |
+| Companies | `/admin/companies` | Provisioning perusahaan baru (admin, kuota per organization) |
 
 ### Key Business Logic
 

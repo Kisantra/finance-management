@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { ColDef, CurrencyCell, ResizableTh, parseQty, useColumnResize } from '@/pages/invoices/create';
 import { router } from '@inertiajs/react';
@@ -587,8 +588,8 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
         setErrors({});
 
         const url = isEdit
-            ? `/recurring-invoices/monthly/${editTarget!.id}`
-            : '/recurring-invoices/monthly';
+            ? companyUrl(`/recurring-invoices/monthly/${editTarget!.id}`)
+            : companyUrl('/recurring-invoices/monthly');
 
         const payload = {
             template_id: form.template_id,
@@ -747,7 +748,7 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
     const handle = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/generate', {
+            const res = await fetch(companyUrl('/recurring-invoices/monthly/generate'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
                 body: JSON.stringify({ month, year, issue_date: issueDate, due_date: dueDate }),
@@ -838,7 +839,7 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
         if (!invoice) return;
         setLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/monthly/${invoice.id}/publish`, {
+            const res = await fetch(companyUrl(`/recurring-invoices/monthly/${invoice.id}/publish`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
                 body: JSON.stringify({ issue_date: issueDate, due_date: dueDate }),
@@ -916,7 +917,7 @@ function BulkPublishModal({ open, onClose, onSuccess, selectedIds }: BulkPublish
     const handle = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/bulk-publish', {
+            const res = await fetch(companyUrl('/recurring-invoices/monthly/bulk-publish'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
                 body: JSON.stringify({ ids: selectedIds, issue_date: issueDate, due_date: dueDate }),
@@ -1001,7 +1002,7 @@ export default function RecurringInvoicesIndex({
 
     // Navigate to update monthly data
     const navigateMonthly = (month: number, year: number, templateFilter?: number | null, statusFilter?: string) => {
-        router.get('/recurring-invoices', {
+        router.get(companyUrl('/recurring-invoices'), {
             tab: 'monthly',
             month,
             year,
@@ -1018,7 +1019,7 @@ export default function RecurringInvoicesIndex({
     };
 
     const navigateAnalytics = (year: number, period: string) => {
-        router.get('/recurring-invoices', {
+        router.get(companyUrl('/recurring-invoices'), {
             tab: 'analytics',
             analytics_year: year,
             analytics_period: period,
@@ -1047,7 +1048,7 @@ export default function RecurringInvoicesIndex({
         if (!deleteTemplateTarget) return;
         setDeleteTemplateLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/templates/${deleteTemplateTarget.id}`, {
+            const res = await fetch(companyUrl(`/recurring-invoices/templates/${deleteTemplateTarget.id}`), {
                 method: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
@@ -1065,7 +1066,7 @@ export default function RecurringInvoicesIndex({
 
     const handleRestoreTemplate = async (template: RecurringTemplate) => {
         try {
-            const res = await fetch(`/recurring-invoices/templates/${template.id}/restore`, {
+            const res = await fetch(companyUrl(`/recurring-invoices/templates/${template.id}/restore`), {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
@@ -1091,7 +1092,7 @@ export default function RecurringInvoicesIndex({
         if (!deleteMonthlyTarget) return;
         setDeleteMonthlyLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/monthly/${deleteMonthlyTarget.id}`, {
+            const res = await fetch(companyUrl(`/recurring-invoices/monthly/${deleteMonthlyTarget.id}`), {
                 method: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
@@ -1108,7 +1109,7 @@ export default function RecurringInvoicesIndex({
         if (!selectedIds.length) return;
         setBulkDeleteLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/bulk-destroy', {
+            const res = await fetch(companyUrl('/recurring-invoices/monthly/bulk-destroy'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
                 body: JSON.stringify({ ids: selectedIds }),
@@ -1168,7 +1169,7 @@ export default function RecurringInvoicesIndex({
                     action={
                         <div className="flex items-center gap-2">
                             {activeTab === 'templates' && (
-                                <Button variant="primary" size="sm" onClick={() => router.get('/recurring-invoices/templates/create')}>
+                                <Button variant="primary" size="sm" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}>
                                     <Plus className="w-4 h-4 mr-1.5" /> Buat Template
                                 </Button>
                             )}
@@ -1236,7 +1237,7 @@ export default function RecurringInvoicesIndex({
                                 icon={<Repeat2 className="w-12 h-12" />}
                                 title="Belum ada template"
                                 description="Buat template recurring untuk generate invoice otomatis"
-                                action={<Button variant="primary" onClick={() => router.get('/recurring-invoices/templates/create')}><Plus className="w-4 h-4 mr-1.5" /> Buat Template</Button>}
+                                action={<Button variant="primary" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}><Plus className="w-4 h-4 mr-1.5" /> Buat Template</Button>}
                             />
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1257,7 +1258,7 @@ export default function RecurringInvoicesIndex({
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0">
                                                     {t.status === 'active' && (
-                                                        <button onClick={() => router.get(`/recurring-invoices/templates/${t.id}/edit`)} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
+                                                        <button onClick={() => router.get(companyUrl(`/recurring-invoices/templates/${t.id}/edit`))} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
                                                             <Edit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}
@@ -1414,7 +1415,7 @@ export default function RecurringInvoicesIndex({
                                                 <td className="px-4 py-3 hidden sm:table-cell text-dark-600 dark:text-dark-400 text-xs">
                                                     <div>{inv.scheduled_date}</div>
                                                     {inv.published_invoice_number && (
-                                                        <a href={`/invoices?search=${inv.published_invoice_number}`} className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 mt-0.5">
+                                                        <a href={companyUrl(`/invoices?search=${inv.published_invoice_number}`)} className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 mt-0.5">
                                                             <ExternalLink className="w-3 h-3" />
                                                             {inv.published_invoice_number}
                                                         </a>

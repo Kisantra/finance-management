@@ -67,13 +67,13 @@ Nomor berikutnya diturunkan dari `id` terakhir + 1 (bukan dari nomor terbesar), 
 1. User klik "Tambah" di `resources/js/pages/loans/index.tsx` → dialog form (useForm Inertia, `forceFormData: true` karena ada upload file).
 2. `POST /loans` → middleware `can:create loans` → validasi `StoreLoanRequest` (`app/Http/Requests/StoreLoanRequest.php`): `loan_number` required+unique, `principal_amount` integer min:1, `interest_type` in:fixed,percentage, `maturity_date` after:start_date, `contract_attachment` mimes pdf/jpg/jpeg/png max 5 MB, dan **`bank_account_id` required** (rekening penampung dana).
 3. File kontrak (jika ada) disimpan ke `storage/app/public/loans/`.
-4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori dicari by code sistem `FIN-LOAN-IN`.
+4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori sistem `FIN-LOAN-IN` via `TransactionCategory::findSystem()`.
 5. Respons `back()->with('success')` → toast + tabel ter-refresh; saldo rekening naik otomatis (saldo bank = computed, bukan stored).
 
 **Penjelasan kode:**
 ```php
 // app/Http/Controllers/LoanController.php:133-143
-$category = TransactionCategory::where('code', 'FIN-LOAN-IN')->first();
+$category = TransactionCategory::findSystem('FIN-LOAN-IN');
 
 BankTransaction::create([
     'bank_account_id' => $validated['bank_account_id'],
@@ -85,7 +85,7 @@ BankTransaction::create([
     'category_id' => $category?->id,
 ]);
 ```
-Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id`. **PERHATIAN: kolom `code` sudah tidak ada di tabel `transaction_categories`** — lihat bagian Invarian & Jebakan.
+Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id` dan kolom `system_key` (lihat transaction-categories.md).
 
 ### Edit Pinjaman (Update)
 
@@ -114,8 +114,8 @@ Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kat
 4. Guard tambahan controller: minimal salah satu dari pokok/bunga harus > 0, kalau tidak `back()->withErrors(...)`.
 5. Dalam `DB::transaction`:
    - `LoanPayment::create` dengan `total_paid = principal + interest`.
-   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori code `FIN-LOAN-OUT` (pembayaran pokok).
-   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori code `EXP-INTEREST` (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
+   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori sistem `FIN-LOAN-OUT` (findSystem) (pembayaran pokok).
+   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori sistem `EXP-INTEREST` (findSystem) (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
    - Jika akumulasi pokok terbayar ≥ `principal_amount` → `$loan->update(['status' => 'paid_off'])`.
 6. Respons `back()` → dialog tertutup, status/sisa ter-update, saldo rekening berkurang.
 
@@ -140,13 +140,13 @@ Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman.
-- **Transaction Categories** — transaksi diberi kategori sistem via lookup `code` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
+- **Transaction Categories** — transaksi diberi kategori sistem via `findSystem()` — kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
 - **Profit & Loss** — pokok pinjaman (masuk/keluar) tidak boleh memengaruhi laba; hanya bunga (`EXP-INTEREST`) yang masuk P&L. Pemisahan ini bergantung sepenuhnya pada kategori transaksi.
 - **Permission System** — 5 permission (`view/create/edit/delete/pay loans`) di `database/seeders/MasterPermissionSeeder.php:156-160`; role `admin` dan `finance manager` mendapatkannya.
 
 ## Invarian & Jebakan
 
-- **[BUG AKTIF] Lookup kategori `where('code', ...)` menunjuk kolom yang sudah dihapus.** Migration `database/migrations/2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` men-drop kolom `code` dan `parent_code` dari `transaction_categories` (diverifikasi juga di skema MySQL live — kolom `code` tidak ada). Akibatnya di **produksi (MySQL)** `TransactionCategory::where('code', 'FIN-LOAN-IN')->first()` melempar `SQLSTATE[42S22] Unknown column 'code'` → `DB::transaction` rollback → **create loan dan pay loan gagal 500**. Tes feature (`tests/Feature/LoanControllerTest.php`) tetap hijau karena suite memakai SQLite in-memory (`phpunit.xml:26-27`) dan SQLite mem-fallback identifier ber-kutip-ganda yang tak dikenal menjadi string literal, sehingga query diam-diam mengembalikan `null` dan `$category?->id` menjadi `null`. Perbaikan yang benar: ganti mekanisme lookup (mis. by `label`/kolom penanda sistem baru) — jangan andalkan `code`.
+- **[DIPERBAIKI 2026-08-11] Bug lookup kolom `code`.** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`); test suite juga sudah berjalan di MySQL (bukan SQLite) dan `LoanControllerTest` meng-assert `category_id` terisi, sehingga regresi serupa akan tertangkap. Jangan menulis lookup kategori sistem dengan cara lain.
 - Status hanya dua nilai: `active → paid_off`; transisi satu arah dan otomatis (tidak ada tombol "tandai lunas" manual, tidak ada jalan kembali ke `active`).
 - Edit/hapus loan **tidak mengoreksi** `BankTransaction` yang sudah dibuat — mengubah `principal_amount` atau menghapus loan meninggalkan mutasi bank lama apa adanya. Koreksi harus manual lewat modul Bank Transactions.
 - Tidak ada cap pembayaran: `principal_paid` boleh melebihi sisa pokok (langsung `paid_off`), `interest_paid` boleh melebihi sisa bunga. Sisa bunga hanya informasi tampilan.

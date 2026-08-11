@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import * as React from 'react';
 import { InvoiceForm } from './create';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
 
 /* ─────────────────────────────────── types ─── */
@@ -74,7 +75,7 @@ function EditInvoicePage({ invoice, clients, services }: Props) {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-3">
                         <Link
-                            href="/invoices"
+                            href={companyUrl('/invoices')}
                             className="h-9 w-9 rounded-xl flex items-center justify-center border border-secondary-200 dark:border-dark-600 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4 text-dark-600 dark:text-dark-400" />
@@ -97,7 +98,7 @@ function EditInvoicePage({ invoice, clients, services }: Props) {
                     companyInitials=""
                     existingInvoiceNumber={invoice.invoice_number}
                     initialData={initialData}
-                    submitUrl={`/invoices/${invoice.id}`}
+                    submitUrl={companyUrl(`/invoices/${invoice.id}`)}
                     method="put"
                     submitLabel="Simpan Perubahan"
                     isEdit

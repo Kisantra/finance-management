@@ -130,7 +130,7 @@ class LoanController extends Controller
                 'contract_attachment' => $attachmentPath,
             ]);
 
-            $category = TransactionCategory::where('code', 'FIN-LOAN-IN')->first();
+            $category = TransactionCategory::findSystem('FIN-LOAN-IN');
 
             BankTransaction::create([
                 'bank_account_id' => $validated['bank_account_id'],
@@ -230,7 +230,7 @@ class LoanController extends Controller
             ]);
 
             if ($principalPaid > 0) {
-                $category = TransactionCategory::where('code', 'FIN-LOAN-OUT')->first();
+                $category = TransactionCategory::findSystem('FIN-LOAN-OUT');
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
                     'amount' => $principalPaid,
@@ -243,7 +243,7 @@ class LoanController extends Controller
             }
 
             if ($interestPaid > 0) {
-                $category = TransactionCategory::where('code', 'EXP-INTEREST')->first();
+                $category = TransactionCategory::findSystem('EXP-INTEREST');
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
                     'amount' => $interestPaid,

@@ -64,9 +64,17 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.
   Komponen wajib pakai katalog di CLAUDE.md (Combobox, DatePicker, CurrencyInput, FileUpload, dll.).
 - **Workflow status**: state machine hidup di model (`canSubmit()`, `approve()`, dst.), bukan controller.
-- **⚠ Kategori sistem Loans/Receivables**: `LoanController`/`ReceivableController` masih mencari
-  kategori via `where('code', 'FIN-LOAN-IN')` dst., padahal kolom `code` **sudah di-drop** oleh
-  migration `2026_02_05_..._refactor_transaction_categories...` — lookup ini bug laten
-  (`QueryException`) yang harus diperbaiki sebelum fitur transaksi otomatis loan/receivable dipakai.
-  Detail di [loans.md](loans.md) / [receivables.md](receivables.md).
+- **Kategori sistem Loans/Receivables** (bug `code` SUDAH DIPERBAIKI 2026-08-11): kategori sistem
+  kini diidentifikasi lewat kolom `system_key` (`FIN-LOAN-IN` dst.) via
+  `TransactionCategory::findSystem()`; kategori ber-`system_key` tidak bisa diedit/dihapus dari UI.
+  Detail di [transaction-categories.md](transaction-categories.md), [loans.md](loans.md),
+  [receivables.md](receivables.md).
+- **Multi-tenancy (Tahap 1–2 selesai)**: satu database per perusahaan (stancl/tenancy v3).
+  Semua route aplikasi ber-prefix **`/c/{company}`** (slug); migration bisnis di
+  `database/migrations/tenant/` (jalankan `tenants:migrate`, bukan `migrate`); Spatie teams
+  (`company_id` string) dengan role global + assignment per perusahaan; model central
+  (User/Role/Permission/Organization/AppNotification/Feedback) memakai trait `CentralConnection`;
+  session/cache/queue di koneksi central. Frontend: literal path WAJIB lewat `companyUrl()`
+  (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
+  di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

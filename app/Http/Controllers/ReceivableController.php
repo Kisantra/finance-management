@@ -283,7 +283,7 @@ class ReceivableController extends Controller
 
         if ($validated['action'] === 'approve') {
             DB::transaction(function () use ($receivable, $validated) {
-                $category = TransactionCategory::where('code', 'FIN-RCV-OUT')->first();
+                $category = TransactionCategory::findSystem('FIN-RCV-OUT');
 
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
@@ -299,7 +299,7 @@ class ReceivableController extends Controller
                     'status' => 'active',
                     'approved_by' => auth()->id(),
                     'approved_at' => now(),
-                    'review_notes' => $validated['notes'],
+                    'review_notes' => $validated['notes'] ?? null,
                 ]);
             });
 
@@ -310,7 +310,7 @@ class ReceivableController extends Controller
             'status' => 'rejected',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'rejection_reason' => $validated['notes'],
+            'rejection_reason' => $validated['notes'] ?? null,
         ]);
 
         return back()->with('success', 'Piutang telah ditolak');
@@ -345,33 +345,33 @@ class ReceivableController extends Controller
                 'interest_paid' => $interestPaid,
                 'total_paid' => $principalPaid + $interestPaid,
                 'payment_method' => $validated['payment_method'],
-                'reference_number' => $validated['reference_number'],
-                'notes' => $validated['notes'],
+                'reference_number' => $validated['reference_number'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
-            if ($validated['payment_method'] === 'bank_transfer' && $validated['bank_account_id']) {
+            if ($validated['payment_method'] === 'bank_transfer' && ($validated['bank_account_id'] ?? null)) {
                 if ($principalPaid > 0) {
-                    $cat = TransactionCategory::where('code', 'FIN-RCV-IN')->first();
+                    $cat = TransactionCategory::findSystem('FIN-RCV-IN');
                     BankTransaction::create([
                         'bank_account_id' => $validated['bank_account_id'],
                         'amount' => $principalPaid,
                         'transaction_date' => $validated['payment_date'],
                         'transaction_type' => 'credit',
                         'description' => "Pembayaran piutang pokok: {$receivable->receivable_number} - {$receivable->debtor?->name}",
-                        'reference_number' => $validated['reference_number'],
+                        'reference_number' => $validated['reference_number'] ?? null,
                         'category_id' => $cat?->id,
                     ]);
                 }
 
                 if ($interestPaid > 0) {
-                    $cat = TransactionCategory::where('code', 'REV-INTEREST')->first();
+                    $cat = TransactionCategory::findSystem('REV-INTEREST');
                     BankTransaction::create([
                         'bank_account_id' => $validated['bank_account_id'],
                         'amount' => $interestPaid,
                         'transaction_date' => $validated['payment_date'],
                         'transaction_type' => 'credit',
                         'description' => "Pembayaran bunga piutang: {$receivable->receivable_number} - {$receivable->debtor?->name}",
-                        'reference_number' => $validated['reference_number'],
+                        'reference_number' => $validated['reference_number'] ?? null,
                         'category_id' => $cat?->id,
                     ]);
                 }

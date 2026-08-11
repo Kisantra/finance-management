@@ -14,6 +14,12 @@ class AppServiceProvider extends ServiceProvider
         // Prevent lazy loading in non-production to catch N+1 queries
         Model::preventLazyLoading(! app()->isProduction());
 
+        // Testing memakai SATU database: migration tenant ikut dimuat ke DB test
+        // (produksi/dev menjalankannya via tenants:migrate ke DB per perusahaan)
+        if ($this->app->environment('testing')) {
+            $this->loadMigrationsFrom(database_path('migrations/tenant'));
+        }
+
         // Set locale from session or user preference with fallback
         $availableLocales = config('app.available_locales', ['id', 'zh']);
         $locale = session('locale');

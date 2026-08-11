@@ -20,6 +20,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { NotificationItem } from '@/types';
 
@@ -83,7 +84,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
 
         try {
             const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-            const res = await fetch(`/notifications?page=${targetPage}&per_page=20`, {
+            const res = await fetch(companyUrl(`/notifications?page=${targetPage}&per_page=20`), {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -118,13 +119,13 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
     const openItem = (item: NotificationItem) => {
         const url = (item.data as { url?: string } | null)?.url;
         router.post(
-            `/notifications/${item.id}/read`,
+            companyUrl(`/notifications/${item.id}/read`),
             {},
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     onOpenChange(false);
-                    if (url) router.visit(url);
+                    if (url) router.visit(companyUrl(url));
                 },
             },
         );
@@ -132,7 +133,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
 
     const markAllRead = () => {
         router.post(
-            '/notifications/mark-all-read',
+            companyUrl('/notifications/mark-all-read'),
             {},
             {
                 preserveScroll: true,

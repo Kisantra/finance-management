@@ -68,6 +68,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
 import { format as formatDateFns } from 'date-fns';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -295,7 +296,7 @@ function InvoiceDrawer({
 
     const fetchDetail = React.useCallback((id: number) => {
         setLoading(true);
-        fetch(`/invoices/${id}`, {
+        fetch(companyUrl(`/invoices/${id}`), {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then((r) => r.json())
@@ -319,7 +320,7 @@ function InvoiceDrawer({
 
     React.useEffect(() => {
         if (!open) return;
-        fetch('/api/bank-accounts', {
+        fetch(companyUrl('/api/bank-accounts'), {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then((r) => r.json())
@@ -329,7 +330,7 @@ function InvoiceDrawer({
 
     const handleSend = () => {
         if (!detail) return;
-        sendForm.post(`/invoices/${detail.id}/send`, {
+        sendForm.post(companyUrl(`/invoices/${detail.id}/send`), {
             onSuccess: () => {
                 setSendOpen(false);
                 onClose();
@@ -339,13 +340,13 @@ function InvoiceDrawer({
 
     const handleRollback = () => {
         if (!detail) return;
-        router.post(`/invoices/${detail.id}/rollback`, {}, { onSuccess: () => onClose() });
+        router.post(companyUrl(`/invoices/${detail.id}/rollback`), {}, { onSuccess: () => onClose() });
     };
 
     const handleDelete = () => {
         if (!detail) return;
         setDeleteLoading(true);
-        router.delete(`/invoices/${detail.id}`, {
+        router.delete(companyUrl(`/invoices/${detail.id}`), {
             onSuccess: () => {
                 setDeleteOpen(false);
                 onClose();
@@ -404,8 +405,8 @@ function InvoiceDrawer({
         }
 
         const url = editPayment
-            ? `/payments/${editPayment.id}`
-            : `/invoices/${detail.id}/payments`;
+            ? companyUrl(`/payments/${editPayment.id}`)
+            : companyUrl(`/invoices/${detail.id}/payments`);
 
         try {
             const res = await fetch(url, {
@@ -446,7 +447,7 @@ function InvoiceDrawer({
         if (!deletePaymentTarget || !detail) return;
         setDeletePaymentLoading(true);
         try {
-            const res = await fetch(`/payments/${deletePaymentTarget.id}`, {
+            const res = await fetch(companyUrl(`/payments/${deletePaymentTarget.id}`), {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': getCsrfToken(),
@@ -800,7 +801,7 @@ function InvoiceDrawer({
                                 size="sm"
                                 variant="outline"
                                 icon={<Pencil className="w-3.5 h-3.5" />}
-                                onClick={() => router.get(`/invoices/${detail.id}/edit`)}
+                                onClick={() => router.get(companyUrl(`/invoices/${detail.id}/edit`))}
                             >
                                 Edit
                             </Button>
@@ -1100,7 +1101,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
     const [search, setSearch] = React.useState(currentFilters.search);
 
     const navigate = (params: Record<string, unknown>) => {
-        router.get('/invoices', { ...currentFilters, ...params, page: 1 }, {
+        router.get(companyUrl('/invoices'), { ...currentFilters, ...params, page: 1 }, {
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -1121,7 +1122,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
         if (currentFilters.sort) params.set('sort', currentFilters.sort);
         if (currentFilters.direction) params.set('direction', currentFilters.direction);
         const qs = params.toString();
-        return `/invoices/export/${format}${qs ? `?${qs}` : ''}`;
+        return companyUrl(`/invoices/export/${format}${qs ? `?${qs}` : ''}`);
     };
 
     const handleSearchSubmit = (e: React.FormEvent) => {
@@ -1130,7 +1131,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
     };
 
     const handlePageChange = (page: number) => {
-        router.get('/invoices', { ...currentFilters, page }, {
+        router.get(companyUrl('/invoices'), { ...currentFilters, page }, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -1151,7 +1152,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
     const handleDeleteFromTable = () => {
         if (!deleteId) return;
         setDeleteLoading(true);
-        router.delete(`/invoices/${deleteId}`, {
+        router.delete(companyUrl(`/invoices/${deleteId}`), {
             onSuccess: () => {
                 setDeleteOpen(false);
                 setDeleteId(null);
@@ -1216,7 +1217,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                 variant="primary"
                                 size="md"
                                 icon={<Plus className="w-4 h-4" />}
-                                onClick={() => router.get('/invoices/create')}
+                                onClick={() => router.get(companyUrl('/invoices/create'))}
                             >
                                 Buat Invoice
                             </Button>
@@ -1657,7 +1658,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                                                 <Eye className="w-4 h-4" />
                                                                 Lihat Detail
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => router.get(`/invoices/${inv.id}/edit`)}>
+                                                            <DropdownMenuItem onClick={() => router.get(companyUrl(`/invoices/${inv.id}/edit`))}>
                                                                 <Pencil className="w-4 h-4" />
                                                                 Edit
                                                             </DropdownMenuItem>
