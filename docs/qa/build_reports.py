@@ -24,6 +24,8 @@ MANIFESTS = ROOT / 'docs' / 'qa' / 'manifests'
 
 sys.path.insert(0, str(SKILL_SCRIPTS))
 
+from reportlab.lib.units import mm  # noqa: E402
+
 import qa_manifest  # noqa: E402
 import build_report  # noqa: E402
 
@@ -41,6 +43,34 @@ def scoreboard_jujur(self) -> dict[str, int]:
 
 qa_manifest.Manifest.scoreboard = scoreboard_jujur
 build_report.Manifest.scoreboard = scoreboard_jujur
+
+# Galeri bukti pada skrip skill disetel untuk tangkapan layar PONSEL: 4 kolom
+# selebar 30 mm, pas untuk gambar potret tinggi. Aplikasi ini diuji lewat
+# peramban desktop, jadi gambarnya lanskap — pada lebar 30 mm tingginya jadi
+# ~19 mm dan isinya tidak terbaca sama sekali. Satu gambar selebar halaman
+# per baris mengembalikan fungsinya sebagai bukti yang bisa ditelusuri ulang.
+build_report.PER_ROW = 1
+build_report.SHOT_W = 170 * mm
+
+
+class GambarSiapPakai(build_report.Image):
+    """Image yang sudah dimuat sebelum pemanggil menyetel ukurannya.
+
+    reportlab memuat berkas gambar secara malas: menyentuh `imageWidth`
+    memicu `_setup()` yang MENIMPA `drawWidth`/`drawHeight` dengan ukuran
+    asli. Skrip skill menulis `img.drawWidth = SHOT_W` lalu membaca
+    `img.imageHeight` pada baris berikutnya — jadi lebar yang baru saja
+    disetel langsung hilang dan gambar digambar seukuran pikselnya,
+    melar melewati batas halaman. Tingginya tetap benar, sehingga
+    hasilnya gepeng, bukan sekadar kebesaran.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.imageWidth  # noqa: B018 — sengaja: paksa _setup() lebih dulu
+
+
+build_report.Image = GambarSiapPakai
 
 
 def main() -> int:
