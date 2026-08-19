@@ -143,7 +143,7 @@ class CashFlowController extends Controller
                 'category_id' => $r->category_id ? (int) $r->category_id : null,
                 'category_label' => $r->category_label,
                 'description' => $r->description,
-                'attachment_url' => $r->attachment_path ? \Storage::url($r->attachment_path) : null,
+                'attachment_url' => $r->attachment_path ? \Storage::disk('public')->url($r->attachment_path) : null,
                 'attachment_name' => $r->attachment_name,
             ])->all();
 
@@ -239,7 +239,7 @@ class CashFlowController extends Controller
                 'category_label' => $r->category_label,
                 'bank_name' => $r->bank_name,
                 'account_name' => $r->account_name,
-                'attachment_url' => $r->attachment_path ? \Storage::url($r->attachment_path) : null,
+                'attachment_url' => $r->attachment_path ? \Storage::disk('public')->url($r->attachment_path) : null,
                 'attachment_name' => $r->attachment_name,
             ])->all();
 
@@ -366,7 +366,7 @@ class CashFlowController extends Controller
                     'account_name' => $c->to_account_name,
                     'bank_name' => $c->to_bank_name,
                 ],
-                'attachment_url' => $c->attachment_path ? \Storage::url($c->attachment_path) : null,
+                'attachment_url' => $c->attachment_path ? \Storage::disk('public')->url($c->attachment_path) : null,
                 'attachment_name' => $c->attachment_name,
             ];
         })->all();

@@ -198,4 +198,57 @@ class ReceivableControllerTest extends TestCase
             'bank_account_id' => $this->bankAccount->id,
         ])->assertForbidden();
     }
+
+    /**
+     * Regresi BUG-C4 (QA 2026-08-19): form React mengirim multipart
+     * (forceFormData) sehingga installment_months tiba sebagai STRING;
+     * Carbon::addMonths() bertipe int|float melempar TypeError → HTTP 500,
+     * membuat piutang mustahil dibuat/diedit dari UI. Rule `integer` hanya
+     * memvalidasi, tidak meng-cast.
+     */
+    public function test_store_accepts_string_numerics_from_multipart_form(): void
+    {
+        $this->actingAs($this->admin)->post('/receivables', [
+            'type' => 'employee_loan',
+            'debtor_id' => (string) $this->debtor->id,
+            'principal_amount' => '6000000',
+            'interest_type' => 'percentage',
+            'interest_rate' => '5',
+            'installment_months' => '6',
+            'loan_date' => '2026-08-01',
+            'purpose' => 'Uji string numerik dari form',
+            'disbursement_account' => 'BCA 123',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('receivables', [
+            'principal_amount' => 6000000,
+            'installment_months' => 6,
+            'due_date' => '2027-02-01',
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_update_accepts_string_numerics_from_multipart_form(): void
+    {
+        $receivable = $this->makeReceivable(['status' => 'draft']);
+
+        $this->actingAs($this->admin)->put("/receivables/{$receivable->id}", [
+            'type' => 'employee_loan',
+            'debtor_id' => (string) $this->debtor->id,
+            'principal_amount' => '9000000',
+            'interest_type' => 'percentage',
+            'interest_rate' => '10',
+            'installment_months' => '3',
+            'loan_date' => '2026-08-01',
+            'purpose' => 'Uji ubah dengan string numerik',
+            'disbursement_account' => 'BCA 123',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('receivables', [
+            'id' => $receivable->id,
+            'principal_amount' => 9000000,
+            'installment_months' => 3,
+            'due_date' => '2026-11-01',
+        ]);
+    }
 }

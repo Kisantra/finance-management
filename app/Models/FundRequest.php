@@ -38,7 +38,7 @@ class FundRequest extends Model
 
     public static function generateRequestNumber(): string
     {
-        $companyProfile = \App\Models\CompanyProfile::current();
+        $companyProfile = CompanyProfile::current();
         // Use stored abbreviation if set, otherwise auto-generate from company name initials
         $companyAbbreviation = $companyProfile
             ? $companyProfile->computed_abbreviation
@@ -65,7 +65,7 @@ class FundRequest extends Model
             12 => 'XII', 11 => 'XI', 10 => 'X',
             9 => 'IX', 8 => 'VIII', 7 => 'VII',
             6 => 'VI', 5 => 'V', 4 => 'IV',
-            3 => 'III', 2 => 'II', 1 => 'I'
+            3 => 'III', 2 => 'II', 1 => 'I',
         ];
 
         return $map[$number] ?? 'I';
@@ -178,7 +178,13 @@ class FundRequest extends Model
             return true;
         }
 
-        return in_array($this->status, ['draft', 'rejected']);
+        // Cek kepemilikan WAJIB: tanpa ini setiap pemegang permission
+        // "delete fund requests" bisa menghapus pengajuan milik orang lain,
+        // padahal update() dan submit() sudah memeriksa user_id — asimetri
+        // yang membuat penghapusan menjadi celah.
+        return $user
+            && $this->user_id === $user->id
+            && in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canSubmit(): bool

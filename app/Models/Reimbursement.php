@@ -105,9 +105,10 @@ class Reimbursement extends Model
         return $query->whereBetween('expense_date', [$startDate, $endDate]);
     }
 
-    public function scopeMonth($query, int $month, int $year = null)
+    public function scopeMonth($query, int $month, ?int $year = null)
     {
         $year = $year ?: now()->year;
+
         return $query->whereYear('expense_date', $year)
             ->whereMonth('expense_date', $month);
     }
@@ -179,9 +180,14 @@ class Reimbursement extends Model
             return true;
         }
 
-        // Owner can only delete if draft or rejected (not yet approved/paid)
-        // Cannot delete pending (being reviewed), approved, or paid
-        return in_array($this->status, ['draft', 'rejected']);
+        // Owner can only delete if draft or rejected (not yet approved/paid).
+        // Cek kepemilikan WAJIB: tanpa ini setiap pemegang permission
+        // "delete reimbursements" (termasuk role staff) dapat menghapus
+        // pengajuan milik orang lain — komentar lama menjanjikan "owner only"
+        // tetapi user_id tidak pernah diperiksa.
+        return $user
+            && $this->user_id === $user->id
+            && in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canSubmit(): bool
@@ -198,7 +204,7 @@ class Reimbursement extends Model
     {
         // Can pay if approved, has category assigned, and not fully paid yet
         return $this->status === 'approved'
-            && !$this->isFullyPaid();
+            && ! $this->isFullyPaid();
     }
 
     // =====================================
@@ -207,7 +213,7 @@ class Reimbursement extends Model
 
     public function submit(): bool
     {
-        if (!$this->canSubmit()) {
+        if (! $this->canSubmit()) {
             return false;
         }
 
@@ -216,7 +222,7 @@ class Reimbursement extends Model
 
     public function approve(int $reviewerId, ?string $notes = null): bool
     {
-        if (!$this->canReview()) {
+        if (! $this->canReview()) {
             return false;
         }
 
@@ -230,7 +236,7 @@ class Reimbursement extends Model
 
     public function reject(int $reviewerId, ?string $notes = null): bool
     {
-        if (!$this->canReview()) {
+        if (! $this->canReview()) {
             return false;
         }
 
@@ -244,7 +250,7 @@ class Reimbursement extends Model
 
     public function recordPayment(int $amount, int $bankTransactionId, int $payerId, string $paymentDate, ?string $notes = null): bool
     {
-        if (!$this->canPay()) {
+        if (! $this->canPay()) {
             return false;
         }
 
@@ -277,21 +283,22 @@ class Reimbursement extends Model
 
     public function hasAttachment(): bool
     {
-        return !empty($this->attachment_path);
+        return ! empty($this->attachment_path);
     }
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? Storage::url($this->attachment_path) : null;
+        return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null;
     }
 
     public function getAttachmentTypeAttribute(): ?string
     {
-        if (!$this->hasAttachment()) {
+        if (! $this->hasAttachment()) {
             return null;
         }
 
         $extension = pathinfo($this->attachment_name, PATHINFO_EXTENSION);
+
         return strtolower($extension);
     }
 
@@ -311,17 +318,17 @@ class Reimbursement extends Model
 
     public function getFormattedAmountAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount, 0, ',', '.');
+        return 'Rp '.number_format($this->amount, 0, ',', '.');
     }
 
     public function getFormattedAmountPaidAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount_paid, 0, ',', '.');
+        return 'Rp '.number_format($this->amount_paid, 0, ',', '.');
     }
 
     public function getFormattedAmountRemainingAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount_remaining, 0, ',', '.');
+        return 'Rp '.number_format($this->amount_remaining, 0, ',', '.');
     }
 
     public function getStatusBadgeColorAttribute(): string
@@ -430,8 +437,8 @@ class Reimbursement extends Model
 
         // Delete attachment when model is deleted
         static::deleting(function ($reimbursement) {
-            if ($reimbursement->attachment_path && Storage::exists($reimbursement->attachment_path)) {
-                Storage::delete($reimbursement->attachment_path);
+            if ($reimbursement->attachment_path && Storage::disk('public')->exists($reimbursement->attachment_path)) {
+                Storage::disk('public')->delete($reimbursement->attachment_path);
             }
         });
     }

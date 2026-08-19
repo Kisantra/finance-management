@@ -78,7 +78,7 @@ class ReceivableController extends Controller
             'approved_at' => $r->approved_at?->format('Y-m-d'),
             'review_notes' => $r->review_notes,
             'rejection_reason' => $r->rejection_reason,
-            'contract_attachment_url' => $r->contract_attachment_path ? Storage::url($r->contract_attachment_path) : null,
+            'contract_attachment_url' => $r->contract_attachment_path ? Storage::disk('public')->url($r->contract_attachment_path) : null,
             'contract_attachment_name' => $r->contract_attachment_name,
             'paid_principal' => (int) ($r->payments_sum_principal_paid ?? 0),
             'paid_interest' => (int) ($r->payments_sum_interest_paid ?? 0),
@@ -155,7 +155,7 @@ class ReceivableController extends Controller
         }
 
         $principalAmount = $validated['principal_amount'];
-        $installmentMonths = $validated['installment_months'];
+        $installmentMonths = (int) $validated['installment_months'];
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
@@ -182,7 +182,7 @@ class ReceivableController extends Controller
             'due_date' => $dueDate,
             'status' => 'draft',
             'purpose' => $validated['purpose'],
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
             'disbursement_account' => $validated['disbursement_account'],
             'contract_attachment_path' => $attachmentPath,
             'contract_attachment_name' => $attachmentName,
@@ -215,7 +215,7 @@ class ReceivableController extends Controller
         }
 
         $principalAmount = $validated['principal_amount'];
-        $installmentMonths = $validated['installment_months'];
+        $installmentMonths = (int) $validated['installment_months'];
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
@@ -240,7 +240,7 @@ class ReceivableController extends Controller
             'loan_date' => $validated['loan_date'],
             'due_date' => $dueDate,
             'purpose' => $validated['purpose'],
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
             'disbursement_account' => $validated['disbursement_account'],
             'contract_attachment_path' => $attachmentPath,
             'contract_attachment_name' => $attachmentName,

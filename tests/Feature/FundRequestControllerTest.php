@@ -285,4 +285,39 @@ class FundRequestControllerTest extends TestCase
         $this->actingAs($this->staff)->delete("/fund-requests/{$fr->id}")->assertForbidden();
         $this->assertDatabaseHas('fund_requests', ['id' => $fr->id]);
     }
+
+    /**
+     * Regresi BUG-FR-02 (QA 2026-08-19): canDelete() tidak memeriksa
+     * kepemilikan, sehingga pemegang permission "delete fund requests"
+     * (mis. staff) dapat menghapus draft milik orang lain — asimetris
+     * dengan update()/submit() yang sudah mengecek user_id.
+     */
+    public function test_staff_cannot_delete_another_users_fund_request(): void
+    {
+        $lain = User::factory()->create();
+        $lain->assignRole('staff');
+        $fr = $this->makeDraftFundRequest($lain);
+
+        $penyerang = User::factory()->create();
+        $penyerang->assignRole('staff');
+        Role::findByName('staff')->givePermissionTo('delete fund requests');
+
+        $this->actingAs($penyerang)
+            ->delete("/fund-requests/{$fr->id}")
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('fund_requests', ['id' => $fr->id]);
+    }
+
+    public function test_owner_can_still_delete_own_draft_fund_request(): void
+    {
+        $fr = $this->makeDraftFundRequest($this->staff);
+        Role::findByName('staff')->givePermissionTo('delete fund requests');
+
+        $this->actingAs($this->staff)
+            ->delete("/fund-requests/{$fr->id}")
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('fund_requests', ['id' => $fr->id]);
+    }
 }

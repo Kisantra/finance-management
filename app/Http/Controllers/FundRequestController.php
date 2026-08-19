@@ -94,7 +94,7 @@ class FundRequestController extends Controller
             'disbursed_by_name' => $r->disburser?->name,
             'disbursement_date' => $r->disbursement_date?->format('Y-m-d'),
             'disbursement_notes' => $r->disbursement_notes,
-            'attachment_url' => $r->attachment_path ? Storage::url($r->attachment_path) : null,
+            'attachment_url' => $r->attachment_path ? Storage::disk('public')->url($r->attachment_path) : null,
             'attachment_name' => $r->attachment_name,
             'items_count' => $r->items_count,
             'items' => $r->items->map(fn ($i) => [
@@ -109,7 +109,7 @@ class FundRequestController extends Controller
                 ? $r->bankTransaction->bankAccount->account_name.' — '.$r->bankTransaction->bankAccount->bank_name
                 : null,
             'disbursement_attachment_url' => $r->bankTransaction?->attachment_path
-                ? Storage::url($r->bankTransaction->attachment_path)
+                ? Storage::disk('public')->url($r->bankTransaction->attachment_path)
                 : null,
             'disbursement_attachment_name' => $r->bankTransaction?->attachment_name,
             'can_edit' => $r->canEdit() && ($r->user_id === auth()->id() || auth()->user()->hasRole('admin')),
@@ -148,7 +148,7 @@ class FundRequestController extends Controller
                     'purpose' => $fr->purpose,
                     'priority' => $fr->priority,
                     'needed_by_date' => $fr->needed_by_date?->format('Y-m-d'),
-                    'attachment_url' => $fr->attachment_path ? Storage::url($fr->attachment_path) : null,
+                    'attachment_url' => $fr->attachment_path ? Storage::disk('public')->url($fr->attachment_path) : null,
                     'attachment_name' => $fr->attachment_name,
                     'status' => $fr->status,
                     'items' => $fr->items->map(fn ($i) => [
@@ -294,7 +294,7 @@ class FundRequestController extends Controller
                 'purpose' => $fundRequest->purpose,
                 'priority' => $fundRequest->priority,
                 'needed_by_date' => $fundRequest->needed_by_date?->format('Y-m-d'),
-                'attachment_url' => $fundRequest->attachment_path ? Storage::url($fundRequest->attachment_path) : null,
+                'attachment_url' => $fundRequest->attachment_path ? Storage::disk('public')->url($fundRequest->attachment_path) : null,
                 'attachment_name' => $fundRequest->attachment_name,
                 'status' => $fundRequest->status,
                 'items' => $items,

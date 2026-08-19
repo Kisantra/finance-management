@@ -62,7 +62,7 @@ class LoanController extends Controller
             'maturity_date' => $l->maturity_date?->format('Y-m-d'),
             'status' => $l->status,
             'purpose' => $l->purpose,
-            'contract_attachment_url' => $l->contract_attachment ? Storage::url($l->contract_attachment) : null,
+            'contract_attachment_url' => $l->contract_attachment ? Storage::disk('public')->url($l->contract_attachment) : null,
             'paid_principal' => (int) ($l->payments_sum_principal_paid ?? 0),
             'paid_interest' => (int) ($l->payments_sum_interest_paid ?? 0),
             'remaining_principal' => $l->principal_amount - (int) ($l->payments_sum_principal_paid ?? 0),

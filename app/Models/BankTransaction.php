@@ -84,7 +84,7 @@ class BankTransaction extends Model
     // Attachment helpers
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? Storage::url($this->attachment_path) : null;
+        return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null;
     }
 
     public function hasAttachment(): bool
@@ -119,8 +119,8 @@ class BankTransaction extends Model
         parent::boot();
 
         static::deleting(function ($transaction) {
-            if ($transaction->attachment_path && Storage::exists($transaction->attachment_path)) {
-                Storage::delete($transaction->attachment_path);
+            if ($transaction->attachment_path && Storage::disk('public')->exists($transaction->attachment_path)) {
+                Storage::disk('public')->delete($transaction->attachment_path);
             }
         });
     }

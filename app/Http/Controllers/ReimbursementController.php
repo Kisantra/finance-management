@@ -23,7 +23,12 @@ class ReimbursementController extends Controller
     {
         $canApprove = auth()->user()->can('approve reimbursements');
         $canPay = auth()->user()->can('pay reimbursements');
-        $tab = $request->input('tab', $canApprove ? 'all' : 'my');
+
+        // Tab "all" hanya untuk peninjau. Tanpa permission approve, konteks
+        // SELALU dipaksa "my" — sebelumnya ?tab=all dari query string lolos
+        // dan membocorkan seluruh reimbursement milik user lain (pola aman
+        // yang diikuti di sini sama dengan FeedbackController::index).
+        $tab = $canApprove ? $request->input('tab', 'all') : 'my';
 
         $search = $request->input('search');
         $status = $request->input('status');
@@ -161,7 +166,7 @@ class ReimbursementController extends Controller
             $reimbursement = Reimbursement::create([
                 'user_id' => auth()->id(),
                 'title' => $validated['title'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'amount' => $validated['amount'],
                 'expense_date' => $validated['expense_date'],
                 'category_input' => $validated['category'],
@@ -241,7 +246,7 @@ class ReimbursementController extends Controller
 
             $reimbursement->update([
                 'title' => $validated['title'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'amount' => $validated['amount'],
                 'expense_date' => $validated['expense_date'],
                 'category_input' => $validated['category'],
