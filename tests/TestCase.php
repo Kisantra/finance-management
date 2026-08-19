@@ -25,7 +25,9 @@ abstract class TestCase extends BaseTestCase
     protected const CENTRAL_PATHS = [
         '/login', '/logout', '/register', '/forgot-password', '/reset-password',
         '/verify-email', '/email', '/confirm-password', '/language',
-        '/choose-company', '/up', '/storage',
+        '/choose-company', '/up',
+        // Catatan: '/storage' TIDAK lagi central — berkas perusahaan dilayani
+        // route /c/{company}/storage/{path} (lihat TenantStorageController).
     ];
 
     /**

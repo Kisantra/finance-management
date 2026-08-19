@@ -74,7 +74,13 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   `database/migrations/tenant/` (jalankan `tenants:migrate`, bukan `migrate`); Spatie teams
   (`company_id` string) dengan role global + assignment per perusahaan; model central
   (User/Role/Permission/Organization/AppNotification/Feedback) memakai trait `CentralConnection`;
-  session/cache/queue di koneksi central. Frontend: literal path WAJIB lewat `companyUrl()`
+  session/cache/queue di koneksi central. **Berkas** (lampiran, logo, ttd, stempel)
+  disimpan per perusahaan di `storage/tenant{slug}/app/public` dan dilayani route
+  `/c/{company}/storage/{path}` (`TenantStorageController`) — bukan symlink
+  `public/storage`; URL-nya di-set oleh `SetCompanyUrlDefaults` sehingga
+  `Storage::url()` otomatis benar. Konsekuensi keamanan: berkas hanya bisa diambil
+  anggota perusahaan tersebut (dulu symlink melayani siapa pun tanpa login).
+  Frontend: literal path WAJIB lewat `companyUrl()`
   (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
   di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

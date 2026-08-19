@@ -205,7 +205,7 @@ if (str_starts_with((string) $template, 'builder:')) {
 
 - **CompanyProfile adalah singleton** — selalu `current()`/`first()`/`firstOrNew()`; jangan pernah membuat baris kedua.
 - **Hanya satu template `is_default`** — selalu ubah lewat `setAsDefault()`, jangan update kolom langsung.
-- Accessor base64 membaca dari `public_path($path)` sementara upload disimpan ke disk `public` (`storage/app/public/images/...`) — **symlink `php artisan storage:link` wajib ada**; tanpa itu PDF kehilangan logo/tanda tangan.
+- Accessor base64 membaca lewat `Storage::disk('public')` dengan fallback `public_path($path)` untuk berkas lama di `public/images/`. **Multi-tenancy:** aset perusahaan tersimpan di `storage/tenant{slug}/app/public/images/...` dan diakses browser lewat `/c/{company}/storage/{path}` (`TenantStorageController`), bukan symlink `public/storage` — symlink hanya relevan untuk berkas central/legacy. PDF tetap aman karena memakai base64, tidak menembak URL.
 - Upload aset **menghapus file lama** — tidak ada versi/riwayat; nama file diberi timestamp agar URL berubah (cache-buster tambahan `?v=filemtime`).
 - Layout template punya **dua skema** (banded vs legacy flat-array) — semua kode yang membaca `layout` harus cabang pada keberadaan key `bands`.
 - Custom font **global** (dipakai semua template) — menghapus font yang masih direferensikan layout membuat teks jatuh ke font default DomPDF.

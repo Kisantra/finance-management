@@ -27,6 +27,7 @@ use App\Http\Controllers\Settings\PasswordController as SettingsPasswordControll
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\TemplateBuilderController;
+use App\Http\Controllers\TenantStorageController;
 use App\Http\Controllers\TransactionCategoryController;
 use App\Http\Middleware\EnsureUserBelongsToCompany;
 use App\Http\Middleware\SetCompanyUrlDefaults;
@@ -125,6 +126,15 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
 });
 
 Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
+
+    // ------------------------------------------------------------------------
+    // BERKAS PERUSAHAAN (lampiran, logo, tanda tangan, stempel)
+    // Storage per-tenant: root disk `public` ada di storage/tenant{slug}/app/public,
+    // jadi symlink public/storage (milik DB pusat) tidak bisa melayaninya.
+    // ------------------------------------------------------------------------
+    Route::get('/storage/{path}', TenantStorageController::class)
+        ->where('path', '.*')
+        ->name('tenant.storage');
 
     // ------------------------------------------------------------------------
     // DASHBOARD
