@@ -195,6 +195,11 @@ class MasterPermissionSeeder extends Seeder
 
             // PDF Templates
             'manage pdf templates',
+
+            // Company Profile — identitas perusahaan tampil di setiap PDF invoice
+            // dan computed_abbreviation menggerakkan penomoran dokumen, jadi
+            // penyuntingannya tidak boleh terbuka untuk semua user login.
+            'manage company profile',
         ];
 
         $newCount = 0;

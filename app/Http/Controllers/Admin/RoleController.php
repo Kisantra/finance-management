@@ -28,7 +28,7 @@ class RoleController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')],
+            'name' => ['required', 'string', 'max:255', Rule::unique('mysql.roles', 'name')],
             'icon' => ['required', 'string', Rule::in(self::AVAILABLE_ICONS)],
         ]);
 
@@ -48,7 +48,7 @@ class RoleController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
+            'name' => ['required', 'string', 'max:255', Rule::unique('mysql.roles', 'name')->ignore($role->id)],
             'icon' => ['required', 'string', Rule::in(self::AVAILABLE_ICONS)],
         ]);
 

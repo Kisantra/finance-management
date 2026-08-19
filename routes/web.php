@@ -573,9 +573,15 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/password', [SettingsPasswordController::class, 'edit'])->name('password');
         Route::put('/password', [SettingsPasswordController::class, 'update'])->name('password.update');
 
-        Route::get('/company', [CompanyController::class, 'edit'])->name('company');
-        Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
-        Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+        // Profil perusahaan — digate permission: identitasnya (nama, NPWP, PKP,
+        // logo, tanda tangan) tampil di setiap PDF invoice dan singkatannya
+        // menggerakkan penomoran dokumen. Sebelumnya terbuka untuk SEMUA user
+        // login, sehingga staff pun bisa menimpanya.
+        Route::middleware('can:manage company profile')->group(function () {
+            Route::get('/company', [CompanyController::class, 'edit'])->name('company');
+            Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
+            Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+        });
 
         // PDF Template Builder — gated by permission
         Route::prefix('pdf-templates')->name('pdf-templates.')->middleware('can:manage pdf templates')->group(function () {

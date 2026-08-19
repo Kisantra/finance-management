@@ -19,7 +19,7 @@ class StoreUserRequest extends FormRequest
             'phone_number' => ['nullable', 'string', 'max:20'],
             'status' => ['required', 'in:active,inactive'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', 'exists:roles,name'],
+            'role' => ['required', 'exists:mysql.roles,name'],
         ];
     }
 }
