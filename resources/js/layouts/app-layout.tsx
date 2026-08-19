@@ -1,6 +1,9 @@
+import { usePage } from '@inertiajs/react';
 import * as React from 'react';
 import { Toaster } from 'sonner';
 import { FloatingFeedbackButton } from '@/components/floating-feedback-button';
+import { setActiveCompany } from '@/lib/company';
+import type { SharedProps } from '@/types';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 
@@ -9,6 +12,14 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+    // Konteks perusahaan disinkronkan SAAT RENDER, sebelum Sidebar/Header
+    // membangun URL-nya. Mengandalkan event `navigate` (inertia.tsx) terlambat:
+    // event itu menyala setelah render pertama, sehingga navigasi dari halaman
+    // central (login/choose-company) ke halaman perusahaan menghasilkan menu
+    // tanpa prefix /c/{slug} sampai halaman di-reload manual.
+    const company = usePage<SharedProps>().props.company;
+    setActiveCompany(company?.slug ?? null);
+
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sidebar.collapsed') === 'true',
