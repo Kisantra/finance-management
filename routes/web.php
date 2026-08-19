@@ -103,7 +103,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 return $items;
             })
             ->values();
-    })->name('api.transaction-categories');
+    })->middleware('can:view categories')->name('api.transaction-categories');
 
     Route::get('/api/bank-accounts', function () {
         return BankAccount::orderBy('bank_name')
@@ -113,7 +113,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 'label' => $account->account_name.' ('.$account->bank_name.')',
                 'value' => $account->id,
             ]);
-    })->name('api.bank-accounts');
+    })->middleware('can:view bank-accounts')->name('api.bank-accounts');
 
     Route::get('/api/clients', function () {
         return Client::orderBy('name')
@@ -122,7 +122,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 'label' => $client->name,
                 'value' => $client->id,
             ]);
-    })->name('api.clients');
+    })->middleware('can:view clients')->name('api.clients');
 });
 
 Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {

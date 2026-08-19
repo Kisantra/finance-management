@@ -115,6 +115,41 @@ class BankAccountController extends Controller
 
     public function destroy(BankAccount $bankAccount): RedirectResponse
     {
+        // FK cascade akan menghapus seluruh bank_transactions DAN payments milik
+        // rekening ini. Pembayaran invoice yang lenyap tidak memicu
+        // Invoice::updateStatus(), sehingga invoice tetap berstatus
+        // "partially_paid" padahal pembayarannya sudah tidak ada — status bohong
+        // yang merambat ke piutang dan Laporan Laba Rugi. Karena itu ditolak
+        // selama masih ada data terkait, dengan menyebut apa saja yang menahan.
+        $jumlahTransaksi = $bankAccount->transactions()->count();
+        $jumlahPembayaran = $bankAccount->payments()->count();
+        $jumlahPembayaranPinjaman = $bankAccount->loanPayments()->count();
+
+        if ($jumlahTransaksi > 0 || $jumlahPembayaran > 0 || $jumlahPembayaranPinjaman > 0) {
+            $bagian = [];
+            if ($jumlahTransaksi > 0) {
+                $contoh = $bankAccount->transactions()
+                    ->orderByDesc('id')->limit(3)->pluck('description')->all();
+                $bagian[] = $jumlahTransaksi.' transaksi ('.implode(', ', $contoh).
+                    ($jumlahTransaksi > count($contoh) ? ', …' : '').')';
+            }
+            if ($jumlahPembayaran > 0) {
+                $contoh = $bankAccount->payments()->with('invoice')
+                    ->orderByDesc('id')->limit(3)->get()
+                    ->map(fn ($p) => $p->invoice?->invoice_number ?: 'invoice #'.$p->invoice_id)->all();
+                $bagian[] = $jumlahPembayaran.' pembayaran invoice ('.implode(', ', $contoh).
+                    ($jumlahPembayaran > count($contoh) ? ', …' : '').')';
+            }
+            if ($jumlahPembayaranPinjaman > 0) {
+                $bagian[] = $jumlahPembayaranPinjaman.' pembayaran pinjaman';
+            }
+
+            return redirect()->back()->withErrors([
+                'delete' => 'Rekening tidak dapat dihapus karena masih terkait dengan '.
+                    implode(', ', $bagian).'. Pindahkan atau hapus data tersebut terlebih dahulu.',
+            ]);
+        }
+
         $bankAccount->delete();
 
         return redirect()

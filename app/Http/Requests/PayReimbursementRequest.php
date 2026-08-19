@@ -13,11 +13,27 @@ class PayReimbursementRequest extends FormRequest
 
     public function rules(): array
     {
+        $reimbursement = $this->route('reimbursement');
+        $sisa = $reimbursement?->amount_remaining;
+
         return [
             'bank_account_id' => ['required', 'exists:bank_accounts,id'],
             'payment_date' => ['required', 'date', 'before_or_equal:today'],
-            'payment_amount' => ['required', 'integer', 'min:1'],
+            // Pembayaran tidak boleh melampaui sisa: sebelumnya kelebihan bayar
+            // diterima penuh, memotong kas melebihi kewajiban dan membuat
+            // amount_paid > amount (sisa negatif).
+            'payment_amount' => array_filter([
+                'required', 'integer', 'min:1',
+                $sisa !== null ? 'max:'.$sisa : null,
+            ]),
             'reference_notes' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'payment_amount.max' => 'Nominal pembayaran melebihi sisa yang harus dibayar.',
         ];
     }
 }

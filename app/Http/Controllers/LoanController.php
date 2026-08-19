@@ -217,6 +217,20 @@ class LoanController extends Controller
             return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
         }
 
+        // Pembayaran tidak boleh melampaui sisa. Tanpa batas ini kas terdebit
+        // penuh dan sisa pokok/bunga menjadi negatif.
+        if ($principalPaid > $remainingPrincipal) {
+            return back()->withErrors([
+                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+            ]);
+        }
+
+        if ($interestPaid > $remainingInterest) {
+            return back()->withErrors([
+                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+            ]);
+        }
+
         DB::transaction(function () use ($loan, $validated, $principalPaid, $interestPaid, $remainingPrincipal) {
             LoanPayment::create([
                 'loan_id' => $loan->id,

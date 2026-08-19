@@ -357,6 +357,11 @@ class MasterPermissionSeeder extends Seeder
 
             // Reports
             'view profit-loss',
+
+            // Company Profile — NPWP/PKP/tarif PPN adalah urusan perpajakan
+            // sehari-hari finance manager. Tetap berupa permission biasa,
+            // jadi bisa dicabut lewat matriks Izin & Peran kapan saja.
+            'manage company profile',
         ];
 
         $financeManager->syncPermissions($financeManagerPermissions);

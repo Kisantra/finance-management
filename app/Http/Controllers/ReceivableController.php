@@ -288,7 +288,10 @@ class ReceivableController extends Controller
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
                     'amount' => $receivable->principal_amount,
-                    'transaction_date' => now()->format('Y-m-d'),
+                    // Tanggal pinjam, bukan tanggal persetujuan: approval yang
+                    // terlambat sebelumnya membuat mutasi bank jatuh di bulan
+                    // buku yang berbeda dari tanggal piutangnya.
+                    'transaction_date' => $receivable->loan_date?->format('Y-m-d') ?? now()->format('Y-m-d'),
                     'transaction_type' => 'debit',
                     'description' => "Piutang diberikan: {$receivable->receivable_number} - {$receivable->debtor?->name}",
                     'reference_number' => $receivable->receivable_number,
@@ -335,6 +338,28 @@ class ReceivableController extends Controller
 
         if ($principalPaid === 0 && $interestPaid === 0) {
             return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
+        }
+
+        // Cicilan tidak boleh melampaui sisa. Tanpa batas ini kas terkredit
+        // penuh dan sisa pokok/bunga menjadi negatif.
+        if ($principalPaid > $remainingPrincipal) {
+            return back()->withErrors([
+                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+            ]);
+        }
+
+        if ($interestPaid > $remainingInterest) {
+            return back()->withErrors([
+                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+            ]);
+        }
+
+        // Metode transfer wajib menyebut rekening — tanpa ini piutang berkurang
+        // sementara tidak ada mutasi bank yang tercatat sama sekali.
+        if ($validated['payment_method'] === 'bank_transfer' && empty($validated['bank_account_id'])) {
+            return back()->withErrors([
+                'bank_account_id' => 'Rekening bank wajib dipilih untuk metode transfer bank.',
+            ]);
         }
 
         DB::transaction(function () use ($receivable, $validated, $principalPaid, $interestPaid, $remainingPrincipal) {

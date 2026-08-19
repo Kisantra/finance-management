@@ -93,6 +93,40 @@ class ClientController extends Controller
 
     public function destroy(Client $client): RedirectResponse
     {
+        // Menghapus klien meng-cascade hapus seluruh invoice + itemnya, dan
+        // pembayarannya ikut lenyap lewat FK — saldo bank turun tanpa jejak.
+        // Item milik klien ini yang menempel di invoice PIHAK LAIN juga ikut
+        // terhapus sehingga header invoice tidak lagi cocok dengan isinya.
+        // Karena itu penghapusan ditolak selama masih ada data terkait, dengan
+        // menyebut nomor invoice-nya agar user tahu apa yang harus dibereskan.
+        $nomorInvoice = $client->invoices()
+            ->orderByDesc('id')
+            ->limit(5)
+            ->pluck('invoice_number')
+            ->map(fn ($n) => $n ?: '(draft tanpa nomor)')
+            ->all();
+
+        $jumlahInvoice = $client->invoices()->count();
+        $jumlahItemDiInvoiceLain = $client->invoiceItems()
+            ->whereHas('invoice', fn ($q) => $q->where('billed_to_id', '!=', $client->id))
+            ->count();
+
+        if ($jumlahInvoice > 0 || $jumlahItemDiInvoiceLain > 0) {
+            $bagian = [];
+            if ($jumlahInvoice > 0) {
+                $bagian[] = $jumlahInvoice.' invoice ('.implode(', ', $nomorInvoice).
+                    ($jumlahInvoice > count($nomorInvoice) ? ', …' : '').')';
+            }
+            if ($jumlahItemDiInvoiceLain > 0) {
+                $bagian[] = $jumlahItemDiInvoiceLain.' item pada invoice klien lain';
+            }
+
+            return redirect()->back()->withErrors([
+                'delete' => 'Klien tidak dapat dihapus karena masih terkait dengan '.
+                    implode(' dan ', $bagian).'. Hapus atau alihkan data tersebut terlebih dahulu.',
+            ]);
+        }
+
         $client->delete();
 
         return redirect()->back()->with('success', 'Klien berhasil dihapus.');
