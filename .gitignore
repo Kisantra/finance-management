@@ -39,3 +39,7 @@ composer.lock
 # DomPDF font dir (generated cache + uploaded fonts)
 /storage/fonts/*
 !/storage/fonts/.gitkeep
+
+/.claude/worktrees
+/.env.backup-*
+/storage/tenant*

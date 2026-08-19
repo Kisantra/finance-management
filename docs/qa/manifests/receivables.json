@@ -1,0 +1,368 @@
+{
+  "module": "receivables",
+  "title": "Modul Receivables (Piutang)",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/receivables.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/receivables",
+  "report_out": "../report/Laporan-QA-receivables.pdf",
+  "summary": [
+    "34 test case dirancang untuk modul ini; 23 lolos, 9 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "8 temuan tercatat (BUG-C4, BUG-C1, BUG-C2, BUG-C3, BUG-C5, BUG-C6, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-C4",
+      "title": "Membuat & mengedit piutang dari form selalu HTTP 500 (BLOKIR)",
+      "sifat": "Cacat fatal / blocker fungsional.",
+      "cases": "A13, A14.",
+      "gejala": "`POST /c/qa-empat/receivables` dan `PUT /c/qa-empat/receivables/{id}` mengembalikan HTTP 500 dengan `TypeError: Carbon\\Carbon::rawAddUnit(): Argument #3 ($value) must be of type int/float, string given` setiap kali `installment_months` berupa string. Body JSON dengan `installment_months` berupa angka berhasil (302), membuktikan tipe datalah penyebabnya.",
+      "sebab": "`app/Http/Controllers/ReceivableController.php:169` (store) dan `:229` (update) memanggil `now()-›parse($validated['loan_date'])-›addMonths($installmentMonths)`. Aturan validasi `integer` di `StoreReceivableRequest`/`UpdateReceivableRequest` hanya memeriksa, tidak meng-cast, sehingga nilai tetap string. Carbon 3 menolak argumen string secara ketat.",
+      "cakupan": "Seluruh jalur UI. `resources/js/pages/receivables/index.tsx:576` memakai `forceFormData: true` (multipart, semua nilai jadi string) dan baris 690 mengisi `installment_months` dari `e.target.value` (string). Artinya tombol \"Tambah\" dan \"Edit\" pada halaman Piutang tidak dapat dipakai sama sekali. Test suite yang ada tidak menangkapnya karena memanggil controller dengan integer PHP.",
+      "perbaikan": "Cast eksplisit di kedua tempat: `$installmentMonths = (int) $validated['installment_months'];` (juga `(int) $validated['principal_amount']`), atau tambahkan `prepareForValidation()` di form request yang meng-cast field numerik. Tambahkan test feature yang mengirim payload berbentuk string agar regresi tertangkap.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C1",
+      "title": "Tidak ada batas atas pembayaran pokok piutang",
+      "sifat": "Cacat validasi / kesalahan pencatatan kas.",
+      "cases": "A09.",
+      "gejala": "Piutang id 1 berpokok Rp 6.000.000 menerima total pembayaran pokok Rp 13.500.000 → sisa pokok tercatat −Rp 7.500.000, status langsung `paid_off`, dan rekening dikredit Rp 10.000.000 dengan kategori `FIN-RCV-IN` (pengembalian piutang) meski piutangnya sudah habis.",
+      "sebab": "`app/Http/Requests/PayReceivableRequest.php` hanya memberi `nullable/integer/min:0`. `ReceivableController::pay()` (baris 322-330) menghitung `$remainingPrincipal`/`$remainingInterest` tetapi hanya memakai `$remainingPrincipal` untuk menentukan `paid_off` (tidak untuk membatasi input).",
+      "cakupan": "Semua user dengan `pay receivables`. Dampak: penerimaan berlebih terklasifikasi sebagai pengembalian pokok (kategori `financing`) sehingga tidak muncul sebagai pendapatan di P&L — uang masuk yang tidak terlacak.",
+      "perbaikan": "Tolak `principal_paid › remainingPrincipal` (dan opsional `interest_paid › remainingInterest`) di form request/controller dengan pesan yang menyebut sisa aktual.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C2",
+      "title": "`bank_transfer` tanpa rekening tercatat sebagai pembayaran tanpa mutasi bank",
+      "sifat": "Cacat validasi / inkonsistensi data.",
+      "cases": "A10.",
+      "gejala": "Pembayaran dengan `payment_method=bank_transfer` tetapi tanpa `bank_account_id` diterima (302). Baris `receivable_payments` id 4 tersimpan dengan metode `bank_transfer`, tetapi tidak ada satu pun `bank_transactions` dibuat. Sisa piutang berkurang sementara saldo rekening tidak pernah bertambah.",
+      "sebab": "`app/Http/Requests/PayReceivableRequest.php` mendefinisikan `bank_account_id` sebagai `nullable/exists:bank_accounts,id` — tanpa `required_if:payment_method,bank_transfer`. `ReceivableController::pay()` (baris ±358) hanya menulis mutasi bila `payment_method === 'bank_transfer' && bank_account_id` terisi, dan diam bila tidak. Di frontend, `resources/js/pages/receivables/index.tsx:925-936` memberi label \"Rekening ∗\" tetapi tidak ada validasi client-side.",
+      "cakupan": "Semua user dengan `pay receivables`; dapat terjadi tanpa niat buruk (user memilih metode transfer lalu lupa memilih rekening).",
+      "perbaikan": "Tambahkan `required_if:payment_method,bank_transfer` pada `bank_account_id`; atau, bila metode transfer tanpa rekening dianggap sah, tolak di controller dengan pesan eksplisit alih-alih menyimpan diam-diam.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C3",
+      "title": "`debtor_id` tidak divalidasi terhadap debitur yang sah",
+      "sifat": "Cacat integritas referensial.",
+      "cases": "A11, A12.",
+      "gejala": "(a) `debtor_id=99999` diterima → piutang `RCV-00003` menunjuk User yang tidak ada; index merender `debtor_name: null`, dan deskripsi transaksi bank saat approve akan berbunyi `Piutang diberikan: RCV-00003 - ` (nama kosong). (b) `type=employee_loan` dengan `debtor_id=1` yang dimaksudkan sebagai Client id 1 justru dipetakan ke User id 1 \"Admin\" tanpa peringatan.",
+      "sebab": "`app/Http/Requests/StoreReceivableRequest.php` (dan Update) hanya memvalidasi `debtor_id` sebagai `required/integer` — tidak ada `exists`, dan tidak ada aturan yang mengaitkan `debtor_id` dengan `type`. `ReceivableController::store()` baris 170 menentukan `debtor_type` semata dari `type`.",
+      "cakupan": "Semua user dengan `create receivables` (termasuk role `staff`). UI memang memakai `Combobox` dari `employeeOptions`/`companyOptions`, tetapi tidak ada penegakan di backend — sehingga panggilan langsung, bug frontend, atau perubahan opsi bisa membuat piutang atas nama pihak yang salah.",
+      "perbaikan": "Validasi kondisional di form request, mis. `exists:users,id` bila `type=employee_loan` dan `exists:clients,id` bila `type=company_loan` (pakai `Rule::exists()` di dalam closure/`withValidator`), plus filter status (`users.status=active`, `clients.type=company`).",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C5",
+      "title": "Nominal bunga bergeser karena `interest_rate` dibulatkan 2 desimal",
+      "sifat": "Cacat presisi perhitungan (invarian terdokumentasi, terbukti).",
+      "cases": "A15.",
+      "gejala": "Input bunga `fixed` Rp 500.000 atas pokok Rp 7.000.000 disimpan sebagai `interest_rate=7.14`. Setiap perhitungan ulang (mis. sisa bunga di dialog bayar, `ReceivableController.php:327`) menghasilkan Rp 499.800 — geser Rp 200. Sementara `installment_amount` (Rp 1.500.000) masih dihitung dari bunga asli Rp 500.000, sehingga dua angka di layar yang sama tidak konsisten.",
+      "sebab": "`ReceivableController::store()` baris 161-163 mengonversi nominal ke rate dengan `round($totalInterest / $principalAmount ∗ 100, 2)`; kolom `receivables.interest_rate` bertipe `decimal(5,2)` sehingga nominal asli tidak disimpan di mana pun.",
+      "cakupan": "Setiap piutang dengan `interest_type=fixed` yang nominalnya bukan kelipatan bulat dari 0,01% pokok. Selisih kecil per record tetapi konsisten dan tidak pernah bisa dilunasi tepat.",
+      "perbaikan": "Simpan nominal bunga apa adanya di kolom terpisah (mis. `interest_amount`) dan pakai kolom itu sebagai sumber kebenaran; `interest_rate` cukup jadi turunan untuk tampilan. Alternatif: perbesar presisi kolom menjadi `decimal(8,4)`.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C6",
+      "title": "Pencairan piutang memakai tanggal hari ini, bukan `loan_date`",
+      "sifat": "Cacat pencatatan periode (invarian terdokumentasi, terbukti).",
+      "cases": "C01.",
+      "gejala": "Piutang `RCV-00001` dengan `loan_date=2026-07-01` disetujui pada 2026-08-19; `bank_transactions` id 16 bertanggal `2026-08-19`. Selisih 49 hari dan lintas bulan buku.",
+      "sebab": "`app/Http/Controllers/ReceivableController.php:290` — `'transaction_date' =› now()-›format('Y-m-d')`.",
+      "cakupan": "Semua piutang yang persetujuannya tidak di hari yang sama dengan tanggal pinjam. Dampak: Cash Flow per periode dan rekonsiliasi bank tidak cocok dengan tanggal pinjam yang tercatat di piutang.",
+      "perbaikan": "Pakai `$receivable-›loan_date`, atau tegaskan di UI bahwa tanggal pencairan = tanggal persetujuan dan tampilkan tanggal itu di detail piutang. Bila keduanya perlu, simpan `disbursed_at` tersendiri.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C7",
+      "title": "Edit setelah reject tidak membersihkan `approved_by`/`approved_at`",
+      "sifat": "Data menyesatkan (invarian terdokumentasi, terbukti).",
+      "cases": "C02 (catatan pada N11).",
+      "gejala": "Piutang id 2 yang ditolak lalu diedit kembali ke `status=draft` dengan `rejection_reason=NULL`, tetapi masih menyimpan `approved_by=2` dan `approved_at=2026-08-19 14:42:06`. Di UI, kolom peninjau akan menampilkan nama manager pada piutang yang secara status belum pernah diajukan.",
+      "sebab": "`ReceivableController::update()` (baris 232-250) menyetel `status =› 'draft'` dan `rejection_reason =› null` tetapi tidak menyentuh `approved_by`, `approved_at`, maupun `review_notes`.",
+      "cakupan": "Semua piutang yang melewati jalur reject → revisi.",
+      "perbaikan": "Sertakan `'approved_by' =› null, 'approved_at' =› null, 'review_notes' =› null` pada update ketika status direset ke `draft`.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-C8",
+      "title": "Pendapatan bunga piutang tidak masuk baris \"Pendapatan Lain\" di P&L",
+      "sifat": "Cacat konfigurasi data awal (seeder) dengan dampak pelaporan. Sama akarnya dengan BUG-L4 di modul Loans.",
+      "cases": "C04.",
+      "gejala": "Pendapatan bunga Rp 100.000 (kategori `REV-INTEREST`, id 14) muncul di blok `unclassified.income` pada Laporan Laba Rugi; `other_income.by_category` kosong dan `other_income.total = 0`.",
+      "sebab": "`database/seeders/TransactionCategorySeeder.php:27-28` membuat `REV-INTEREST` dan `EXP-INTEREST` tanpa `pl_group`; di `tenant_qa-empat` kolom `pl_group` keduanya NULL. `docs/module/receivables.md` menyatakan `REV-INTEREST` \"(income/`other_income`) menambah laba\".",
+      "cakupan": "Setiap tenant yang di-provisioning dengan seeder saat ini.",
+      "perbaikan": "Isi `pl_group` di seeder (`other_income` / `other_expense`) plus backfill untuk tenant yang sudah ada; atau perbarui dokumentasi modul bila penetapan `pl_group` memang diserahkan ke admin.",
+      "status": "SUDAH DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat piutang karyawan (`employee_loan`) — debitur polimorfik ke `User`",
+      "verdict": "Pass",
+      "note": "302. DB id 1 `RCV-00001`: `debtor_type=App\\Models\\User`, `debtor_id=3`, `status=draft`. Tidak ada `bank_transactions` baru",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar piutang dengan debitur polimorfik (User atau Klien)."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Buat piutang perusahaan (`company_loan`) — debitur polimorfik ke `Client`",
+      "verdict": "Pass",
+      "note": "302. DB id 2 `RCV-00002`: `debtor_type=App\\Models\\Client`, `debtor_id=1`, `interest_rate=5.00`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Perhitungan cicilan & jatuh tempo",
+      "verdict": "Pass",
+      "note": "Persis sesuai: id 1 `interest_rate=10.00`, `installment_amount=1100000`, `due_date=2027-01-01`; id 2 `installment_amount=4200000`, `due_date=2027-04-15`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Ajukan persetujuan (submit) — tanpa permission khusus",
+      "verdict": "Pass",
+      "note": "302 keduanya; `status=pending_approval`. Sesuai dokumentasi: route submit hanya digate `can:view receivables`",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Approve → pencairan otomatis debit `FIN-RCV-OUT`",
+      "verdict": "Pass",
+      "note": "302. DB id 1: `status=active`, `approved_by=2`, `approved_at=2026-08-19 14:41:21`, `review_notes=Disetujui QA N04`. `bank_transactions` id 16: `debit` 6.000.000, `category_id=11`, `description=Piutang diberikan: RCV-00001 - Staff Demo`, `reference_number=RCV-00001`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Tolak (reject) — jejak penolak tersimpan, tanpa mutasi bank",
+      "verdict": "Pass",
+      "note": "302. DB id 2: `status=rejected`, `rejection_reason=Plafon klien terlampaui`, `approved_by=2`, `approved_at=2026-08-19 14:42:06`. Tidak ada mutasi bank",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Cicilan `bank_transfer` → dua kredit masuk (pokok + bunga)",
+      "verdict": "Pass",
+      "note": "302. `bank_transactions` id 17 (credit 1.000.000, `category_id=12`, `Pembayaran piutang pokok: RCV-00001 - Staff Demo`) dan id 18 (credit 100.000, `category_id=14`, `Pembayaran bunga piutang: ...`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Cicilan `cash` TIDAK menyentuh saldo",
+      "verdict": "Pass",
+      "note": "302. `receivable_payments` id 2 tercatat (`payment_method=cash`); tidak ada `bank_transactions` baru sama sekali",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Cicilan `payroll_deduction` TIDAK menyentuh saldo",
+      "verdict": "Pass",
+      "note": "302. `receivable_payments` id 3 tercatat; tidak ada `bank_transactions` baru",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Pelunasan pokok → `paid_off` otomatis",
+      "verdict": "Pass",
+      "note": "DB id 1 `status=paid_off` setelah akumulasi pokok 13.500.000 ≥ 6.000.000",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Edit piutang yang ditolak → status kembali `draft`",
+      "verdict": "Pass (dengan catatan)",
+      "note": "302. DB id 2: `status=draft`, `rejection_reason=NULL`, `interest_rate=6.00`, `installment_amount=2650000` ((30.000.000+1.800.000)/12), `due_date=2027-06-15`. Namun `approved_by=2` dan `approved_at=2026-08-19 14:42:06` tidak dibersihkan — lihat C02",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Hapus piutang berstatus `draft` tanpa pembayaran",
+      "verdict": "Pass",
+      "note": "302 keduanya; id 2 & 3 hilang dari tabel",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Staff bisa membuka index piutang",
+      "verdict": "Pass",
+      "note": "200",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Approve tanpa memilih rekening sumber",
+      "verdict": "Pass",
+      "note": "422 `{\"bank_account_id\":[\"The bank account id field is required when action is approve.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Submit pada status non-`draft`",
+      "verdict": "Pass",
+      "note": "403 `{\"message\":\"Piutang ini tidak dapat diajukan\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Approve pada status non-`pending_approval`",
+      "verdict": "Pass",
+      "note": "403 `{\"message\":\"Piutang ini tidak dapat diproses\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Bayar piutang yang sudah `paid_off`",
+      "verdict": "Pass",
+      "note": "403 `{\"message\":\"Piutang ini tidak dapat dibayar\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Hapus piutang non-`draft`",
+      "verdict": "Pass",
+      "note": "403 `{\"message\":\"Piutang ini tidak dapat dihapus\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Staff (tanpa `approve receivables`) menyetujui",
+      "verdict": "Pass",
+      "note": "403 `This action is unauthorized.`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Staff (tanpa `edit receivables`) mengedit",
+      "verdict": "Pass",
+      "note": "403 `This action is unauthorized.`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Bayar dengan pokok = 0 DAN bunga = 0",
+      "verdict": "Pass",
+      "note": "302 + `errors: {\"principal_paid\":\"Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga\"}`; tidak ada baris/tx baru",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Pembayaran pokok melebihi sisa",
+      "verdict": "Fail (BUG-C1)",
+      "note": "302 — DITERIMA. Akumulasi pokok 13.500.000 atas pokok 6.000.000 → sisa −7.500.000, `status=paid_off`; rekening dikredit penuh 10.000.000",
+      "attempts": "f"
+    },
+    {
+      "id": "A10",
+      "title": "`payment_method=bank_transfer` tanpa `bank_account_id`",
+      "verdict": "Fail (BUG-C2)",
+      "note": "302 — pembayaran tersimpan (`receivable_payments` id 4, `payment_method=bank_transfer`, `reference_number=CIC-4-NOBANK`) tetapi tidak ada `bank_transactions` sama sekali. Uang dianggap masuk di modul piutang tanpa pernah masuk rekening",
+      "attempts": "f"
+    },
+    {
+      "id": "A11",
+      "title": "`debtor_id` menunjuk ID yang tidak ada",
+      "verdict": "Fail (BUG-C3)",
+      "note": "302 — DITERIMA. DB id 3 `RCV-00003` dengan `debtor_type=App\\Models\\User`, `debtor_id=99999`. Index merender `\"debtor_name\":null`",
+      "attempts": "f"
+    },
+    {
+      "id": "A12",
+      "title": "`debtor_id` menunjuk entitas dari kelas yang salah",
+      "verdict": "Fail (BUG-C3)",
+      "note": "302 — DITERIMA dan diam-diam dipetakan ke User id 1 = \"Admin\": props `\"debtor_name\":\"Admin\",\"debtor_type\":\"App\\\\Models\\\\User\"`. Piutang tercatat atas nama orang yang salah tanpa peringatan",
+      "attempts": "f"
+    },
+    {
+      "id": "A13",
+      "title": "`installment_months` sebagai string (bentuk yang dikirim form) pada create",
+      "verdict": "float, string given` (TypeError). Body JSON yang sama dengan `installment_months` berupa angka → 302 sukses",
+      "note": "HTTP 500 — `Carbon\\Carbon::rawAddUnit(): Argument #3 ($value) must be of type int\\"
+    },
+    {
+      "id": "A14",
+      "title": "`installment_months` sebagai string pada update",
+      "verdict": "Fail (BUG-C4)",
+      "note": "HTTP 500, TypeError Carbon yang sama (`ReceivableController.php:229`)",
+      "attempts": "f"
+    },
+    {
+      "id": "A15",
+      "title": "Pembulatan `interest_rate` menggeser nominal bunga",
+      "verdict": "Fail (BUG-C5, invarian terdokumentasi)",
+      "note": "Tersimpan `interest_rate=7.14` → bunga hasil hitung ulang = 7.000.000 × 7,14% = Rp 499.800 (geser −Rp 200 dari input Rp 500.000), sedangkan `installment_amount=1500000` masih memakai bunga 500.000 yang asli",
+      "attempts": "f"
+    },
+    {
+      "id": "A16",
+      "title": "Tanggal bayar di masa depan",
+      "verdict": "Belum diuji",
+      "note": "Belum diuji — kehabisan piutang berstatus `active` setelah A09 membuat id 1 menjadi `paid_off`; endpoint `pay` menolak lebih dulu dengan 403 sehingga validasi tanggal tidak pernah dijangkau"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Tanggal pencairan ≠ `loan_date`",
+      "verdict": "Fail (BUG-C6, invarian terdokumentasi)",
+      "note": "`bank_transactions` id 16 bertanggal `2026-08-19` (hari approve) sedangkan `receivables.loan_date=2026-07-01` — selisih 49 hari. Pengeluaran kas jatuh di periode laporan yang berbeda dari tanggal pinjam",
+      "attempts": "f"
+    },
+    {
+      "id": "C02",
+      "title": "Edit setelah reject tidak membersihkan jejak persetujuan",
+      "verdict": "Fail (BUG-C7, invarian terdokumentasi)",
+      "note": "`status=draft` dan `rejection_reason=NULL` (benar), tetapi `approved_by=2` & `approved_at=2026-08-19 14:42:06` tetap tertinggal. Piutang berstatus draft tampak sudah pernah \"disetujui/ditinjau\" oleh manager",
+      "attempts": "f"
+    },
+    {
+      "id": "C03",
+      "title": "Siklus penuh lintas aktor & rekonsiliasi kas",
+      "verdict": "Pass",
+      "note": "Alur status `draft→pending_approval→active→paid_off` berjalan penuh. Dari 5 pembayaran, hanya 2 yang menghasilkan mutasi (`bank_transfer` dengan rekening). Saldo `QA Ops` dari props aplikasi = `505.200.000`, identik dengan hitung ulang SQL `initial_balance + Σcredit − Σdebit`; `QA Cadangan` = `94.800.000`, juga identik",
+      "attempts": "p"
+    },
+    {
+      "id": "C04",
+      "title": "Bunga piutang masuk P&L sebagai \"Pendapatan Lain\"",
+      "verdict": "Fail (BUG-C8)",
+      "note": "Pokok memang tidak masuk P&L (benar), tetapi `other_income.by_category` kosong; `Pendapatan Bunga` (kategori id 14, Rp 100.000) muncul di blok `unclassified.income`",
+      "attempts": "f"
+    },
+    {
+      "id": "C05",
+      "title": "Pembayaran `cash`/`payroll_deduction` tidak pernah masuk P&L",
+      "verdict": "Pass (perilaku terdokumentasi, berisiko)",
+      "note": "Benar: hanya Rp 100.000 dari N07 yang terbaca P&L; bunga Rp 100.000 dari N08 (cash) tidak muncul di mana pun karena tidak menghasilkan `bank_transactions`. Perilaku sesuai dokumentasi, tetapi berarti pendapatan bunga tunai hilang dari laporan laba rugi",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Semua case dieksekusi lewat HTTP `http://127.0.0.1:8000` dengan cookie sesi Batasan metode yang harus diketahui pembaca: karena BUG-C4, `store()` dan Pengujian dilakukan lewat endpoint, bukan lewat klik di browser. Klaim tentang A16 tetap `Belum diuji` — tidak dibulatkan menjadi Pass. Setelah A09 membuat Efek samping yang SEHARUSNYA TIDAK terjadi ikut diperiksa: N06 (reject tidak Rekonsiliasi saldo dilakukan dua arah (props aplikasi vs `initial_balance + Data uji yang tertinggal sebagai bukti: piutang id 1 `RCV-00001` (`paid_off`, Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama"
+    }
+  ]
+}

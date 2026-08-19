@@ -24,8 +24,11 @@ class TransactionCategorySeeder extends Seeder
             ['type' => 'financing', 'label' => 'Penarikan Modal'],
             ['type' => 'financing', 'label' => 'Piutang Diberikan', 'system_key' => 'FIN-RCV-OUT'],
             ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima', 'system_key' => 'FIN-RCV-IN'],
-            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman', 'system_key' => 'EXP-INTEREST'],
-            ['type' => 'income', 'label' => 'Pendapatan Bunga', 'system_key' => 'REV-INTEREST'],
+            // pl_group WAJIB terisi: tanpa ini bunga pinjaman & bunga piutang
+            // jatuh ke bucket "belum diklasifikasi" dan tidak pernah masuk baris
+            // Beban Lain / Pendapatan Lain di Laporan Laba Rugi.
+            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman', 'system_key' => 'EXP-INTEREST', 'pl_group' => 'other_expense'],
+            ['type' => 'income', 'label' => 'Pendapatan Bunga', 'system_key' => 'REV-INTEREST', 'pl_group' => 'other_income'],
         ];
 
         foreach ($parents as $parent) {
@@ -33,8 +36,21 @@ class TransactionCategorySeeder extends Seeder
                 ['type' => $parent['type'], 'label' => $parent['label'], 'parent_id' => null]
             );
 
+            $patch = [];
+
             if (isset($parent['system_key']) && $category->system_key !== $parent['system_key']) {
-                $category->forceFill(['system_key' => $parent['system_key']])->save();
+                $patch['system_key'] = $parent['system_key'];
+            }
+
+            // pl_group hanya diisi bila masih kosong — klasifikasi yang sudah
+            // disesuaikan pengguna lewat panel Laba Rugi tidak boleh ditimpa
+            // saat seeder dijalankan ulang.
+            if (isset($parent['pl_group']) && $category->pl_group === null) {
+                $patch['pl_group'] = $parent['pl_group'];
+            }
+
+            if ($patch) {
+                $category->forceFill($patch)->save();
             }
         }
 

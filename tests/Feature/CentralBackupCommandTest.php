@@ -89,7 +89,7 @@ class CentralBackupCommandTest extends TestCase
 
         $deleted = (new CentralBackup)->pruneOldBackups($this->backupRoot, 14);
 
-        $this->assertSame([$old], $deleted);
+        $this->assertSame([$this->normalkan($old)], array_map($this->normalkan(...), $deleted));
         $this->assertDirectoryDoesNotExist($old);
         $this->assertDirectoryExists($recent);
         $this->assertDirectoryExists($foreign);
@@ -113,6 +113,16 @@ class CentralBackupCommandTest extends TestCase
      *
      * @return array{0: string, 1: string, 2: string} [folder tua, folder baru, folder non-backup]
      */
+    /**
+     * `File::directories()` mengembalikan pemisah asli OS (backslash di Windows),
+     * sedangkan path harapan disusun dengan garis miring. Yang diuji adalah folder
+     * mana yang dihapus, bukan gaya penulisan pemisahnya.
+     */
+    protected function normalkan(string $path): string
+    {
+        return str_replace(DIRECTORY_SEPARATOR, '/', $path);
+    }
+
     protected function buatFolderDummy(): array
     {
         $old = $this->backupRoot.'/'.now()->subDays(30)->format('Y-m-d_His');

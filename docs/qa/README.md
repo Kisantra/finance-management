@@ -83,6 +83,32 @@ Setiap file test case merujuk dokumentasi modulnya di
 modul adalah sumber test case bernilai tertinggi — di situlah aturan yang mudah
 dilanggar sudah dituliskan.
 
+## Cakupan bukti visual (jujur, per modul)
+
+Sebagian besar case dieksekusi lewat **HTTP dengan cookie sesi asli**, bukan
+lewat layar. Itu sah dan tercatat apa adanya, tetapi bukan bukti UI. Tabel di
+bawah menyatakan berapa banyak langkah yang benar-benar ditangkap dari peramban
+per modul — sisanya tidak punya tangkapan layar, dan tidak diklaim punya.
+
+| Modul | Langkah ber-tangkapan layar | Sifat bukti |
+|---|---|---|
+| fund-requests | 8 | Alur berantai penuh lewat UI: ajukan → setujui → cairkan + unggah bukti → berkas terbuka |
+| clients | 6 | Buat klien lewat form + dialog hapus yang diperbaiki di sesi ini |
+| transaction-categories | 4 | Pindahkan-lalu-hapus kategori terpakai, diverifikasi ke DB |
+| auth-multitenancy | 3 | Login, pemilih perusahaan, sidebar ber-prefix perusahaan |
+| cash-flow | 3 | Input pengeluaran termasuk pemilih kategori berjenjang |
+| services | 3 | Tambah layanan dan dampaknya ke statistik |
+| settings | 2 | Profil pribadi + Profil Perusahaan setelah BUG-SET-06 |
+| bank-accounts, dashboard, feedbacks, invoices, loans, notifications, profit-loss, receivables, recurring-invoices, reimbursements, admin-users-permissions | 1 masing-masing | Halaman utama modul saja — alur di dalamnya dieksekusi lewat HTTP |
+
+Kekurangan ini nyata dan disebabkan pilihan eksekusi: putaran QA pertama
+dijalankan 5 agen paralel, sedangkan Chrome DevTools MCP hanya punya satu
+peramban — sehingga agen tidak bisa mengemudikan UI dan seluruh eksekusi jatuh
+ke HTTP. Ironisnya bug paling penting yang ditemukan (menu 404 setelah login)
+hanya terlihat dari layar. Penangkapan layar susulan dilakukan serial oleh
+supervisor, dan langsung menemukan satu cacat lagi (teks dialog hapus klien)
+yang tidak mungkin terlihat dari HTTP.
+
 ## Batasan yang jujur diakui di muka
 
 - Sebagian kode yang diuji ditulis oleh asisten yang sama yang menjalankan

@@ -587,7 +587,16 @@ export default function ClientsIndex() {
                 open={!!deleteTarget}
                 onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
                 title="Hapus Klien"
-                description={deleteTarget ? `Apakah Anda yakin ingin menghapus "${deleteTarget.name}"? Semua invoice terkait akan ikut dihapus.` : ''}
+                description={
+                    deleteTarget
+                        ? deleteTarget.invoices_count > 0
+                            // Penghapusan klien yang masih punya invoice DITOLAK server.
+                            // Teks lama ("semua invoice terkait akan ikut dihapus")
+                            // menjanjikan perilaku destruktif yang sudah tidak berlaku.
+                            ? `"${deleteTarget.name}" masih memiliki ${deleteTarget.invoices_count} invoice. Klien tidak dapat dihapus selama datanya masih terkait — hapus atau alihkan invoice tersebut terlebih dahulu.`
+                            : `Apakah Anda yakin ingin menghapus "${deleteTarget.name}"?`
+                        : ''
+                }
                 confirmLabel="Hapus Klien"
                 loading={deleteForm.processing}
                 onConfirm={confirmDelete}

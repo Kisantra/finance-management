@@ -1,0 +1,220 @@
+{
+  "module": "dashboard",
+  "title": "Modul Dashboard",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/dashboard.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/dashboard",
+  "report_out": "../report/Laporan-QA-dashboard.pdf",
+  "summary": [
+    "22 test case dirancang untuk modul ini; 21 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "2 temuan tercatat (TEMUAN-DASH-01, CATATAN-DASH-02). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "TEMUAN-DASH-01",
+      "title": "Fallback dashboard yang hardcoded dapat mengunci user sepenuhnya setelah login",
+      "sifat": "Cacat desain otorisasi/UX — bukan crash, tetapi user yang kredensialnya benar tidak bisa memakai aplikasi sama sekali.",
+      "cases": "A03 (A02 sendiri \"Pass\" karena persis seperti yang dijanjikan dokumentasi).",
+      "gejala": "Akun `qa5-nodash@qa.test` (punya `view feedbacks` + `create feedbacks`, tanpa `view dashboard` dan tanpa `view expense`) berhasil login (`POST /login` → 302), tetapi setiap jalur pendaratan berakhir buntu: `/c/qa-lima/dashboard` → 302 `/c/qa-lima/cash-flow/expenses` → 403. Bahkan `/choose-company` pun berakhir di 403 yang sama karena auto-select perusahaan tunggal. Tidak ada layar apa pun yang bisa dibuka user ini lewat alur normal, padahal ia berhak membuka `/c/qa-lima/feedbacks`.",
+      "sebab": "`app/Http/Controllers/DashboardController.php::__invoke()` — redirect tetap `redirect()-›route('cash-flow.expenses')` tanpa memeriksa apakah user berhak membuka tujuan itu. Dokumentasi modul sudah menyebut ini sebagai jebakan (\"Fallback bukan dinamis\"), jadi perilakunya diketahui; yang belum ada adalah pengamannya.",
+      "cakupan": "Setiap role/kombinasi permission yang tidak memiliki `view dashboard` dan tidak memiliki `view expense`. Ini bukan konfigurasi mustahil: `view dashboard` disebut permission \"togglable\", dan tidak ada validasi apa pun di modul Permissions yang mencegah admin mematikan keduanya sekaligus.",
+      "perbaikan": "Pilih satu (a) jadikan fallback dinamis — cari rute pertama yang boleh diakses user dari daftar prioritas, dengan halaman \"tidak ada modul yang bisa diakses\" sebagai pilihan terakhir; atau (b) tegakkan invarian di sisi Permissions: `view expense` wajib menyala bila `view dashboard` dimatikan. Pilihan (a) lebih tahan terhadap perubahan matriks permission di masa depan.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "CATATAN-DASH-02",
+      "title": "Tipe data `financialOverview` tidak konsisten (string vs integer)",
+      "sifat": "Ketidakkonsistenan kontrak API — kosmetik, berisiko rendah.",
+      "cases": "Tidak ada case (ditemukan saat inspeksi props N02/N03).",
+      "gejala": "Dalam satu objek yang sama, `total_income` dan `total_hpp` dikirim sebagai string (`\"15000000\"`, `\"4000000\"`) sedangkan `total_profit`, `total_pp`, `total_outstanding`, `total_balance` dikirim sebagai integer. Hal yang sama terjadi di `cashFlowChart` (`\"12650000\"` vs `0`).",
+      "sebab": "Nilai yang berasal langsung dari agregat SQL (`sum()`) tidak di-cast, sedangkan nilai hasil aritmetika PHP menjadi integer. Ada di `app/Http/Controllers/DashboardController.php` (`getFinancialOverview()`, `getCashFlowChart()`).",
+      "cakupan": "Semua konsumen prop ini. Belum menimbulkan gejala terlihat karena React memformat dengan `Intl.NumberFormat`, tetapi setiap operasi aritmetika atau perbandingan ketat di sisi TypeScript akan berperilaku berbeda antar-field.",
+      "perbaikan": "Bungkus semua agregat dengan `(int)` sebelum dikirim, seperti yang sudah dilakukan konsisten di `ProfitLossService`.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Admin membuka dashboard",
+      "verdict": "Pass",
+      "note": "200; props berisi `financialOverview, stats, cashFlowChart, expensesByCategory, bankAccounts, pendingInvoices, recentTransactions, recentReimbursements, recentFundRequests` (9 blok, lengkap)",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Dashboard perusahaan QA Satu: kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening dengan saldo terhitung."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Total pendapatan = Σ seluruh pembayaran",
+      "verdict": "Pass",
+      "note": "`total_income=\"15000000\"` — cocok. Catatan: P&L untuk data yang sama melaporkan pendapatan 10.000.000 karena mengeluarkan titipan pajak; perbedaan ini memang by design, dashboard tidak menerapkan aturan titipan",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "HPP & laba overview",
+      "verdict": "Pass",
+      "note": "`total_hpp=\"4000000\"`, `total_profit=11000000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "`total_pp` = 0,5% basis item non titipan pajak",
+      "verdict": "Pass",
+      "note": "`total_pp=50000` — item `is_tax_deposit=1` benar-benar dikecualikan dari basis",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Total saldo computed, bukan tersimpan",
+      "verdict": "Pass",
+      "note": "`financialOverview.total_balance=122289000`; `bankAccounts=[{\"id\":1,\"name\":\"Kas QA5\",\"bank\":\"BCA\",\"account_number\":\"5550001\",\"balance\":122289000}]`. Kolom saldo tersimpan tidak ada di tabel `bank_accounts` (hanya `initial_balance=100000000`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Outstanding nol saat invoice lunas",
+      "verdict": "Pass",
+      "note": "`total_outstanding=0`, `pendingInvoices=[]` (invoice id 1 berstatus `paid`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Stats bulan berjalan",
+      "verdict": "Pass",
+      "note": "`{\"income_this_month\":0,\"expenses_this_month\":0,\"net_this_month\":0,\"pending_invoices_count\":0,\"pending_invoices_amount\":0}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Grafik cash flow 6 bulan",
+      "verdict": "Pass",
+      "note": "`[Mar 0/0, Apr 0/0, Mei 0/0, Jun \"12650000\"/\"5250000\", Jul \"111000\"/\"222000\", Agt 0/0]` — cocok dengan penjumlahan tangan. Label bulan sudah dilokalkan (`Mei`, `Agt`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Grafik hanya membaca `bank_transactions`, bukan `payments`",
+      "verdict": "Pass",
+      "note": "`Mar 0, Apr 0, Mei 0` meski ada pembayaran Rp 3jt/6jt/6jt — sesuai dokumentasi, grafik tidak menggabungkan `payments`",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Feed transaksi menggabungkan dua sumber",
+      "verdict": "Pass",
+      "note": "8 baris teratas semuanya `bank_transactions` (yang terbaru), mis. `{\"date\":\"2026-07-02\",\"description\":\"QA5 Debit pada kategori income\",\"type\":\"expense\",\"amount\":222000,\"account\":\"Kas QA5\"}` — pembayaran Mar–Mei kalah baru sehingga tidak masuk 8 besar",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Feed pengajuan dana",
+      "verdict": "Pass",
+      "note": "`[{\"id\":1,\"number\":\"QA5/001/VIII/2026\",\"title\":\"Uji actionCounts\",\"amount\":500000,\"status\":\"pending\",\"priority\":\"medium\",\"user\":\"Staff Demo\",\"date\":\"19 Aug 2026\"}]`",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "`actionCounts` permission-aware",
+      "verdict": "Pass",
+      "note": "admin `{\"reimbursements\":0,\"fund_requests\":1}`; manager `{\"reimbursements\":0,\"fund_requests\":1}`; staff `{\"reimbursements\":0,\"fund_requests\":0}`; pelapor `{\"reimbursements\":0,\"fund_requests\":0}` — badge sidebar tidak bocor ke user tanpa hak review",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Fallback hardcoded — user tanpa `view dashboard`",
+      "verdict": "Pass",
+      "note": "302 `Location: http://127.0.0.1:8000/c/qa-lima/cash-flow/expenses`; setelah diikuti → 200. Tujuan redirect tetap ke Pengeluaran walaupun user ini juga punya `view profit-loss` — membuktikan fallback tidak dinamis",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Fallback menabrak tembok saat user juga tak punya `view expense`",
+      "verdict": "Pass (lihat TEMUAN-DASH-01)",
+      "note": "302 → `/c/qa-lima/cash-flow/expenses` → 403. Perilaku sesuai yang didokumentasikan sebagai jebakan",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Dampak A02 pada alur login penuh",
+      "verdict": "Fail (TEMUAN-DASH-01)",
+      "note": "`POST /login` 302 → `/choose-company` → auto-pilih `qa-lima` → `/c/qa-lima/dashboard` → 302 → `/c/qa-lima/cash-flow/expenses` → 403. User terkunci total setelah login berhasil",
+      "attempts": "f"
+    },
+    {
+      "id": "A04",
+      "title": "Staff punya `view dashboard`",
+      "verdict": "Pass",
+      "note": "200 (role `staff` memang memegang `view dashboard` di seeder)",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Guest membuka dashboard",
+      "verdict": "Pass",
+      "note": "302",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Route lama tanpa prefix perusahaan",
+      "verdict": "Pass",
+      "note": "404",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Donut pengeluaran per kategori saat bulan berjalan kosong",
+      "verdict": "Pass",
+      "note": "`expensesByCategory=[]`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Reimbursement kosong",
+      "verdict": "Pass",
+      "note": "`recentReimbursements=[]`",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Transaksi baru langsung mengubah saldo computed, stats, dan donut",
+      "verdict": "Pass",
+      "note": "Sebelum: `balance=122289000 income_bulan_ini=0 expense_bulan_ini=0 expensesByCategory=[]`. Sesudah: `balance=120789000 income_bulan_ini=0 expense_bulan_ini=1500000 expensesByCategory=[{\"name\":\"MAKAN MINUM\",\"value\":1500000,\"color\":\"#2563eb\"}]`. Selisih saldo tepat −1.500.000",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Fund request `pending` menyalakan badge hanya bagi pemroses",
+      "verdict": "Pass",
+      "note": "Di `/c/qa-lima/feedbacks`: admin 1, manager 1, staff 0. Membuktikan `actionCounts` benar-benar shared prop lintas halaman, bukan milik controller dashboard",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli; props A01–A03 sengaja diuji dengan dua akun berbeda yang dibuat khusus, karena N05 diverifikasi silang ke database: tabel `bank_accounts` hanya menyimpan Angka pada N02–N05 dihitung tangan lebih dulu, baru dibandingkan. Perbedaan N02 (dashboard 15.000.000) vs laporan P&L (10.000.000) untuk data Pembersihan: akun `qa5-pelapor@qa.test` dan `qa5-nodash@qa.test` dihapus"
+    }
+  ]
+}

@@ -1,0 +1,249 @@
+{
+  "module": "profit-loss",
+  "title": "Modul Laporan Laba Rugi",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/profit-loss.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/profit-loss",
+  "report_out": "../report/Laporan-QA-profit-loss.pdf",
+  "summary": [
+    "28 test case dirancang untuk modul ini; 24 lolos, 2 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "1 temuan tercatat (BUG-PL-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-PL-01",
+      "title": "Transaksi yang arahnya tidak cocok dengan tipe kategorinya hilang total dari laporan",
+      "sifat": "Cacat logika akuntansi — uang menghilang diam-diam dari laporan (bukan sekadar salah laci).",
+      "cases": "A09, A10.",
+      "gejala": "Dua transaksi bank nyata ada di database (`bank_transactions.id=11` credit Rp 111.000 pada kategori bertipe `expense`; `id=12` debit Rp 222.000 pada kategori bertipe `income` ber-`pl_group=revenue`), keduanya bertanggal Juli 2026. Laporan periode `2026-07-01..2026-07-31` mengembalikan seluruh baris nol, termasuk `unclassified.income.total=0` dan `unclassified.expense.total=0`. Total Rp 333.000 tidak muncul di baris mana pun dan tidak muncul di panel peringatan — user tidak punya cara apa pun untuk tahu ada uang yang tidak terhitung.",
+      "sebab": "`app/Services/ProfitLossService.php` - `transactionsByGroup()` (baris 164–188) memfilter `pl_group` dan arah (`transaction_type`) sekaligus; baris dengan `pl_group` benar tetapi arah berbeda tidak pernah cocok. - `unclassified()` (baris 199–232) — jaring pengaman — hanya menangkap baris yang (a) tanpa kategori, atau (b) kategorinya bertipe sama dengan arah transaksi (`$matchingType = $direction === 'credit' ? 'income' : 'expense'`, baris 201) dan `pl_group` NULL. Kombinasi \"arah ≠ tipe kategori\" jatuh di antara kedua jaring.",
+      "cakupan": "Setiap transaksi bank yang kategorinya tidak sejalan dengan arah uangnya. Ini bukan kondisi teoretis: pengembalian dana atas beban (credit pada kategori beban) dan koreksi/pembatalan pemasukan (debit pada kategori pemasukan) adalah pola pembukuan lumrah, dan `POST /bank-transactions` mengizinkannya tanpa peringatan apa pun. Dampaknya laba bersih yang tampil salah tanpa jejak.",
+      "perbaikan": "Dua lapis. (1) Ubah `unclassified()` menjadi benar-benar \"sisa\": kumpulkan id transaksi yang sudah terserap keenam query `transactionsByGroup()`, lalu masukkan semua transaksi income/expense di luar himpunan itu ke bucket — jaring pengaman harus menangkap semua sisa, bukan hanya sisa yang bentuknya sudah diduga. (2) Opsional, tolak atau peringatkan di `StoreBankTransactionRequest` bila arah transaksi tidak sejalan dengan `transaction_categories.type`, agar data ambigu tidak masuk sejak awal.",
+      "status": "SUDAH DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buka laporan tanpa filter (default YTD)",
+      "verdict": "Pass",
+      "note": "200; `period={\"start\":\"2026-01-01\",\"end\":\"2026-08-19\"}` (hari uji 19 Agu 2026)",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha sampai Laba Bersih, dengan panel klasifikasi kategori."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Pendapatan tidak diakui saat invoice terbit",
+      "verdict": "Pass",
+      "note": "`revenue.total=0 cogs.total=0 net_profit=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Titipan pajak dulu — uang masuk pertama habis untuk titipan",
+      "verdict": "Pass",
+      "note": "`rev.invoice=0 cogs.invoice=0 gross=0 net=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Cost-recovery HPP — pendapatan menutup modal dulu",
+      "verdict": "Pass",
+      "note": "`rev.invoice=4000000 cogs.invoice=4000000 gross=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "HPP sudah tertutup penuh, sisa jadi laba",
+      "verdict": "Pass",
+      "note": "`rev.invoice=6000000 cogs.invoice=0 gross=6000000 net=6000000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Agregasi setahun konsisten dengan penjumlahan per bulan",
+      "verdict": "Pass",
+      "note": "`rev.invoice=10000000 cogs.invoice=4000000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Klasifikasi inline `pl_group` oleh admin",
+      "verdict": "Pass",
+      "note": "6× HTTP 302. DB: `3=cogs, 5=revenue, 13=other_expense, 14=other_income, 17=tax, 20=opex`",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Laporan lengkap setelah klasifikasi",
+      "verdict": "Pass",
+      "note": "`rev.invoice=10000000 rev.non_invoice=3000000 rev.total=13000000` / `cogs.invoice=4000000 cogs.manual=1000000 cogs.total=5000000` / `gross=8000000 opex=2000000 operating=6000000` / `other_inc=500000 other_exp=300000 pretax=6200000 tax=700000 NET=5500000` — identik dengan hitungan tangan",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Unduh PDF laporan",
+      "verdict": "Pass",
+      "note": "200, 5.892 byte, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename=laporan-laba-rugi-2026-01-01-2026-12-31.pdf`, magic `%PDF-1.7`. Teks hasil `pdftotext`: `RP 5.500.000` sebagai LABA BERSIH; blok \"Catatan: Ada Transaksi Belum Diklasifikasi\" memuat Kembali Dana Rp 150.000 & MAKAN MINUM Rp 250.000",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Finance manager boleh melihat laporan",
+      "verdict": "Pass",
+      "note": "200",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Prop `unclassifiedTypes` hanya memuat kategori yang masih belum terklasifikasi",
+      "verdict": "`unclassifiedTypes={\"15\":\"expense\",\"28\":\"income\"}` — tepat 2 kategori yang tersisa",
+      "note": "BE"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Staff tanpa `view profit-loss`",
+      "verdict": "Pass",
+      "note": "403 dan 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Pelapor boleh lihat, tidak boleh mengklasifikasi",
+      "verdict": "Pass",
+      "note": "GET 200, PDF 200, PATCH 403; DB saat itu `id=20 pl_group=NULL` (tidak berubah)",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Staff mencoba klasifikasi",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Nilai `pl_group` di luar daftar sah",
+      "verdict": "Pass",
+      "note": "422 `{\"pl_group\":[\"The selected pl group is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "`end_date` lebih awal dari `start_date`",
+      "verdict": "Pass",
+      "note": "HTTP 302 kembali ke URL sebelumnya — aturan `after_or_equal` bekerja, laporan tidak dirender",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Tanggal tidak valid",
+      "verdict": "Pass",
+      "note": "HTTP 302 (redirect validasi), tidak ada 500",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Bucket unclassified tidak ikut ke total mana pun",
+      "verdict": "Pass",
+      "note": "`rev.invoice=0 cogs.invoice=0 gross=0 net=0 uncl_inc=3650000 uncl_exp=4250000`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Kategori `financing` & `transfer` dikecualikan total",
+      "verdict": "Pass",
+      "note": "Bucket unclassified Juni hanya berisi 3 kategori income + 5 kategori expense; Setoran Modal & Transfer Internal tidak ada di daftar mana pun; total tidak terpengaruh",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Transaksi credit pada kategori bertipe `expense` ber-`pl_group` NULL",
+      "verdict": "Fail (BUG-PL-01)",
+      "note": "Seluruh laporan Juli nol, termasuk `unclassified.income.total=0` dan `unclassified.expense.total=0`. Baris ada di DB (`bank_transactions.id=11`) tetapi hilang dari laporan",
+      "attempts": "f"
+    },
+    {
+      "id": "A10",
+      "title": "Transaksi debit pada kategori bertipe `income` ber-`pl_group=revenue`",
+      "verdict": "Fail (BUG-PL-01)",
+      "note": "Sama: laporan Juli nol seluruhnya. Baris ada di DB (`bank_transactions.id=12`)",
+      "attempts": "f"
+    },
+    {
+      "id": "A11",
+      "title": "Periode tanpa data sama sekali",
+      "verdict": "Pass",
+      "note": "`rev=0 net=0 uncl_i=0 uncl_e=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "Guest membuka laporan & PDF",
+      "verdict": "Pass",
+      "note": "302 dan 302",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "Mengosongkan kembali `pl_group`",
+      "verdict": "Pass",
+      "note": "302; DB `id=20 pl_group=NULL`",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "Transaksi tanpa kategori (\"(Tanpa Kategori)\")",
+      "verdict": "Belum diuji",
+      "note": "Belum diuji lewat eksekusi. `StoreBankTransactionRequest` mewajibkan `category_id` (`['required','exists:transaction_categories,id']`), sehingga cabang `(Tanpa Kategori)` di `ProfitLossService::unclassified()` tidak dapat dicapai dari endpoint mana pun. Diverifikasi lewat pembacaan kode, bukan eksekusi"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Reklasifikasi kategori berlaku retroaktif ke periode lama",
+      "verdict": "Pass",
+      "note": "Setelah dikosongkan: `opex=0 operating=8000000 net=7500000 uncl_exp=2250000` (OPEX BULANAN Rp 2.000.000 pindah ke bucket). Setelah dikembalikan: `opex=2000000 operating=6000000 net=5500000 uncl_exp=250000`",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Transaksi baru langsung tercermin di laporan periode berjalan",
+      "verdict": "Pass",
+      "note": "`net=0 uncl_exp=1500000 cats=[{\"category_id\":15,\"category_label\":\"MAKAN MINUM\",\"amount\":1500000}]`",
+      "attempts": "p"
+    },
+    {
+      "id": "C03",
+      "title": "Pemisahan permission \"lihat\" vs \"klasifikasi\" dalam satu alur",
+      "verdict": "Pass",
+      "note": "GET 200 dengan `unclassifiedTypes` terisi (panel akan tampil di UI), PATCH 403 — persis jebakan yang didokumentasikan",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli (login nyata Verifikasi database dilakukan langsung ke `tenant_qa-lima` untuk setiap perubahan Data uji dibuat lewat endpoint aplikasi (`POST /clients`, `/bank-accounts`, Angka harapan ditulis dan dihitung tangan sebelum melihat keluaran aplikasi. A14 jujur dinyatakan Belum diuji lewat eksekusi; cabang kodenya tidak dapat Kolom `pl_group` seluruh kategori `tenant_qa-lima` masih NULL saat pengujian Pembersihan: akun `qa5-pelapor@qa.test` dihapus setelah pengujian selesai Catatan tooling (bukan cacat aplikasi): `POST /invoices/{id}/send` sempat"
+    }
+  ]
+}

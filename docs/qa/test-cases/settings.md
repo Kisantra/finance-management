@@ -128,6 +128,15 @@ tidak dihapus.
 - **SEBAB**: `PdfTemplateController::destroy()` menghapus baris tanpa mempromosikan template lain.
 - **SARAN PERBAIKAN**: Bila ada template lain tersisa, promosikan yang tertua/pertama menjadi default; atau tolak penghapusan template default selama masih ada template lain — pilih satu dan tuliskan sebagai invarian.
 
+### BUG-SET-06 — Gate `manage company profile` mengunci Profil Perusahaan untuk semua orang, termasuk admin, sampai seeder izin dijalankan ulang
+
+- **SIFAT**: Regresi rilis — konsekuensi langsung dari perbaikan BUG-SET-02. Ditemukan lewat UI, bukan lewat HTTP.
+- **GEJALA**: Admin membuka `/c/qa-satu/settings/company` di peramban dan mendapat halaman **Forbidden**, padahal role `admin` seharusnya memegang seluruh izin.
+- **SEBAB**: Perbaikan BUG-SET-02 memasang `can:manage company profile` pada grup route dan menambahkan nama izin itu ke `MasterPermissionSeeder`. Namun izinnya **belum ada di database** — seeder tidak dijalankan ulang setelah perubahan kode. `finance_central.permissions` berisi 75 baris tanpa `manage company profile`, sehingga gate menolak semua orang: bukan hanya staff, tetapi juga admin dan finance manager.
+- **CAKUPAN**: Setiap lingkungan yang memutakhirkan kode tanpa menjalankan seeder izin — termasuk production saat merge ke `main`. Halaman Profil Perusahaan mati total, dan bersamanya penyuntingan NPWP/PKP/tarif PPN yang menggerakkan seluruh PDF invoice.
+- **DIPERBAIKI**: `php artisan db:seed --class=MasterPermissionSeeder --force` dijalankan pada `finance_central` — izin dibuat (76 total), admin 76, finance manager 69, staff 21. Halaman terbuka kembali (bukti `N03-1`).
+- **TINDAK LANJUT WAJIB**: Langkah seeder ini harus masuk daftar rilis di `docs/multi-tenancy-runbook-eksekusi.md`. Menambah permission baru di kode tanpa menjalankan seeder akan selalu memutus fitur yang digatenya — pola ini akan terulang pada permission berikutnya.
+
 ## Catatan pelaksanaan
 
 - Seluruh case dieksekusi lewat **request HTTP dengan cookie sesi asli**; verifikasi

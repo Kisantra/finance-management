@@ -1,0 +1,251 @@
+{
+  "module": "services",
+  "title": "Modul Services",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/services.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/services",
+  "report_out": "../report/Laporan-QA-services.pdf",
+  "summary": [
+    "25 test case dirancang untuk modul ini; 25 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "2 temuan tercatat (S-01, S-02). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "S-01",
+      "title": "Daftar tipe layanan diduplikasi di dua tempat tanpa pengikat",
+      "sifat": "Risiko pemeliharaan, bukan cacat yang terlihat sekarang. Keparahan: rendah.",
+      "cases": "tidak ada case yang gagal (C05 lolos).",
+      "gejala": "Tidak ada. Kedua daftar kebetulan identik pada commit ini.",
+      "sebab": "Nilai yang sah ditulis dua kali secara terpisah — `app/Http/Controllers/ServiceController.php:16-21` (`public const TYPES`) untuk prop Combobox, dan string literal `in:Perizinan,Administrasi Perpajakan,Digital Marketing,Sistem Digital` di `app/Http/Requests/StoreServiceRequest.php` (diwarisi apa adanya oleh `UpdateServiceRequest` yang berbadan kosong). Menambah satu tipe di satu sisi saja menghasilkan opsi yang muncul di UI tetapi ditolak 422 saat disimpan (atau sebaliknya, nilai yang lolos validasi tetapi tak pernah bisa dipilih).",
+      "cakupan": "Modul Services; `RecurringInvoiceController` juga mengirim daftar layanan tetapi memakai baris `services` dari DB, bukan konstanta tipe, sehingga tidak menambah duplikasi.",
+      "perbaikan": "Jadikan `ServiceController::TYPES` (atau sebuah enum PHP 8.1) satu-satunya sumber, lalu susun aturan validasi dengan `Rule::in(ServiceController::TYPES)`.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "S-02",
+      "title": "Tidak ada aturan unik pada nama layanan",
+      "sifat": "Kualitas data master. Keparahan: rendah.",
+      "cases": "tidak ada (A11 lolos sebagai perilaku apa adanya).",
+      "gejala": "POST `name=Jasa Izin Usaha` yang sudah ada diterima (302); DB berisi 2 baris dengan nama identik.",
+      "sebab": "`StoreServiceRequest` hanya menetapkan `['required','string','max:255']` untuk `name`; tidak ada aturan `unique:services,name` maupun indeks unik di `database/migrations/tenant/…_create_services_table.php`.",
+      "cakupan": "Combobox pemilihan layanan di halaman Create/Edit Invoice dan Recurring Invoice menampilkan label yang sama dua kali; pengguna hanya bisa membedakan lewat harga yang ikut tersalin.",
+      "perbaikan": "Bila duplikasi memang tidak dikehendaki produk, tambahkan `unique:services,name` (dan `unique:services,name,{id}` pada Update). Bila duplikasi sah (mis. paket berbeda dengan nama sama), tampilkan `type` pada label Combobox agar terbedakan.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat layanan untuk tiap tipe resmi (4 varian)",
+      "verdict": "Pass",
+      "note": "4× 302. DB `id=1..4` dengan `price` `1500000 / 750000 / 2500000 / 12000000` — tidak ada pembulatan/desimal",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Katalog layanan dengan statistik harga rata-rata dan tertinggi."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "`price = 0` (batas bawah yang sah)",
+      "verdict": "Pass",
+      "note": "302, DB `id=5 price=0`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Form tambah layanan terisi: nama, kategori Perizinan, harga Rp 7.500.000 lewat CurrencyInput."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Layanan tersimpan — total naik 5→6 dan rata-rata harga ikut terhitung ulang menjadi Rp 18.550.000."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Finance manager mengubah harga (punya `edit services`)",
+      "verdict": "Pass",
+      "note": "302. DB `id=2 name=Lapor SPT Tahunan price=800000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Stat agregat index (`total`, `avg_price`, `highest_price`, `by_type`) cocok DB",
+      "verdict": "Pass",
+      "note": "Prop `{\"total\":6,\"avg_price\":3050000,\"highest_price\":12000000,\"by_type\":{\"Perizinan\":3,\"Administrasi Perpajakan\":1,\"Digital Marketing\":1,\"Sistem Digital\":1}}`; SQL `total=6 avg_price=3050000 highest=12000000` — identik",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Filter berdasarkan `type`",
+      "verdict": "Pass",
+      "note": "`services.total = 2` (saat itu 2 layanan Perizinan aktif) — sesuai DB",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Pencarian nama",
+      "verdict": "Pass",
+      "note": "1 baris: `4:Bangun Website`",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Pengurutan harga menurun",
+      "verdict": "Pass",
+      "note": "`99000000 2500000 1500000 800000 0` — urut benar",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Staff bisa membuka daftar layanan (punya `view services`)",
+      "verdict": "Pass",
+      "note": "200",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Hapus layanan (admin)",
+      "verdict": "Pass",
+      "note": "302. DB: `id=1` hilang, tersisa `id=2,3,4,5`. Efeknya ke invoice diuji di C02",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Field wajib `name` dihilangkan sama sekali",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "`type` di luar daftar resmi",
+      "verdict": "Pass",
+      "note": "422 `{\"type\":[\"The selected type is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Field wajib `price` dihilangkan sama sekali",
+      "verdict": "Pass",
+      "note": "422 `{\"price\":[\"The price field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "`price = -1` (satu langkah di bawah batas)",
+      "verdict": "Pass",
+      "note": "422 `{\"price\":[\"The price field must be at least 0.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "`price` desimal — invarian \"integer rupiah penuh\"",
+      "verdict": "Pass",
+      "note": "422 `{\"price\":[\"The price field must be an integer.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "`price` string terformat rupiah — apakah backend mem-parse sendiri?",
+      "verdict": "Pass",
+      "note": "422 `{\"price\":[\"The price field must be an integer.\"]}`. Helper `Service::parseAmount()` tidak dipanggil di jalur request; pembersihan format sepenuhnya tanggung jawab `CurrencyInput` di FE",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "`name` 256 karakter",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name field must not be greater than 255 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Staff membuat layanan lewat URL langsung (tanpa `create services`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Staff mengubah layanan lewat URL langsung (tanpa `edit services`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "Finance manager menghapus layanan lewat URL langsung (tanpa `delete services`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`; `id=5` masih ada di DB",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Nama layanan duplikat",
+      "verdict": "Pass (dengan catatan)",
+      "note": "302 diterima; DB `SELECT COUNT(∗) WHERE name='Jasa Izin Usaha'` → `2`. Konsekuensi: dua layanan bernama identik dengan harga berbeda tidak terbedakan di Combobox invoice selain lewat harga",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Invarian snapshot: mengubah harga layanan tidak mengubah invoice historis",
+      "verdict": "Pass",
+      "note": "302. Item `id=13` tetap `unit_price=9000000 amount=9000000`; header invoice 1/3/4 tetap `3800000 / 8500000-9000000 / 750000-1000000`. Harga master berubah menjadi `99000000`, item tidak tersentuh",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Invarian snapshot: menghapus layanan tidak merusak invoice historis",
+      "verdict": "Pass",
+      "note": "302. Item `id=1 unit_price=1500000 amount=3000000` dan `id=6 unit_price=1000000 amount=1000000` tidak berubah; header invoice 1/3/4 tidak berubah. Terbukti `invoice_items` menyimpan `service_name` string, bukan `service_id`",
+      "attempts": "p"
+    },
+    {
+      "id": "C03",
+      "title": "Layanan yang dihapus hilang dari opsi form invoice; layanan baru muncul",
+      "verdict": "Pass",
+      "note": "Prop: `4:Bangun Website=99000000 / 6:Jasa Izin Usaha=1500000 / 3:Kelola Sosmed=2500000 / 2:Lapor SPT Tahunan=800000 / 5:Layanan Gratis=0`. Layanan `id=1` yang dihapus sudah tidak ada; harga baru `99000000` sudah terbawa ke opsi",
+      "attempts": "p"
+    },
+    {
+      "id": "C04",
+      "title": "Harga dari master hanya nilai awal — item invoice bisa memakai harga berbeda",
+      "verdict": "Pass",
+      "note": "Item `id=3`: `unit_price=2500001`, `amount=6250003` (= `round(2500001 × 2,5)`). Salinan dari master memang bebas diedit",
+      "attempts": "p"
+    },
+    {
+      "id": "C05",
+      "title": "Konsistensi daftar `type` antara controller dan aturan validasi",
+      "verdict": "Pass (dengan catatan)",
+      "note": "Prop `types` = `[\"Perizinan\",\"Administrasi Perpajakan\",\"Digital Marketing\",\"Sistem Digital\"]`; A02 membuktikan validasi menolak nilai ke-5. Keduanya sinkron saat ini, tetapi tetap dua sumber kebenaran terpisah (`ServiceController::TYPES` vs aturan `in:` yang ditulis ulang di `StoreServiceRequest`) — lihat TEMUAN S-01",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Semua case dieksekusi lewat HTTP ke `http://127.0.0.1:8000` dengan cookie sesi Hasil diverifikasi ke `tenant_qa-satu` lewat PDO (hanya SELECT): nilai `price`, Prop Inertia (`services`, `stats`, `types`) dibaca dari tag Yang tidak diuji: perilaku komponen `CurrencyInput` (parse `Rp 1.500.000` → Kegagalan tooling (bukan cacat aplikasi): file body respons bawaan helper"
+    }
+  ]
+}

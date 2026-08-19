@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\TransactionCategory;
 use Illuminate\Http\RedirectResponse;
@@ -435,7 +436,16 @@ class CashFlowController extends Controller
         $deleted = 0;
 
         if (! empty($paymentIds)) {
+            // Catat invoice terdampak SEBELUM penghapusan, lalu hitung ulang
+            // statusnya sesudahnya. Mass-delete tidak memicu hook model, jadi
+            // tanpa ini invoice tetap berstatus "partially_paid" padahal
+            // pembayarannya sudah nol — status bohong yang merambat ke piutang
+            // dan Laporan Laba Rugi.
+            $invoiceIds = Payment::whereIn('id', $paymentIds)->pluck('invoice_id')->unique();
+
             $deleted += Payment::whereIn('id', $paymentIds)->delete();
+
+            Invoice::whereIn('id', $invoiceIds)->get()->each->updateStatus();
         }
 
         if ($trxs->isNotEmpty()) {

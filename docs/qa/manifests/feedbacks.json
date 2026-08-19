@@ -1,0 +1,300 @@
+{
+  "module": "feedbacks",
+  "title": "Modul Feedbacks",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/feedbacks.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/feedbacks",
+  "report_out": "../report/Laporan-QA-feedbacks.pdf",
+  "summary": [
+    "35 test case dirancang untuk modul ini; 34 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "1 temuan tercatat (BUG-FB-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-FB-01",
+      "title": "Lampiran feedback tidak ikut terhapus (berkas yatim menumpuk di disk)",
+      "sifat": "Cacat kebersihan data & potensi kebocoran — berkas yang \"sudah dihapus\" menurut aplikasi tetap dapat diakses lewat URL langsung dan menumpuk di storage.",
+      "cases": "A19.",
+      "gejala": "Feedback id 4 milik staff berisi lampiran `bukti.png` tersimpan di `storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png`. Setelah pemilik menghapus feedback (`DELETE /c/qa-lima/feedbacks/4` → 302, baris hilang dari `feedbacks`), berkas itu masih ada persis di path yang sama. Dokumentasi modul menyatakan sebaliknya: \"Hapus feedback otomatis menghapus lampirannya (hook `deleting`)\".",
+      "sebab": "Ketidakcocokan disk antara penyimpanan dan penghapusan. - `app/Http/Controllers/FeedbackController.php:92` menyimpan ke disk `public`: `$file-›store('feedbacks', 'public')`. - `app/Models/Feedback.php:322-326` menghapus dari disk default: `Storage::exists($feedback-›attachment_path)` / `Storage::delete(...)` tanpa `disk('public')`. - `config/filesystems.php:16` → default `env('FILESYSTEM_DISK', 'local')`, dan `.env` menyetel `FILESYSTEM_DISK=local`. Karena berkas tidak pernah ada di disk `local`, `Storage::exists()` selalu `false` dan blok hapus tidak pernah berjalan — tanpa error, tanpa log.",
+      "cakupan": "Setiap penghapusan feedback berlampiran, oleh pemilik maupun pengelola. Berkas menumpuk tanpa batas dan tetap dapat diunduh siapa pun yang menyimpan URL-nya (disk `public` dilayani `TenantStorageController`). Sebagai pembanding: `CustomFontController` melakukan hal yang benar — pada uji Settings N14 penghapusan font berhasil menghapus berkasnya dari disk, sehingga masalah ini spesifik pada modul Feedback, bukan keterbatasan lingkungan.",
+      "perbaikan": "Samakan disk di hook: `Storage::disk('public')-›exists(...)` / `Storage::disk('public')-›delete(...)` di `app/Models/Feedback.php:322-326`. Sekalian pertimbangkan menambahkan tes regresi yang memverifikasi ketiadaan berkas setelah `delete()`, karena kegagalan jenis ini tidak memunculkan gejala apa pun di jalur happy-path.",
+      "status": "SUDAH DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Staff mengirim feedback",
+      "verdict": "Pass",
+      "note": "302; DB `id=1 user_id=3 type=bug priority=high status=open`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "`page_url` tersimpan apa adanya",
+      "verdict": "Pass",
+      "note": "DB `id=3 page_url=/c/qa-lima/reports/profit-loss`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Notifikasi otomatis ke admin + finance manager",
+      "verdict": "Pass",
+      "note": "`id=48 user_id=1` & `id=49 user_id=2`, pesan `\"Staff Demo mengirim Bug Report: QA5 Bug laporan tidak muncul\"`, `data.url` → `/c/qa-lima/feedbacks`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Tab default berbeda per hak akses",
+      "verdict": "Pass",
+      "note": "staff `tab=\"mine\" canManage=false canRespond=false total=2`; admin `tab=\"all\" canManage=true canRespond=true total=3`",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Pengelola melihat feedback semua orang",
+      "verdict": "Pass",
+      "note": "`[#3 Staff Demo] [#1 Staff Demo] [#2 QA5 Tanpa Dashboard]`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Statistik ikut ter-scope tab",
+      "verdict": "Pass",
+      "note": "staff `{\"total\":2,\"open\":2,...,\"bugs\":1,\"features\":1,\"feedbacks\":0}`; admin `{\"total\":3,...,\"feedbacks\":1}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Pemilik mengedit feedback miliknya saat `open`",
+      "verdict": "Pass",
+      "note": "302; DB `id=1 title=\"QA5 Bug laporan (diedit)\" priority=critical status=open`",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Admin menanggapi (`respond`) memajukan status",
+      "verdict": "Pass",
+      "note": "302; DB `id=1 status=in_progress admin_response=\"Sedang kami tinjau, terima kasih.\" responded_by=1 responded_at=2026-08-19 14:45:31`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Tanggapan menotifikasi pemilik",
+      "verdict": "Pass",
+      "note": "`id=54 user_id=3 message='Feedback \"QA5 Bug laporan (diedit)\" telah ditanggapi oleh Admin'`",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Finance manager juga boleh menanggapi",
+      "verdict": "Pass",
+      "note": "302; DB `id=3 status=resolved responded_by=2`; notifikasi `id=55 user_id=3`",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "`changeStatus` boleh mundur ke `open`",
+      "verdict": "Pass",
+      "note": "302; DB `id=1 status=open` — berbeda dari `respond` yang menolaknya (lihat A07)",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Pengelola menghapus feedback milik orang lain apa pun statusnya",
+      "verdict": "Pass",
+      "note": "302; DB baris id=2 tidak ada lagi",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Pemilik menghapus feedback miliknya saat `open`",
+      "verdict": "Pass",
+      "note": "302; DB baris id=4 tidak ada lagi",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Unggah lampiran gambar yang sah",
+      "verdict": "Pass",
+      "note": "302; DB `attachment_path=feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png attachment_name=bukti.png`; file ada di `storage/tenantqa-lima/app/public/feedbacks/…`",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Staff memaksa `?tab=all`",
+      "verdict": "Pass",
+      "note": "`tab=\"all\" canManage=false total=2 :: [#3 Staff Demo] [#1 Staff Demo]` — feedback milik user 9 (#2) tidak muncul. Query tetap ter-scope `forUser()` di server",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Pemilik kedua memaksa `?tab=all`",
+      "verdict": "Pass",
+      "note": "`tab=\"all\" canManage=false total=1 :: [#2 QA5 Tanpa Dashboard]` — 2 feedback milik staff tidak bocor",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Staff mengedit feedback orang lain",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Admin pun tidak boleh mengedit feedback orang lain",
+      "verdict": "Pass",
+      "note": "403; DB tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Staff mencoba menanggapi",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Staff mencoba mengubah status",
+      "verdict": "Pass",
+      "note": "403; DB status tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "`respond` menolak mundur ke `open`",
+      "verdict": "Pass",
+      "note": "422 `{\"status\":[\"The selected status is invalid.\"]}` — kontras dengan N11 yang mengizinkannya lewat `changeStatus`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Menanggapi feedback yang sudah `resolved`",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Pemilik kehilangan hak edit setelah diproses admin",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "Pemilik kehilangan hak hapus setelah diproses admin",
+      "verdict": "Pass",
+      "note": "302 dengan flash `{\"error\":\"Feedback yang sudah diproses tidak dapat dihapus.\"}`; DB `id=1 status=in_progress` masih ada — persis pesan yang didokumentasikan",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Status di luar enum pada `changeStatus`",
+      "verdict": "Pass",
+      "note": "422 `{\"status\":[\"The selected status is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "`title` melebihi 255 karakter",
+      "verdict": "Pass",
+      "note": "422 `{\"title\":[\"The title field must not be greater than 255 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "`description` melebihi 5000 karakter",
+      "verdict": "Pass",
+      "note": "422 `{\"description\":[\"The description field must not be greater than 5000 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "`type` di luar enum",
+      "verdict": "Pass",
+      "note": "422 `{\"type\":[\"The selected type is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A15",
+      "title": "`title` kosong",
+      "verdict": "Pass",
+      "note": "422 `{\"title\":[\"The title field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A16",
+      "title": "Lampiran berekstensi terlarang",
+      "verdict": "Pass",
+      "note": "422 `{\"attachment\":[\"The attachment field must be a file of type: jpg, jpeg, png, pdf.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A17",
+      "title": "Berkas bukan gambar yang disamarkan",
+      "verdict": "Pass",
+      "note": "422 dengan pesan sama — validasi menolak berdasarkan isi berkas",
+      "attempts": "p"
+    },
+    {
+      "id": "A18",
+      "title": "Menghapus feedback yang sudah tidak ada",
+      "verdict": "Pass",
+      "note": "404",
+      "attempts": "p"
+    },
+    {
+      "id": "A19",
+      "title": "Lampiran ikut terhapus saat feedback dihapus",
+      "verdict": "Fail (BUG-FB-01)",
+      "note": "Baris hilang (302, DB bersih), tetapi file masih ada di `storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png`",
+      "attempts": "f"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Siklus hidup penuh sebuah feedback lintas aktor",
+      "verdict": "Pass",
+      "note": "(1) 302 `status=open`; (2) notifikasi id 48 & 49; (3) 302, judul & prioritas berubah; (4) 302, `responded_by=1`; (5) notifikasi id 54 ke user 3; (6) 403 & flash \"Feedback yang sudah diproses tidak dapat dihapus.\"; (7) 302 `status=open`; (8) 302 `status=resolved`; (9) 403. Seluruh rantai sesuai state machine",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Isolasi kepemilikan antar dua pemilik non-pengelola",
+      "verdict": "Pass",
+      "note": "staff `total=2` (hanya #1,#3); nodash `total=1` (hanya #2); admin `total=3`. Termasuk `stats` yang ikut ter-scope",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli. Case Props halaman `/feedbacks` dibaca dari atribut `‹script data-page=\"app\"›` Verifikasi database ke `finance_central` dilakukan setelah setiap mutasi; Catatan tooling (bukan cacat aplikasi): pada percobaan pertama N01, nilai Flag baris `can_respond` bernilai `true` bahkan untuk staff yang tidak punya Feedback #1 dan #3 sengaja ditinggalkan di database sebagai jejak bukti; Alur UI (tombol feedback melayang, dialog, `SegmentedControl`, pengisian Pembersihan: akun `qa5-nodash@qa.test` (id 9) dihapus setelah pengujian Berkas lampiran yatim dari BUG-FB-01 (`storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png`)"
+    }
+  ]
+}

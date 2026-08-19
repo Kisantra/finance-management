@@ -548,6 +548,16 @@ class InvoiceController extends Controller
             }
         });
 
+        // Total berubah → status harus dihitung ulang. Tanpa ini invoice yang
+        // sudah "paid" lalu totalnya dinaikkan tetap berstatus lunas padahal
+        // masih ada sisa, dan justru terkunci: pembayaran lanjutan ditolak 422
+        // karena statusnya paid, sehingga sisanya tak bisa ditagih lewat aplikasi.
+        // Hanya untuk invoice yang sudah pernah dibayar — invoice draft/sent
+        // tanpa pembayaran tidak boleh ikut berubah statusnya.
+        if ($invoice->fresh()->payments()->exists()) {
+            $invoice->fresh()->updateStatus();
+        }
+
         return redirect()->route('invoices.index')->with('success', 'Invoice berhasil diperbarui.');
     }
 

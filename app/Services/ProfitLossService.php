@@ -207,8 +207,19 @@ class ProfitLossService
             ->where(function ($q) use ($matchingType) {
                 $q->whereNull('transaction_categories.id')
                     ->orWhere(function ($q2) use ($matchingType) {
-                        $q2->where('transaction_categories.type', $matchingType)
-                            ->whereNull('transaction_categories.pl_group');
+                        // Kategori income/expense yang belum diklasifikasi ATAU
+                        // yang tipenya tidak cocok dengan arah transaksinya.
+                        //
+                        // Syarat lama menuntut tipe kategori = arah transaksi,
+                        // sehingga transaksi salah-arah (mis. credit berkategori
+                        // expense) lolos dari SEMUA baris laporan sekaligus dari
+                        // bucket ini — uangnya hilang diam-diam. Jaring pengaman
+                        // justru harus menangkap kasus itu, bukan melewatkannya.
+                        $q2->whereIn('transaction_categories.type', ['income', 'expense'])
+                            ->where(function ($q3) use ($matchingType) {
+                                $q3->whereNull('transaction_categories.pl_group')
+                                    ->orWhere('transaction_categories.type', '!=', $matchingType);
+                            });
                     });
             })
             ->groupBy('transaction_categories.id', 'transaction_categories.label')

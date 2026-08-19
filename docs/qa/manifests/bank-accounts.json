@@ -1,0 +1,358 @@
+{
+  "module": "bank-accounts",
+  "title": "Modul Bank Accounts",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/bank-accounts.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/bank-accounts",
+  "report_out": "../report/Laporan-QA-bank-accounts.pdf",
+  "summary": [
+    "37 test case dirancang untuk modul ini; 28 lolos, 9 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "5 temuan tercatat (BUG-BA-01, BUG-BA-02, BUG-BA-03, BUG-BA-04, BUG-BA-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-BA-01",
+      "title": "Menghapus rekening menghapus pembayaran invoice tanpa memperbaiki status invoice",
+      "sifat": "Data integrity / kehilangan data finansial diam-diam.",
+      "cases": "C02 (lihat juga N14).",
+      "gejala": "Setelah `DELETE /c/qa-dua/bank-accounts/4`, tabel `payments` kosong (pembayaran 400.000 atas invoice `001/INV/QD-UB/II/2026` lenyap), tetapi `invoices.id=1` tetap `status=partially_paid` dengan `total_amount=1.000.000`. Invoice sekarang berstatus \"dibayar sebagian\" padahal `amount_paid` = 0. Tidak ada peringatan apa pun sebelum menghapus.",
+      "sebab": "`app/Http/Controllers/BankAccountController.php` — `destroy()` memanggil `$bankAccount-›delete()` tanpa guard apa pun; penghapusan `payments` terjadi di level DB lewat FK `onDelete cascade` (`database/migrations/2023_01_01_000008_create_payments_table.php`), sehingga event model Laravel tidak jalan dan `Invoice::updateStatus()` tidak pernah dipanggil. Perilaku cascade-nya sendiri memang didokumentasikan (`docs/module/bank-accounts.md`, bagian \"Invarian & Jebakan\"), tapi konsekuensi status invoice tidak.",
+      "cakupan": "Setiap penghapusan rekening yang pernah menerima pembayaran invoice. Makin banyak invoice yang dibayar lewat rekening itu, makin banyak invoice yang statusnya jadi bohong. Berdampak ke laporan piutang & Laba Rugi.",
+      "perbaikan": "Di `destroy()`, sebelum delete: kumpulkan `invoice_id` dari `$bankAccount-›payments`, hapus akun, lalu panggil `updateStatus()` untuk tiap invoice tersebut — semuanya dalam satu `DB::transaction`. Lebih aman lagi: tolak penghapusan bila rekening masih punya `payments`, dan minta user memindahkan/menghapus pembayarannya lebih dulu (konsisten dengan pola ∗reassign∗ di modul Kategori).",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-02",
+      "title": "Parameter `sort` & `direction` tab Transaksi tidak divalidasi → HTTP 500 + kebocoran SQL",
+      "sifat": "Robustness + information disclosure.",
+      "cases": "A11, A12, A13.",
+      "gejala": "- `GET /c/qa-dua/bank-accounts/transactions?account=1&sort=DROP` → 500, body memuat `SQLSTATE[42S22]: Column not found: 1054 Unknown column 'DROP' in 'order clause' (Connection: tenant, Host: 127.0.0.1, Port: 3306, Database: tenant_qa-dua, SQL: select ∗ from bank_transactions where ...)` — nama host, port, dan nama database tenant ikut terkirim. - `?direction=XYZ` → 500 `InvalidArgumentException: Order direction must be \"asc\" or \"desc\".`",
+      "sebab": "`app/Http/Controllers/BankTransactionController.php:33-35, 49` — `$sort` dan `$direction` diambil mentah dari request lalu langsung dipakai `-›orderBy($sort, $direction)`. Bandingkan dengan `indexPayments()` di file yang sama yang sudah memakai `match()` whitelist (terbukti aman di N16). Tidak ada injeksi SQL (Laravel meng-∗quote∗ identifier — dibuktikan A12), tapi penanganan errornya salah.",
+      "cakupan": "Endpoint tab Transaksi. Kebocoran detail koneksi hanya terjadi bila `APP_DEBUG=true`; di lingkungan uji ini `APP_ENV=local`. Di production gejalanya menjadi 500 polos — tetap cacat.",
+      "perbaikan": "Terapkan whitelist yang sama seperti `indexPayments()`: `$sort = in_array($sort, ['transaction_date','amount','description','transaction_type'], true) ? $sort : 'transaction_date';` dan `$direction = $direction === 'asc' ? 'asc' : 'desc';`.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-03",
+      "title": "`per_page` tab Transaksi tanpa batas atas",
+      "sifat": "Availability / resource exhaustion.",
+      "cases": "A14.",
+      "gejala": "`GET /bank-accounts/transactions?account=1&per_page=100000` dijawab 200 dengan `\"per_page\":100000`. Nilai apa pun diterima.",
+      "sebab": "`BankTransactionController.php:32` — `$perPage = (int) $request-›input('per_page', 15);` lalu langsung `-›paginate($perPage)`, tanpa `min()`/whitelist.",
+      "cakupan": "Tab Transaksi (dan pola yang sama perlu dicek di `indexPayments()`). Pada tenant dengan ratusan ribu transaksi, satu request bisa menarik semuanya ke memori.",
+      "perbaikan": "Batasi, mis. `$perPage = min(max($perPage, 1), 100);` atau whitelist `[15, 25, 50, 100]` sesuai opsi yang benar-benar ada di UI.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-04",
+      "title": "Hapus rekening yang punya `loan_payments` melempar 500 mentah",
+      "sifat": "Error handling / UX.",
+      "cases": "A15.",
+      "gejala": "`DELETE /c/qa-dua/bank-accounts/6` → HTTP 500 `SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (tenant_qa-dua.loan_payments, CONSTRAINT loan_payments_bank_account_id_foreign FOREIGN KEY (bank_account_id) REFERENCES bank_accounts (id))`. Data tetap aman (akun tidak terhapus), tapi user hanya melihat layar error.",
+      "sebab": "`BankAccountController::destroy()` tidak mengecek `$bankAccount-›loanPayments()-›exists()`. FK `loan_payments.bank_account_id` memang sengaja tanpa cascade (`database/migrations/2025_11_26_083021_create_loan_payments_table.php`), dan hal ini sudah dicatat di `docs/module/bank-accounts.md`, tapi tidak pernah diterjemahkan menjadi guard di controller.",
+      "cakupan": "Semua rekening yang pernah dipakai membayar cicilan pinjaman.",
+      "perbaikan": "Tambahkan guard sebelum delete: `if ($bankAccount-›loanPayments()-›exists()) { return back()-›withErrors(['delete' =› 'Rekening ini dipakai pada pembayaran pinjaman dan tidak dapat dihapus.']); }` — sejalan dengan gaya pesan guard di `TransactionCategoryController::destroy()`.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-05",
+      "title": "`/api/bank-accounts` tidak digate `can:view bank-accounts`",
+      "sifat": "Information disclosure (ringan) / inkonsistensi otorisasi.",
+      "cases": "A17.",
+      "gejala": "`staff@gmail.com` mendapat 403 di `/c/qa-dua/bank-accounts` tetapi 200 di `/c/qa-dua/api/bank-accounts`, yang mengembalikan daftar lengkap rekening perusahaan (`QA Rekening Utama (BCA)`, `QA Rekening Pinjaman 2 (BRI)`, `QA Manager Acc (CIMB)`, `QA Rekening Kedua (Mandiri)`). Saldo & nomor rekening tidak ikut.",
+      "sebab": "`routes/web.php:108-116` — closure `api.bank-accounts` hanya berada di dalam grup `c/{company}` (auth + tenancy), tanpa `can:` apa pun.",
+      "cakupan": "Setiap anggota perusahaan yang login. Kemungkinan disengaja: staff punya `create invoices`/`create receivables` sehingga butuh picker rekening; comment di `routes/web.php:319` menunjukkan pola serupa memang dipertahankan untuk user cash-flow. Dicatat agar jadi keputusan sadar, bukan kelalaian.",
+      "perbaikan": "Gate dengan izin gabungan yang mencerminkan pemakaian sebenarnya, mis. `-›middleware('can:any,view bank-accounts/create invoices/create receivables')` (atau Gate kustom), lalu dokumentasikan keputusannya di `docs/module/bank-accounts.md`. ---",
+      "status": "SUDAH DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat rekening baru",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB: `id=1 account_number=1000000001 initial_balance=1000000`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Saldo Rp 14.850.000 dihitung ulang dari saldo awal + pemasukan − pengeluaran, bukan disimpan; breakdown kategori juga sudah mengikuti hasil pemindahan kategori."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Buat rekening kedua dengan `initial_balance=0` (batas bawah `min:0`)",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB `id=2 initial_balance=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Saldo adalah accessor computed, bukan kolom",
+      "verdict": "Pass",
+      "note": "Kolom yang ada: `id, account_name, account_number, bank_name, branch, initial_balance, created_at, updated_at` — tidak ada `balance`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Saldo bergerak setelah transaksi credit & debit",
+      "verdict": "Pass",
+      "note": "Prop Inertia: `{\"id\":1,...,\"initial_balance\":1000000,\"balance\":1300000}`. DB `bank_accounts` tetap tanpa kolom saldo",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Ubah `initial_balance` menggeser saldo terkini (bukti saldo dihitung ulang, bukan tersimpan)",
+      "verdict": "Pass",
+      "note": "HTTP 302; prop: `init=2000000 bal=2300000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Endpoint tab Transaksi (JSON murni, bukan Inertia)",
+      "verdict": "Pass",
+      "note": "HTTP 200, `Content-Type` JSON. `total=2`, item berisi `category.label=\"MAKAN MINUM\"` + `parent_label=\"Operational Expenses\"`. Terbukti route `/bank-accounts/transactions` tidak dibaca sebagai ID akun",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Endpoint tab Pembayaran Invoice",
+      "verdict": "Pass",
+      "note": "HTTP 200 `{\"data\":[],...,\"total\":0}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Filter tab Transaksi: tipe, pencarian, bulan",
+      "verdict": "Pass",
+      "note": "debit → `total=4` semua `debit`; search → `total=1` (`QA Pemasukan`); `month=2026-08` → `total=5`; `month=2026-01` → `total=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Statistik & breakdown kategori pada detail akun",
+      "verdict": "Pass",
+      "note": "`period={\"start\":\"2026-08-01\",\"end\":\"2026-08-31\",\"label\":\"Agustus 2026\",\"is_all_time\":false}`; `stats={\"total_income\":500000,\"total_expense\":866000,\"net_cashflow\":-366000,\"transaction_count\":5}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "`overallSummary` lintas akun",
+      "verdict": "Pass",
+      "note": "`{\"total_balance\":1634000,\"income\":500000,\"expense\":866000}` — cocok: akun 1 = 2.000.000 + 500.000 − 866.000 = 1.634.000; akun 2 = 0",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Export PDF laporan kas (rentang tanggal)",
+      "verdict": "Pass",
+      "note": "HTTP 200, `Content-Type: application/pdf`, `filename=cash-flow-2026-08-01-to-2026-08-31-account-1.pdf`",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Alias `date_from`/`date_to` diterima `parseFilters()`",
+      "verdict": "Pass",
+      "note": "Nama file identik: `cash-flow-2026-08-01-to-2026-08-31-account-1.pdf`",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Export mode \"semua waktu\" + preview inline",
+      "verdict": "Pass",
+      "note": "`attachment; filename=cash-flow-semua-waktu.pdf`; preview → `inline; filename=cash-flow-preview.pdf`",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Cascade delete: hapus rekening ikut menghapus transaksi & payment-nya",
+      "verdict": "Pass (cascade), efek samping = Fail terpisah",
+      "note": "Saldo terbaca 5.300.000 (payment ikut menambah saldo). Setelah `DELETE` (HTTP 302): `bank_accounts id=4 → 0 baris`, `payments bank_account_id=4 → 0`, `bank_transactions bank_account_id=4 → 0`. Cascade terbukti. Namun ada efek samping tak diinginkan → lihat BUG-BA-01",
+      "attempts": "f"
+    },
+    {
+      "id": "N15",
+      "title": "Manager (finance manager) boleh CRUD rekening",
+      "verdict": "Pass",
+      "note": "POST 302 (akun `QA Manager Acc` terbentuk), DELETE 302 (akun id=3 terhapus)",
+      "attempts": "p"
+    },
+    {
+      "id": "N16",
+      "title": "Whitelist sort pada tab Pembayaran",
+      "verdict": "Pass",
+      "note": "HTTP 200, respons normal — `match()` whitelist bekerja",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "`account_number` duplikat saat create",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"account_number\":[\"The account number has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Semua field wajib dihilangkan total",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"account_name\":[\"The account name field is required.\"],\"account_number\":[...required],\"bank_name\":[...required],\"initial_balance\":[...required]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "`initial_balance` di bawah batas (`min:0`)",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"initial_balance\":[\"The initial balance field must be at least 0.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Update memakai nomor rekening milik akun lain",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"account_number\":[\"The account number has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Update rekening yang tidak ada",
+      "verdict": "Pass",
+      "note": "HTTP 404",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Tab transaksi tanpa parameter `account`",
+      "verdict": "Pass",
+      "note": "HTTP 200 `{\"data\":[],\"total\":0,\"current_page\":1,...}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Tab transaksi dengan `account` yang tidak ada",
+      "verdict": "Pass",
+      "note": "HTTP 200 `total=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Staff (tanpa `view bank-accounts`) buka halaman index lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Staff memanggil endpoint mutasi langsung",
+      "verdict": "Pass",
+      "note": "POST 403, DELETE 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "Staff memanggil endpoint tab JSON & export PDF langsung",
+      "verdict": "Pass",
+      "note": "keduanya HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Parameter `sort` tab Transaksi tidak di-whitelist",
+      "verdict": "Fail",
+      "note": "HTTP 500 dengan SQL mentah bocor ke respons: `SQLSTATE[42S22]: Column not found: 1054 Unknown column 'DROP' in 'order clause' ... SQL: select ∗ from bank_transactions ...` → BUG-BA-02",
+      "attempts": "f"
+    },
+    {
+      "id": "A12",
+      "title": "Percobaan injeksi lewat `sort`",
+      "verdict": "Pass (keamanan) / Fail (penanganan error, sama dengan A11)",
+      "note": "HTTP 500, pesan `Unknown column 'id,(select 1)'` — identifier di-∗quote∗ Laravel, tidak ada injeksi SQL. Yang bocor hanya pesan error",
+      "attempts": "f"
+    },
+    {
+      "id": "A13",
+      "title": "Parameter `direction` tidak divalidasi",
+      "verdict": "Fail",
+      "note": "HTTP 500 `InvalidArgumentException: Order direction must be \"asc\" or \"desc\".` → bagian dari BUG-BA-02",
+      "attempts": "f"
+    },
+    {
+      "id": "A14",
+      "title": "`per_page` ekstrem",
+      "verdict": "Fail (untuk `per_page=100000`)",
+      "note": "`per_page=0` → aman, paginator jatuh ke 15. `per_page=100000` → diterima apa adanya (`per_page=100000`), tanpa batas atas → BUG-BA-03 (risiko memori)",
+      "attempts": "f"
+    },
+    {
+      "id": "A15",
+      "title": "Hapus rekening yang punya `loan_payments` (FK tanpa cascade)",
+      "verdict": "Fail",
+      "note": "HTTP 500 exception mentah: `SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (tenant_qa-dua.loan_payments, CONSTRAINT loan_payments_bank_account_id_foreign ...)`. Akun tidak terhapus (benar), tapi tanpa guard/pesan → BUG-BA-04",
+      "attempts": "f"
+    },
+    {
+      "id": "A16",
+      "title": "Export PDF untuk `bank_account_id` yang tidak ada",
+      "verdict": "Pass (tidak crash) — catatan minor",
+      "note": "HTTP 200, PDF tetap dibuat: `filename=cash-flow-semua-waktu-account-999.pdf`. Tidak crash, tapi memberi laporan untuk rekening yang tak ada",
+      "attempts": "p"
+    },
+    {
+      "id": "A17",
+      "title": "Helper picker `/api/bank-accounts` untuk user tanpa `view bank-accounts`",
+      "verdict": "Fail (perlu keputusan produk)",
+      "note": "HTTP 200, membocorkan daftar seluruh rekening: `[{\"label\":\"QA Rekening Utama (BCA)\",\"value\":1},{\"label\":\"QA Rekening Pinjaman 2 (BRI)\",\"value\":6},...]`. Saldo tidak ikut. Route memang hanya di belakang `auth`+tenancy (routes/web.php:108) → BUG-BA-05 (severity rendah, kemungkinan disengaja)",
+      "attempts": "f"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Pembayaran invoice ikut menaikkan saldo rekening & muncul di tab Pembayaran",
+      "verdict": "Pass",
+      "note": "Saldo akun 4: 5.000.000 − 100.000 + 400.000 = 5.300.000 (cocok). Tab: `{\"invoice_number\":\"001/INV/QD-UB/II/2026\",\"invoice_status\":\"partially_paid\",\"client_name\":\"PT Uji Berulang\",\"amount\":400000}`",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Hapus rekening → payment ikut hilang, status invoice tidak dihitung ulang",
+      "verdict": "Fail",
+      "note": "`payments` = 0 baris (invoice 1 kini tanpa pembayaran) tetapi `invoices.id=1 status=partially_paid`, `total_amount=1.000.000`. `updateStatus()` tidak dipanggil → BUG-BA-01",
+      "attempts": "f"
+    },
+    {
+      "id": "C03",
+      "title": "Transaksi bank yang memakai kategori bertipe salah tetap ikut dihitung sebagai pengeluaran",
+      "verdict": "Fail",
+      "note": "Transaksi diterima (302). Breakdown pengeluaran akun 1: `[{\"name\":\"QA Anak Beban 2\",\"total\":333000},{\"name\":\"QA Pendapatan Lain\",\"total\":222000},...]` — kategori income muncul di daftar pengeluaran. Akar masalah ada di modul Kategori → lihat BUG-TC-02",
+      "attempts": "f"
+    },
+    {
+      "id": "C04",
+      "title": "Reassign kategori memindahkan angka di breakdown rekening",
+      "verdict": "Pass",
+      "note": "Sebelum: `QA Induk Beban 111.000`. Sesudah: `QA Induk Beban 166.000` (= 111.000 + 55.000). Perpindahan konsisten. (Bahwa targetnya boleh kategori ∗parent∗ adalah masalah tersendiri → BUG-TC-03)",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Cakupan: 16 case Normal (N01–N16), 17 case Abnormal (A01–A17), 4 case Skor: Pass 29, Fail 8 (A11, A12∗, A13, A14, A15, A17, C02, C03). Semua case dieksekusi lewat HTTP dengan sesi login sungguhan, bukan lewat Verifikasi database dilakukan pada setiap case yang mengubah data, Invarian utama modul terbukti benar: (1) saldo tidak pernah disimpan — Kegagalan tooling saya sendiri (bukan cacat aplikasi): percobaan pertama Di luar cakupan modul ini tapi ditemukan saat menyiapkan data: Data uji ditinggalkan di `tenant_qa-dua` (tidak dibersihkan, agar temuan"
+    }
+  ]
+}

@@ -1,0 +1,336 @@
+{
+  "module": "clients",
+  "title": "Modul Clients",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/clients.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/clients",
+  "report_out": "../report/Laporan-QA-clients.pdf",
+  "summary": [
+    "32 test case dirancang untuk modul ini; 26 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "4 temuan tercatat (C-01, C-02, C-03, C-04). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "C-01",
+      "title": "Filter `type`/`status` bocor saat digabung pencarian (presedens `orWhere`)",
+      "sifat": "Bug logika query — hasil daftar salah. Keparahan: sedang.",
+      "cases": "A14, A15, A16.",
+      "gejala": "`GET /c/qa-satu/clients?search=Rina&type=company` mengembalikan `Rina Perorangan` yang bertipe `individual`. Idem `?search=Alpha&type=individual` mengembalikan `PT Alpha Beta Gamma` (`company`), dan `?search=Rina&status=Inactive` mengembalikan klien ber-status `Active`.",
+      "sebab": "`app/Http/Controllers/ClientController.php:24-28` merangkai `-›where('name','like',…)-›orWhere('email',…)-›orWhere('NPWP',…)` tanpa closure pembungkus, lalu `-›when($type, …-›where('type',$type))` (baris 29-30) menambahkan `AND` pada level yang sama. SQL yang terbentuk menjadi `name LIKE ? OR email LIKE ? OR (NPWP LIKE ? AND type = ?)` karena `AND` mengikat lebih kuat daripada `OR`. Dibuktikan dengan SQL pembanding: bentuk berkurung benar → `0` baris, bentuk sesuai kode → `1` baris.",
+      "cakupan": "Hanya `ClientController::index()`. `InvoiceController::index()` sudah membungkus pencariannya dalam `function ($query) use ($search)` (`InvoiceController.php:57-60`) sehingga aman; `ServiceController::index()` hanya mencari satu kolom sehingga tidak terdampak.",
+      "perbaikan": "Bungkus grup pencarian — `-›when($search, fn ($q) =› $q-›where(fn ($w) =› $w-›where('name','like',…)-›orWhere('email','like',…)-›orWhere('NPWP','like',…)))`.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "C-02",
+      "title": "Menghapus klien merusak invoice milik klien lain dan menghapus pembayaran (saldo bank turun diam-diam)",
+      "sifat": "Kehilangan & korupsi data keuangan. Keparahan: kritis.",
+      "cases": "C02, C03 (terpicu oleh C01).",
+      "gejala": "Setelah `DELETE /c/qa-satu/clients/6`: 1. Invoice 1 — milik klien 2, bernomor resmi `001/INV/QS-RP/VIII/2026`, status `partially_paid` — kehilangan satu itemnya. Query konsistensi: `header_subtotal=3800000` vs `sum_item=3000000`. 2. `payments` berkurang dari 3 menjadi 1 baris; saldo `QA Kas Utama` turun dari `109.100.001` menjadi `10.100.000` (−Rp 99.000.001) tanpa peringatan apa pun.",
+      "sebab": "Dua mekanisme bertumpuk. 1. `app/Models/Client.php:54-59` (`delete()` override) memanggil `$this-›invoiceItems()-›delete()` — relasi lewat `invoice_items.client_id`, bukan item milik invoice klien tersebut. Item atas nama klien ini yang menempel di invoice orang lain ikut dihapus. Diperkuat FK `database/migrations/tenant/2023_01_01_000007_create_invoice_items_table.php:14` — `client_id` `constrained()-›cascadeOnDelete()`, jadi cascade terjadi di level DB bahkan tanpa override model. 2. `database/migrations/tenant/2023_01_01_000008_create_payments_table.php:13` — `payments.invoice_id ... onDelete('cascade')`. Karena `$this-›invoices()-›delete()` adalah mass-delete query (tidak memicu event model), pembayaran lenyap lewat FK tanpa jejak. Saldo bank adalah accessor terhitung (`app/Models/BankAccount.php::getBalanceAttribute`) sehingga ikut turun otomatis.",
+      "cakupan": "Akar yang sama menjangkau (a) `DELETE /invoices/{invoice}` — dibuktikan di `invoices.md` C07: menghapus invoice ber-pembayaran menurunkan saldo bank Rp 1.000.000 tanpa konfirmasi; (b) FK `payments.bank_account_id ... onDelete('cascade')` pada migration yang sama — menghapus rekening bank akan menghapus seluruh riwayat pembayaran yang menunjuk padanya (belum diuji dalam sesi ini).",
+      "perbaikan": "(1) Tolak penghapusan klien yang masih memiliki invoice atau item — kembalikan pesan penolakan, atau tawarkan arsip/soft delete. (2) Ubah FK `invoice_items.client_id` menjadi `restrictOnDelete` (atau `nullOnDelete` bila item lintas-klien memang sah). (3) Ubah FK `payments.invoice_id` menjadi `restrictOnDelete` agar invoice ber-pembayaran tidak bisa lenyap diam-diam. (4) Bila penghapusan tetap diizinkan, tampilkan ringkasan dampak (jumlah invoice, item, pembayaran, dan nilai rupiah yang akan hilang) pada `ConfirmDialog`.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "C-03",
+      "title": "Inkonsistensi kapitalisasi status hanya tertutup oleh collation DB",
+      "sifat": "Kerapuhan laten. Keparahan: rendah (belum menimbulkan gejala).",
+      "cases": "tidak ada case yang gagal — A03 & A13 lolos.",
+      "gejala": "Tidak ada saat ini. Validasi menolak `active` huruf kecil (422), namun query `WHERE status='active'` dan `WHERE status='Active'` sama-sama mengembalikan 4 baris.",
+      "sebab": "`clients.status` bercollation `utf8mb4_unicode_ci` (case-insensitive), sehingga `RecurringInvoiceController` yang memfilter `where('status','active')` tetap bekerja meskipun data selalu tersimpan `Active`/`Inactive` (`StoreClientRequest.php` → `in:Active,Inactive`; `InvoiceController::create()` → `where('status','Active')`).",
+      "cakupan": "Seluruh query yang menyaring `clients.status`. Akan langsung rusak bila collation kolom diubah ke `_bin`/`_cs`, atau bila DB dipindah ke mesin case-sensitive.",
+      "perbaikan": "Menyamakan satu sisi saja tidak cukup — normalkan keduanya, mis. ubah `RecurringInvoiceController` menjadi `'Active'`, atau lebih baik pakai satu konstanta/enum untuk nilai status klien.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "C-04",
+      "title": "Klien `Inactive` disaring hanya di frontend",
+      "sifat": "Aturan bisnis tidak ditegakkan backend. Keparahan: sedang.",
+      "cases": "C04.",
+      "gejala": "`POST /c/qa-satu/invoices` dengan `client_id=1` (status `Inactive`) → 302, invoice `id=7` terbuat untuk klien nonaktif.",
+      "sebab": "`InvoiceController::create()` (`InvoiceController.php:377`) memfilter `Client::where('status','Active')` hanya untuk prop opsi. `StoreInvoiceRequest` hanya mensyaratkan `'client_id' =› ['required','exists:clients,id']` — tidak ada pemeriksaan status. Aturan yang hanya ada di FE = tidak ditegakkan.",
+      "cakupan": "Sama untuk `UpdateInvoiceRequest` (`extends StoreInvoiceRequest`) dan `items.∗.client_id`. Endpoint `/api/clients` bahkan mengembalikan klien Inactive ke Combobox modul lain (N11).",
+      "perbaikan": "Tambahkan `Rule::exists('clients','id')-›where('status','Active')` pada `client_id` di `StoreInvoiceRequest`, atau pemeriksaan eksplisit di controller.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat klien badan usaha dengan seluruh field pajak",
+      "verdict": "Pass",
+      "note": "302. DB: `id=1`, semua kolom terisi persis seperti input",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar klien dengan statistik dan kolom ringkasan penagihan."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Buat klien perorangan hanya dengan field wajib",
+      "verdict": "Pass",
+      "note": "302. DB: `id=2`, `email/NPWP/KPP/EFIN/address/person_in_charge` semua `IS NULL = 1`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Dialog tambah klien terbuka dari tombol Tambah Klien."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Form terisi: tipe Perusahaan dipilih, NPWP dan PIC diisi."
+        },
+        {
+          "img": "N02-3",
+          "cap": "Klien tersimpan — jumlah total naik 5 menjadi 6 dan baris baru tampil lengkap dengan NPWP-nya."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Field opsional dikirim sebagai string kosong dinormalkan jadi `NULL` (bukan `''`)",
+      "verdict": "Pass",
+      "note": "302. Query `email IS NULL` dsb. → `1` untuk semua kolom (`id=3`). Normalisasi `array_map(fn ($v) =› $v ?: null, …)` bekerja",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Ubah klien: status `Active` → `Inactive`, email tetap milik sendiri",
+      "verdict": "Pass",
+      "note": "302. DB `id=1`: `status=Inactive`, `email=alpha@qa.test`, `NPWP=99.888.777.6-555.000`. Override `unique:clients,email,{id}` di `UpdateClientRequest` terbukti",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Staff (punya `create clients`) membuat klien",
+      "verdict": "Pass",
+      "note": "302, DB `id=6` tersimpan",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Stats index sesuai isi DB",
+      "verdict": "Pass",
+      "note": "Prop `{\"total\":5,\"active\":3,\"individual\":3,\"company\":2}`; SQL pembanding `total=5 aktif=3 indiv=3 comp=2` — identik",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Filter `type` dan `status` (tanpa search)",
+      "verdict": "Pass",
+      "note": "`type=company` → `total=2`; `status=Inactive` → `total=2`. Sesuai DB",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Pencarian berdasarkan NPWP",
+      "verdict": "Pass",
+      "note": "1 baris: `1:PT Alpha Beta Gamma`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Ringkasan tagihan per klien dihitung dari relasi invoice",
+      "verdict": "Pass",
+      "note": "Prop `{\"invoices_count\":9,\"total\":52932003,\"paid\":0}`; SQL `cnt=9 total=52932003 paid=0` — identik",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Hapus klien yang tidak punya invoice — hanya baris itu yang hilang",
+      "verdict": "Pass",
+      "note": "Sebelum `inv=10 it=10 pay=2 cl=6` → sesudah `inv=10 it=10 pay=2 cl=5`. Hanya klien yang hilang",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Endpoint opsi `/api/clients` untuk Combobox lintas modul",
+      "verdict": "Pass (dengan catatan)",
+      "note": "200, 6 entri urut nama. Catatan: endpoint ini mengembalikan klien Inactive juga (`CV Kosong Field`, `PT Alpha Beta Gamma`), berbeda dengan `/invoices/create` yang memfilter `Active`",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Field wajib `name` dihilangkan sama sekali",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "`type` di luar enum",
+      "verdict": "Pass",
+      "note": "422 `{\"type\":[\"The selected type is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "`status` huruf kecil `active` (uji case-sensitivity validasi)",
+      "verdict": "Pass",
+      "note": "422 `{\"status\":[\"The selected status is invalid.\"]}`. Validasi menolak, tetapi kolom DB bercollation `utf8mb4_unicode_ci` (lihat A13)",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Email duplikat pada create",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Format email tidak valid",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email field must be a valid email address.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Update memakai email milik klien lain",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "`NPWP` tepat 20 karakter (batas)",
+      "verdict": "Pass",
+      "note": "302, tersimpan (`id=4`)",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "`NPWP` 21 karakter (satu langkah melewati batas)",
+      "verdict": "Pass",
+      "note": "422 `{\"NPWP\":[\"The n p w p field must not be greater than 20 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "`name` tepat 255 karakter (batas)",
+      "verdict": "Pass",
+      "note": "302, tersimpan (`id=5`)",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "`name` 256 karakter",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name field must not be greater than 255 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Staff menghapus klien lewat URL langsung (tanpa `delete clients`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`, klien 4 masih ada",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "Finance manager menghapus klien lewat URL langsung",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "Filter status huruf kecil pada query (meniru `RecurringInvoiceController` yang memakai `'active'`)",
+      "verdict": "Pass (rapuh — lihat TEMUAN C-03)",
+      "note": "`?status=inactive` → 2 baris (sama dengan `Inactive`). SQL: `status='active'` → 4, `status='Active'` → 4. Collation `utf8mb4_unicode_ci` menutupi inkonsistensi kapitalisasi — bekerja karena collation, bukan karena kode benar",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "Pencarian digabung filter `type` — presedens `orWhere`",
+      "verdict": "Fail (TEMUAN C-01)",
+      "note": "1 baris: `2:Rina Perorangan (individual)` — filter `type` diabaikan. SQL pembanding yang benar → `0`",
+      "attempts": "f"
+    },
+    {
+      "id": "A15",
+      "title": "Pencarian digabung filter `status`",
+      "verdict": "Fail (TEMUAN C-01)",
+      "note": "1 baris: `2:Rina Perorangan (Active)`",
+      "attempts": "f"
+    },
+    {
+      "id": "A16",
+      "title": "Pencarian digabung filter `type` arah sebaliknya",
+      "verdict": "Fail (TEMUAN C-01)",
+      "note": "1 baris: `1:PT Alpha Beta Gamma (company)`",
+      "attempts": "f"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Invarian destruktif: hapus klien ikut menghapus seluruh invoice + itemnya",
+      "verdict": "Pass (bagian yang dimaksudkan)",
+      "note": "302. `inv 12→10`, `items 14→11`, `pay 3→1`, `clients 6→5`. Invoice 3 & 4 hilang benar; namun dua efek samping ikut terjadi — lihat C02 & C03",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Efek samping C01 — item milik klien terhapus di invoice milik klien lain, header invoice jadi tidak konsisten",
+      "verdict": "Fail (TEMUAN C-02)",
+      "note": "Item `id=2` ikut terhapus. Query: `id=1 / 001/INV/QS-RP/VIII/2026 / partially_paid / header_subtotal=3800000 / sum_item=3000000`. Invoice bernomor & sudah dibayar sebagian kini rusak: header ≠ isi",
+      "attempts": "f",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "Konfirmasi hapus untuk klien yang masih punya 1 invoice: teks menyebut jumlah invoice dan menyatakan penghapusan tidak bisa dilakukan — sebelumnya teks ini justru menjanjikan invoice ikut terhapus."
+        },
+        {
+          "img": "C02-2",
+          "cap": "Server menolak penghapusan dan menyebut invoice penahannya; baris klien tetap ada di tabel."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Efek samping C01 — pembayaran ikut terhapus dan saldo bank turun diam-diam",
+      "verdict": "Fail (TEMUAN C-02)",
+      "note": "Saldo `109.100.001` → `10.100.000` (turun Rp 99.000.001). `payments` 3 → 1 baris. Penyebab: FK `payments.invoice_id ON DELETE CASCADE`",
+      "attempts": "f"
+    },
+    {
+      "id": "C04",
+      "title": "Klien `Inactive` tidak muncul di opsi form invoice, tetapi tetap diterima backend",
+      "verdict": "Fail (TEMUAN C-04)",
+      "note": "Prop `clients` hanya berisi klien `Active` (4, 5, 7, 2) — FE benar. Tetapi POST `/c/qa-satu/invoices` dengan `client_id=1` → 302, invoice `id=7` dibuat untuk klien Inactive. Aturan hanya ditegakkan FE",
+      "attempts": "f"
+    },
+    {
+      "id": "C05",
+      "title": "Inisial nama klien dipakai pada nomor invoice",
+      "verdict": "Pass (sebagian lewat baca kode)",
+      "note": "Nomor tersimpan `001/INV/QS-RP/VIII/2026`. Catatan kejujuran: `Invoice::getClientInitials()` tidak dipanggil oleh alur send — inisial pada nomor ini diketik pada payload uji. Pembentukan inisial oleh model diverifikasi lewat baca kode (`app/Models/Invoice.php::extractInitials`), bukan eksekusi. Lihat TEMUAN I-01 di `invoices.md`",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh pengujian dijalankan lewat HTTP ke `http://127.0.0.1:8000` memakai Verifikasi hasil dilakukan langsung ke `tenant_qa-satu` lewat PDO (hanya SELECT): Prop halaman Inertia (`stats`, `clients`, `filters`) dibaca dari tag Yang tidak diuji: perilaku `ConfirmDialog` sebelum penghapusan (murni FE, butuh Kegagalan tooling (bukan cacat aplikasi): file body respons bawaan helper"
+    }
+  ]
+}

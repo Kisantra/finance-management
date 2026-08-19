@@ -1,0 +1,181 @@
+{
+  "module": "auth-multitenancy",
+  "title": "Modul Autentikasi & Multi-Tenancy",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/auth-multitenancy.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/auth-multitenancy",
+  "report_out": "../report/Laporan-QA-auth-multitenancy.pdf",
+  "summary": [
+    "18 test case dirancang untuk modul ini; 18 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "Tidak ada temuan bug pada modul ini."
+  ],
+  "bugs": [],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Login admin (1 perusahaan)",
+      "verdict": "Pass",
+      "note": "HTTP 200 di `/c/kisantra/dashboard`; dashboard tampil dengan data Kisantra",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Halaman masuk sebelum autentikasi — titik awal seluruh alur."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Login manager (2 perusahaan)",
+      "verdict": "Pass",
+      "note": "Halaman `/choose-company` tampil 2 kartu: \"Kisantra KSN\", \"Semesta SPI\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Pemilih perusahaan muncul untuk akun yang menjadi anggota lebih dari satu perusahaan; tiap kartu menuju /c/{slug}/dashboard."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Pilih perusahaan dari pemilih",
+      "verdict": "Pass",
+      "note": "Navigasi ke `/c/kisantra/dashboard`; tombol \"Kisantra Ganti perusahaan\" tampil",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Staff 1 perusahaan auto-redirect",
+      "verdict": "Pass",
+      "note": "Rantai: `POST /login` 302 → `/choose-company` 302 → `/c/kisantra/dashboard` 200",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Menu sidebar ber-prefix perusahaan segera setelah login (regresi BUG-01)",
+      "verdict": "Pass (percobaan ke-2, setelah BUG-01 diperbaiki)",
+      "note": "`[\"/c/kisantra/dashboard\",\"/c/kisantra/clients\",\"/c/kisantra/services\",\"/c/kisantra/invoices\",\"/c/kisantra/fund-requests\"]`; klik \"Klien\" → `/c/kisantra/clients`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N05-2",
+          "cap": "Sidebar tepat setelah login, tanpa reload: seluruh menu sudah ber-prefix /c/{slug} — bukti perbaikan BUG-01."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Logout",
+      "verdict": "Pass",
+      "note": "Redirect ke `/login`; request berikutnya sebagai guest",
+      "attempts": "p"
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Password salah",
+      "verdict": "Pass",
+      "note": "Login ditolak, tidak terbentuk sesi (request lanjutan tetap guest)",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Slug perusahaan tidak dikenal",
+      "verdict": "Pass",
+      "note": "HTTP 404",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Akses perusahaan yang bukan anggotanya",
+      "verdict": "Pass",
+      "note": "HTTP 403 (\"Anda tidak memiliki akses ke perusahaan ini\")",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Guest membuka halaman perusahaan",
+      "verdict": "Pass",
+      "note": "HTTP 302 → `/login`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "User sudah login membuka `/login` (regresi BUG-03)",
+      "verdict": "Pass (percobaan ke-2, setelah BUG-03 diperbaiki)",
+      "note": "Sebelum perbaikan: HTTP 500 `UrlGenerationException`. Setelah perbaikan: 302 → `/choose-company`; guest tetap 200",
+      "attempts": "fp"
+    },
+    {
+      "id": "A06",
+      "title": "Route lama tanpa prefix perusahaan",
+      "verdict": "Pass",
+      "note": "HTTP 404",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Staff membuka halaman admin lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Staff membuka laporan Laba Rugi lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI (LINTAS AKTOR / LINTAS PERUSAHAAN)"
+    },
+    {
+      "id": "C01",
+      "title": "Isolasi data antar perusahaan",
+      "verdict": "Pass",
+      "note": "Kisantra: 2 invoice, Total Pendapatan Rp 6.000.000. Semesta: 0 dari 0, Rp 0. DB: `tenant_kisantra.invoices`=4 baris, `tenant_semesta.invoices`=0",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Isolasi database fisik",
+      "verdict": "Pass",
+      "note": "`finance_central` 19 tabel tanpa tabel bisnis; `tenant_kisantra`/`tenant_semesta` 22 tabel bisnis masing-masing",
+      "attempts": "p"
+    },
+    {
+      "id": "C03",
+      "title": "Role ter-scope per perusahaan (Spatie teams)",
+      "verdict": "Pass",
+      "note": "manager → `finance manager @ kisantra` + `finance manager @ semesta`; staff → `staff @ kisantra`; admin → `admin @ kisantra`",
+      "attempts": "p"
+    },
+    {
+      "id": "C04",
+      "title": "Ganti perusahaan tanpa login ulang",
+      "verdict": "Pass",
+      "note": "URL berubah ke `/c/semesta/...`, sidebar & breadcrumb mengikuti, daftar invoice kosong sesuai isi DB Semesta",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "A02–A08 dieksekusi lewat request HTTP langsung dengan cookie sesi asli N01–N06, C01, C04 dieksekusi lewat UI sungguhan di Chrome. C02–C03 diverifikasi langsung di database (kondisi tidak dapat diamati dari layar)."
+    }
+  ]
+}
