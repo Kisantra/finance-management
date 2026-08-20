@@ -30,6 +30,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Tabs } from '@/components/ui/tabs';
 import { AppLayout } from '@/layouts/app-layout';
 import { useCan } from '@/hooks/use-can';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import { AccountCharts } from './components/account-charts';
@@ -81,9 +82,15 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
     // refreshKey forces TransactionsTab / PaymentsTab to refetch after mutation
     const [refreshKey, setRefreshKey] = React.useState(0);
 
+    // index.url(paramRoute, options) — `query` adalah bagian dari OPTIONS.
+    // Sebelumnya `{ query: ... }` dikirim sebagai parameter route, sehingga
+    // queryParams(options) menerima undefined dan URL yang terbentuk polos tanpa
+    // `?account=`. Akibatnya mengklik rekening lain memuat ulang halaman dan
+    // server kembali memilih rekening pertama — terlihat seperti tidak bisa
+    // berganti rekening sama sekali.
     const selectAccount = (id: number) => {
         router.get(
-            bankAccountsRoutes.index.url({ query: { account: id } }),
+            bankAccountsRoutes.index.url(undefined, { query: { account: id } }),
             {},
             { preserveScroll: true, preserveState: true, only: ['detail', 'filters'] },
         );
@@ -91,7 +98,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
 
     const changeMonth = (month: string) => {
         router.get(
-            bankAccountsRoutes.index.url({
+            bankAccountsRoutes.index.url(undefined, {
                 query: {
                     account: filters.account ?? undefined,
                     month: month || undefined,
@@ -121,7 +128,8 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
             toast.warning('Pilih rekening terlebih dulu');
             return;
         }
-        const url = `/bank-account/export/pdf?bank_account_id=${filters.account}`;
+        // Path literal kehilangan segmen /c/{company}; di multi-tenancy itu 404.
+        const url = companyUrl(`/bank-account/export/pdf?bank_account_id=${filters.account}`);
         window.open(url, '_blank');
         toast.info('Membuka laporan PDF...');
     };

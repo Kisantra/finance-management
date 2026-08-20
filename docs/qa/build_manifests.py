@@ -122,6 +122,8 @@ BUKTI_LAYAR = {
         ],
     },
     'bank-accounts': {
+        'N18': [('A18-1', 'Setelah perbaikan: mengklik "BRI - KUR" benar-benar berpindah — URL memuat ?account=4, header panel kanan dan kartu terpilih ikut berubah.')],
+        'N19': [('A18-1', 'Menu aksi rekening tempat Export PDF berada; tautannya kini ber-prefix perusahaan sehingga tidak lagi 404.')],
         'A11': [('A11-1', 'Halaman Rekening Bank tetap normal; permintaan tab Transaksi dengan kolom urut sembarang menjawab 200 (dulu 500 dengan pesan SQL yang menyebut nama database).')],
         'A12': [('A11-1', 'Kolom urut di luar whitelist jatuh ke transaction_date alih-alih menjatuhkan endpoint.')],
         'A13': [('A11-1', 'Arah urut di luar asc/desc jatuh ke desc; endpoint tetap 200.')],

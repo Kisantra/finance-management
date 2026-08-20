@@ -40,6 +40,8 @@ tangkapan layar. Tidak ada langkah layar yang dikarang.
 | N15 | Manager (finance manager) boleh CRUD rekening | `POST /bank-accounts` & `DELETE /bank-accounts/3` sebagai `manager@gmail.com` | Diizinkan (role punya create/edit/delete bank-accounts) | BE | POST **302** (akun `QA Manager Acc` terbentuk), DELETE **302** (akun id=3 terhapus) | Pass |
 | N16 | Whitelist sort pada tab Pembayaran | `GET /bank-accounts/payments?account=1&sort=DROP` | Kolom tak dikenal jatuh ke default (`payments.payment_date`), **bukan** 500 | BE | HTTP **200**, respons normal — `match()` whitelist bekerja | Pass |
 | N17 | Saldo rekening terhitung dinamis di layar | Setelah 1 pemasukan Rp 5.200.000 dan 1 pengeluaran Rp 350.000, buka menu Rekening Bank | Saldo = saldo awal + kredit - debit, bukan angka tersimpan | FE+BE | Rp 14.850.000 = 10.000.000 + 5.200.000 - 350.000. Breakdown kategori ikut menyesuaikan hasil pemindahan kategori pada transaction-categories C05 | Pass |
+| N18 | **Berganti rekening dari daftar** | Klik rekening lain pada daftar kiri | Panel kanan berpindah ke rekening itu dan URL memuat `?account={id}` | FE+BE | GAGAL saat pengguna melaporkannya: klik tidak berpindah, permintaan terkirim tanpa `?account=`. **Setelah BUG-BA-06 diperbaiki**: klik "BRI - KUR" berpindah ke `?account=4`, header dan kartu terpilih ikut berubah | Pass (percobaan ke-2) |
+| N19 | Ekspor PDF rekening dari menu aksi | Menu ⋯ → Export PDF | Berkas PDF terbuka | FE+BE | GAGAL: path tanpa prefix perusahaan → **404**. **Setelah BUG-BA-07 diperbaiki**: dibungkus `companyUrl()` | Pass (percobaan ke-2) |
 
 ---
 
@@ -194,6 +196,23 @@ tangkapan layar. Tidak ada langkah layar yang dikarang.
   `docs/module/bank-accounts.md`.
 
 ---
+
+### BUG-BA-06 — Tidak bisa berganti rekening: query string tidak pernah terbentuk
+
+- **SIFAT**: Cacat fungsional pada alur utama modul. Keparahan: **tinggi** — halaman Rekening Bank praktis terkunci pada satu rekening.
+- **DILAPORKAN**: pengguna, 20 Agustus 2026, saat memakai aplikasi.
+- **GEJALA**: Mengklik rekening mana pun di daftar kiri tidak berpindah. Panel kanan tetap menampilkan rekening pertama. Tidak ada galat di konsol maupun log — permintaan yang terkirim `GET /c/{company}/bank-accounts` **tanpa** `?account=`, lalu server memilih rekening pertama seperti seharusnya.
+- **SEBAB**: `resources/js/pages/bank-accounts/index.tsx` memanggil `bankAccountsRoutes.index.url({ query: { account: id } })`. Tanda tangan Wayfinder adalah `url(parameterRoute, options)` — `query` adalah bagian dari **options**, argumen kedua. Karena dikirim sebagai argumen pertama, `queryParams(options)` menerima `undefined` dan URL yang terbentuk polos. Kesalahan ini tidak menimbulkan galat apa pun: TypeScript menerima objek itu sebagai parameter route yang sah, dan runtime hanya menghasilkan URL tanpa query. Fungsi `changeMonth()` mengidap kesalahan yang sama, sehingga filter bulan pun tidak pernah berlaku.
+- **CAKUPAN**: Modul Rekening Bank — pemilihan rekening dan filter bulan. Penyisiran seluruh `resources/js` menemukan **tidak ada** pemanggilan `.url()` lain dengan pola keliru yang sama.
+- **DIPERBAIKI**: `url(undefined, { query: ... })` pada `selectAccount()` dan `changeMonth()`. Diverifikasi lewat layar: mengklik "BRI - KUR" berpindah ke `?account=4` dan panel kanan menampilkan rekening itu. Sisi servernya ditutup tes regresi `BankAccountSelectionTest` (parameter `account` dihormati, tanpa parameter memakai rekening pertama, parameter `month` terbaca).
+
+### BUG-BA-07 — Ekspor PDF rekening memakai path tanpa prefix perusahaan (404)
+
+- **SIFAT**: Cacat multi-tenancy, sekelas BUG-01 dan BUG-SET-01. Ditemukan saat menelusuri BUG-BA-06.
+- **GEJALA**: Menu ⋯ → Export PDF membuka tab baru ke `/bank-account/export/pdf?bank_account_id=…` yang menjawab **404**, karena route-nya berada di dalam grup ber-prefix `/c/{company}`.
+- **SEBAB**: `exportPdf()` menyusun path sebagai string literal alih-alih memakai helper `companyUrl()` yang sudah tersedia dan dipakai di tempat lain pada berkas yang sama.
+- **CAKUPAN**: Satu tombol pada modul ini. Diverifikasi: memanggil path tanpa prefix memang 404.
+- **DIPERBAIKI**: dibungkus `companyUrl()`.
 
 ## Catatan pelaksanaan
 

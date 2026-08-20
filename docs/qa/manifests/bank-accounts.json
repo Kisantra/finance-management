@@ -7,8 +7,8 @@
   "shots_dst": "../evidence/bank-accounts",
   "report_out": "../report/Laporan-QA-bank-accounts.pdf",
   "summary": [
-    "38 test case dirancang untuk modul ini; 37 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
-    "5 temuan tercatat (BUG-BA-01, BUG-BA-02, BUG-BA-03, BUG-BA-04, BUG-BA-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+    "40 test case dirancang untuk modul ini; 39 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "7 temuan tercatat (BUG-BA-01, BUG-BA-02, BUG-BA-03, BUG-BA-04, BUG-BA-05, BUG-BA-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
     {
@@ -63,6 +63,24 @@
       "cakupan": "Setiap anggota perusahaan yang login. Kemungkinan disengaja: staff punya `create invoices`/`create receivables` sehingga butuh picker rekening; comment di `routes/web.php:319` menunjukkan pola serupa memang dipertahankan untuk user cash-flow. Dicatat agar jadi keputusan sadar, bukan kelalaian.",
       "perbaikan": "Gate dengan izin gabungan yang mencerminkan pemakaian sebenarnya, mis. `-›middleware('can:any,view bank-accounts/create invoices/create receivables')` (atau Gate kustom), lalu dokumentasikan keputusannya di `docs/module/bank-accounts.md`. ---",
       "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-06",
+      "title": "Tidak bisa berganti rekening: query string tidak pernah terbentuk",
+      "sifat": "Cacat fungsional pada alur utama modul. Keparahan: tinggi — halaman Rekening Bank praktis terkunci pada satu rekening.",
+      "gejala": "Mengklik rekening mana pun di daftar kiri tidak berpindah. Panel kanan tetap menampilkan rekening pertama. Tidak ada galat di konsol maupun log — permintaan yang terkirim `GET /c/{company}/bank-accounts` tanpa `?account=`, lalu server memilih rekening pertama seperti seharusnya.",
+      "sebab": "`resources/js/pages/bank-accounts/index.tsx` memanggil `bankAccountsRoutes.index.url({ query: { account: id } })`. Tanda tangan Wayfinder adalah `url(parameterRoute, options)` — `query` adalah bagian dari options, argumen kedua. Karena dikirim sebagai argumen pertama, `queryParams(options)` menerima `undefined` dan URL yang terbentuk polos. Kesalahan ini tidak menimbulkan galat apa pun: TypeScript menerima objek itu sebagai parameter route yang sah, dan runtime hanya menghasilkan URL tanpa query. Fungsi `changeMonth()` mengidap kesalahan yang sama, sehingga filter bulan pun tidak pernah berlaku.",
+      "cakupan": "Modul Rekening Bank — pemilihan rekening dan filter bulan. Penyisiran seluruh `resources/js` menemukan tidak ada pemanggilan `.url()` lain dengan pola keliru yang sama.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-BA-07",
+      "title": "Ekspor PDF rekening memakai path tanpa prefix perusahaan (404)",
+      "sifat": "Cacat multi-tenancy, sekelas BUG-01 dan BUG-SET-01. Ditemukan saat menelusuri BUG-BA-06.",
+      "gejala": "Menu ⋯ → Export PDF membuka tab baru ke `/bank-account/export/pdf?bank_account_id=…` yang menjawab 404, karena route-nya berada di dalam grup ber-prefix `/c/{company}`.",
+      "sebab": "`exportPdf()` menyusun path sebagai string literal alih-alih memakai helper `companyUrl()` yang sudah tersedia dan dipakai di tempat lain pada berkas yang sama.",
+      "cakupan": "Satu tombol pada modul ini. Diverifikasi: memanggil path tanpa prefix memang 404.",
+      "status": "BELUM DIPERBAIKI"
     }
   ],
   "cases": [
@@ -191,6 +209,32 @@
         {
           "img": "N01-1",
           "cap": "Saldo Rp 14.850.000 dihitung ulang dari saldo awal + pemasukan − pengeluaran, bukan disimpan."
+        }
+      ]
+    },
+    {
+      "id": "N18",
+      "title": "Berganti rekening dari daftar",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL saat pengguna melaporkannya: klik tidak berpindah, permintaan terkirim tanpa `?account=`. Setelah BUG-BA-06 diperbaiki: klik \"BRI - KUR\" berpindah ke `?account=4`, header dan kartu terpilih ikut berubah",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Setelah perbaikan: mengklik \"BRI - KUR\" benar-benar berpindah — URL memuat ?account=4, header panel kanan dan kartu terpilih ikut berubah."
+        }
+      ]
+    },
+    {
+      "id": "N19",
+      "title": "Ekspor PDF rekening dari menu aksi",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL: path tanpa prefix perusahaan → 404. Setelah BUG-BA-07 diperbaiki: dibungkus `companyUrl()`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Menu aksi rekening tempat Export PDF berada; tautannya kini ber-prefix perusahaan sehingga tidak lagi 404."
         }
       ]
     },
