@@ -497,13 +497,15 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                                 <Users className="w-3.5 h-3.5 opacity-60" />
                                 Profil Saya
                             </Link>
-                            <Link
-                                href={companyUrl('/settings/company')}
-                                className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
-                            >
-                                <Building2 className="w-3.5 h-3.5 opacity-60" />
-                                Profil Perusahaan
-                            </Link>
+                            {can('manage company profile') && (
+                                <Link
+                                    href={companyUrl('/settings/company')}
+                                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
+                                >
+                                    <Building2 className="w-3.5 h-3.5 opacity-60" />
+                                    Profil Perusahaan
+                                </Link>
+                            )}
                         </div>
                         <div className="p-1 border-t border-gray-100 dark:border-white/6">
                             <form method="POST" action="/logout">

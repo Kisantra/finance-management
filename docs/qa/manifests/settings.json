@@ -7,8 +7,8 @@
   "shots_dst": "../evidence/settings",
   "report_out": "../report/Laporan-QA-settings.pdf",
   "summary": [
-    "52 test case dirancang untuk modul ini; 49 lolos, 2 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
-    "6 temuan tercatat (BUG-SET-01, BUG-SET-02, BUG-SET-03, CATATAN-SET-04, CATATAN-SET-05, BUG-SET-06). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+    "53 test case dirancang untuk modul ini; 50 lolos, 2 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "7 temuan tercatat (BUG-SET-01, BUG-SET-02, BUG-SET-03, BUG-SET-07, CATATAN-SET-04, CATATAN-SET-05, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
     {
@@ -42,6 +42,16 @@
       "sebab": "`resources/views/pdf/kisantra-invoice.blade.php:577` — `@foreach ($company['bank_accounts'] as $index =› $bank)` tanpa pengaman null. Kolom `company_profiles.bank_accounts` bernilai NULL, dan tidak ada cara mengisinya dari modul Settings: `app/Http/Requests/Settings/UpdateCompanyRequest.php` sama sekali tidak memuat aturan untuk `bank_accounts` (diverifikasi: nol kemunculan kata itu di file tersebut), sehingga form profil perusahaan tidak pernah menuliskannya. Pola `foreach` tanpa pengaman yang sama ada di `resources/views/pdf/invoice.blade.php`, `semesta-invoice.blade.php`, dan `single-invoice.blade.php`.",
       "cakupan": "Setiap perusahaan yang profilnya dibuat/diisi lewat Settings dan bukan lewat seeder — yaitu semua perusahaan baru hasil provisioning. Bukan kasus buatan: log aplikasi menunjukkan galat identik terjadi pada perusahaan lain (`tenant_qa-dua`) di sesi terpisah pada hari yang sama, jadi ini reproducible lintas tenant.",
       "perbaikan": "(1) Beri pengaman di keempat template Blade: `@foreach (($company['bank_accounts'] ?? []) as …)`. (2) Sediakan pengisian `bank_accounts` di form Profil Perusahaan (tambahkan aturannya di `UpdateCompanyRequest`), karena tanpa itu blok rekening pada invoice memang tidak akan pernah terisi. (3) Beri default `[]` alih-alih NULL pada kolom tersebut.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-SET-07",
+      "title": "Menu aplikasi mengantar staff ke halaman 403 yang dibuatnya sendiri",
+      "sifat": "Cacat UI turunan dari perbaikan BUG-SET-02/06. Hanya terlihat dari layar.",
+      "cases": "A25.",
+      "gejala": "Staff membuka menu user di sidebar, mengklik \"Profil Perusahaan\" yang aplikasi sendiri tawarkan, dan mendapat halaman hitam 403 THIS ACTION IS UNAUTHORIZED. Jalur menuju kegagalan itu disediakan aplikasi, bukan diketik pengguna.",
+      "sebab": "Gate `can:manage company profile` dipasang di route, tetapi dua tempat yang menampilkan tautannya tidak ikut disaring: `resources/js/layouts/sidebar.tsx` merender `‹Link›` Profil Perusahaan tanpa syarat, dan `resources/js/layouts/settings-layout.tsx` menandai item itu `permission: null` padahal daftar navigasinya sudah punya mekanisme penyaringan (dipakai benar untuk Template PDF).",
+      "cakupan": "Setiap user tanpa izin tersebut — yaitu seluruh role `staff`. Bukan kebocoran data (server menolak dengan benar), tetapi pengalaman yang membuat aplikasi terlihat rusak, dan persis kelas cacat yang tidak akan pernah tertangkap pengujian lewat HTTP.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -433,6 +443,23 @@
       "verdict": "Pass (invarian \"maksimal satu\" tetap terjaga; lihat CATATAN-SET-05)",
       "note": "302; setelah itu `SUM(is_default)=0` — tidak ada template default tersisa dan tidak ada promosi otomatis",
       "attempts": "p"
+    },
+    {
+      "id": "A25",
+      "title": "Menu tidak boleh menawarkan halaman yang akan menolak",
+      "verdict": "Pass",
+      "note": "GAGAL pada percobaan pertama: item tetap tampil dan mengantar staff ke halaman 403 THIS ACTION IS UNAUTHORIZED. Setelah diperbaiki (`sidebar.tsx` + `settings-layout.tsx`): menu staff hanya berisi \"Profil Saya\" dan \"Keluar\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A25-1",
+          "cap": "Sebelum perbaikan: staff mengklik \"Profil Perusahaan\" yang ditawarkan menu sendiri dan mendapat halaman 403."
+        },
+        {
+          "img": "A25-2",
+          "cap": "Sesudah perbaikan: menu staff hanya berisi \"Profil Saya\" dan \"Keluar\"."
+        }
+      ]
     },
     {
       "section": "C. ALUR BERANTAI"

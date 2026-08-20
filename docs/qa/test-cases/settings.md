@@ -75,6 +75,7 @@ tidak dihapus.
 | A20 | **Profil perusahaan dapat ditimpa user tanpa hak kelola** | `staff@gmail.com` (role staff) `POST /c/qa-lima/settings/company` | Ditolak (403) — identitas, NPWP, dan `ppn_rate` perusahaan bukan data yang boleh diubah staff | BE | **302 — berhasil.** DB berubah menjadi `name="Diambil Staff" is_pkp=0 npwp=NULL ppn_rate=0.00`. Dipulihkan kembali oleh penguji sesudahnya | **Fail** (BUG-SET-02) |
 | A21 | **Unduh invoice dengan template PDF bawaan** | `GET /c/qa-lima/invoice/1/download` (tanpa `template=`, memakai `kisantra-invoice`) | 200 PDF | BE | **HTTP 500**. Log: `foreach() argument must be of type array\|object, null given (View: resources/views/pdf/kisantra-invoice.blade.php)` | **Fail** (BUG-SET-03) |
 | A22 | Menghapus template yang sedang menjadi default | `DELETE .../pdf-templates/1` saat `is_default=1` | Aplikasi tetap punya template default | FE+BE | 302; setelah itu `SUM(is_default)=0` — tidak ada template default tersisa dan tidak ada promosi otomatis | Pass (invarian "maksimal satu" tetap terjaga; lihat CATATAN-SET-05) |
+| A25 | **Menu tidak boleh menawarkan halaman yang akan menolak** | Staff (`qa-solo`) buka menu user di sidebar → klik "Profil Perusahaan" | Item tidak muncul sama sekali bagi yang tidak punya `manage company profile` | FE | GAGAL pada percobaan pertama: item tetap tampil dan mengantar staff ke halaman **403 THIS ACTION IS UNAUTHORIZED**. **Setelah diperbaiki** (`sidebar.tsx` + `settings-layout.tsx`): menu staff hanya berisi "Profil Saya" dan "Keluar" | Pass |
 
 ## C. Alur Berantai
 
@@ -112,6 +113,16 @@ tidak dihapus.
 - **SEBAB**: `resources/views/pdf/kisantra-invoice.blade.php:577` — `@foreach ($company['bank_accounts'] as $index => $bank)` tanpa pengaman null. Kolom `company_profiles.bank_accounts` bernilai NULL, dan **tidak ada cara mengisinya dari modul Settings**: `app/Http/Requests/Settings/UpdateCompanyRequest.php` sama sekali tidak memuat aturan untuk `bank_accounts` (diverifikasi: nol kemunculan kata itu di file tersebut), sehingga form profil perusahaan tidak pernah menuliskannya. Pola `foreach` tanpa pengaman yang sama ada di `resources/views/pdf/invoice.blade.php`, `semesta-invoice.blade.php`, dan `single-invoice.blade.php`.
 - **CAKUPAN**: Setiap perusahaan yang profilnya dibuat/diisi lewat Settings dan bukan lewat seeder — yaitu semua perusahaan baru hasil provisioning. Bukan kasus buatan: log aplikasi menunjukkan galat identik terjadi pada perusahaan lain (`tenant_qa-dua`) di sesi terpisah pada hari yang sama, jadi ini reproducible lintas tenant.
 - **SARAN PERBAIKAN**: (1) Beri pengaman di keempat template Blade: `@foreach (($company['bank_accounts'] ?? []) as …)`. (2) Sediakan pengisian `bank_accounts` di form Profil Perusahaan (tambahkan aturannya di `UpdateCompanyRequest`), karena tanpa itu blok rekening pada invoice memang tidak akan pernah terisi. (3) Beri default `[]` alih-alih NULL pada kolom tersebut.
+
+### BUG-SET-07 — Menu aplikasi mengantar staff ke halaman 403 yang dibuatnya sendiri
+
+- **SIFAT**: Cacat UI turunan dari perbaikan BUG-SET-02/06. Hanya terlihat dari layar.
+- **MENGGAGALKAN**: A25.
+- **GEJALA**: Staff membuka menu user di sidebar, mengklik "Profil Perusahaan" yang aplikasi sendiri tawarkan, dan mendapat halaman hitam **403 THIS ACTION IS UNAUTHORIZED**. Jalur menuju kegagalan itu disediakan aplikasi, bukan diketik pengguna.
+- **SEBAB**: Gate `can:manage company profile` dipasang di route, tetapi dua tempat yang menampilkan tautannya tidak ikut disaring: `resources/js/layouts/sidebar.tsx` merender `<Link>` Profil Perusahaan tanpa syarat, dan `resources/js/layouts/settings-layout.tsx` menandai item itu `permission: null` padahal daftar navigasinya sudah punya mekanisme penyaringan (dipakai benar untuk Template PDF).
+- **CAKUPAN**: Setiap user tanpa izin tersebut — yaitu seluruh role `staff`. Bukan kebocoran data (server menolak dengan benar), tetapi pengalaman yang membuat aplikasi terlihat rusak, dan persis kelas cacat yang tidak akan pernah tertangkap pengujian lewat HTTP.
+- **DIPERBAIKI**: kedua berkas di atas kini menyaring dengan `manage company profile`. Diverifikasi ulang lewat layar: menu staff tinggal "Profil Saya" dan "Keluar".
+- **CATATAN TERKAIT**: halaman error 403 berbahasa Inggris di aplikasi yang seluruhnya berbahasa Indonesia. Di luar cakupan bug ini, tetapi layak dirapikan.
 
 ### CATATAN-SET-04 — Validasi custom font menerima berkas `.ttf` berisi data sembarang
 

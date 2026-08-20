@@ -78,6 +78,41 @@ SEBAGIAN = {
 # cuma hiasan. Hanya case yang benar-benar dijalankan lewat layar yang punya
 # entri di sini — sisanya dieksekusi lewat HTTP dan dinyatakan demikian.
 BUKTI_LAYAR = {
+    'auth-multitenancy': {
+        'N01': [
+            ('N01-1', 'Halaman masuk sebelum autentikasi — titik awal seluruh alur.'),
+            ('N01-2', 'Admin kini anggota 6 perusahaan, sehingga pemilih perusahaan tampil; harapan asli case ini sudah tidak berlaku di lingkungan yang bergeser.'),
+        ],
+        'N02': [
+            ('N02-1', 'Pemilih perusahaan untuk akun anggota lebih dari satu perusahaan; tiap kartu menuju /c/{slug}/dashboard.'),
+        ],
+        'N05': [
+            ('N05-2', 'Sidebar tepat setelah login, tanpa reload: seluruh menu sudah ber-prefix /c/{slug} — bukti perbaikan BUG-01.'),
+        ],
+        'A01': [
+            ('A01-1', 'Kata sandi salah: pesan galat tampil di bawah kolom email, kini berbahasa Indonesia setelah BUG-AUTH-02 diperbaiki.'),
+        ],
+        'A05': [
+            ('A05-1', 'User yang sudah login membuka /login diarahkan ke pemilih perusahaan, bukan 500 — regresi BUG-03 tetap tertutup.'),
+        ],
+        'N03': [
+            ('N03-1', 'Setelah kartu Kisantra dipilih: konteks perusahaan aktif, header sidebar menampilkan nama perusahaan dan tombol Ganti perusahaan.'),
+        ],
+        'N04': [
+            ('N04-1', 'Akun anggota satu perusahaan (`qa-solo`) mendarat langsung di dashboard tanpa melewati pemilih; menu tersaring sesuai role staff.'),
+        ],
+        'N06': [
+            ('N06-1', 'Setelah Keluar ditekan: kembali ke halaman masuk, sesi berakhir.'),
+        ],
+        'C01': [
+            ('C01-1', 'Kisantra dengan filter Februari 2026: 2 invoice, Total Pendapatan Rp 6.000.000.'),
+            ('C01-2', 'Semesta dengan URL dan filter yang persis sama: 0 hasil, seluruh kartu Rp 0 — data tidak saling bocor.'),
+        ],
+        'C04': [
+            ('C04-1', 'Tombol Ganti perusahaan membuka daftar perusahaan yang boleh diakses manager.'),
+            ('C04-2', 'Konteks berpindah ke Semesta tanpa login ulang; header, menu, dan seluruh angka mengikuti perusahaan baru.'),
+        ],
+    },
     'admin-users-permissions': {
         'N14': [
             ('N02-1', 'Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul.'),
@@ -174,6 +209,10 @@ BUKTI_LAYAR = {
         ],
     },
     'settings': {
+        'A25': [
+            ('A25-1', 'Sebelum perbaikan: staff mengklik "Profil Perusahaan" yang ditawarkan menu sendiri dan mendapat halaman 403.'),
+            ('A25-2', 'Sesudah perbaikan: menu staff hanya berisi "Profil Saya" dan "Keluar".'),
+        ],
         'N26': [
             ('N01-1', 'Pengaturan profil pribadi: empat sub-halaman di panel kiri.'),
         ],

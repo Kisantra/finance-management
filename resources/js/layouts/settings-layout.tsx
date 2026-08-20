@@ -16,7 +16,7 @@ interface SettingsLayoutProps {
 const BASE_NAV_ITEMS = [
     { href: '/settings/profile', label: 'Profil', icon: User, permission: null },
     { href: '/settings/password', label: 'Kata Sandi', icon: KeyRound, permission: null },
-    { href: '/settings/company', label: 'Profil Perusahaan', icon: Building2, permission: null },
+    { href: '/settings/company', label: 'Profil Perusahaan', icon: Building2, permission: 'manage company profile' },
     { href: '/settings/pdf-templates', label: 'Template PDF', icon: FileText, permission: 'manage pdf templates' },
 ];
 
