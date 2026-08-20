@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Client;
-use App\Models\CompanyProfile;
 
 class RecurringInvoice extends Model
 {
@@ -20,14 +18,14 @@ class RecurringInvoice extends Model
         'due_date',
         'invoice_data',
         'status',
-        'published_invoice_id'
+        'published_invoice_id',
     ];
 
     protected $casts = [
         'scheduled_date' => 'date',
         'issue_date' => 'date',
         'due_date' => 'date',
-        'invoice_data' => 'array'
+        'invoice_data' => 'array',
     ];
 
     public function template(): BelongsTo
@@ -50,9 +48,10 @@ class RecurringInvoice extends Model
     {
         return $this->invoice_data['total_amount'] ?? 0;
     }
+
     public function getFormattedTotalAmountAttribute(): string
     {
-        return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
+        return 'Rp '.number_format($this->total_amount, 0, ',', '.');
     }
 
     // Get items from invoice data
@@ -79,25 +78,31 @@ class RecurringInvoice extends Model
             'total_amount' => $this->total_amount,
             'issue_date' => $this->issue_date ?? $this->scheduled_date,
             'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(30),
-            'status' => 'draft'
+            'status' => 'draft',
         ]);
 
         // Create invoice items
         foreach ($this->items as $itemData) {
+            // `unit` dan `is_tax_deposit` dulu tidak ikut tersalin. Akibatnya
+            // invoice hasil publish memakai satuan bawaan, dan item titipan
+            // pajak kehilangan penandanya — basis PPh 0,5% ikut salah karena
+            // item titipan seharusnya dikecualikan dari perhitungan itu.
             $invoice->items()->create([
                 'client_id' => $this->client_id,
                 'service_name' => $itemData['service_name'],
                 'quantity' => $itemData['quantity'],
+                'unit' => $itemData['unit'] ?? 'pcs',
                 'unit_price' => $itemData['unit_price'],
                 'amount' => $itemData['amount'],
                 'cogs_amount' => $itemData['cogs_amount'] ?? 0,
+                'is_tax_deposit' => (bool) ($itemData['is_tax_deposit'] ?? false),
             ]);
         }
 
         // Update recurring invoice status
         $this->update([
             'status' => 'published',
-            'published_invoice_id' => $invoice->id
+            'published_invoice_id' => $invoice->id,
         ]);
 
         return $invoice;
@@ -139,7 +144,7 @@ class RecurringInvoice extends Model
     private function getCompanyInitials(): string
     {
         $company = CompanyProfile::first();
-        if (!$company || !$company->name) {
+        if (! $company || ! $company->name) {
             return 'SPI';
         }
 
@@ -149,7 +154,7 @@ class RecurringInvoice extends Model
     private function getClientInitials($clientId): string
     {
         $client = Client::find($clientId);
-        if (!$client) {
+        if (! $client) {
             return 'XXX';
         }
 
@@ -167,7 +172,7 @@ class RecurringInvoice extends Model
         $words = preg_split('/\s+/', trim($name));
         $initials = '';
         foreach ($words as $word) {
-            if (!empty($word) && !in_array(strtolower(rtrim($word, '.')), $skipWords) && !in_array(strtolower($word), $skipWords)) {
+            if (! empty($word) && ! in_array(strtolower(rtrim($word, '.')), $skipWords) && ! in_array(strtolower($word), $skipWords)) {
                 $initials .= strtoupper($word[0]);
             }
         }
@@ -180,16 +185,17 @@ class RecurringInvoice extends Model
         $romans = [
             1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
             5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
         ];
 
         return $romans[$month] ?? 'I';
     }
 
     // Scope for monthly filtering
-    public function scopeForMonth($query, int $month, int $year = null)
+    public function scopeForMonth($query, int $month, ?int $year = null)
     {
         $year = $year ?: now()->year;
+
         return $query->whereYear('scheduled_date', $year)
             ->whereMonth('scheduled_date', $month);
     }

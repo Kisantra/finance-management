@@ -22,6 +22,9 @@ class StoreMonthlyRequest extends FormRequest
             'items.*.client_id' => ['required', 'exists:clients,id'],
             'items.*.service_name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            // `unit` dikirim form tetapi tidak pernah divalidasi, sehingga
+            // nilai sepanjang apa pun lolos ke kolom yang dibatasi 20 karakter.
+            'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['required', 'integer', 'min:0'],
             'items.*.cogs_amount' => ['nullable', 'integer', 'min:0'],
             'items.*.is_tax_deposit' => ['nullable', 'boolean'],

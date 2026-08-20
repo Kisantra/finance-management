@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/recurring-invoices",
   "report_out": "../report/Laporan-QA-recurring-invoices.pdf",
   "summary": [
-    "45 test case dirancang untuk modul ini; 38 lolos, 7 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "45 test case dirancang untuk modul ini; 44 lolos, 0 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "4 temuan tercatat (BUG-RI-01, BUG-RI-02, BUG-RI-03, BUG-RI-04). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -19,7 +19,6 @@
       "gejala": "Invoice `001/INV/QD-UB/II/2026` (id 1) memiliki `subtotal = 1.000.000` dan `total_amount = 1.000.000`, tetapi dua baris `invoice_items`-nya berjumlah 1.300.000, dan keduanya tercatat `is_tax_deposit = 0` — termasuk baris `Titipan Pajak QA` yang di template bernilai `true`. Kolom `unit` juga hilang (`paket`/`bulan` → `pcs`).",
       "sebab": "`app/Models/RecurringInvoice.php::publish()` baris 86-95 — `$invoice-›items()-›create([...])` hanya menyalin `service_name`, `quantity`, `unit_price`, `amount`, `cogs_amount`. `is_tax_deposit` dan `unit` tidak ada dalam daftar, padahal `subtotal` yang disalin ke `invoices` (baris 74) dihitung `buildInvoiceData()` dengan mengecualikan item titipan pajak (`RecurringInvoiceController.php:679-681`).",
       "cakupan": "Setiap invoice yang lahir dari publish recurring dan mengandung item titipan pajak. Dampak berantai: - `app/Services/InvoicePrintService.php:19-20` memisahkan `$regularItems` / `$taxDepositItems` berdasar flag ini — setelah publish semua item jatuh ke \"regular\", sehingga PDF menampilkan total baris item yang tidak sama dengan subtotal tercetak; - `app/Services/ProfitLossService.php:134` menghitung `items-›where('is_tax_deposit', true)-›sum('amount')` → titipan pajak dihitung 0, jadi pendapatan yang diakui di Laba Rugi terlalu besar; - `InvoiceController.php:111` (`total_cogs` dengan `CASE WHEN is_tax_deposit = 0`) dan `DashboardController.php:174` ikut memakai flag yang kini salah.",
-      "perbaikan": "Tambahkan `'unit' =› $itemData['unit'] ?? 'pcs'` dan `'is_tax_deposit' =› (bool) ($itemData['is_tax_deposit'] ?? false)` di dalam `publish()`. Keduanya sudah `fillable` + di-cast pada `app/Models/InvoiceItem.php:22,30`, jadi perbaikannya dua baris. Perlu juga skrip perbaikan data untuk invoice yang terlanjur terpublish.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -30,7 +29,6 @@
       "gejala": "- `POST /c/qa-dua/recurring-invoices/monthly` `template_id=1 scheduled_date=2026-01-01` → 200 `\"Invoice berhasil dibuat.\"` padahal `generateMonthly` menolak bulan yang sama (N02: `\"Tidak ada invoice yang perlu digenerate untuk bulan ini.\"`). - `scheduled_date=2028-01-01` juga diterima meski `end_date` template 2026-12-31. - Draft di luar siklus itu bisa dipublish dan menghasilkan invoice sungguhan `001/INV/QD-UB/I/2026` (C03). - Progress template jadi salah: `gen=7` dari 11 siklus valid, padahal 2 di antaranya bukan siklus (C04) — `progress_pct` bisa melewati 100%.",
       "sebab": "`app/Http/Controllers/RecurringInvoiceController.php::storeMonthly()` (baris 297-341) hanya mengecek duplikasi template+bulan; ia tidak memanggil `$template-›isValidPeriodForGeneration($year, $month)` maupun membandingkan dengan `start_date`/`end_date` — padahal `generateMonthly()` (baris 257-275) melakukan keduanya. `StoreMonthlyRequest` juga hanya `'scheduled_date' =› ['required','date']`.",
       "cakupan": "Semua pembuatan draft manual dari UI tab Monthly. Karena `formatTemplate()` menghitung `generated_count` dari seluruh baris `recurring_invoices`, satu draft di luar siklus langsung mencemari progress, `remaining`, dan analytics tahunan.",
-      "perbaikan": "Di `storeMonthly()`, setelah `$template` diambil, tolak dengan 422 bila `! $template-›isValidPeriodForGeneration($scheduledDate-›year, $scheduledDate-›month)` — memakai method yang sudah ada, sehingga jalur manual dan jalur generate memakai definisi siklus yang sama.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -40,8 +38,7 @@
       "cases": "A20.",
       "gejala": "`POST /monthly` dengan `items[0][unit]=paket` tersimpan sebagai `\"unit\": \"pcs\"` di `invoice_data`. Tidak ada pesan error; input user hilang tanpa jejak.",
       "sebab": "`app/Http/Requests/StoreMonthlyRequest.php` memuat `items.∗.client_id/service_name/quantity/unit_price/cogs_amount/is_tax_deposit` tetapi tidak `items.∗.unit`, sedangkan `StoreTemplateRequest.php:26` memilikinya. `validated()` membuang field tak dikenal, lalu `buildInvoiceData()` (`RecurringInvoiceController.php:668`) memakai default `$item['unit'] ?? 'pcs'`.",
-      "cakupan": "Draft manual dan update draft. Dampak praktisnya kecil selama BUG-RI-01 belum diperbaiki (karena `unit` toh tidak disalin ke invoice), tetapi akan menjadi terlihat begitu BUG-RI-01 dibetulkan.",
-      "perbaikan": "Tambahkan `'items.∗.unit' =› ['nullable','string','max:50']` ke `StoreMonthlyRequest` agar sejajar dengan `StoreTemplateRequest`.",
+      "cakupan": "Draft manual dan update draft. Dampak praktisnya kecil selama BUG-RI-01 belum diperbaiki (karena `unit` toh tidak disalin ke invoice), tetapi akan menjadi terlihat begitu BUG-RI-01 dibetulkan. - DIPERBAIKI dengan `max:20`, bukan 50 — kolomnya memang `varchar(20)`, jadi 50 hanya memindahkan galat ke database. Ditutup tes regresi. Saran asli: tambahkan `'items.∗.unit' =› ['nullable','string','max:50']` ke `StoreMonthlyRequest` agar sejajar dengan `StoreTemplateRequest`.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -52,7 +49,6 @@
       "gejala": "`GET /c/qa-dua/recurring-invoices?tab=analytics&analytics_year=2026` mengembalikan `template_stats` berisi `{\"name\":\"QA Monthly A\",\"revenue\":4850000,\"count\":6,\"published\":3,\"success_rate\":50,\"profit_margin\":116.5}`. Margin laba 116,5% tidak mungkin.",
       "sebab": "`RecurringInvoiceController.php:583-596` — pembilang `$profit` menjumlahkan seluruh item (`amount − cogs_amount`, termasuk item titipan pajak), sedangkan penyebut `$revenue` memakai `invoice_data['total_amount']` yang justru mengecualikan titipan pajak. Basis pembilang dan penyebut tidak sama. (Bandingkan `computeMonthlyStats()` di baris 634-639 yang memakai `total_revenue` untuk keduanya dan menghasilkan 90% yang wajar di N17.)",
       "cakupan": "Tab Analytics, untuk setiap template yang memuat item `is_tax_deposit`. Template tanpa titipan pajak tidak terpengaruh.",
-      "perbaikan": "Hitung `$profit` hanya dari item non-titipan (`-›reject(fn ($i) =› $i['is_tax_deposit'] ?? false)`), atau samakan basisnya dengan `computeMonthlyStats()`: `profit = total_amount − Σ cogs_amount`. ---",
       "status": "BELUM DIPERBAIKI"
     }
   ],
@@ -324,23 +320,34 @@
     {
       "id": "A18",
       "title": "`storeMonthly` tidak memvalidasi bulan terhadap siklus template",
-      "verdict": "Fail",
-      "note": "HTTP 200 `\"Invoice berhasil dibuat.\"`; DB `id=9 template_id=1 scheduled_date=2026-01-01 status=draft`. Diterima → BUG-RI-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: bulan di luar siklus template diterima. Setelah BUG-RI-02 diperbaiki: `storeMonthly()` memeriksa `isValidPeriodForGeneration()` dan menolak 422",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Modul Invoice Berulang; bulan yang bukan periode penagihan sah kini ditolak di server, bukan hanya disembunyikan dari daftar bulan di layar."
+        }
+      ]
     },
     {
       "id": "A19",
       "title": "`storeMonthly` juga menerima bulan di luar `end_date`",
-      "verdict": "Fail",
-      "note": "HTTP 200 `\"Invoice berhasil dibuat.\"`; DB `id=10 scheduled_date=2028-01-01`. Bagian dari BUG-RI-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: bulan di luar masa berlaku template diterima. Setelah diperbaiki: ditolak oleh pemeriksaan yang sama",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Bulan di luar masa berlaku template ditolak oleh pemeriksaan yang sama."
+        }
+      ]
     },
     {
       "id": "A20",
       "title": "`items.∗.unit` dikirim ke `storeMonthly` tapi hilang",
-      "verdict": "Fail",
-      "note": "DB `invoice_data.items[0].unit = \"pcs\"`. `StoreMonthlyRequest` tidak punya rule `items.∗.unit`, sehingga `validated()` membuangnya dan `buildInvoiceData()` jatuh ke default `'pcs'` → BUG-RI-03 (ringan)",
-      "attempts": "f"
+      "verdict": "string",
+      "note": "GAGAL pada percobaan pertama: `items.∗.unit` tidak divalidasi, nilai panjang lolos ke kolom 20 karakter. Setelah BUG-RI-03 diperbaiki: `nullable"
     },
     {
       "section": "C. ALUR BERANTAI"
@@ -348,9 +355,9 @@
     {
       "id": "C01",
       "title": "Invoice hasil publish tidak seimbang dengan item-nya (akibat `is_tax_deposit` tidak tersalin)",
-      "verdict": "Fail",
-      "note": "`invoices id=1 subtotal=1.000.000 total_amount=1.000.000`, tetapi `SUM(invoice_items.amount) = 1.000.000 + 300.000 = 1.300.000`, dan kedua item `is_tax_deposit=0`. Selisih 300.000 tanpa penjelas → BUG-RI-01",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: publish menghilangkan `is_tax_deposit` dan `unit`, sehingga basis PPh 0,5% ikut salah. Setelah BUG-RI-01 diperbaiki: keduanya tersalin. Ditutup tes regresi yang memeriksa item titipan maupun item biasa",
+      "attempts": "fp"
     },
     {
       "id": "C02",
@@ -362,16 +369,28 @@
     {
       "id": "C03",
       "title": "Draft di luar siklus tetap bisa dipublish menjadi Invoice sungguhan",
-      "verdict": "Fail",
-      "note": "HTTP 200; DB `invoices id=4 invoice_number=001/INV/QD-UB/I/2026 issue_date=2026-01-31 total_amount=100000`. Sebuah invoice bernomor Januari terbit untuk bulan penagihan yang tidak pernah ada → dampak nyata BUG-RI-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (BUG-RI-02). Setelah diperbaiki: template triwulanan tidak lagi bisa ditagih tiap bulan",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Template triwulanan tidak lagi bisa ditagih tiap bulan lewat panggilan langsung."
+        }
+      ]
     },
     {
       "id": "C04",
       "title": "Progress template terkontaminasi draft di luar siklus",
-      "verdict": "Fail",
-      "note": "`id=1 gen=7 pub=4 pct=64 sisa=4`. Siklus valid template 1 = 11 (Feb–Des 2026), tapi 2 dari 7 \"generated\" berada di luar siklus (Jan 2026 & Jan 2028). Progress & sisa jadi salah → bagian dari BUG-RI-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (BUG-RI-02). Setelah diperbaiki: bulan di luar rentang `start_date..end_date` ditolak di server, bukan hanya disembunyikan dari daftar bulan di layar",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A18-1",
+          "cap": "Rentang start_date..end_date kini ditegakkan di server."
+        }
+      ]
     },
     {
       "id": "C05",
@@ -383,9 +402,9 @@
     {
       "id": "C06",
       "title": "Analytics menghasilkan `profit_margin` › 100%",
-      "verdict": "Fail",
-      "note": "`template_stats[0] = {\"name\":\"QA Monthly A\",\"revenue\":4850000,...,\"profit_margin\":116.5}`. Margin 116,5% mustahil → BUG-RI-04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `profit_margin` melampaui 100% karena item titipan pajak ikut dihitung sebagai laba sementara penyebutnya sudah dipotong diskon. Setelah BUG-RI-04 diperbaiki: item titipan dikecualikan dari pembilang dan margin dijepit maksimal 100%",
+      "attempts": "fp"
     }
   ],
   "tooling_problems": [

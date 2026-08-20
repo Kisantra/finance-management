@@ -276,6 +276,10 @@ BUKTI_LAYAR = {
         ],
     },
     'recurring-invoices': {
+        'A18': [('A18-1', 'Modul Invoice Berulang; bulan yang bukan periode penagihan sah kini ditolak di server, bukan hanya disembunyikan dari daftar bulan di layar.')],
+        'A19': [('A18-1', 'Bulan di luar masa berlaku template ditolak oleh pemeriksaan yang sama.')],
+        'C03': [('A18-1', 'Template triwulanan tidak lagi bisa ditagih tiap bulan lewat panggilan langsung.')],
+        'C04': [('A18-1', 'Rentang start_date..end_date kini ditegakkan di server.')],
         'N19': [
             ('N01-1', 'Tiga tab modul recurring — Templates, Bulanan, Analitik — pada perusahaan yang belum punya template.'),
         ],
