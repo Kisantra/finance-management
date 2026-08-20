@@ -269,6 +269,7 @@ BUKTI_LAYAR = {
         ],
     },
     'services': {
+        'A11': [('A11-1', 'Pemilih layanan pada Buat Invoice kini menampilkan tipe dan harga di bawah nama, sehingga dua layanan bernama sama tetap terbedakan.')],
         'N10': [
             ('N01-1', 'Katalog layanan dengan statistik harga rata-rata dan tertinggi.'),
             ('N02-1', 'Form tambah layanan terisi: nama, kategori Perizinan, harga Rp 7.500.000 lewat CurrencyInput.'),

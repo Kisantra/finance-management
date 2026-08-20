@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ClientFactory extends Factory
 {
-   protected $model = Client::class;
+    protected $model = Client::class;
 
     public function definition(): array
     {
@@ -18,7 +18,11 @@ class ClientFactory extends Factory
             'NPWP' => $this->faker->numerify('##.###.###.#-###.###'),
             'KPP' => $this->faker->numerify('###'),
             'logo' => null,
-            'status' => $this->faker->randomElement(['Active', 'Inactive']),
+            // Default 'Active': status acak membuat setiap test yang menerbitkan
+            // invoice lewat HTTP gagal separuh waktu, sejak klien nonaktif ditolak
+            // di server (TEMUAN C-04). Gunakan state inactive() bila memang
+            // klien nonaktif yang diuji.
+            'status' => Client::STATUS_ACTIVE,
             'EFIN' => $this->faker->numerify('##########'),
             'account_representative' => $this->faker->name,
             'ar_phone_number' => $this->faker->phoneNumber,
@@ -46,14 +50,14 @@ class ClientFactory extends Factory
     public function active()
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'Active',
+            'status' => Client::STATUS_ACTIVE,
         ]);
     }
 
     public function inactive()
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'Inactive',
+            'status' => Client::STATUS_INACTIVE,
         ]);
     }
 }

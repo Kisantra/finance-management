@@ -43,7 +43,7 @@ Peta permission layanan yang berlaku (dibaca dari `finance_central.role_has_perm
 | A08 | Staff membuat layanan lewat URL langsung (tanpa `create services`) | POST `/c/qa-satu/services` sebagai staff | 403 | BE | 403 `"This action is unauthorized."` | Pass |
 | A09 | Staff mengubah layanan lewat URL langsung (tanpa `edit services`) | PUT `/c/qa-satu/services/1` sebagai staff | 403, harga tidak berubah | BE | 403 `"This action is unauthorized."` | Pass |
 | A10 | Finance manager menghapus layanan lewat URL langsung (tanpa `delete services`) | DELETE `/c/qa-satu/services/5` sebagai manager | 403, baris tetap ada | BE | 403 `"This action is unauthorized."`; `id=5` masih ada di DB | Pass |
-| A11 | Nama layanan duplikat | POST `name=Jasa Izin Usaha` (sudah ada) | Diterima — memang tidak ada aturan `unique` | BE | 302 diterima; DB `SELECT COUNT(*) WHERE name='Jasa Izin Usaha'` → `2`. Konsekuensi: dua layanan bernama identik dengan harga berbeda tidak terbedakan di Combobox invoice selain lewat harga | Pass (dengan catatan) |
+| A11 | Nama layanan duplikat | POST `name=Jasa Izin Usaha` (sudah ada) | Diterima — memang tidak ada aturan `unique` | FE+BE | 302 diterima; DB `SELECT COUNT(*) WHERE name='Jasa Izin Usaha'` → `2`. Konsekuensi: dua layanan bernama identik dengan harga berbeda tidak terbedakan di Combobox invoice selain lewat harga. **Setelah TEMUAN S-02 ditangani sebagian**: pemilih layanan kini menampilkan `tipe · harga` di bawah nama, sehingga dua layanan bernama sama dapat dibedakan dari layar | Pass (dengan catatan) |
 
 ## C. Alur Berantai
 
@@ -72,9 +72,7 @@ Peta permission layanan yang berlaku (dibaca dari `finance_central.role_has_perm
 - **CAKUPAN**: Modul Services; `RecurringInvoiceController` juga mengirim daftar
   layanan tetapi memakai baris `services` dari DB, bukan konstanta tipe, sehingga
   tidak menambah duplikasi.
-- **SARAN PERBAIKAN**: Jadikan `ServiceController::TYPES` (atau sebuah enum PHP 8.1)
-  satu-satunya sumber, lalu susun aturan validasi dengan
-  `Rule::in(ServiceController::TYPES)`.
+- **DIPERBAIKI**: `StoreServiceRequest` (diwarisi `UpdateServiceRequest`) kini memakai `Rule::in(ServiceController::TYPES)`, sehingga daftar tipe hanya hidup di satu tempat. Ditutup 3 tes regresi di `tests/Feature/ServiceTypeSourceTest.php` — salah satunya menyimpan **setiap** tipe yang ditawarkan layar untuk membuktikan tidak ada opsi yang ditolak validasi.
 
 ### TEMUAN S-02 — Tidak ada aturan unik pada nama layanan
 
@@ -88,10 +86,8 @@ Peta permission layanan yang berlaku (dibaca dari `finance_central.role_has_perm
 - **CAKUPAN**: Combobox pemilihan layanan di halaman Create/Edit Invoice dan Recurring
   Invoice menampilkan label yang sama dua kali; pengguna hanya bisa membedakan lewat
   harga yang ikut tersalin.
-- **SARAN PERBAIKAN**: Bila duplikasi memang tidak dikehendaki produk, tambahkan
-  `unique:services,name` (dan `unique:services,name,{id}` pada Update). Bila
-  duplikasi sah (mis. paket berbeda dengan nama sama), tampilkan `type` pada label
-  Combobox agar terbedakan.
+- **DIPERBAIKI SEBAGIAN**: pemilih layanan pada halaman Buat Invoice kini menampilkan `type · harga` di bawah nama, sehingga dua layanan bernama sama tetap bisa dibedakan.
+- **BUTUH KEPUTUSAN PRODUK**: apakah nama layanan wajib unik. Aturan `unique:services,name` sengaja **tidak** ditambahkan sepihak — bila di data produksi sudah ada nama kembar yang sah (mis. paket berbeda dengan nama sama), aturan itu akan menolak penyuntingan baris yang selama ini normal. Perbaikan label di atas aman dalam kedua kemungkinan.
 
 ## Catatan pelaksanaan
 

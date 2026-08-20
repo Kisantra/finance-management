@@ -19,7 +19,6 @@
       "gejala": "Tidak ada. Kedua daftar kebetulan identik pada commit ini.",
       "sebab": "Nilai yang sah ditulis dua kali secara terpisah — `app/Http/Controllers/ServiceController.php:16-21` (`public const TYPES`) untuk prop Combobox, dan string literal `in:Perizinan,Administrasi Perpajakan,Digital Marketing,Sistem Digital` di `app/Http/Requests/StoreServiceRequest.php` (diwarisi apa adanya oleh `UpdateServiceRequest` yang berbadan kosong). Menambah satu tipe di satu sisi saja menghasilkan opsi yang muncul di UI tetapi ditolak 422 saat disimpan (atau sebaliknya, nilai yang lolos validasi tetapi tak pernah bisa dipilih).",
       "cakupan": "Modul Services; `RecurringInvoiceController` juga mengirim daftar layanan tetapi memakai baris `services` dari DB, bukan konstanta tipe, sehingga tidak menambah duplikasi.",
-      "perbaikan": "Jadikan `ServiceController::TYPES` (atau sebuah enum PHP 8.1) satu-satunya sumber, lalu susun aturan validasi dengan `Rule::in(ServiceController::TYPES)`.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -30,7 +29,6 @@
       "gejala": "POST `name=Jasa Izin Usaha` yang sudah ada diterima (302); DB berisi 2 baris dengan nama identik.",
       "sebab": "`StoreServiceRequest` hanya menetapkan `['required','string','max:255']` untuk `name`; tidak ada aturan `unique:services,name` maupun indeks unik di `database/migrations/tenant/…_create_services_table.php`.",
       "cakupan": "Combobox pemilihan layanan di halaman Create/Edit Invoice dan Recurring Invoice menampilkan label yang sama dua kali; pengguna hanya bisa membedakan lewat harga yang ikut tersalin.",
-      "perbaikan": "Bila duplikasi memang tidak dikehendaki produk, tambahkan `unique:services,name` (dan `unique:services,name,{id}` pada Update). Bila duplikasi sah (mis. paket berbeda dengan nama sama), tampilkan `type` pada label Combobox agar terbedakan.",
       "status": "BELUM DIPERBAIKI"
     }
   ],
@@ -199,8 +197,14 @@
       "id": "A11",
       "title": "Nama layanan duplikat",
       "verdict": "Pass (dengan catatan)",
-      "note": "302 diterima; DB `SELECT COUNT(∗) WHERE name='Jasa Izin Usaha'` → `2`. Konsekuensi: dua layanan bernama identik dengan harga berbeda tidak terbedakan di Combobox invoice selain lewat harga",
-      "attempts": "p"
+      "note": "302 diterima; DB `SELECT COUNT(∗) WHERE name='Jasa Izin Usaha'` → `2`. Konsekuensi: dua layanan bernama identik dengan harga berbeda tidak terbedakan di Combobox invoice selain lewat harga. Setelah TEMUAN S-02 ditangani sebagian: pemilih layanan kini menampilkan `tipe · harga` di bawah nama, sehingga dua layanan bernama sama dapat dibedakan dari layar",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "Pemilih layanan pada Buat Invoice kini menampilkan tipe dan harga di bawah nama, sehingga dua layanan bernama sama tetap terbedakan."
+        }
+      ]
     },
     {
       "section": "C. ALUR BERANTAI"
