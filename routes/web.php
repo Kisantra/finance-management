@@ -40,6 +40,7 @@ use App\Models\TransactionCategory;
 use App\Services\BuilderInvoicePrinter;
 use App\Services\FundRequestExportService;
 use App\Services\InvoicePrintService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
@@ -123,6 +124,18 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 'value' => $client->id,
             ]);
     })->middleware('can:view clients')->name('api.clients');
+
+    // Urutan nomor invoice bergantung pada BULAN TANGGAL INVOICE, bukan bulan
+    // hari ini. Halaman Buat Invoice dulu menerima satu angka yang dihitung dari
+    // now(), lalu menyusun preview dengan bulan romawi dari tanggal yang dipilih
+    // pengguna — untuk invoice bertanggal September pada hari kerja Agustus,
+    // preview menampilkan urutan Agustus dengan label September.
+    Route::get('/api/invoices/next-sequence', function (Request $request) {
+        $tanggal = $request->query('date');
+        $tanggal = $tanggal ? Carbon::parse($tanggal) : Carbon::now();
+
+        return ['sequence' => Invoice::getMaxSequenceFromDb($tanggal) + 1];
+    })->middleware('can:create invoices')->name('api.invoices.next-sequence');
 });
 
 Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
@@ -176,8 +189,12 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');
         Route::put('/{invoice}', [InvoiceController::class, 'update'])->middleware('can:edit invoices')->name('update');
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->middleware('can:delete invoices')->name('destroy');
-        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->name('send');
-        Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->name('rollback');
+        // Menerbitkan nomor resmi dan mencabutnya kembali bukan aksi baca.
+        // Sebelumnya keduanya hanya terlindung `can:view invoices`, sehingga
+        // pemegang hak baca saja bisa mengirim invoice bernomor ke klien lalu
+        // menarik nomornya lagi.
+        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->middleware('can:edit invoices')->name('send');
+        Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->middleware('can:edit invoices')->name('rollback');
         Route::post('/{invoice}/payments', [PaymentController::class, 'store'])->middleware('can:create invoices')->name('payments.store');
     });
 
@@ -201,6 +218,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
                 $filename = $printer->filename($invoice, $dpAmount, $pelunasanAmount);
             } else {
+                abort_unless(in_array($template, InvoicePrintService::TEMPLATE_SAH, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
@@ -227,6 +245,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $printer = new BuilderInvoicePrinter;
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
             } else {
+                abort_unless(in_array($template, InvoicePrintService::TEMPLATE_SAH, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
             }

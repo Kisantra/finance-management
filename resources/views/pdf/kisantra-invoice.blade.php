@@ -574,7 +574,7 @@
         <div class="footer-section">
             <div class="footer-left">
                 <!-- Payment Methods -->
-                @foreach ($company['bank_accounts'] as $index => $bank)
+                @foreach (($company['bank_accounts'] ?? []) as $index => $bank)
                     <div class="payment-method">
                         <div class="payment-title">{{ __('invoice.payment_method') }} #{{ $index + 1 }}</div>
                         <div class="bank-info">

@@ -234,6 +234,11 @@ BUKTI_LAYAR = {
         ],
     },
     'invoices': {
+        'A11': [('A11-1', 'Pemilih klien pada Buat Invoice hanya memuat klien aktif; penegakan sebenarnya ada di server (StoreInvoiceRequest), layar ini hanya lapis pertamanya.')],
+        'A12': [('A12-1', 'Ketikan diskon 150% dijepit menjadi 100 di layar, dengan keterangan "Bilangan bulat, maksimal 100%"; server menolak nilai di atas 100 secara terpisah.')],
+        'A13': [('A12-1', 'Panel diskon yang sama membatasi diskon nominal ke subtotal, sehingga TOTAL tidak lagi bisa dipaksa menjadi Rp 0 oleh diskon yang mustahil.')],
+        'A14': [('A12-1', 'Kolom persen hanya menerima bilangan bulat; pecahan tidak lagi dipotong diam-diam menjadi angka yang lebih kecil.')],
+        'C02': [('C02-1', 'Tanggal invoice 5 September 2026 menghasilkan preview 002/INV/QS-XXX/IX/2026 — urutan September, bukan urutan Agustus berlabel September seperti sebelumnya.')],
         'N24': [
             ('N01-1', 'Daftar invoice dengan tab status, filter periode, dan kartu statistik pendapatan/laba kotor/outstanding.'),
         ],

@@ -137,8 +137,23 @@ class Invoice extends Model
 
     public static function isInvoiceLatestInMonth(self $invoice): bool
     {
-        if (! $invoice->invoice_number || ! str_contains($invoice->invoice_number, '/INV/')) {
+        if (! $invoice->invoice_number) {
             return false;
+        }
+
+        // Nomor bebas ketikan pengguna belum tentu berpola `NNN/INV/...`. Dulu
+        // nomor di luar pola itu langsung dianggap "bukan yang terbaru" sehingga
+        // invoice-nya tidak pernah bisa di-rollback — terkunci selamanya. Bila
+        // pola tidak dikenali, jatuhkan penilaian ke urutan penerbitan: invoice
+        // bernomor terakhir pada bulan yang sama.
+        if (! str_contains($invoice->invoice_number, '/INV/')) {
+            $terakhir = static::whereNotNull('invoice_number')
+                ->whereYear('issue_date', Carbon::parse($invoice->issue_date)->year)
+                ->whereMonth('issue_date', Carbon::parse($invoice->issue_date)->month)
+                ->orderByDesc('id')
+                ->value('id');
+
+            return $terakhir === $invoice->id;
         }
 
         $maxSeq = static::getMaxSequenceFromDb(Carbon::parse($invoice->issue_date));
@@ -203,12 +218,23 @@ class Invoice extends Model
     }
 
     // Update invoice status based on payments
+    /**
+     * Hitung ulang status dari nilai yang sudah dibayar.
+     *
+     * Dulu metode ini hanya mengenal tiga keluaran dan selalu menjatuhkan invoice
+     * tanpa pembayaran ke `draft` — termasuk invoice yang SUDAH punya nomor resmi
+     * dan sudah dikirim ke klien. Akibatnya menghapus seluruh pembayarannya
+     * mengunci invoice itu: pembayaran baru ditolak karena statusnya `draft`,
+     * rollback ditolak karena statusnya bukan `sent`, dan nilainya hilang dari
+     * omzet karena laporan mengecualikan draft. Nomor invoice adalah penanda
+     * bahwa dokumen itu pernah terbit, jadi ia yang menentukan dasar pijakannya.
+     */
     public function updateStatus(): void
     {
         $amountPaid = $this->amount_paid;
 
         if ($amountPaid == 0) {
-            $this->status = 'draft';
+            $this->status = $this->invoice_number ? 'sent' : 'draft';
         } elseif ($amountPaid >= $this->total_amount) {
             $this->status = 'paid';
         } else {

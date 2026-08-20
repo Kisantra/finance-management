@@ -435,7 +435,7 @@
             <!-- Kolom Kiri: Payment Methods, Terbilang, Jumlah Ditagih -->
             <div class="footer-left">
                 <!-- Payment Methods -->
-                @foreach ($company['bank_accounts'] as $index => $bank)
+                @foreach (($company['bank_accounts'] ?? []) as $index => $bank)
                     <div class="payment-method">
                         <div class="payment-title">Metode Pembayaran #{{ $index + 1 }}</div>
                         <div class="bank-info">

@@ -368,8 +368,26 @@ export function InvoiceForm({
     });
 
     const selectedClient = clients.find((c) => c.id === data.client_id);
+
+    /* Urutan nomor dihitung per BULAN TANGGAL INVOICE. Prop nextSeq dari server
+       hanya berlaku untuk bulan berjalan, sehingga invoice bertanggal bulan lain
+       dulu menampilkan urutan bulan ini dengan label bulan yang dipilih. */
+    const [seqUntukTanggal, setSeqUntukTanggal] = React.useState(nextSeq);
+
+    React.useEffect(() => {
+        if (!data.issue_date) return;
+        let batal = false;
+        fetch(companyUrl(`/api/invoices/next-sequence?date=${data.issue_date}`), {
+            headers: { Accept: 'application/json' },
+        })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((j) => { if (!batal && j?.sequence) setSeqUntukTanggal(j.sequence); })
+            .catch(() => { /* biarkan memakai nextSeq bulan berjalan */ });
+        return () => { batal = true; };
+    }, [data.issue_date]);
+
     const invoicePreview = previewInvoiceNumber(
-        nextSeq,
+        seqUntukTanggal,
         companyInitials,
         selectedClient?.name ?? '',
         data.issue_date,
@@ -800,19 +818,29 @@ export function InvoiceForm({
                                     </div>
                                     {data.discount_type === 'fixed' ? (
                                         <CurrencyInput
+                                            /* Diskon nominal tidak boleh melebihi subtotal — server menolaknya,
+                                               dan tanpa penjepit ini layar sempat menampilkan TOTAL Rp 0
+                                               dengan diskon yang mustahil. */
                                             value={data.discount_value}
-                                            onChange={(v) => setData('discount_value', v)}
+                                            onChange={(v) => setData('discount_value', Math.min(v, subtotal))}
                                             placeholder="0"
+                                            hint={subtotal > 0 ? `Maksimal ${formatCurrency(subtotal)}` : undefined}
                                         />
                                     ) : (
                                         <div className="relative">
                                             <Input
                                                 type="text"
-                                                inputMode="decimal"
+                                                inputMode="numeric"
                                                 value={data.discount_value === 0 ? '' : String(data.discount_value)}
-                                                onChange={(e) => setData('discount_value', parseFloat(e.target.value.replace(',', '.')) || 0)}
+                                                onChange={(e) => {
+                                                    // Bilangan bulat 0-100. Pecahan dipotong diam-diam di server
+                                                    // sebelum ini, jadi lebih jujur tidak menerimanya sama sekali.
+                                                    const angka = parseInt(e.target.value.replace(/[^\d]/g, ''), 10);
+                                                    setData('discount_value', Number.isNaN(angka) ? 0 : Math.min(angka, 100));
+                                                }}
                                                 placeholder="0"
                                                 className="pr-8"
+                                                hint="Bilangan bulat, maksimal 100%"
                                             />
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-dark-500 dark:text-dark-400">%</span>
                                         </div>

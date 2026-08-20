@@ -65,17 +65,17 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
 | A08 | `unit_price` desimal — invarian integer rupiah | item `unit_price=1000.5` | 422 | BE | 422 `{"items.0.unit_price":["The items.0.unit_price field must be an integer."]}` | Pass |
 | A09 | `client_id` tidak ada di DB | `client_id=9999` | 422 | BE | 422 `{"client_id":["The selected client id is invalid."]}` | Pass |
 | A10 | `items.*.client_id` tidak ada di DB | item `client_id=8888` | 422 | BE | 422 `{"items.0.client_id":["The selected items.0.client_id is invalid."]}` | Pass |
-| A11 | Invoice untuk klien **Inactive** lewat request langsung | `client_id=1` (status `Inactive`) | Seharusnya ditolak (opsi FE menyaringnya) | FE+BE | **302 — diterima**, DB `id=7 billed_to_id=1`. FE menyaring, BE tidak. Lihat TEMUAN C-04 di `clients.md` | **Fail** |
-| A12 | Diskon persentase `150%` (tanpa batas atas) | `discount_type=percentage`, `discount_value=150`, subtotal `1.000.000` | Seharusnya ditolak atau dibatasi 100% | BE | **302 diterima**. DB `id=8`: `discount_amount=1.500.000` > `subtotal=1.000.000`, `total_amount=0` (di-clamp `max(0, …)`). Diskon melebihi tagihan tersimpan apa adanya | **Fail** (TEMUAN I-05) |
-| A13 | Diskon fixed melebihi subtotal | `discount_type=fixed`, `discount_value=5.000.000`, subtotal `1.000.000` | Seharusnya ditolak | BE | **302 diterima**. DB `id=9`: `discount_amount=5.000.000`, `total_amount=0` | **Fail** (TEMUAN I-05) |
-| A14 | Diskon persentase pecahan `12,5%` | `discount_type=percentage`, `discount_value=12.5`, subtotal `1.000.000` | Diskon `125.000`, atau ditolak dengan pesan jelas | BE | **302 diterima, nilai dipotong diam-diam**: DB `id=10` `discount_value=12`, `discount_amount=120.000`, `total_amount=880.000`. Selisih Rp 5.000 hilang tanpa pesan | **Fail** (TEMUAN I-06) |
+| A11 | Invoice untuk klien **Inactive** lewat request langsung | `client_id=1` (status `Inactive`) | Seharusnya ditolak (opsi FE menyaringnya) | FE+BE | GAGAL pada percobaan pertama: invoice terbit untuk klien nonaktif. **Setelah TEMUAN C-04 (clients.md) diperbaiki**: `StoreInvoiceRequest` menolak 422 untuk `client_id` maupun `items.*.client_id` | Pass (percobaan ke-2) |
+| A12 | Diskon persentase `150%` (tanpa batas atas) | `discount_type=percentage`, `discount_value=150`, subtotal `1.000.000` | Seharusnya ditolak atau dibatasi 100% | FE+BE | GAGAL pada percobaan pertama: diskon 150% tersimpan `discount_amount=1.500.000`. **Setelah TEMUAN I-05 diperbaiki**: server menolak 422 "Diskon persen tidak boleh melebihi 100%", dan layar menjepit ketikan 150 menjadi 100 sebelum sempat dikirim | Pass (percobaan ke-2) |
+| A13 | Diskon fixed melebihi subtotal | `discount_type=fixed`, `discount_value=5.000.000`, subtotal `1.000.000` | Seharusnya ditolak | FE+BE | GAGAL pada percobaan pertama: diskon nominal Rp 5.000.000 atas subtotal Rp 1.000.000 tersimpan. **Setelah diperbaiki**: ditolak 422 dengan menyebut batas subtotalnya; input nominal di layar juga dijepit ke subtotal | Pass (percobaan ke-2) |
+| A14 | Diskon persentase pecahan `12,5%` | `discount_type=percentage`, `discount_value=12.5`, subtotal `1.000.000` | Diskon `125.000`, atau ditolak dengan pesan jelas | FE+BE | GAGAL pada percobaan pertama: 12,5% dipotong diam-diam menjadi 12 (selisih Rp 5.000 hilang tanpa pesan). **Setelah TEMUAN I-06 diperbaiki**: pecahan ditolak dengan pesan yang menjelaskan alasannya, dan input layar hanya menerima bilangan bulat | Pass (percobaan ke-2) |
 | A15 | `discount_value` negatif | `discount_value=-10` | 422 | BE | 422 `{"discount_value":["The discount value field must be at least 0."]}` | Pass |
 | A16 | `discount_type` di luar enum | `discount_type=nominal` | 422 | BE | 422 `{"discount_type":["The selected discount type is invalid."]}` | Pass |
 | A17 | Kirim invoice dengan nomor **duplikat** | POST send invoice 4 dengan `001/INV/QS-RP/VIII/2026` (sudah dipakai invoice 1) | 422 | BE | 422 `{"invoice_number":["The invoice number has already been taken."]}` | Pass |
-| A18 | Kirim invoice dengan nomor **berformat sembarang** | POST send invoice 4 dengan `invoice_number=NOMOR-ASAL-SAJA-999` | Seharusnya ditolak — format nomor invoice adalah aturan bisnis | BE | **302 — diterima**. DB `id=4`: `invoice_number=NOMOR-ASAL-SAJA-999`, `status=sent`. Tidak ada validasi format apa pun | **Fail** (TEMUAN I-01) |
+| A18 | Kirim invoice dengan nomor **berformat sembarang** | POST send invoice 4 dengan `invoice_number=NOMOR-ASAL-SAJA-999` | Seharusnya ditolak — format nomor invoice adalah aturan bisnis | BE | Nomor berformat sembarang tetap diterima. **Bukan diperbaiki, melainkan keputusan produk**: penomoran manual dipertahankan untuk sekarang, pengaturan pola nomor per perusahaan direncanakan menyusul. Akibat lanjutannya (A21: invoice terkunci tak bisa rollback) **sudah** ditutup | **Fail** (disengaja — lihat TEMUAN I-01) |
 | A19 | Rollback invoice yang **bukan** sequence tertinggi di bulannya | POST `/invoices/1/rollback` saat inv 1 = `001` dan inv 3 = `002` | Ditolak dengan pesan | BE | Flash `{"error":"Hanya invoice terbaru di bulan ini yang bisa di-rollback."}`; nomor & status invoice 1 tidak berubah | Pass |
 | A20 | Rollback invoice ber-status `draft` | POST `/invoices/2/rollback` (draft) | Ditolak | BE | Flash `{"error":"Hanya invoice yang sudah terkirim yang bisa di-rollback."}` | Pass |
-| A21 | Rollback invoice `sent` yang nomornya tidak mengandung pola `/INV/` | POST `/invoices/4/rollback` (nomor `NOMOR-ASAL-SAJA-999`) | — | BE | Flash `{"error":"Hanya invoice terbaru di bulan ini yang bisa di-rollback."}`. Invoice **terkunci permanen** di status `sent`: `isInvoiceLatestInMonth()` selalu `false` untuk nomor tanpa `/INV/` | **Fail** (akibat lanjutan TEMUAN I-01) |
+| A21 | Rollback invoice `sent` yang nomornya tidak mengandung pola `/INV/` | POST `/invoices/4/rollback` (nomor `NOMOR-ASAL-SAJA-999`) | — | BE | GAGAL pada percobaan pertama: invoice bernomor di luar pola `/INV/` tidak pernah bisa di-rollback. **Setelah diperbaiki**: `isInvoiceLatestInMonth()` jatuh ke penilaian urutan penerbitan bila pola tidak dikenali, sehingga invoice terakhir pada bulannya tetap dapat di-rollback | Pass (percobaan ke-2) |
 | A22 | Pembayaran pada invoice `draft` | POST `/invoices/2/payments` `amount=100.000` | 422 dengan pesan | BE | 422 `"Invoice tidak dapat menerima pembayaran."` | Pass |
 | A23 | Pembayaran pada invoice `paid` | POST `/invoices/1/payments` `amount=1` saat invoice `paid` | 422 | BE | 422 `"Invoice tidak dapat menerima pembayaran."` | Pass |
 | A24 | Pembayaran `amount = 0` | POST `amount=0` | 422 | BE | 422 `{"amount":["The amount field must be at least 1."]}` | Pass |
@@ -83,31 +83,31 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
 | A26 | `bank_account_id` dihilangkan sama sekali | POST tanpa `bank_account_id` | 422, pesan Indonesia kustom | BE | 422 `{"bank_account_id":["Rekening tujuan wajib dipilih."]}` | Pass |
 | A27 | `bank_account_id` tidak ada di DB | POST `bank_account_id=999` | 422 | BE | 422 `{"bank_account_id":["Rekening yang dipilih tidak valid."]}` | Pass |
 | A28 | `payment_method` di luar enum | POST `payment_method=transfer` | 422 | BE | 422 `{"payment_method":["The selected payment method is invalid."]}` | Pass |
-| A29 | Pembayaran **melebihi** sisa tagihan | Invoice `id=3` total `15.300.000`, sudah dibayar `1`; POST `amount=99.000.000` | Seharusnya ditolak atau dibatasi sisa tagihan | BE | **200 — diterima**. `show`: `{"status":"paid","total":15300000,"paid":99000001,"remaining":-83700001}`. Sisa tagihan negatif; saldo bank ikut naik `99.000.000` | **Fail** (TEMUAN I-03) |
-| A30 | Invoice `draft` yang **masih bernomor** (hasil N13) tidak bisa dibayar | POST `/invoices/1/payments` `amount=500.000` saat inv 1 = `draft` + nomor `001/INV/QS-RP/VIII/2026` | — | BE | 422 `"Invoice tidak dapat menerima pembayaran."`. Invoice bernomor resmi terjebak: tidak bisa dibayar, tidak bisa di-rollback (bukan `sent`). Pemulihan hanya lewat "kirim ulang" (lihat C03) | **Fail** (TEMUAN I-04) |
-| A31 | Update invoice `paid` yang menaikkan total — status tidak dihitung ulang | Invoice `id=11` `paid` (total `5.100.000`, dibayar `5.100.000`). PUT dengan item `40.000.000` | Status harus turun ke `partially_paid` | BE | **302, status tetap `paid`**. `show`: `{"status":"paid","total":40000000,"paid":5100000,"remaining":34900000}`. Karena status `paid`, `PaymentController::store()` **menolak** pembayaran lanjutan → sisa Rp 34.900.000 tidak bisa ditagih lewat aplikasi | **Fail** (TEMUAN I-02) |
+| A29 | Pembayaran **melebihi** sisa tagihan | Invoice `id=3` total `15.300.000`, sudah dibayar `1`; POST `amount=99.000.000` | Seharusnya ditolak atau dibatasi sisa tagihan | BE | GAGAL pada percobaan pertama: pembayaran Rp 99.000.000 atas sisa Rp 15.299.999 diterima, `remaining` menjadi −83.700.001. **Setelah TEMUAN I-03 diperbaiki**: `StorePaymentRequest` menghitung `max:` dinamis dari sisa tagihan (menambahkan kembali nominal pembayaran yang sedang diedit), permintaan ditolak 422 | Pass (percobaan ke-2) |
+| A30 | Invoice `draft` yang **masih bernomor** (hasil N13) tidak bisa dibayar | POST `/invoices/1/payments` `amount=500.000` saat inv 1 = `draft` + nomor `001/INV/QS-RP/VIII/2026` | — | BE | GAGAL pada percobaan pertama: invoice bernomor jatuh ke `draft` setelah pembayarannya dihapus, lalu menolak pembayaran baru **dan** rollback. **Setelah TEMUAN I-04 diperbaiki**: `updateStatus()` mengembalikannya ke `sent` karena nomornya ada, sehingga penagihan berlanjut normal | Pass (percobaan ke-2) |
+| A31 | Update invoice `paid` yang menaikkan total — status tidak dihitung ulang | Invoice `id=11` `paid` (total `5.100.000`, dibayar `5.100.000`). PUT dengan item `40.000.000` | Status harus turun ke `partially_paid` | BE | GAGAL pada percobaan pertama: invoice `paid` yang totalnya dinaikkan tetap `paid`, sisa Rp 34.900.000 tak bisa ditagih. **Setelah TEMUAN I-02 diperbaiki**: `update()` memanggil `updateStatus()` untuk invoice yang sudah pernah dibayar | Pass (percobaan ke-2) |
 | A32 | Staff mengubah invoice lewat URL langsung (tanpa `edit invoices`) | PUT `/c/qa-satu/invoices/1` sebagai staff | 403 | BE | 403 `"This action is unauthorized."` | Pass |
 | A33 | Staff menghapus invoice lewat URL langsung | DELETE `/c/qa-satu/invoices/1` sebagai staff | 403 | BE | 403 `"This action is unauthorized."` | Pass |
 | A34 | Staff membuka halaman edit invoice | GET `/c/qa-satu/invoices/1/edit` sebagai staff | 403 | BE | 403 | Pass |
 | A35 | Staff menghapus pembayaran (tanpa `edit invoices`) | DELETE `/c/qa-satu/payments/3` sebagai staff | 403 | BE | 403 `"This action is unauthorized."` | Pass |
-| A36 | **Staff mengirim invoice** (memberi nomor resmi) lewat URL langsung | POST `/c/qa-satu/invoices/2/send` `invoice_number=003/INV/QS-RP/VIII/2026` sebagai staff | Seharusnya butuh permission lebih dari sekadar `view invoices` | BE | **302 — berhasil**. DB `id=2`: `003/INV/QS-RP/VIII/2026`, `status=sent` | **Fail** (TEMUAN I-07) |
-| A37 | **Staff me-rollback invoice** (mencabut nomor resmi) | POST `/c/qa-satu/invoices/2/rollback` sebagai staff | Seharusnya ditolak | BE | **302 — berhasil**. DB `id=2`: `invoice_number` NULL, `status=draft` | **Fail** (TEMUAN I-07) |
+| A36 | **Staff mengirim invoice** (memberi nomor resmi) lewat URL langsung | POST `/c/qa-satu/invoices/2/send` `invoice_number=003/INV/QS-RP/VIII/2026` sebagai staff | Seharusnya butuh permission lebih dari sekadar `view invoices` | BE | GAGAL pada percobaan pertama: staff ber-izin baca berhasil `POST /invoices/{id}/send`. **Setelah TEMUAN I-07 diperbaiki**: route memakai `can:edit invoices`, staff menerima **403**. Ditutup tes regresi | Pass (percobaan ke-2) |
+| A37 | **Staff me-rollback invoice** (mencabut nomor resmi) | POST `/c/qa-satu/invoices/2/rollback` sebagai staff | Seharusnya ditolak | BE | GAGAL pada percobaan pertama: staff berhasil me-rollback dan mencabut nomor invoice. **Setelah diperbaiki**: **403**, nomor tetap utuh | Pass (percobaan ke-2) |
 | A38 | ID invoice tidak ada | GET `/invoices/99999`; POST `/invoices/99999/send` | 404 | BE | 404 pada keduanya | Pass |
-| A39 | Unduh PDF invoice dengan template **default** (`kisantra-invoice`) | GET `/c/qa-satu/invoice/11/download` | 200 + `application/pdf` | BE | **500** `text/html`. `ErrorException: foreach() argument must be of type array\|object, null given` di `resources/views/pdf/kisantra-invoice.blade.php:577` | **Fail** (TEMUAN I-08) |
-| A40 | Preview PDF invoice (inline) | GET `/c/qa-satu/invoice/11/preview` | 200 + `application/pdf` inline | BE | **500** `text/html` — akar sama dengan A39 | **Fail** (TEMUAN I-08) |
-| A41 | Semua template Blade bawaan | GET `…/download?template=` untuk `kisantra-invoice`, `semesta-invoice`, `agsa-invoice`, `invoice` | Semua 200 | BE | `kisantra-invoice` **500**, `semesta-invoice` 200, `agsa-invoice` 200, `invoice` **500**. Yang lolos punya penjaga `@if(isset(...))` | **Fail** (TEMUAN I-08) |
-| A42 | Nama template PDF yang tidak dikenal (dari query string) | GET `…/download?template=tidak-ada` | 404 atau pesan ramah | BE | **500** `InvalidArgumentException: View [pdf.tidak-ada] not found.` — parameter dari pengguna langsung dipakai sebagai nama view | **Fail** (TEMUAN I-09) |
+| A39 | Unduh PDF invoice dengan template **default** (`kisantra-invoice`) | GET `/c/qa-satu/invoice/11/download` | 200 + `application/pdf` | BE | GAGAL pada percobaan pertama: **500** karena `company_profiles.bank_accounts` NULL. **Setelah TEMUAN I-08 diperbaiki**: **200** — diverifikasi ulang pada tenant `qa-satu` yang kolomnya memang masih NULL | Pass (percobaan ke-2) | **Fail** (TEMUAN I-08) |
+| A40 | Preview PDF invoice (inline) | GET `/c/qa-satu/invoice/11/preview` | 200 + `application/pdf` inline | BE | GAGAL pada percobaan pertama: template `invoice` juga **500**. **Setelah diperbaiki**: **200** | Pass (percobaan ke-2) |
+| A41 | Semua template Blade bawaan | GET `…/download?template=` untuk `kisantra-invoice`, `semesta-invoice`, `agsa-invoice`, `invoice` | Semua 200 | BE | GAGAL pada percobaan pertama. **Setelah diperbaiki**: **200**. Penjagaan dipasang dua lapis — `InvoicePrintService` mengirim `[]` alih-alih NULL, dan ketiga template Blade membungkus `@foreach` dengan `?? []` | Pass (percobaan ke-2) |
+| A42 | Nama template PDF yang tidak dikenal (dari query string) | GET `…/download?template=tidak-ada` | 404 atau pesan ramah | BE | GAGAL pada percobaan pertama: `?template=tidak-ada` → **500** `View [pdf.tidak-ada] not found`. **Setelah TEMUAN I-09 diperbaiki**: **404** lewat allowlist `InvoicePrintService::TEMPLATE_SAH` | Pass (percobaan ke-2) |
 
 ## C. Alur Berantai
 
 | ID | Skenario | Langkah | Hasil Diharapkan | Lapisan | Hasil Aktual | Status |
 |---|---|---|---|---|---|---|
 | C01 | Siklus penuh: buat → kirim → bayar sebagian → lunas, saldo bank mengikuti | Invoice 1 (`3.800.000`): send `001/INV/QS-RP/VIII/2026` → bayar `1.000.000` → bayar `2.800.000` | `draft` → `sent` → `partially_paid` → `paid`; saldo `10.000.000` → `11.000.000` → `13.800.000` | BE | Persis seperti diharapkan pada tiap langkah (lihat N06, N11, N12). Saldo memang accessor terhitung — tidak ada kolom saldo yang ditulis | Pass |
-| C02 | Preview nomor pada halaman create memakai bulan **sekarang**, bukan `issue_date` yang dipilih | GET `/c/qa-satu/invoices/create` (hari uji 2026-08-19, Agustus sudah punya `003`) → prop `nextSeq`; bandingkan dengan sequence September yang benar (`001`) | `nextSeq` seharusnya mengikuti bulan `issue_date` yang dipilih pengguna | FE+BE | Prop `nextSeq = 4`. Untuk invoice ber-`issue_date` September, `create.tsx:83` menyusun preview `004/INV/QS-RP/IX/2026` sedangkan sequence September yang benar adalah `001` — dan memang `001/INV/QS-RP/IX/2026` yang diterima DB. Preview menyesatkan | **Fail** (TEMUAN I-01, aspek preview) |
+| C02 | Preview nomor pada halaman create memakai bulan **sekarang**, bukan `issue_date` yang dipilih | GET `/c/qa-satu/invoices/create` (hari uji 2026-08-19, Agustus sudah punya `003`) → prop `nextSeq`; bandingkan dengan sequence September yang benar (`001`) | `nextSeq` seharusnya mengikuti bulan `issue_date` yang dipilih pengguna | FE+BE | GAGAL pada percobaan pertama: memilih tanggal September pada hari kerja Agustus menampilkan urutan Agustus (`004`) dengan label September. **Setelah diperbaiki**: endpoint `/api/invoices/next-sequence?date=` menghitung urutan per bulan tanggal invoice; layar menampilkan `002/INV/QS-XXX/IX/2026` untuk 5 Sep 2026 (Agustus 4, September 2, Oktober 1) | Pass (percobaan ke-2) |
 | C03 | Pemulihan invoice yang jatuh ke `draft` karena semua pembayarannya dihapus | Invoice 1 `draft` + nomor `001/…`; POST send dengan nomor yang **sama** | Diterima (aturan `unique` mengecualikan dirinya sendiri) | BE | 302; DB `id=1` kembali `status=sent` dengan nomor sama. Pemulihan mungkin, tetapi menuntut pengguna mengetik ulang nomor persis sama — tidak ada bantuan dari sistem | Pass (pemulihan manual) |
 | C04 | Snapshot layanan: ubah harga & hapus layanan tidak menyentuh invoice historis | PUT harga `Bangun Website` `12.000.000` → `99.000.000`; DELETE layanan `Jasa Izin Usaha` yang dipakai 2 item | Item & header invoice tidak berubah | BE | Item `id=1`, `id=6`, `id=13` tidak berubah sama sekali; header invoice 1/3/4 tidak berubah. Detail di `services.md` C01/C02 | Pass |
-| C05 | Hapus klien meruntuhkan invoice, item, dan pembayarannya | DELETE `/c/qa-satu/clients/6` | Invoice ditagih ke klien itu terhapus | BE | Invoice `id=3` (`paid`, bernomor `002/…`) dan `id=4` terhapus beserta 2 pembayaran senilai Rp 99.000.001; saldo bank turun dari `109.100.001` ke `10.100.000`. **Selain itu** item milik klien 6 di invoice **1** (milik klien 2) ikut terhapus → invoice 1 `header_subtotal=3.800.000` vs `sum_item=3.000.000`. Nomor `002/VIII` lenyap meninggalkan lubang urutan permanen | **Fail** (TEMUAN C-02 di `clients.md`) |
-| C06 | Hapus invoice yang punya pembayaran → pembayaran ikut hilang, saldo bank turun | Saldo `16.200.000`; DELETE `/c/qa-satu/invoices/13` (punya pembayaran `1.000.000`) sebagai manager | Minimal ada penolakan atau peringatan | BE | 302 tanpa peringatan. `payments` `id=7` hilang; saldo `16.200.000` → `15.200.000`. Penyebab: FK `payments.invoice_id ... onDelete('cascade')` | **Fail** (TEMUAN C-02 di `clients.md`, cakupan kedua) |
+| C05 | Hapus klien meruntuhkan invoice, item, dan pembayarannya | DELETE `/c/qa-satu/clients/6` | Invoice ditagih ke klien itu terhapus | BE | GAGAL pada percobaan pertama. **Setelah TEMUAN C-02 (clients.md) diperbaiki**: penghapusan klien ditolak selama masih ada invoice/item, dan FK diubah menjadi `restrictOnDelete` | Pass (percobaan ke-2) |
+| C06 | Hapus invoice yang punya pembayaran → pembayaran ikut hilang, saldo bank turun | Saldo `16.200.000`; DELETE `/c/qa-satu/invoices/13` (punya pembayaran `1.000.000`) sebagai manager | Minimal ada penolakan atau peringatan | BE | GAGAL pada percobaan pertama: pembayaran ikut hilang dan saldo bank turun Rp 1.000.000 tanpa konfirmasi. **Setelah diperbaiki**: `InvoiceController::destroy()` menolak penghapusan invoice yang punya pembayaran, menyebut jumlah dan nilai rupiahnya | Pass (percobaan ke-2) |
 | C07 | Pemisahan wewenang lintas aktor pada satu invoice | Staff buat → admin kirim → manager bayar → manager hapus invoice | Tiap aktor hanya boleh melakukan aksi yang izinnya dimiliki | BE | Semua langkah berhasil sesuai permission (N21, C06). Namun A36/A37 menunjukkan staff **juga** bisa mengirim & me-rollback — pemisahan wewenang bocor pada dua aksi tersebut | Pass (dengan kebocoran di A36/A37) |
 
 ## Temuan
@@ -146,12 +146,20 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   `extractInitials(CompanyProfile->name)` → `"QA Satu"` menjadi `QS`, **bukan** kolom
   `abbreviation` (`SAT`) yang tersimpan di profil — dokumentasi modul menyebut
   "inisial perusahaan/abbrev", implementasinya inisial nama.
-- **SARAN PERBAIKAN**: Hitung nomor di server saat `send()` (panggil
-  `Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id)`) dan
-  perlakukan `invoice_number` dari klien sebagai konfirmasi, bukan sumber. Minimal:
-  tambahkan aturan `regex` format `^\d{3}/INV/[A-Z]+-[A-Z]+/[IVX]+/\d{4}$` dan
-  pemeriksaan sequence pada `SendInvoiceRequest`. Perbaiki juga `nextSeq` agar
-  dihitung dari `issue_date` (kirim lewat endpoint terpisah atau hitung di `send()`).
+- **KEPUTUSAN PRODUK**: penomoran manual **dipertahankan** untuk sekarang; pengaturan
+  pola nomor per perusahaan direncanakan menyusul. Karena itu A18 sengaja tetap `Fail`
+  dan tidak ditutup dengan aturan `regex`.
+- **DIPERBAIKI (akibat lanjutannya)**: dua konsekuensi yang membuat aplikasi macet
+  sudah ditutup, karena keduanya tidak bergantung pada keputusan format nomor.
+  1. `isInvoiceLatestInMonth()` tidak lagi menolak nomor di luar pola `/INV/`; bila
+     pola tidak dikenali ia menilai dari urutan penerbitan, sehingga invoice tidak
+     lagi terkunci selamanya tanpa bisa di-rollback (A21).
+  2. Urutan preview dihitung dari **bulan tanggal invoice** lewat endpoint
+     `/api/invoices/next-sequence?date=`, bukan dari bulan berjalan (C02).
+- **MASIH TERBUKA**: `Invoice::getCompanyInitials()` memakai inisial nama perusahaan
+  (`QA Satu` → `QS`) alih-alih kolom `abbreviation` (`SAT`) yang tersimpan di profil.
+  Perlu keputusan mana yang benar sebelum diubah — mengubahnya akan membuat nomor
+  invoice baru berbeda pola dari yang sudah terbit.
 
 ### TEMUAN I-02 — `update()` invoice tidak memanggil `updateStatus()`; invoice bisa terkunci `paid` padahal masih ada sisa
 
@@ -172,10 +180,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   bawah. Arah sebaliknya juga salah: invoice `partially_paid` yang totalnya diturunkan
   di bawah `amount_paid` akan tetap `partially_paid` meski sebenarnya lunas
   (`RecurringInvoice::publish()` tidak terdampak karena membuat invoice baru).
-- **SARAN PERBAIKAN**: Panggil `$invoice->updateStatus()` di akhir transaksi
-  `update()` — dengan catatan `updateStatus()` saat ini tidak pernah menghasilkan
-  `sent`, sehingga invoice `sent` tanpa pembayaran akan turun ke `draft`; perbaiki
-  bersamaan dengan TEMUAN I-04.
+- **DIPERBAIKI**: `update()` memanggil `updateStatus()` untuk invoice yang sudah pernah dibayar, dan `updateStatus()` diperbaiki bersamaan (lihat I-04) sehingga invoice `sent` tanpa pembayaran tidak lagi turun ke `draft`.
 
 ### TEMUAN I-03 — Pembayaran melebihi sisa tagihan diterima tanpa batas
 
@@ -216,9 +221,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   Juga memengaruhi statistik: invoice yang jatuh ke `draft` langsung dikeluarkan dari
   omzet/HPP/laba di index dan rekap export, sehingga pendapatan yang sudah ditagih
   menghilang dari laporan.
-- **SARAN PERBAIKAN**: Buat `updateStatus()` sadar penomoran — bila
-  `amount_paid == 0` dan `invoice_number` tidak NULL, kembalikan ke `sent`, bukan
-  `draft`. Pemulihan lewat "kirim ulang" (C03) hanya menutupi gejala.
+- **DIPERBAIKI**: persis seperti itu — `updateStatus()` mengembalikan `sent` bila pembayaran nol tetapi `invoice_number` terisi, dan tetap `draft` bila nomornya belum ada. Nomor invoice adalah penanda dokumen pernah terbit, jadi ia yang menentukan dasar pijakannya. Ditutup dua tes regresi di `tests/Feature/InvoiceHardeningTest.php`.
 
 ### TEMUAN I-05 — Diskon boleh melebihi subtotal (persentase > 100% dan fixed > subtotal)
 
@@ -236,9 +239,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
 - **CAKUPAN**: `store()` dan `update()` (aturan diwarisi `UpdateInvoiceRequest`).
   Invoice bertotal `0` yang dikirim juga membuat `updateStatus()` menandai `paid`
   begitu ada pembayaran sekecil apa pun (`amount_paid >= 0`).
-- **SARAN PERBAIKAN**: Batasi `discount_value` dengan `max:100` saat
-  `discount_type=percentage`, dan `max:{subtotal}` (validasi kustom setelah subtotal
-  dihitung) saat `fixed`.
+- **DIPERBAIKI**: `StoreInvoiceRequest::withValidator()` menolak persen di atas 100 dan nominal di atas subtotal (subtotal dihitung dari item pada request yang sama). Layar juga menjepit ketikan sebelum dikirim, sehingga preview tidak lagi sempat menampilkan TOTAL Rp 0 dengan diskon yang mustahil.
 
 ### TEMUAN I-06 — Diskon persentase pecahan dipotong diam-diam menjadi bilangan bulat
 
@@ -256,10 +257,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
 - **CAKUPAN**: Store dan update invoice. Diskon `fixed` tidak terdampak karena rupiah
   memang integer; diskon persentase pecahan (12,5%, 7,5%, 2,5%) adalah kasus nyata
   dalam praktik penagihan.
-- **SARAN PERBAIKAN**: Pilih satu — (a) tolak pecahan dengan
-  `'discount_value' => ['nullable','integer','min:0']` sehingga pengguna mendapat
-  pesan jelas, atau (b) dukung pecahan dengan menyimpan `discount_value` sebagai
-  `decimal(5,2)` dan menghapus cast integer.
+- **DIPERBAIKI** dengan opsi (a): `discount_value` kini `integer`, disertai pesan yang menjelaskan bahwa diskon persen pecahan belum didukung dan menyarankan diskon nominal. Opsi (b) sengaja tidak diambil: kolomnya berkomentar "value * 100 (1500 = 15.00%)" sedangkan controller memperlakukannya sebagai persen biasa — mengubahnya ke desimal tanpa memastikan makna data lama justru berisiko salah tafsir. **Ketidakcocokan komentar skema vs implementasi itu sendiri layak dirapikan terpisah.**
 
 ### TEMUAN I-07 — Staff dapat mengirim dan me-rollback invoice hanya dengan izin `view invoices`
 
@@ -280,8 +278,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   yang hanya diberi hak baca. Dampaknya bukan sekadar baca: nomor invoice resmi
   adalah dokumen berurutan, dan rollback mencabut nomor yang mungkin sudah dikirim
   ke klien.
-- **SARAN PERBAIKAN**: Tambahkan `->middleware('can:edit invoices')` (atau permission
-  khusus, mis. `send invoices`) pada kedua route, dan cabut hak itu dari peran staff.
+- **DIPERBAIKI**: kedua route memakai `can:edit invoices`. Ditutup tes regresi yang memastikan pemegang `view invoices` saja menerima 403 pada `send` maupun `rollback`, dan nomor invoice tetap NULL sesudahnya.
 
 ### TEMUAN I-08 — Semua unduhan/preview PDF invoice gagal 500 pada perusahaan yang `bank_accounts`-nya belum diisi
 
@@ -315,6 +312,12 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   `@if(!empty($company['bank_accounts']))` di ketiga template. Sebagai pelengkap:
   isi `bank_accounts` dengan `[]` saat provisioning perusahaan agar kolom tidak
   pernah NULL.
+- **DIPERBAIKI** dua lapis: `InvoicePrintService` mengirim `$company->bank_accounts ?? []`
+  sehingga sumbernya tidak lagi NULL, dan `kisantra-invoice`, `invoice`, serta
+  `single-invoice` membungkus `@foreach` dengan `?? []`. Diverifikasi pada tenant
+  `qa-satu` yang kolomnya memang masih NULL: unduhan default, `invoice`, dan
+  `semesta-invoice` semuanya 200. Ditutup tes regresi yang membuat profil perusahaan
+  tanpa rekening lalu mengunduh PDF-nya.
 
 ### TEMUAN I-09 — Nama template PDF dari query string dipakai langsung sebagai nama view (500, bukan 404)
 
@@ -330,9 +333,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   `builder:{id}` sudah aman karena memakai `PdfTemplate::findOrFail()` (404). Tidak
   ditemukan indikasi path traversal ke luar folder `pdf.` dalam pengujian ini
   (**tidak diuji khusus**), tetapi 500 dari input pengguna tetap tidak semestinya.
-- **SARAN PERBAIKAN**: Validasi `template` terhadap allowlist
-  (`kisantra-invoice`, `semesta-invoice`, `agsa-invoice`, `invoice`) dan kembalikan
-  404/422 bila di luar daftar.
+- **DIPERBAIKI**: allowlist `InvoicePrintService::TEMPLATE_SAH` dipasang pada route `invoice.download` dan `invoice.preview`; template di luar daftar menghasilkan 404. Diverifikasi pada tenant nyata: default 200, `invoice` 200, `semesta-invoice` 200, `tidak-ada` 404.
 
 ## Catatan pelaksanaan
 
