@@ -203,6 +203,8 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
   `$invoice->amount_remaining` (memperhitungkan pembayaran yang sedang diedit), atau
   penolakan eksplisit di controller dengan pesan Indonesia. Bila kelebihan bayar sah
   secara bisnis, catat sebagai saldo lebih/uang muka, jangan sebagai sisa negatif.
+- **DIPERBAIKI**: `StorePaymentRequest` menghitung `max:` dinamis dari sisa tagihan, dengan penambahan kembali nominal pembayaran yang sedang diedit agar penyuntingan pembayaran pelunasan tidak ikut tertolak.
+
 
 ### TEMUAN I-04 — Menghapus semua pembayaran menjatuhkan invoice bernomor ke `draft` dan mengunci pembayaran berikutnya
 

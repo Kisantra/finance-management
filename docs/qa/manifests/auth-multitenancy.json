@@ -27,7 +27,6 @@
       "gejala": "Panel kiri halaman `/login` menampilkan statistik \"121+ / Komponen Livewire\".",
       "sebab": "Livewire sudah sepenuhnya dilepas (lihat `CLAUDE.md`: seluruh frontend kini Inertia + React); teks promosi ini tertinggal dari versi lama.",
       "cakupan": "Kosmetik, tetapi menyesatkan siapa pun yang menilai tumpukan teknologi aplikasi dari layar login.",
-      "perbaikan": "Ganti dengan angka yang benar-benar mewakili produk, atau hapus kartu statistik itu.",
       "status": "BELUM DIPERBAIKI"
     }
   ],

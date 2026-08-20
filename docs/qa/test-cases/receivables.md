@@ -80,6 +80,8 @@ Debitur uji: User id 3 `Staff Demo` (employee_loan) dan Client id 1
 - **SEBAB**: `app/Http/Controllers/ReceivableController.php:169` (store) dan `:229` (update) memanggil `now()->parse($validated['loan_date'])->addMonths($installmentMonths)`. Aturan validasi `integer` di `StoreReceivableRequest`/`UpdateReceivableRequest` hanya memeriksa, **tidak meng-cast**, sehingga nilai tetap string. Carbon 3 menolak argumen string secara ketat.
 - **CAKUPAN**: **Seluruh jalur UI**. `resources/js/pages/receivables/index.tsx:576` memakai `forceFormData: true` (multipart, semua nilai jadi string) dan baris 690 mengisi `installment_months` dari `e.target.value` (string). Artinya tombol "Tambah" dan "Edit" pada halaman Piutang tidak dapat dipakai sama sekali. Test suite yang ada tidak menangkapnya karena memanggil controller dengan integer PHP.
 - **SARAN PERBAIKAN**: Cast eksplisit di kedua tempat: `$installmentMonths = (int) $validated['installment_months'];` (juga `(int) $validated['principal_amount']`), atau tambahkan `prepareForValidation()` di form request yang meng-cast field numerik. Tambahkan test feature yang mengirim payload berbentuk string agar regresi tertangkap.
+- **DIPERBAIKI**: `installment_months` dan `principal_amount` di-cast `(int)` di `store()` dan `update()`, sehingga Carbon 3 tidak lagi menolak argumen string.
+
 
 ### BUG-C1 — Tidak ada batas atas pembayaran pokok piutang
 - **SIFAT**: Cacat validasi / kesalahan pencatatan kas.
@@ -88,6 +90,8 @@ Debitur uji: User id 3 `Staff Demo` (employee_loan) dan Client id 1
 - **SEBAB**: `app/Http/Requests/PayReceivableRequest.php` hanya memberi `nullable|integer|min:0`. `ReceivableController::pay()` (baris 322-330) menghitung `$remainingPrincipal`/`$remainingInterest` tetapi hanya memakai `$remainingPrincipal` untuk menentukan `paid_off` (tidak untuk membatasi input).
 - **CAKUPAN**: Semua user dengan `pay receivables`. Dampak: penerimaan berlebih terklasifikasi sebagai pengembalian pokok (kategori `financing`) sehingga tidak muncul sebagai pendapatan di P&L — uang masuk yang tidak terlacak.
 - **SARAN PERBAIKAN**: Tolak `principal_paid > remainingPrincipal` (dan opsional `interest_paid > remainingInterest`) di form request/controller dengan pesan yang menyebut sisa aktual.
+- **DIPERBAIKI**: pembayaran pokok dibatasi sisa pokok, dengan pesan yang menyebut sisanya.
+
 
 ### BUG-C2 — `bank_transfer` tanpa rekening tercatat sebagai pembayaran tanpa mutasi bank
 - **SIFAT**: Cacat validasi / inkonsistensi data.
@@ -121,6 +125,8 @@ Debitur uji: User id 3 `Staff Demo` (employee_loan) dan Client id 1
 - **SEBAB**: `app/Http/Controllers/ReceivableController.php:290` — `'transaction_date' => now()->format('Y-m-d')`.
 - **CAKUPAN**: Semua piutang yang persetujuannya tidak di hari yang sama dengan tanggal pinjam. Dampak: Cash Flow per periode dan rekonsiliasi bank tidak cocok dengan tanggal pinjam yang tercatat di piutang.
 - **SARAN PERBAIKAN**: Pakai `$receivable->loan_date`, atau tegaskan di UI bahwa tanggal pencairan = tanggal persetujuan dan tampilkan tanggal itu di detail piutang. Bila keduanya perlu, simpan `disbursed_at` tersendiri.
+- **DIPERBAIKI**: pencairan memakai `loan_date`, bukan tanggal hari ini.
+
 
 ### BUG-C7 — Edit setelah reject tidak membersihkan `approved_by`/`approved_at`
 - **SIFAT**: Data menyesatkan (invarian terdokumentasi, terbukti).
@@ -170,3 +176,5 @@ Debitur uji: User id 3 `Staff Demo` (employee_loan) dan Client id 1
   `bank_transactions` id 16-19.
 - Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama
   pengujian.
+- **DIPERBAIKI**: `pl_group` diisi di seeder plus migration backfill — sama dengan BUG-L4.
+

@@ -71,6 +71,8 @@ KOTA`, 19 `OPERASIONAL`).
 - **SEBAB**: `app/Http/Requests/PayReimbursementRequest.php` hanya memvalidasi `payment_amount` `integer|min:1`; tidak ada batas atas. `app/Http/Controllers/ReimbursementController.php:323` hanya memakai perbandingan `>= amount_remaining` untuk memilih label "Pelunasan/Cicilan", bukan untuk membatasi nominal. `app/Models/Reimbursement.php:245` (`recordPayment`) menambah `amount_paid` apa adanya.
 - **CAKUPAN**: Semua user dengan permission `pay reimbursements` (admin, finance manager). State machine hanya mencegah pembayaran *berikutnya*, bukan kelebihan pada pembayaran terakhir.
 - **SARAN PERBAIKAN**: Tambahkan aturan batas atas pada form request (mis. `max:` sisa yang dihitung dari route model binding lewat `withValidator`/rule kustom), atau clamp `payment_amount` ke `amount_remaining` di controller sebelum membuat `BankTransaction`.
+- **DIPERBAIKI**: `PayReimbursementRequest` menghitung `max:` dinamis dari `amount_remaining`.
+
 
 ### BUG-R2 — Ajukan ulang setelah ditolak gagal diam-diam, flash tetap "berhasil"
 - **SIFAT**: Cacat alur kerja + pesan menyesatkan.
@@ -95,6 +97,8 @@ KOTA`, 19 `OPERASIONAL`).
 - **SEBAB**: `app/Http/Controllers/ReimbursementController.php:26` — `$tab = $request->input('tab', $canApprove ? 'all' : 'my')`; nilai `tab` diambil mentah dari query string dan hanya dipakai sebagai kondisi filter (baris 39 & 60). Tidak ada pemeriksaan bahwa hanya user ber-`approve reimbursements` yang boleh memakai `all`. Pembatasan hanya ada di UI: `resources/js/pages/reimbursements/index.tsx:289` menyembunyikan tab "Semua Pengajuan" bila `!canApprove`.
 - **CAKUPAN**: Semua user dengan `view reimbursements` tetapi tanpa `approve reimbursements` (role `staff`). Reimbursement memuat data pengeluaran pribadi karyawan.
 - **SARAN PERBAIKAN**: Paksa `$tab = 'my'` bila `! $canApprove`, mis. `$tab = $canApprove ? $request->input('tab','all') : 'my';` — dan terapkan hal yang sama pada query statistik.
+- **DIPERBAIKI**: `$tab` dipaksa `my` bagi yang tidak memegang `approve reimbursements`, termasuk pada query statistik.
+
 
 ### BUG-R5 — `canDelete()` tidak memeriksa kepemilikan
 - **SIFAT**: Cacat otorisasi.
@@ -103,6 +107,8 @@ KOTA`, 19 `OPERASIONAL`).
 - **SEBAB**: `app/Models/Reimbursement.php:173-185` — komentar di kode berbunyi "Owner can only delete if draft or rejected", tetapi kode hanya mengembalikan `in_array($this->status, ['draft','rejected'])` tanpa membandingkan `user_id` dengan user aktif. `ReimbursementController::destroy()` (baris 264) hanya memanggil `canDelete()`. Bandingkan dengan `edit`/`update`/`submit` yang punya `abort(403)` bila `user_id !== auth()->id()`.
 - **CAKUPAN**: Semua user dengan permission `delete reimbursements` (role `admin` dan `staff` pada seeder saat ini). Target: semua reimbursement berstatus `draft`/`rejected` milik siapa pun.
 - **SARAN PERBAIKAN**: Tambahkan syarat kepemilikan: `return $this->user_id === $user?->id && in_array($this->status, ['draft','rejected']);` (bypass admin sudah ditangani di cabang di atasnya).
+- **DIPERBAIKI**: kepemilikan menjadi syarat wajib di `canDelete()` — komentar lama yang menjanjikan "owner only" kini benar-benar ditegakkan kodenya.
+
 
 ### BUG-R6 — HTTP 500 bila field opsional `description` tidak dikirim
 - **SIFAT**: Cacat ketahanan (robustness).
@@ -111,6 +117,8 @@ KOTA`, 19 `OPERASIONAL`).
 - **SEBAB**: `description` divalidasi `nullable`, sehingga `validated()` tidak memuat key-nya bila field absen; controller mengaksesnya langsung (`$validated['description']`) di `store()` baris 164 dan `update()` baris 244.
 - **CAKUPAN**: Form React selalu mengirim `description` (default string kosong), sehingga jalur UI normal **tidak** terdampak. Terpapar untuk pemanggilan API/integrasi/otomasi dan bila form diubah menjadi conditional field.
 - **SARAN PERBAIKAN**: Gunakan `$validated['description'] ?? null` (atau `data_get`) pada kedua baris.
+- **DIPERBAIKI**: `$validated['description'] ?? null` pada `store()` dan `update()`.
+
 
 ### BUG-R7 — Menghapus reimbursement `paid` meninggalkan pengeluaran yatim di kas
 - **SIFAT**: Inkonsistensi data lintas modul (invarian terdokumentasi, terbukti).

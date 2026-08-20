@@ -130,6 +130,8 @@ tidak dikarang sebagai teks di layar.
   yang sudah dipakai `routes/web.php` — jadikan pemetaan itu satu helper bersama
   (mis. `TransactionCategory::typesFor(string $direction): array`) agar picker
   dan validator memakai sumber yang sama.
+- **DIPERBAIKI**: ditutup bersama BUG-CF-04 — `StoreBankTransactionRequest` menolak kombinasi arah/tipe yang tidak searah.
+
 
 ### BUG-TC-03 — Dialog reassign menerima kategori PARENT sebagai pengganti
 

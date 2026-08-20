@@ -275,7 +275,7 @@
     {
       "id": "Catatan",
       "title": "Catatan pelaksanaan",
-      "body": "Semua case dieksekusi lewat HTTP `http://127.0.0.1:8000` dengan cookie sesi N09 adalah satu-satunya case yang tidak dapat dibuktikan dari output Regresi lama yang dicek ulang: `category_id` pada transaksi pinjaman terisi Efek samping yang SEHARUSNYA TIDAK terjadi ikut diperiksa: A05 (0/0 tidak Rekonsiliasi saldo dilakukan dua arah: nilai `balance` dari props aplikasi Data uji yang tertinggal sebagai bukti: loan id 1 (`paid_off`, pokok terbayar Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama"
+      "body": "Semua case dieksekusi lewat HTTP `http://127.0.0.1:8000` dengan cookie sesi N09 adalah satu-satunya case yang tidak dapat dibuktikan dari output Regresi lama yang dicek ulang: `category_id` pada transaksi pinjaman terisi Efek samping yang SEHARUSNYA TIDAK terjadi ikut diperiksa: A05 (0/0 tidak Rekonsiliasi saldo dilakukan dua arah: nilai `balance` dari props aplikasi Data uji yang tertinggal sebagai bukti: loan id 1 (`paid_off`, pokok terbayar Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama DIPERBAIKI: `pl_group` diisi di seeder (`other_expense` / `other_income`) dan migration backfill menutup tenant yang sudah ada."
     }
   ]
 }

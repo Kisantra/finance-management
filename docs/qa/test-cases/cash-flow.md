@@ -117,6 +117,8 @@ Aktor uji (lihat *Catatan pelaksanaan* soal role `qa3-*` yang dibuat khusus):
 - **SEBAB**: `app/Http/Controllers/CashFlowController.php:146,242,369` dan `app/Http/Controllers/BankTransactionController.php:67,140` memakai `Storage::url($path)`. Disk `public` di `config/filesystems.php:44` mendefinisikan `'url' => env('APP_URL') . '/storage'` — tanpa segmen `c/{company}`. Satu-satunya route yang bisa melayani berkas tenant adalah `routes/web.php:135` `Route::get('/storage/{path}', TenantStorageController::class)` **di dalam** grup `Route::prefix('c/{company}')`. Tidak ada helper di frontend yang menambahkan prefix: `resources/js/components/shared/file-preview-dialog.tsx:216` meneruskan `url` mentah, dan tidak ada pemakaian `companyUrl()` di berkas itu.
 - **CAKUPAN**: Semua modul yang memanggil `Storage::url()` untuk lampiran tenant — terverifikasi di Cash Flow dan Fund Requests (`disbursement_attachment_url` juga `/storage/…` → 403). Berlaku untuk semua perusahaan.
 - **SARAN PERBAIKAN**: Ganti `Storage::url($path)` dengan `route('tenant.storage', ['company' => tenant()->getTenantKey(), 'path' => $path])` (atau helper `tenant_storage_url()` di `app/helpers.php`) sehingga URL selalu `/c/{company}/storage/{path}`. Alternatif: override `url` disk `public` saat tenancy diinisialisasi.
+- **DIPERBAIKI**: seluruh pemanggilan `Storage::url()` diganti URL storage per-perusahaan, sehingga pratinjau lampiran memuat `/c/{company}/storage/...` dan tidak lagi 403.
+
 
 ### BUG-CF-02 — Lampiran transaksi tidak pernah terhapus dari disk saat transaksi dihapus
 - **SIFAT**: Kebocoran penyimpanan (orphan file) + hook tak berfungsi.
@@ -133,6 +135,8 @@ Aktor uji (lihat *Catatan pelaksanaan* soal role `qa3-*` yang dibuat khusus):
 - **SEBAB**: `app/Http/Controllers/CashFlowController.php:438` `Payment::whereIn('id', $paymentIds)->delete()` — mass delete tanpa memuat model dan tanpa memanggil `updateStatus()`. Jalur resmi `app/Http/Controllers/PaymentController.php:83-90` melakukannya dengan benar (`$payment->delete(); $invoice->updateStatus();`). Model `Payment` tidak punya hook `deleted` yang merapikan status (`app/Models/Payment.php` hanya menyebut penghapusan lampiran di komentar baris 69).
 - **CAKUPAN**: Setiap user dengan `delete income` yang memakai bulk delete di halaman Cash Flow → Pemasukan. Dampak: daftar invoice, dashboard piutang, dan `amount_remaining` salah; sama seperti BUG-CF-02, lampiran pembayaran juga tertinggal di disk.
 - **SARAN PERBAIKAN**: Muat model dulu (`Payment::with('invoice')->whereIn('id', $ids)->get()`), hapus satu per satu di dalam `DB::transaction`, lalu panggil `$invoice->updateStatus()` untuk setiap invoice unik yang terdampak.
+- **DIPERBAIKI**: invoice terdampak dicatat sebelum penghapusan, lalu `updateStatus()` dipanggil untuk masing-masing — status tidak lagi berbohong setelah bulk delete.
+
 
 ### BUG-CF-04 — Tidak ada validasi kecocokan tipe kategori dengan arah transaksi
 - **SIFAT**: Celah validasi dengan dampak pelaporan (uang "tak terlihat").

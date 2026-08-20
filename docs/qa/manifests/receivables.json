@@ -389,7 +389,7 @@
     {
       "id": "Catatan",
       "title": "Catatan pelaksanaan",
-      "body": "Semua case dieksekusi lewat HTTP `http://127.0.0.1:8000` dengan cookie sesi Batasan metode yang harus diketahui pembaca: karena BUG-C4, `store()` dan Pengujian dilakukan lewat endpoint, bukan lewat klik di browser. Klaim tentang A16 tetap `Belum diuji` — tidak dibulatkan menjadi Pass. Setelah A09 membuat Efek samping yang SEHARUSNYA TIDAK terjadi ikut diperiksa: N06 (reject tidak Rekonsiliasi saldo dilakukan dua arah (props aplikasi vs `initial_balance + Data uji yang tertinggal sebagai bukti: piutang id 1 `RCV-00001` (`paid_off`, Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama"
+      "body": "Semua case dieksekusi lewat HTTP `http://127.0.0.1:8000` dengan cookie sesi Batasan metode yang harus diketahui pembaca: karena BUG-C4, `store()` dan Pengujian dilakukan lewat endpoint, bukan lewat klik di browser. Klaim tentang A16 tetap `Belum diuji` — tidak dibulatkan menjadi Pass. Setelah A09 membuat Efek samping yang SEHARUSNYA TIDAK terjadi ikut diperiksa: N06 (reject tidak Rekonsiliasi saldo dilakukan dua arah (props aplikasi vs `initial_balance + Data uji yang tertinggal sebagai bukti: piutang id 1 `RCV-00001` (`paid_off`, Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama DIPERBAIKI: `pl_group` diisi di seeder plus migration backfill — sama dengan BUG-L4."
     }
   ]
 }

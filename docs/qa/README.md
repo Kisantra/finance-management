@@ -122,18 +122,26 @@ dijalankan, lalu setiap case ber-lapisan FE ditutup bukti layarnya.
 668 case | butuh bukti UI: 149 | sudah bergambar: 149 (100%)
 ```
 
-Dari ~90 case berstatus `Fail` pada putaran pertama, tersisa **satu** yang masih
-`Fail` — dan itu disengaja:
+### Yang tersisa
 
-| Case | Alasan |
+| | jumlah |
 |---|---|
-| invoices A18 | Penomoran invoice manual dipertahankan sesuai keputusan produk; pengaturan pola nomor per perusahaan direncanakan menyusul. Dua akibatnya yang membuat aplikasi macet sudah ditutup. |
+| Case berstatus `Fail` | **1** dari 668 |
+| Temuan tanpa perbaikan | **2** dari 76 |
 
-Pekerjaan yang sengaja ditunda beserta alasannya tercatat di modulnya
-masing-masing sebagai **MASIH TERBUKA** atau **BUTUH KEPUTUSAN PRODUK** —
-antara lain nominal bunga piutang yang disimpan sebagai persentase
-(receivables BUG-C5), inisial perusahaan pada nomor invoice (invoices I-01),
-dan keunikan nama layanan (services S-02).
+Ketiganya bukan pekerjaan yang terlewat, melainkan yang sengaja tidak diputuskan
+sepihak:
+
+| Item | Alasan ditunda |
+|---|---|
+| invoices A18 / TEMUAN I-01 | Penomoran invoice manual dipertahankan sesuai keputusan produk. Dua akibatnya yang membuat aplikasi macet (invoice terkunci tak bisa rollback, preview urutan salah bulan) **sudah** ditutup. |
+| services TEMUAN S-02 | Apakah nama layanan wajib unik adalah keputusan produk: menambah `unique` sepihak akan menolak penyuntingan baris yang selama ini normal bila di produksi sudah ada nama kembar yang sah. Bagian yang aman sudah dikerjakan — pemilih layanan menampilkan `tipe · harga` sehingga nama kembar tetap terbedakan. |
+
+Dua hal lain diperbaiki **sebagian** dan sisanya dicatat sebagai **MASIH TERBUKA**
+di modulnya: nominal bunga piutang yang disimpan sebagai persentase
+(receivables BUG-C5 — pergeseran ditekan ~100× tetapi pembulatan tetap
+pembulatan) dan sumber inisial perusahaan pada nomor invoice (invoices I-01 —
+mengubahnya membuat nomor baru berbeda pola dari yang sudah terbit).
 
 ## Utang bukti visual pada putaran pertama
 

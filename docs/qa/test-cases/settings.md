@@ -104,6 +104,8 @@ tidak dihapus.
 - **SEBAB**: `routes/web.php` — `Route::get('/company', …)` dan `Route::post('/company', …)` berada di dalam grup `settings` yang **tidak** memasang middleware `can:` apa pun, berbeda dari sub-grup `pdf-templates` yang digate `can:manage pdf templates` (`routes/web.php:581`). `CompanyController::update()` juga tidak memuat otorisasi sendiri, dan `UpdateCompanyRequest::authorize()` mengembalikan `true`.
 - **CAKUPAN**: Setiap user yang bisa login ke perusahaan. Dampaknya menjalar keluar modul Settings: `ppn_rate`, `is_pkp`, dan `npwp` dipakai `InvoicePrintService` serta seluruh template PDF invoice, dan `computed_abbreviation` dipakai penomoran Fund Request (`001/KSN/I/2026`). Satu user tanpa niat jahat pun bisa membuat seluruh invoice terbit dengan identitas dan tarif pajak yang salah — dan tidak ada jejak audit siapa yang mengubahnya.
 - **SARAN PERBAIKAN**: Pasang gate pada dua route company (mis. `can:manage companies`, permission yang sudah ada dan hanya dimiliki admin), atau perkenalkan permission khusus `manage company profile`. Bila keterbukaan ini memang keputusan produk, catat alasannya secara eksplisit di `docs/module/settings.md` — jangan biarkan tersirat.
+- **DIPERBAIKI**: kedua route company digate permission baru `manage company profile`; menu yang menawarkannya ikut disaring (BUG-SET-07).
+
 
 ### BUG-SET-03 — Unduh invoice dengan template PDF bawaan gagal 500 pada perusahaan yang profilnya diisi lewat Settings
 
@@ -113,6 +115,8 @@ tidak dihapus.
 - **SEBAB**: `resources/views/pdf/kisantra-invoice.blade.php:577` — `@foreach ($company['bank_accounts'] as $index => $bank)` tanpa pengaman null. Kolom `company_profiles.bank_accounts` bernilai NULL, dan **tidak ada cara mengisinya dari modul Settings**: `app/Http/Requests/Settings/UpdateCompanyRequest.php` sama sekali tidak memuat aturan untuk `bank_accounts` (diverifikasi: nol kemunculan kata itu di file tersebut), sehingga form profil perusahaan tidak pernah menuliskannya. Pola `foreach` tanpa pengaman yang sama ada di `resources/views/pdf/invoice.blade.php`, `semesta-invoice.blade.php`, dan `single-invoice.blade.php`.
 - **CAKUPAN**: Setiap perusahaan yang profilnya dibuat/diisi lewat Settings dan bukan lewat seeder — yaitu semua perusahaan baru hasil provisioning. Bukan kasus buatan: log aplikasi menunjukkan galat identik terjadi pada perusahaan lain (`tenant_qa-dua`) di sesi terpisah pada hari yang sama, jadi ini reproducible lintas tenant.
 - **SARAN PERBAIKAN**: (1) Beri pengaman di keempat template Blade: `@foreach (($company['bank_accounts'] ?? []) as …)`. (2) Sediakan pengisian `bank_accounts` di form Profil Perusahaan (tambahkan aturannya di `UpdateCompanyRequest`), karena tanpa itu blok rekening pada invoice memang tidak akan pernah terisi. (3) Beri default `[]` alih-alih NULL pada kolom tersebut.
+- **DIPERBAIKI**: ditutup bersama TEMUAN I-08 — service mengirim `[]` alih-alih NULL dan ketiga template Blade diberi penjaga `?? []`.
+
 
 ### BUG-SET-07 — Menu aplikasi mengantar staff ke halaman 403 yang dibuatnya sendiri
 

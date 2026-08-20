@@ -237,7 +237,7 @@
     {
       "id": "Catatan",
       "title": "Catatan pelaksanaan",
-      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli dan Mutasi permission dilakukan pada role sekali-pakai `qa-uji-role`, bukan role Case yang tidak diuji dan dinyatakan demikian: bulk delete user (berisiko Kegagalan tooling penguji (bukan cacat aplikasi): skrip pembantu sempat"
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli dan Mutasi permission dilakukan pada role sekali-pakai `qa-uji-role`, bukan role Case yang tidak diuji dan dinyatakan demikian: bulk delete user (berisiko Kegagalan tooling penguji (bukan cacat aplikasi): skrip pembantu sempat DIPERBAIKI: tujuh aturan validasi diberi prefix koneksi `mysql.` agar menunjuk database pusat tempat `users`/`roles`/`permissions` benar-benar berada."
     }
   ]
 }

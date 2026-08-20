@@ -64,6 +64,8 @@ id 8, `EXP-INTEREST` id 13.
 - **SEBAB**: `app/Http/Requests/PayLoanRequest.php` hanya memberi `nullable|integer|min:0` pada `principal_paid`/`interest_paid`. `app/Http/Controllers/LoanController.php:202-212` menghitung `$remainingPrincipal` dan `$remainingInterest` tetapi **tidak pernah memakainya untuk memvalidasi** — hanya `$remainingPrincipal` yang dipakai di baris 258 untuk menentukan `paid_off`. Di frontend, `resources/js/pages/loans/index.tsx:731` menulis label "maks." tanpa atribut/validasi apa pun.
 - **CAKUPAN**: Semua user dengan permission `pay loans` (admin, finance manager). Dampak: kas keluar melebihi kewajiban, laporan sisa pokok bernilai negatif, beban bunga di P&L membengkak.
 - **SARAN PERBAIKAN**: Validasi di controller (atau `withValidator` pada `PayLoanRequest` yang membaca route model binding): tolak bila `principal_paid > remainingPrincipal` atau `interest_paid > remainingInterest`, dengan pesan yang menyebut sisa aktual. Bila overpayment memang sah secara bisnis (penalti/denda), pisahkan ke field/kategori tersendiri.
+- **DIPERBAIKI**: pembayaran pokok maupun bunga dibatasi sisa masing-masing, dengan pesan yang menyebut sisa aktualnya.
+
 
 ### BUG-L2 — Prefill `nextLoanNumber` bisa bentrok dengan nomor yang sudah ada
 - **SIFAT**: Cacat kegunaan (usability) / logika generator.
@@ -114,3 +116,5 @@ id 8, `EXP-INTEREST` id 13.
   id 5-14 termasuk id 13 yang yatim (BUG-L3).
 - Tidak ada perubahan kode aplikasi, migrasi, seeding, atau `.env` selama
   pengujian. Rekening bank dan klien uji dibuat lewat endpoint aplikasi biasa.
+- **DIPERBAIKI**: `pl_group` diisi di seeder (`other_expense` / `other_income`) dan migration backfill menutup tenant yang sudah ada.
+

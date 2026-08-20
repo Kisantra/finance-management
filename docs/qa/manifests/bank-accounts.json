@@ -381,7 +381,7 @@
     {
       "id": "Catatan",
       "title": "Catatan pelaksanaan",
-      "body": "Cakupan: 16 case Normal (N01–N16), 17 case Abnormal (A01–A17), 4 case Skor: Pass 29, Fail 8 (A11, A12∗, A13, A14, A15, A17, C02, C03). Semua case dieksekusi lewat HTTP dengan sesi login sungguhan, bukan lewat Verifikasi database dilakukan pada setiap case yang mengubah data, Invarian utama modul terbukti benar: (1) saldo tidak pernah disimpan — Kegagalan tooling saya sendiri (bukan cacat aplikasi): percobaan pertama Di luar cakupan modul ini tapi ditemukan saat menyiapkan data: Data uji ditinggalkan di `tenant_qa-dua` (tidak dibersihkan, agar temuan"
+      "body": "Cakupan: 16 case Normal (N01–N16), 17 case Abnormal (A01–A17), 4 case Skor: Pass 29, Fail 8 (A11, A12∗, A13, A14, A15, A17, C02, C03). Semua case dieksekusi lewat HTTP dengan sesi login sungguhan, bukan lewat Verifikasi database dilakukan pada setiap case yang mengubah data, Invarian utama modul terbukti benar: (1) saldo tidak pernah disimpan — Kegagalan tooling saya sendiri (bukan cacat aplikasi): percobaan pertama Di luar cakupan modul ini tapi ditemukan saat menyiapkan data: Data uji ditinggalkan di `tenant_qa-dua` (tidak dibersihkan, agar temuan DIPERBAIKI: endpoint `/api/bank-accounts` digate `can:view bank-accounts`, konsisten dengan halaman modulnya."
     }
   ]
 }

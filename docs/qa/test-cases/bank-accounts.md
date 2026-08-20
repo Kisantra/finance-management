@@ -106,6 +106,8 @@ tangkapan layar. Tidak ada langkah layar yang dikarang.
   `DB::transaction`. Lebih aman lagi: tolak penghapusan bila rekening masih punya
   `payments`, dan minta user memindahkan/menghapus pembayarannya lebih dulu
   (konsisten dengan pola *reassign* di modul Kategori).
+- **DIPERBAIKI**: penghapusan rekening ditolak selama masih ada transaksi, pembayaran invoice, atau pembayaran pinjaman — pesannya menyebut apa saja yang menahan. FK `payments.bank_account_id` juga diubah `restrictOnDelete`.
+
 
 ### BUG-BA-02 — Parameter `sort` & `direction` tab Transaksi tidak divalidasi → HTTP 500 + kebocoran SQL
 
@@ -166,6 +168,8 @@ tangkapan layar. Tidak ada langkah layar yang dikarang.
 - **SARAN PERBAIKAN**: Tambahkan guard sebelum delete:
   `if ($bankAccount->loanPayments()->exists()) { return back()->withErrors(['delete' => 'Rekening ini dipakai pada pembayaran pinjaman dan tidak dapat dihapus.']); }`
   — sejalan dengan gaya pesan guard di `TransactionCategoryController::destroy()`.
+- **DIPERBAIKI**: guard dipasang sebelum delete, sehingga yang muncul pesan penolakan yang menyebut jumlah pembayaran pinjaman, bukan 500 mentah dari pelanggaran FK.
+
 
 ### BUG-BA-05 — `/api/bank-accounts` tidak digate `can:view bank-accounts`
 
@@ -225,3 +229,5 @@ tangkapan layar. Tidak ada langkah layar yang dikarang.
 - **Data uji ditinggalkan di `tenant_qa-dua`** (tidak dibersihkan, agar temuan
   bisa direproduksi): 4 rekening (id 1, 2, 6, 7), 7 `bank_transactions`,
   1 pinjaman + 1 `loan_payment`. Perusahaan lain tidak disentuh.
+- **DIPERBAIKI**: endpoint `/api/bank-accounts` digate `can:view bank-accounts`, konsisten dengan halaman modulnya.
+

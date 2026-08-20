@@ -103,5 +103,4 @@ akan membuat pembaca laporan kehilangan pegangan mana yang benar-benar rusak.
   frontend kini Inertia + React); teks promosi ini tertinggal dari versi lama.
 - **CAKUPAN**: Kosmetik, tetapi menyesatkan siapa pun yang menilai tumpukan
   teknologi aplikasi dari layar login.
-- **SARAN PERBAIKAN**: Ganti dengan angka yang benar-benar mewakili produk, atau
-  hapus kartu statistik itu.
+- **DIPERBAIKI**: kartu diganti menjadi "Multi / Perusahaan & Database" — mewakili kemampuan yang memang ada sekarang (satu database per perusahaan), bukan tumpukan teknologi yang sudah dilepas.

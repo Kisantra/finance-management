@@ -83,3 +83,5 @@ selesai, dengan **role & user sekali-pakai** yang dibersihkan kembali.
   melanjutkan query dengan variabel `$uid` kosong setelah request 500, sehingga
   memunculkan galat sintaks SQL beruntun di output; itu efek lanjutan skrip saya,
   bukan perilaku aplikasi.
+- **DIPERBAIKI**: tujuh aturan validasi diberi prefix koneksi `mysql.` agar menunjuk database pusat tempat `users`/`roles`/`permissions` benar-benar berada.
+
