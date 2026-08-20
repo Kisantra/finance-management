@@ -40,6 +40,7 @@ notifikasi user lain tidak disentuh.
 | N10 | Konvensi `data.url` terisi & ber-prefix perusahaan | Periksa `data` seluruh notifikasi organik | Setiap notifikasi membawa `url` yang dapat dinavigasi | BE | Semua 10 notifikasi feedback membawa `{"url": "http://127.0.0.1:8000/c/qa-lima/feedbacks", "feedback_id": N}` — prefix `/c/qa-lima` benar | Pass |
 | N11 | Integrasi: feedback baru menotifikasi admin + finance manager | Staff `POST /feedbacks` | Notifikasi `feedback_submitted` ke user role admin & finance manager | BE | Per feedback lahir 2 baris: `user_id=1` (Admin) & `user_id=2` (Manager), `type=feedback_submitted`, pesan `"Staff Demo mengirim Bug Report: QA5 Bug laporan tidak muncul"` | Pass |
 | N12 | Integrasi: tanggapan admin menotifikasi **pemilik** feedback | Admin `POST /feedbacks/1/respond` | Notifikasi `feedback_responded` hanya ke pemilik (staff id 3) | BE | Satu baris: `id=54 user_id=3 type=feedback_responded message='Feedback "QA5 Bug laporan (diedit)" telah ditanggapi oleh Admin'` — admin/manager tidak ikut dinotifikasi | Pass |
+| N13 | Drawer notifikasi terbuka dari lonceng header | Klik ikon lonceng di header | Drawer terbuka; bila kosong menampilkan empty state dan tautan ke daftar lengkap | FE+BE | Drawer terbuka dengan empty state (perusahaan `qa-satu` belum punya notifikasi) dan tautan "Lihat semua notifikasi" | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

@@ -30,6 +30,7 @@ selesai, dengan **role & user sekali-pakai** yang dibersihkan kembali.
 | N11 | Sync semua (grant) | POST `/admin/permissions/sync-all` `action=grant` | Role mendapat seluruh permission | BE | **302**; **75 dari 75** | Pass |
 | N12 | Sync semua (revoke) | POST `/admin/permissions/sync-all` `action=revoke` | Seluruh permission dicabut | BE | **302**; **0** | Pass |
 | N13 | Hapus role non-default | DELETE `/admin/roles/{qa-uji-role}` | 302, role hilang | BE | **302**, `COUNT=0` | Pass |
+| N14 | Matriks izin per peran terbaca di layar | Admin buka menu Izin & Peran | Matriks permission x role tampil utuh; ini sumber kebenaran gate seluruh modul | FE+BE | Matriks tampil; dipakai memverifikasi keputusan produk #4 | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

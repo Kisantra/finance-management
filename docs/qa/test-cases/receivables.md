@@ -38,6 +38,7 @@ Debitur uji: User id 3 `Staff Demo` (employee_loan) dan Client id 1
 | N11 | Edit piutang yang ditolak → status kembali `draft` | `PUT /receivables/2` (JSON) sebagai admin: pokok 40.000.000 → 30.000.000, rate 6%, tenor 12 bln | `status=draft`, `rejection_reason=NULL`, cicilan & due_date dihitung ulang | BE | 302. DB id 2: `status=draft`, `rejection_reason=NULL`, `interest_rate=6.00`, `installment_amount=2650000` ((30.000.000+1.800.000)/12), `due_date=2027-06-15`. **Namun `approved_by=2` dan `approved_at=2026-08-19 14:42:06` tidak dibersihkan** — lihat C02 | Pass (dengan catatan) |
 | N12 | Hapus piutang berstatus `draft` tanpa pembayaran | `DELETE /receivables/3` dan `/receivables/2` sebagai admin | 302; record hilang | BE | 302 keduanya; id 2 & 3 hilang dari tabel | Pass |
 | N13 | Staff bisa membuka index piutang | `GET /c/qa-empat/receivables` sebagai staff | 200 (staff punya `view receivables`) | BE | 200 | Pass |
+| N14 | Daftar piutang terbuka dengan debitur polimorfik | Admin buka menu Piutang | Daftar tampil; kolom debitur menampilkan User maupun Klien | FE+BE | Tampil | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

@@ -47,6 +47,7 @@ Akun khusus yang dibuat untuk menguji fallback permission:
 | N10 | Feed transaksi menggabungkan dua sumber | Baca `recentTransactions` | Berisi baris dari `bank_transactions` (dan `payments` bila masuk 8 terbaru) | BE | 8 baris teratas semuanya `bank_transactions` (yang terbaru), mis. `{"date":"2026-07-02","description":"QA5 Debit pada kategori income","type":"expense","amount":222000,"account":"Kas QA5"}` — pembayaran Mar–Mei kalah baru sehingga tidak masuk 8 besar | Pass |
 | N11 | Feed pengajuan dana | Buat fund request oleh staff, baca `recentFundRequests` | Muncul dengan nomor, nominal, status, pemohon | BE | `[{"id":1,"number":"QA5/001/VIII/2026","title":"Uji actionCounts","amount":500000,"status":"pending","priority":"medium","user":"Staff Demo","date":"19 Aug 2026"}]` | Pass |
 | N12 | **`actionCounts` permission-aware** | Bandingkan prop `actionCounts` untuk admin, manager, staff, `qa5-pelapor` dengan 1 fund request `pending` di DB | Admin & manager 1 (punya `approve fund requests`); staff & pelapor 0 | FE+BE | admin `{"reimbursements":0,"fund_requests":1}`; manager `{"reimbursements":0,"fund_requests":1}`; staff `{"reimbursements":0,"fund_requests":0}`; pelapor `{"reimbursements":0,"fund_requests":0}` — badge sidebar tidak bocor ke user tanpa hak review | Pass |
+| N13 | Dashboard perusahaan terbuka utuh di layar | Admin buka /c/qa-satu/dashboard | Kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening tampil | FE+BE | Ketiganya tampil; saldo rekening konsisten dengan bank-accounts N17 | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

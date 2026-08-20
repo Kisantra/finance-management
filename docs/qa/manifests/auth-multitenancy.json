@@ -20,26 +20,14 @@
       "title": "Login admin (1 perusahaan)",
       "verdict": "Pass",
       "note": "HTTP 200 di `/c/kisantra/dashboard`; dashboard tampil dengan data Kisantra",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Halaman masuk sebelum autentikasi — titik awal seluruh alur."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
       "title": "Login manager (2 perusahaan)",
       "verdict": "Pass",
       "note": "Halaman `/choose-company` tampil 2 kartu: \"Kisantra KSN\", \"Semesta SPI\"",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N02-1",
-          "cap": "Pemilih perusahaan muncul untuk akun yang menjadi anggota lebih dari satu perusahaan; tiap kartu menuju /c/{slug}/dashboard."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N03",
@@ -60,13 +48,7 @@
       "title": "Menu sidebar ber-prefix perusahaan segera setelah login (regresi BUG-01)",
       "verdict": "Pass (percobaan ke-2, setelah BUG-01 diperbaiki)",
       "note": "`[\"/c/kisantra/dashboard\",\"/c/kisantra/clients\",\"/c/kisantra/services\",\"/c/kisantra/invoices\",\"/c/kisantra/fund-requests\"]`; klik \"Klien\" → `/c/kisantra/clients`",
-      "attempts": "fp",
-      "steps": [
-        {
-          "img": "N05-2",
-          "cap": "Sidebar tepat setelah login, tanpa reload: seluruh menu sudah ber-prefix /c/{slug} — bukti perbaikan BUG-01."
-        }
-      ]
+      "attempts": "fp"
     },
     {
       "id": "N06",

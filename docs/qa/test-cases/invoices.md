@@ -49,6 +49,7 @@ Catatan gate route: `send` dan `rollback` **hanya** berada di grup
 | N21 | Alur berantai izin: staff membuat, admin mengirim, manager mencatat pembayaran | Staff POST invoice (`3 × 1.000.000`, diskon 5%); admin POST send `004/INV/QS-RP/VIII/2026`; manager POST pembayaran `1.000.000` | Ketiganya berhasil sesuai permission masing-masing | BE | Staff store 302 → DB `id=13 subtotal=3000000 discount_amount=150000 total_amount=2850000 status=draft`. Admin send 302 → `004/INV/QS-RP/VIII/2026 status=sent`. Manager payment 200 → `status=partially_paid` | Pass |
 | N22 | Staff boleh membuka form buat invoice | GET `/c/qa-satu/invoices/create` sebagai staff | 200 | BE | 200 | Pass |
 | N23 | Staff boleh mencatat pembayaran (route digate `can:create invoices`) | POST `/c/qa-satu/invoices/1/payments` `amount=100.000` sebagai staff | 200, pembayaran tercatat | BE | 200 JSON `{"id":5,"amount":100000,…}` | Pass |
+| N24 | Daftar invoice terbuka dengan tab status, filter periode, dan kartu statistik | Admin buka menu Invoice | Tab status, filter periode, dan kartu pendapatan/laba kotor/outstanding tampil | FE+BE | Ketiganya tampil | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

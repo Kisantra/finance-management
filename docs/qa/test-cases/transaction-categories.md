@@ -37,6 +37,7 @@ tidak dikarang sebagai teks di layar.
 | N12 | Hapus kategori yang **tidak** dipakai, tanpa `reassign_to_id` (cabang `$inUse === false`) | `DELETE /transaction-categories/35` (`QA Kategori Manager` — `transactions_count=0`, `children_count=0`, `fri=0`, `rb=0` per N10) | Langsung terhapus tanpa perlu kategori pengganti | BE | HTTP **302**; DB `SELECT COUNT(*) WHERE id=35` → **0**. Cabang `$inUse === false` dieksekusi sungguhan | Pass |
 | N13 | Manager (finance manager) boleh mengelola kategori | `POST /transaction-categories` sebagai `manager@gmail.com` | Diizinkan (`manage categories`) | BE | HTTP **201** `{"id":35,"label":"QA Kategori Manager","type":"expense","parent_id":null}` | Pass |
 | N14 | Batas `label` 255 karakter | `label` berisi 255 karakter `b` | Diterima (batas tepat) | BE | HTTP **201** `id=33` — tersimpan penuh 255 karakter | Pass |
+| N15 | Daftar kategori hierarkis terbaca di layar | Admin buka menu Kategori | Hierarki induk/anak, kolom "Digunakan", dan penanda belum diklasifikasi tampil | FE+BE | Tampil; 28 kategori, 21 belum diklasifikasi | Pass |
 
 ---
 
@@ -78,6 +79,7 @@ tidak dikarang sebagai teks di layar.
 | C02 | Reassign berdampak langsung ke breakdown kategori pada modul Bank Accounts | Kategori 34 (`QA Sementara`, transaksi 55.000) → `DELETE reassign_to_id=29` → baca `detail.category_breakdown` akun 1 | Nilai pindah ke kategori pengganti | BE | Sebelum: `QA Induk Beban 111.000`. Sesudah: `QA Induk Beban 166.000` (111.000 + 55.000). Konsisten. Efek samping: transaksi kini menempel di **parent** → BUG-TC-03 | Pass (perpindahan) |
 | C03 | Kategori bertipe salah merusak breakdown pengeluaran rekening | Setelah A17, baca `detail.category_breakdown` akun 1 bulan 2026-08 | Hanya kategori pengeluaran yang tampil | BE | `[{"name":"QA Anak Beban 2","total":333000},{"name":"QA Pendapatan Lain","total":222000},{"name":"MAKAN MINUM","total":200000},{"name":"QA Induk Beban","total":166000}]` — `QA Pendapatan Lain` (income) **dan** `QA Induk Beban` (parent) ikut masuk daftar pengeluaran → bukti dampak nyata BUG-TC-01 & BUG-TC-02 | **Fail** |
 | C04 | Kategori sistem tetap utuh setelah semua percobaan mutasi | Setelah A13/A14, cek ulang `transaction_categories` ber-`system_key` | Identitas 6 kategori sistem tidak berubah | BE | `id=7 label=Penerimaan Pinjaman type=financing system_key=FIN-LOAN-IN` — utuh. Modul Loans terbukti masih menemukan kategorinya: pembayaran pinjaman membuat `bank_transactions id=8 category_id=8` (`FIN-LOAN-OUT`) secara otomatis | Pass |
+| C05 | Pindahkan-lalu-hapus kategori yang masih dipakai, lewat dialog | Klik hapus pada `MAKAN MINUM` (1 transaksi) → pilih pengganti `OPERASIONAL LUAR KOTA` → Pindahkan & Hapus | Dialog menawarkan pemindahan; tombol nonaktif sampai pengganti dipilih; setelah eksekusi tidak ada baris yatim | FE+BE | Kategori hilang dari daftar. DB: `MAKAN MINUM` 0 baris; transaksi `id=1` kini bertaut `OPERASIONAL LUAR KOTA` | Pass |
 
 ---
 

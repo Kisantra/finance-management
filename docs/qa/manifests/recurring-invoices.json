@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/recurring-invoices",
   "report_out": "../report/Laporan-QA-recurring-invoices.pdf",
   "summary": [
-    "44 test case dirancang untuk modul ini; 37 lolos, 7 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "45 test case dirancang untuk modul ini; 38 lolos, 7 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "4 temuan tercatat (BUG-RI-01, BUG-RI-02, BUG-RI-03, BUG-RI-04). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -65,13 +65,7 @@
       "title": "Subtotal template mengecualikan item `is_tax_deposit`",
       "verdict": "Pass",
       "note": "HTTP 200 `\"Template 'QA Monthly A' berhasil dibuat.\"`. DB `invoice_template`: `\"subtotal\": 1000000, \"total_amount\": 1000000` sedangkan `items[1].amount = 300000, is_tax_deposit: true`. Terbukti dikecualikan",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Tiga tab modul recurring — Templates, Bulanan, Analitik — pada perusahaan yang belum punya template."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -191,6 +185,19 @@
       "verdict": "Pass",
       "note": "HTTP 200 `\"1 invoice berhasil digenerate.\"`",
       "attempts": "p"
+    },
+    {
+      "id": "N19",
+      "title": "Tiga tab modul recurring terbuka di layar",
+      "verdict": "Pass",
+      "note": "Tampil; `qa-satu` belum punya template sehingga empty state muncul",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Tiga tab modul recurring — Templates, Bulanan, Analitik — pada perusahaan yang belum punya template."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

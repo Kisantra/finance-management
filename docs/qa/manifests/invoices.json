@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/invoices",
   "report_out": "../report/Laporan-QA-invoices.pdf",
   "summary": [
-    "72 test case dirancang untuk modul ini; 54 lolos, 17 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "73 test case dirancang untuk modul ini; 55 lolos, 17 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "9 temuan tercatat (I-01, I-02, I-03, I-04, I-05, I-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -120,13 +120,7 @@
       "title": "Buat invoice draft 2 item, item kedua atas nama klien lain",
       "verdict": "Pass",
       "note": "302. DB `id=1`: `invoice_number` kosong/NULL, `status=draft`, `subtotal=3800000`, `total_amount=3800000`. Item `id=1 amount=3000000 client_id=2`, `id=2 amount=800000 client_id=6`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar invoice dengan tab status, filter periode, dan kartu statistik pendapatan/laba kotor/outstanding."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -281,6 +275,19 @@
       "verdict": "Pass",
       "note": "200 JSON `{\"id\":5,\"amount\":100000,…}`",
       "attempts": "p"
+    },
+    {
+      "id": "N24",
+      "title": "Daftar invoice terbuka dengan tab status, filter periode, dan kartu statistik",
+      "verdict": "Pass",
+      "note": "Ketiganya tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar invoice dengan tab status, filter periode, dan kartu statistik pendapatan/laba kotor/outstanding."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

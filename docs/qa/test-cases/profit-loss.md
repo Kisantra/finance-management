@@ -41,6 +41,7 @@ Akun tambahan yang dibuat khusus untuk menguji pemisahan permission:
 | N09 | Unduh PDF laporan | `GET /c/qa-lima/reports/profit-loss/pdf?start_date=2026-01-01&end_date=2026-12-31` | HTTP 200, `Content-Type: application/pdf`, nama file bertanggal, isi = angka yang sama | BE | 200, 5.892 byte, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename=laporan-laba-rugi-2026-01-01-2026-12-31.pdf`, magic `%PDF-1.7`. Teks hasil `pdftotext`: `RP 5.500.000` sebagai LABA BERSIH; blok "Catatan: Ada Transaksi Belum Diklasifikasi" memuat Kembali Dana Rp 150.000 & MAKAN MINUM Rp 250.000 | Pass |
 | N10 | Finance manager boleh melihat laporan | Manager `GET .../reports/profit-loss` | 200 | BE | 200 | Pass |
 | N11 | Prop `unclassifiedTypes` hanya memuat kategori yang masih belum terklasifikasi | Baca props halaman setelah N07 | Map `{category_id: income\|expense}` hanya untuk sisa unclassified | BE | `unclassifiedTypes={"15":"expense","28":"income"}` — tepat 2 kategori yang tersisa | Pass |
+| N12 | Laporan laba rugi tersusun bertingkat di layar | Admin buka menu Laba Rugi | Susunan Pendapatan Usaha → HPP → Laba Kotor → Beban → Laba Bersih tampil, beserta panel klasifikasi kategori | FE+BE | Tampil lengkap dengan panel klasifikasi | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

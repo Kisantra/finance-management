@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/feedbacks",
   "report_out": "../report/Laporan-QA-feedbacks.pdf",
   "summary": [
-    "35 test case dirancang untuk modul ini; 34 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "36 test case dirancang untuk modul ini; 35 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "1 temuan tercatat (BUG-FB-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -32,13 +32,7 @@
       "title": "Staff mengirim feedback",
       "verdict": "Pass",
       "note": "302; DB `id=1 user_id=3 type=bug priority=high status=open`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -130,6 +124,19 @@
       "verdict": "Pass",
       "note": "302; DB `attachment_path=feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png attachment_name=bukti.png`; file ada di `storage/tenantqa-lima/app/public/feedbacks/…`",
       "attempts": "p"
+    },
+    {
+      "id": "N15",
+      "title": "Formulir feedback terbuka dari tombol melayang",
+      "verdict": "Pass",
+      "note": "Modal terbuka; halaman asal terisi otomatis",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

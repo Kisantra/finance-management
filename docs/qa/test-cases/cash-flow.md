@@ -54,6 +54,7 @@ Aktor uji (lihat *Catatan pelaksanaan* soal role `qa3-*` yang dibuat khusus):
 | N18 | Unggah lampiran PNG pada pengeluaran | `POST /bank-transactions` multipart + `attachment=bukti.png` | Tersimpan di `transaction-attachments/` disk public | FE+BE | id 7 `attachment_path=transaction-attachments/Ttrphi….png`, `attachment_name=bukti.png`; file ada di `storage/tenantqa-tiga/app/public/transaction-attachments/` | Pass |
 | N19 | `remove_attachment` menghapus berkas fisik | Buat transaksi berlampiran (id 13) lalu `PUT` dengan `remove_attachment=1` | Kolom lampiran null **dan** file hilang dari disk | BE | `attachment_path` menjadi kosong; jumlah file di folder 3 → 2 | Pass |
 | N20 | Saldo rekening computed mengikuti mutasi | Cek prop `accounts[].balance` setelah tiap mutasi | Saldo = `initial + payments + credit − debit` | BE | Setelah N02–N04: rek1 `104.250.000` (100jt + 2jt + 3jt − 750rb). Setelah transfer N05: rek1 `94.243.500`, rek2 `110.000.000` (biaya admin 6.500 hilang dari total kas) | Pass |
+| N21 | Catat pengeluaran lewat form, termasuk pemilih kategori berjenjang | Menu Pengeluaran → Input Pengeluaran → rekening, kategori `MAKAN MINUM`, Rp 350.000, deskripsi "Konsumsi rapat tim QA" → Simpan | Tersimpan; kartu total & jumlah transaksi ikut naik; induk kategori tidak bisa dipilih | FE+BE | Tersimpan. Induk "OPERATIONAL EXPENSES" hanya tampil sebagai judul grup, tidak dapat dipilih. DB `bank_transactions id=1 amount=350000 transaction_type=debit` | Pass |
 
 ---
 

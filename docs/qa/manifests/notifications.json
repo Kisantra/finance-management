@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/notifications",
   "report_out": "../report/Laporan-QA-notifications.pdf",
   "summary": [
-    "22 test case dirancang untuk modul ini; 21 lolos, 0 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "23 test case dirancang untuk modul ini; 22 lolos, 0 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "Tidak ada temuan bug pada modul ini."
   ],
   "bugs": [],
@@ -20,13 +20,7 @@
       "title": "Shared prop bell: 10 terbaru dari 30 hari terakhir",
       "verdict": "Pass",
       "note": "`recent_count=10`, id `45,44,43,42,41,40,39,38,37,36` — id 46 (40 hari) tidak ada. Cap 10 dan scope `recent(30)` keduanya bekerja",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Drawer notifikasi terbuka dari lonceng header dengan empty state dan tautan ke daftar lengkap."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -104,6 +98,19 @@
       "verdict": "Pass",
       "note": "Satu baris: `id=54 user_id=3 type=feedback_responded message='Feedback \"QA5 Bug laporan (diedit)\" telah ditanggapi oleh Admin'` — admin/manager tidak ikut dinotifikasi",
       "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Drawer notifikasi terbuka dari lonceng header",
+      "verdict": "Pass",
+      "note": "Drawer terbuka dengan empty state (perusahaan `qa-satu` belum punya notifikasi) dan tautan \"Lihat semua notifikasi\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Drawer notifikasi terbuka dari lonceng header dengan empty state dan tautan ke daftar lengkap."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

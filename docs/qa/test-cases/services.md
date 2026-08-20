@@ -27,6 +27,7 @@ Peta permission layanan yang berlaku (dibaca dari `finance_central.role_has_perm
 | N07 | Pengurutan harga menurun | GET `?sort=price&direction=desc` | Harga urut besar→kecil | BE | `99000000 2500000 1500000 800000 0` — urut benar | Pass |
 | N08 | Staff bisa membuka daftar layanan (punya `view services`) | GET `/c/qa-satu/services` sebagai staff | 200 | BE | 200 | Pass |
 | N09 | Hapus layanan (admin) | DELETE `/c/qa-satu/services/1` (`Jasa Izin Usaha`, sedang dipakai 2 invoice item) | 302, baris hilang | BE | 302. DB: `id=1` hilang, tersisa `id=2,3,4,5`. Efeknya ke invoice diuji di C02 | Pass |
+| N10 | Tambah layanan lewat dialog dan dampaknya ke statistik | Menu Layanan → Tambah Layanan → "Audit Laporan Keuangan", kategori Perizinan, Rp 7.500.000 → Simpan | Tersimpan; total layanan naik; rata-rata harga terhitung ulang | FE+BE | Total 5 → 6; rata-rata harga berubah Rp 20.760.000 → Rp 18.550.000 | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

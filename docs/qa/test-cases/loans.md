@@ -26,6 +26,7 @@ id 8, `EXP-INTEREST` id 13.
 | N07 | Edit pinjaman `active` | `PUT /loans/3`: lender `Investor QA Revisi`, `principal_amount` 25.000.000 → 90.000.000, `interest_type` `fixed` → `percentage` `9.5` | Field terbarui; `interest_amount` di-NULL-kan | BE | 302. Loan id 3: `lender_name=Investor QA Revisi`, `principal_amount=90000000`, `interest_type=percentage`, `interest_rate=9.50`, `interest_amount=NULL` | Pass |
 | N08 | Hapus pinjaman yang belum punya pembayaran | `DELETE /loans/3` sebagai admin | 302; record hilang | BE | 302; loan id 3 hilang dari tabel | Pass |
 | N09 | Rumus bunga `percentage` = pokok × rate% / 12 × tenor | Loan id 2: 60.000.000 × 12% / 12 × 6 = Rp 3.600.000 | BE dan FE memakai rumus yang sama | BE | **Diverifikasi lewat baca kode, bukan lewat output aplikasi**: `LoanController.php:205-207` dan `resources/js/pages/loans/index.tsx:659-663` identik. Nilai total bunga tidak dikirim sebagai prop sehingga tidak bisa dibuktikan dari respons; secara tidak langsung dikonfirmasi A07 (bayar bunga 5.000.000 > 3.600.000 tetap diterima karena tidak ada cap) | Pass (verifikasi kode) |
+| N10 | Daftar pinjaman terbuka dengan ringkasan pokok, bunga, dan sisa | Admin buka menu Pinjaman | Daftar dan ringkasan tampil | FE+BE | Tampil | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

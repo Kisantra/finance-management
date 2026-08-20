@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/profit-loss",
   "report_out": "../report/Laporan-QA-profit-loss.pdf",
   "summary": [
-    "28 test case dirancang untuk modul ini; 24 lolos, 2 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "29 test case dirancang untuk modul ini; 25 lolos, 2 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "1 temuan tercatat (BUG-PL-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -32,13 +32,7 @@
       "title": "Buka laporan tanpa filter (default YTD)",
       "verdict": "Pass",
       "note": "200; `period={\"start\":\"2026-01-01\",\"end\":\"2026-08-19\"}` (hari uji 19 Agu 2026)",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha sampai Laba Bersih, dengan panel klasifikasi kategori."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -108,6 +102,19 @@
       "title": "Prop `unclassifiedTypes` hanya memuat kategori yang masih belum terklasifikasi",
       "verdict": "`unclassifiedTypes={\"15\":\"expense\",\"28\":\"income\"}` — tepat 2 kategori yang tersisa",
       "note": "BE"
+    },
+    {
+      "id": "N12",
+      "title": "Laporan laba rugi tersusun bertingkat di layar",
+      "verdict": "Pass",
+      "note": "Tampil lengkap dengan panel klasifikasi",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha sampai Laba Bersih, dengan panel klasifikasi kategori."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

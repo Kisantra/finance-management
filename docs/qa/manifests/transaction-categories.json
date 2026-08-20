@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/transaction-categories",
   "report_out": "../report/Laporan-QA-transaction-categories.pdf",
   "summary": [
-    "41 test case dirancang untuk modul ini; 34 lolos, 6 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "43 test case dirancang untuk modul ini; 36 lolos, 6 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "5 temuan tercatat (BUG-TC-01, BUG-TC-02, BUG-TC-03, BUG-TC-04, BUG-TC-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -76,13 +76,7 @@
       "title": "Buat kategori induk (parent)",
       "verdict": "Pass",
       "note": "HTTP 201 `{\"id\":29,\"label\":\"QA Induk Beban\",\"type\":\"expense\",\"parent_id\":null}`; DB cocok",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar kategori hierarkis dengan kolom \"Digunakan\" dan penanda belum diklasifikasi untuk laporan laba rugi."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -174,6 +168,19 @@
       "verdict": "Pass",
       "note": "HTTP 201 `id=33` — tersimpan penuh 255 karakter",
       "attempts": "p"
+    },
+    {
+      "id": "N15",
+      "title": "Daftar kategori hierarkis terbaca di layar",
+      "verdict": "Pass",
+      "note": "Tampil; 28 kategori, 21 belum diklasifikasi",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar kategori hierarkis dengan kolom \"Digunakan\" dan penanda belum diklasifikasi untuk laporan laba rugi."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
@@ -346,21 +353,7 @@
       "id": "C01",
       "title": "Siapkan kategori yang dipakai tiga tabel sekaligus, lalu reassign",
       "verdict": "fri=1 \\",
-      "note": "PRA `bt=1 \\",
-      "steps": [
-        {
-          "img": "C01-1",
-          "cap": "Kategori yang masih dipakai 1 transaksi: dialog menawarkan pemindahan, bukan menolak mentah-mentah."
-        },
-        {
-          "img": "C01-2",
-          "cap": "Kategori pengganti dipilih; tombol \"Pindahkan & Hapus\" baru aktif setelah pilihan terisi."
-        },
-        {
-          "img": "C01-3",
-          "cap": "Setelah operasi kategori hilang dari daftar. Verifikasi DB: transaksi berpindah ke OPERASIONAL LUAR KOTA, tidak ada baris yatim."
-        }
-      ]
+      "note": "PRA `bt=1 \\"
     },
     {
       "id": "C02",
@@ -382,6 +375,27 @@
       "verdict": "Pass",
       "note": "`id=7 label=Penerimaan Pinjaman type=financing system_key=FIN-LOAN-IN` — utuh. Modul Loans terbukti masih menemukan kategorinya: pembayaran pinjaman membuat `bank_transactions id=8 category_id=8` (`FIN-LOAN-OUT`) secara otomatis",
       "attempts": "p"
+    },
+    {
+      "id": "C05",
+      "title": "Pindahkan-lalu-hapus kategori yang masih dipakai, lewat dialog",
+      "verdict": "Pass",
+      "note": "Kategori hilang dari daftar. DB: `MAKAN MINUM` 0 baris; transaksi `id=1` kini bertaut `OPERASIONAL LUAR KOTA`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Kategori yang masih dipakai 1 transaksi: dialog menawarkan pemindahan, bukan menolak mentah-mentah."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Kategori pengganti dipilih; tombol \"Pindahkan & Hapus\" baru aktif setelah pilihan terisi."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Setelah operasi kategori hilang dari daftar; verifikasi DB menunjukkan tidak ada baris yatim."
+        }
+      ]
     }
   ],
   "tooling_problems": [

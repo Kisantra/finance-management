@@ -46,6 +46,8 @@ tidak dihapus.
 | N23 | Invoice produksi dirender lewat template builder | `GET /c/qa-lima/invoice/1/download?template=builder:3` | 200, PDF | BE | 200, 1.069 byte, magic `%PDF` | Pass |
 | N24 | Redirect sandbox lama | `GET /c/qa-lima/template-builder-test` | 302 ke daftar template, **dengan prefix perusahaan** | BE | 302 `Location: http://127.0.0.1:8000/c/qa-lima/settings/pdf-templates` — benar | Pass |
 | N25 | Hapus template | `DELETE .../pdf-templates/4` lalu `.../pdf-templates/1` | 302; baris hilang | FE+BE | 302 keduanya; DB tersisa id 2 & 3 | Pass |
+| N26 | Halaman pengaturan pribadi terbuka di layar | Admin buka /c/qa-satu/settings/profile | Empat sub-halaman (Profil, Kata Sandi, Profil Perusahaan, Template PDF) tampil di panel kiri | FE+BE | Tampil | Pass |
+| N27 | Profil Perusahaan dapat dibuka admin setelah izin di-seed | Admin buka /c/qa-satu/settings/company | Halaman terbuka untuk pemegang `manage company profile` | FE+BE | GAGAL pada percobaan pertama: **Forbidden** untuk admin sekalipun — izin `manage company profile` belum ada di `finance_central` (BUG-SET-06). **Setelah `MasterPermissionSeeder` dijalankan**: halaman terbuka | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

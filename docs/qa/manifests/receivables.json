@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/receivables",
   "report_out": "../report/Laporan-QA-receivables.pdf",
   "summary": [
-    "34 test case dirancang untuk modul ini; 23 lolos, 9 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "35 test case dirancang untuk modul ini; 24 lolos, 9 gagal, 2 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "8 temuan tercatat (BUG-C4, BUG-C1, BUG-C2, BUG-C3, BUG-C5, BUG-C6, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -109,13 +109,7 @@
       "title": "Buat piutang karyawan (`employee_loan`) — debitur polimorfik ke `User`",
       "verdict": "Pass",
       "note": "302. DB id 1 `RCV-00001`: `debtor_type=App\\Models\\User`, `debtor_id=3`, `status=draft`. Tidak ada `bank_transactions` baru",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar piutang dengan debitur polimorfik (User atau Klien)."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -200,6 +194,19 @@
       "verdict": "Pass",
       "note": "200",
       "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Daftar piutang terbuka dengan debitur polimorfik",
+      "verdict": "Pass",
+      "note": "Tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar piutang dengan debitur polimorfik (User atau Klien)."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

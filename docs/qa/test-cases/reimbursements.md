@@ -29,6 +29,7 @@ KOTA`, 19 `OPERASIONAL`).
 | N09 | Filter index (status / search / kategori / rentang tanggal) | GET index dengan `?status=paid`, `?search=Pulsa`, `?category=medical`, `?date_from=2026-08-01&date_to=2026-08-06` | Masing-masing hanya mengembalikan baris yang cocok | BE | `status=paid` → `N02 Makan tim`, `A05 Obat`. `search=Pulsa` → `N06 Pulsa kantor rev`. `category=medical` → `A05 Obat`. Rentang tanggal → `A05 Obat` (06-08), `N06 Pulsa kantor rev` (05-08). Semua benar | Pass |
 | N10 | Stats agregat index | GET index sebagai admin | `total=3`, `total_amount=2.000.000`, `total_paid=1.900.000` (1.200.000 + 700.000) | BE | `"stats":{"total":3,"total_amount":2000000,"pending_count":0,"approved_count":0,"total_paid":1900000}` — cocok | Pass |
 | N11 | Saldo rekening (computed) berkurang persis sebesar pembayaran | GET `/c/qa-empat/bank-accounts` setelah 4 pembayaran reimbursement | `QA Ops` = 500.000.000 − (400.000+800.000+700.000) = 498.100.000; `QA Cadangan` = 100.000.000 − 200.000 = 99.800.000 | BE | Props: `QA Ops balance=498100000`, `QA Cadangan balance=99800000` — cocok persis | Pass |
+| N12 | Daftar reimbursement terbuka dengan tab Semua/Saya | Admin buka menu Reimbursement | Tab dan kartu status tampil | FE+BE | Tampil | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

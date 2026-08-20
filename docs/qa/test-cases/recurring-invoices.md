@@ -41,6 +41,7 @@ dari payload Inertia (`data-page="app"`).
 | N16 | Diskon percentage dihitung atas subtotal yang **sudah** mengecualikan titipan pajak | `POST /templates` `QA Diskon C`, `discount_type=percentage&discount_value=10`, item normal 2.000.000 + titipan pajak 1.000.000 | subtotal 2.000.000, diskon 200.000, total 1.800.000 | BE | DB: `sub=2000000 disc=200000 tot=1800000`. Titipan pajak 1.000.000 tidak ikut di mana pun | Pass |
 | N17 | Statistik bulanan (tab Monthly) | `GET /recurring-invoices?tab=monthly&month=2&year=2026` | `stats` konsisten dengan `invoice_data` | BE | `{"total_revenue":1000000,"total_cogs":100000,"total_profit":900000,"profit_margin":90,"outstanding_profit":0,"paid_profit":900000}`, `invoices=1` | Pass |
 | N18 | Manager boleh generate | `POST /monthly/generate` `month=6&year=2026` sebagai `manager@gmail.com` | Diizinkan | BE | HTTP **200** `"1 invoice berhasil digenerate."` | Pass |
+| N19 | Tiga tab modul recurring terbuka di layar | Admin buka menu Invoice Berulang | Tab Templates / Bulanan / Analitik tampil; empty state saat belum ada template | FE+BE | Tampil; `qa-satu` belum punya template sehingga empty state muncul | Pass |
 
 ---
 

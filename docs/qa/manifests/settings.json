@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/settings",
   "report_out": "../report/Laporan-QA-settings.pdf",
   "summary": [
-    "50 test case dirancang untuk modul ini; 47 lolos, 2 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "52 test case dirancang untuk modul ini; 49 lolos, 2 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "6 temuan tercatat (BUG-SET-01, BUG-SET-02, BUG-SET-03, CATATAN-SET-04, CATATAN-SET-05, BUG-SET-06). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -82,13 +82,7 @@
       "title": "Halaman pengaturan pribadi terbuka untuk user biasa",
       "verdict": "Pass",
       "note": "200 dan 200",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Pengaturan profil pribadi: empat sub-halaman di panel kiri."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -102,13 +96,7 @@
       "title": "Ganti email me-null-kan `email_verified_at`",
       "verdict": "Pass",
       "note": "302; DB `email=qa5-sandi2@qa.test email_verified_at=NULL` (sebelumnya `2026-08-19 14:50:41`)",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N03-1",
-          "cap": "Profil Perusahaan terbuka kembali untuk admin setelah seeder izin dijalankan — lihat BUG-SET-06."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N04",
@@ -263,6 +251,32 @@
       "verdict": "Pass",
       "note": "302 keduanya; DB tersisa id 2 & 3",
       "attempts": "p"
+    },
+    {
+      "id": "N26",
+      "title": "Halaman pengaturan pribadi terbuka di layar",
+      "verdict": "Pass",
+      "note": "Tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Pengaturan profil pribadi: empat sub-halaman di panel kiri."
+        }
+      ]
+    },
+    {
+      "id": "N27",
+      "title": "Profil Perusahaan dapat dibuka admin setelah izin di-seed",
+      "verdict": "Pass",
+      "note": "GAGAL pada percobaan pertama: Forbidden untuk admin sekalipun — izin `manage company profile` belum ada di `finance_central` (BUG-SET-06). Setelah `MasterPermissionSeeder` dijalankan: halaman terbuka",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Profil Perusahaan terbuka kembali untuk admin setelah seeder izin dijalankan — lihat BUG-SET-06."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

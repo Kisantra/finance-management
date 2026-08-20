@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/dashboard",
   "report_out": "../report/Laporan-QA-dashboard.pdf",
   "summary": [
-    "22 test case dirancang untuk modul ini; 21 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "23 test case dirancang untuk modul ini; 22 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "2 temuan tercatat (TEMUAN-DASH-01, CATATAN-DASH-02). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -43,13 +43,7 @@
       "title": "Admin membuka dashboard",
       "verdict": "Pass",
       "note": "200; props berisi `financialOverview, stats, cashFlowChart, expensesByCategory, bankAccounts, pendingInvoices, recentTransactions, recentReimbursements, recentFundRequests` (9 blok, lengkap)",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Dashboard perusahaan QA Satu: kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening dengan saldo terhitung."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -127,6 +121,19 @@
       "verdict": "Pass",
       "note": "admin `{\"reimbursements\":0,\"fund_requests\":1}`; manager `{\"reimbursements\":0,\"fund_requests\":1}`; staff `{\"reimbursements\":0,\"fund_requests\":0}`; pelapor `{\"reimbursements\":0,\"fund_requests\":0}` — badge sidebar tidak bocor ke user tanpa hak review",
       "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Dashboard perusahaan terbuka utuh di layar",
+      "verdict": "Pass",
+      "note": "Ketiganya tampil; saldo rekening konsisten dengan bank-accounts N17",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Dashboard QA Satu: kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening dengan saldo terhitung."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

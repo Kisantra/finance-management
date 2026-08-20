@@ -44,6 +44,7 @@ HTTP dengan cookie sesi asli + verifikasi database & filesystem. Bukan productio
 | N12 | Pengelola menghapus feedback milik orang lain apa pun statusnya | Admin `DELETE /feedbacks/2` (milik user 9) | 302; baris hilang | FE+BE | 302; DB baris id=2 tidak ada lagi | Pass |
 | N13 | Pemilik menghapus feedback miliknya saat `open` | Staff `DELETE /feedbacks/4` (status `open`) | 302; baris hilang | FE+BE | 302; DB baris id=4 tidak ada lagi | Pass |
 | N14 | Unggah lampiran gambar yang sah | Staff `POST /feedbacks` multipart dengan PNG 1×1 asli | 302; `attachment_path` & `attachment_name` terisi, file ada di disk | FE+BE | 302; DB `attachment_path=feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png attachment_name=bukti.png`; file ada di `storage/tenantqa-lima/app/public/feedbacks/…` | Pass |
+| N15 | Formulir feedback terbuka dari tombol melayang | Klik tombol Feedback di pojok kanan bawah | Modal terbuka dengan pilihan tipe & prioritas; halaman asal terisi otomatis | FE+BE | Modal terbuka; halaman asal terisi otomatis | Pass |
 
 ## B. Kondisi Tidak Normal / Edge Case
 

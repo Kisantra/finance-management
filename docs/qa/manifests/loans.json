@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/loans",
   "report_out": "../report/Laporan-QA-loans.pdf",
   "summary": [
-    "26 test case dirancang untuk modul ini; 20 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "27 test case dirancang untuk modul ini; 21 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "4 temuan tercatat (BUG-L1, BUG-L2, BUG-L3, BUG-L4). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -65,13 +65,7 @@
       "title": "Buat pinjaman bunga `fixed` → otomatis mencatat dana masuk",
       "verdict": "Pass",
       "note": "302. Loan id 1 `status=active`, `interest_amount=12000000`, `interest_rate=NULL`. `bank_transactions` id 5: `credit`, `amount=100000000`, `transaction_date=2026-08-01`, `category_id=7` (terisi, bukan NULL), `description=Penerimaan pinjaman dari Bank QA Sejahtera`, `reference_number=LOAN-00001`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar pinjaman dengan ringkasan pokok, bunga, dan sisa."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -128,6 +122,19 @@
       "verdict": "Pass (verifikasi kode)",
       "note": "Diverifikasi lewat baca kode, bukan lewat output aplikasi: `LoanController.php:205-207` dan `resources/js/pages/loans/index.tsx:659-663` identik. Nilai total bunga tidak dikirim sebagai prop sehingga tidak bisa dibuktikan dari respons; secara tidak langsung dikonfirmasi A07 (bayar bunga 5.000.000 › 3.600.000 tetap diterima karena tidak ada cap)",
       "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Daftar pinjaman terbuka dengan ringkasan pokok, bunga, dan sisa",
+      "verdict": "Pass",
+      "note": "Tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar pinjaman dengan ringkasan pokok, bunga, dan sisa."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/admin-users-permissions",
   "report_out": "../report/Laporan-QA-admin-users-permissions.pdf",
   "summary": [
-    "25 test case dirancang untuk modul ini; 25 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "26 test case dirancang untuk modul ini; 26 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "1 temuan tercatat (BUG-ADM-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -39,13 +39,7 @@
       "title": "Admin membuka matriks permission",
       "verdict": "Pass",
       "note": "HTTP 200",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N02-1",
-          "cap": "Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N03",
@@ -123,6 +117,19 @@
       "verdict": "Pass",
       "note": "302, `COUNT=0`",
       "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Matriks izin per peran terbaca di layar",
+      "verdict": "Pass",
+      "note": "Matriks tampil; dipakai memverifikasi keputusan produk #4",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

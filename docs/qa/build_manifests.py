@@ -78,115 +78,118 @@ SEBAGIAN = {
 # cuma hiasan. Hanya case yang benar-benar dijalankan lewat layar yang punya
 # entri di sini — sisanya dieksekusi lewat HTTP dan dinyatakan demikian.
 BUKTI_LAYAR = {
-    'auth-multitenancy': {
-        'N01': [('N01-1', 'Halaman masuk sebelum autentikasi — titik awal seluruh alur.')],
-        'N02': [('N02-1', 'Pemilih perusahaan muncul untuk akun yang menjadi anggota lebih '
-                          'dari satu perusahaan; tiap kartu menuju /c/{slug}/dashboard.')],
-        'N05': [('N05-2', 'Sidebar tepat setelah login, tanpa reload: seluruh menu sudah '
-                          'ber-prefix /c/{slug} — bukti perbaikan BUG-01.')],
-    },
-    'clients': {
-        'N01': [('N01-1', 'Daftar klien dengan statistik dan kolom ringkasan penagihan.')],
-        'N02': [('N02-1', 'Dialog tambah klien terbuka dari tombol Tambah Klien.'),
-                ('N02-2', 'Form terisi: tipe Perusahaan dipilih, NPWP dan PIC diisi.'),
-                ('N02-3', 'Klien tersimpan — jumlah total naik 5 menjadi 6 dan baris baru '
-                          'tampil lengkap dengan NPWP-nya.')],
-        'C02': [('C02-1', 'Konfirmasi hapus untuk klien yang masih punya 1 invoice: teks '
-                          'menyebut jumlah invoice dan menyatakan penghapusan tidak bisa '
-                          'dilakukan — sebelumnya teks ini justru menjanjikan invoice ikut '
-                          'terhapus.'),
-                ('C02-2', 'Server menolak penghapusan dan menyebut invoice penahannya; '
-                          'baris klien tetap ada di tabel.')],
-    },
-    'dashboard': {
-        'N01': [('N01-1', 'Dashboard perusahaan QA Satu: kartu ringkasan, grafik arus kas '
-                          '6 bulan, dan daftar rekening dengan saldo terhitung.')],
-    },
-    'invoices': {
-        'N01': [('N01-1', 'Daftar invoice dengan tab status, filter periode, dan kartu '
-                          'statistik pendapatan/laba kotor/outstanding.')],
-    },
-    'profit-loss': {
-        'N01': [('N01-1', 'Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha '
-                          'sampai Laba Bersih, dengan panel klasifikasi kategori.')],
-    },
-    'feedbacks': {
-        'N01': [('N01-1', 'Tombol feedback melayang membuka formulir dengan pilihan tipe '
-                          'dan prioritas; halaman asal terisi otomatis.')],
-    },
-    'services': {
-        'N01': [('N01-1', 'Katalog layanan dengan statistik harga rata-rata dan tertinggi.')],
-        'N02': [('N02-1', 'Form tambah layanan terisi: nama, kategori Perizinan, harga '
-                          'Rp 7.500.000 lewat CurrencyInput.'),
-                ('N02-2', 'Layanan tersimpan — total naik 5→6 dan rata-rata harga ikut '
-                          'terhitung ulang menjadi Rp 18.550.000.')],
-    },
-    'cash-flow': {
-        'N01': [('N01-1', 'Halaman Pengeluaran kosong — periode default "Semua waktu", '
-                          'bukan bulan berjalan.'),
-                ('N01-2', 'Pemilih kategori: induk "OPERATIONAL EXPENSES" hanya jadi judul '
-                          'grup, hanya anak (↳ MAKAN MINUM) yang bisa dipilih.'),
-                ('N01-3', 'Pengeluaran tersimpan Rp 350.000 dan langsung terhitung di kartu '
-                          'total serta jumlah transaksi.')],
-    },
-    'transaction-categories': {
-        'N01': [('N01-1', 'Daftar kategori hierarkis dengan kolom "Digunakan" dan penanda '
-                          'belum diklasifikasi untuk laporan laba rugi.')],
-        'C01': [('C01-1', 'Kategori yang masih dipakai 1 transaksi: dialog menawarkan '
-                          'pemindahan, bukan menolak mentah-mentah.'),
-                ('C01-2', 'Kategori pengganti dipilih; tombol "Pindahkan & Hapus" baru aktif '
-                          'setelah pilihan terisi.'),
-                ('C01-3', 'Setelah operasi kategori hilang dari daftar. Verifikasi DB: '
-                          'transaksi berpindah ke OPERASIONAL LUAR KOTA, tidak ada baris '
-                          'yatim.')],
+    'admin-users-permissions': {
+        'N14': [
+            ('N02-1', 'Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul.'),
+        ],
     },
     'bank-accounts': {
-        'N01': [('N01-1', 'Saldo Rp 14.850.000 dihitung ulang dari saldo awal + pemasukan − '
-                          'pengeluaran, bukan disimpan; breakdown kategori juga sudah '
-                          'mengikuti hasil pemindahan kategori.')],
+        'N17': [
+            ('N01-1', 'Saldo Rp 14.850.000 dihitung ulang dari saldo awal + pemasukan − pengeluaran, bukan disimpan.'),
+        ],
+    },
+    'cash-flow': {
+        'N21': [
+            ('N01-1', 'Halaman Pengeluaran kosong — periode default "Semua waktu", bukan bulan berjalan.'),
+            ('N01-2', 'Pemilih kategori: induk hanya menjadi judul grup, hanya anak (↳ MAKAN MINUM) yang bisa dipilih.'),
+            ('N01-3', 'Pengeluaran tersimpan Rp 350.000 dan langsung terhitung di kartu total serta jumlah transaksi.'),
+        ],
+    },
+    'clients': {
+        'N12': [
+            ('N01-1', 'Daftar klien dengan statistik dan kolom ringkasan penagihan.'),
+            ('N02-1', 'Dialog tambah klien terbuka dari tombol Tambah Klien.'),
+            ('N02-2', 'Form terisi: tipe Perusahaan dipilih, NPWP dan PIC diisi.'),
+            ('N02-3', 'Klien tersimpan — jumlah total naik 5 menjadi 6 dan baris baru tampil lengkap dengan NPWP-nya.'),
+        ],
+        'N13': [
+            ('C02-1', 'Konfirmasi hapus menyebut jumlah invoice dan menyatakan penghapusan tidak bisa dilakukan — sebelumnya justru menjanjikan invoice ikut terhapus.'),
+            ('C02-2', 'Server menolak penghapusan dan menyebut invoice penahannya; baris klien tetap ada di tabel.'),
+        ],
+    },
+    'dashboard': {
+        'N13': [
+            ('N01-1', 'Dashboard QA Satu: kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening dengan saldo terhitung.'),
+        ],
+    },
+    'feedbacks': {
+        'N15': [
+            ('N01-1', 'Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis.'),
+        ],
     },
     'fund-requests': {
-        'N01': [('N01-1', 'Daftar permintaan dana kosong dengan kartu status per tahap.')],
-        'N02': [('N02-1', 'Form pengajuan: nomor ter-generate otomatis per perusahaan '
-                          '(001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000.'),
-                ('N02-2', 'Pengajuan masuk berstatus Pending Review; badge sidebar '
-                          'menampilkan 1 item menunggu.')],
-        'C01': [('C01-1', 'Dialog persetujuan menampilkan pemohon dan nominal sebelum '
-                          'keputusan diambil.'),
-                ('C01-2', 'Status berpindah ke Approved dan tombol aksi berganti menjadi '
-                          'Cairkan.'),
-                ('C01-3', 'Dialog pencairan: catatan opsional (perbaikan nullable) dan bukti '
-                          'bayar terunggah lewat drag & drop.'),
-                ('C01-4', 'Status akhir Disbursed tanpa catatan pencairan diisi. DB: '
-                          'transaksi pengeluaran Rp 1.200.000 terbentuk dengan lampiran.'),
-                ('C01-5', 'Berkas bukti bayar terbuka lewat URL storage per-perusahaan '
-                          '(/c/qa-satu/storage/…) — bukti BUG-02 tertutup end-to-end.')],
+        'N18': [
+            ('N01-1', 'Daftar permintaan dana kosong dengan kartu status per tahap.'),
+            ('N02-1', 'Form pengajuan: nomor ter-generate otomatis per perusahaan (001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000.'),
+            ('N02-2', 'Pengajuan masuk berstatus Pending Review; badge sidebar menampilkan 1 item menunggu.'),
+        ],
+        'C05': [
+            ('C01-1', 'Dialog persetujuan menampilkan pemohon dan nominal sebelum keputusan diambil.'),
+            ('C01-2', 'Status berpindah ke Approved dan tombol aksi berganti menjadi Cairkan.'),
+            ('C01-3', 'Dialog pencairan: catatan opsional (perbaikan nullable) dan bukti bayar terunggah lewat drag & drop.'),
+            ('C01-4', 'Status akhir Disbursed tanpa catatan pencairan diisi.'),
+            ('C01-5', 'Berkas bukti bayar terbuka lewat URL storage per-perusahaan — bukti BUG-02 tertutup.'),
+        ],
     },
-    'reimbursements': {
-        'N01': [('N01-1', 'Daftar reimbursement dengan tab Semua/Saya dan kartu status.')],
+    'invoices': {
+        'N24': [
+            ('N01-1', 'Daftar invoice dengan tab status, filter periode, dan kartu statistik pendapatan/laba kotor/outstanding.'),
+        ],
     },
     'loans': {
-        'N01': [('N01-1', 'Daftar pinjaman dengan ringkasan pokok, bunga, dan sisa.')],
-    },
-    'receivables': {
-        'N01': [('N01-1', 'Daftar piutang dengan debitur polimorfik (User atau Klien).')],
-    },
-    'recurring-invoices': {
-        'N01': [('N01-1', 'Tiga tab modul recurring — Templates, Bulanan, Analitik — pada '
-                          'perusahaan yang belum punya template.')],
+        'N10': [
+            ('N01-1', 'Daftar pinjaman dengan ringkasan pokok, bunga, dan sisa.'),
+        ],
     },
     'notifications': {
-        'N01': [('N01-1', 'Drawer notifikasi terbuka dari lonceng header dengan empty state '
-                          'dan tautan ke daftar lengkap.')],
+        'N13': [
+            ('N01-1', 'Drawer notifikasi terbuka dari lonceng header dengan empty state dan tautan ke daftar lengkap.'),
+        ],
+    },
+    'profit-loss': {
+        'N12': [
+            ('N01-1', 'Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha sampai Laba Bersih, dengan panel klasifikasi kategori.'),
+        ],
+    },
+    'receivables': {
+        'N14': [
+            ('N01-1', 'Daftar piutang dengan debitur polimorfik (User atau Klien).'),
+        ],
+    },
+    'recurring-invoices': {
+        'N19': [
+            ('N01-1', 'Tiga tab modul recurring — Templates, Bulanan, Analitik — pada perusahaan yang belum punya template.'),
+        ],
+    },
+    'reimbursements': {
+        'N12': [
+            ('N01-1', 'Daftar reimbursement dengan tab Semua/Saya dan kartu status.'),
+        ],
+    },
+    'services': {
+        'N10': [
+            ('N01-1', 'Katalog layanan dengan statistik harga rata-rata dan tertinggi.'),
+            ('N02-1', 'Form tambah layanan terisi: nama, kategori Perizinan, harga Rp 7.500.000 lewat CurrencyInput.'),
+            ('N02-2', 'Layanan tersimpan — total naik 5→6 dan rata-rata harga ikut terhitung ulang menjadi Rp 18.550.000.'),
+        ],
     },
     'settings': {
-        'N01': [('N01-1', 'Pengaturan profil pribadi: empat sub-halaman di panel kiri.')],
-        'N03': [('N03-1', 'Profil Perusahaan terbuka kembali untuk admin setelah seeder izin '
-                          'dijalankan — lihat BUG-SET-06.')],
+        'N26': [
+            ('N01-1', 'Pengaturan profil pribadi: empat sub-halaman di panel kiri.'),
+        ],
+        'N27': [
+            ('N03-1', 'Profil Perusahaan terbuka kembali untuk admin setelah seeder izin dijalankan — lihat BUG-SET-06.'),
+        ],
     },
-    'admin-users-permissions': {
-        'N02': [('N02-1', 'Matriks izin per peran — sumber kebenaran permission yang '
-                          'menggate seluruh modul.')],
+    'transaction-categories': {
+        'N15': [
+            ('N01-1', 'Daftar kategori hierarkis dengan kolom "Digunakan" dan penanda belum diklasifikasi untuk laporan laba rugi.'),
+        ],
+        'C05': [
+            ('C01-1', 'Kategori yang masih dipakai 1 transaksi: dialog menawarkan pemindahan, bukan menolak mentah-mentah.'),
+            ('C01-2', 'Kategori pengganti dipilih; tombol "Pindahkan & Hapus" baru aktif setelah pilihan terisi.'),
+            ('C01-3', 'Setelah operasi kategori hilang dari daftar; verifikasi DB menunjukkan tidak ada baris yatim.'),
+        ],
     },
 }
 

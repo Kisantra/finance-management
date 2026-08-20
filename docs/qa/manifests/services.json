@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/services",
   "report_out": "../report/Laporan-QA-services.pdf",
   "summary": [
-    "25 test case dirancang untuk modul ini; 25 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "26 test case dirancang untuk modul ini; 26 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "2 temuan tercatat (S-01, S-02). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -43,30 +43,14 @@
       "title": "Buat layanan untuk tiap tipe resmi (4 varian)",
       "verdict": "Pass",
       "note": "4× 302. DB `id=1..4` dengan `price` `1500000 / 750000 / 2500000 / 12000000` — tidak ada pembulatan/desimal",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Katalog layanan dengan statistik harga rata-rata dan tertinggi."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
       "title": "`price = 0` (batas bawah yang sah)",
       "verdict": "Pass",
       "note": "302, DB `id=5 price=0`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N02-1",
-          "cap": "Form tambah layanan terisi: nama, kategori Perizinan, harga Rp 7.500.000 lewat CurrencyInput."
-        },
-        {
-          "img": "N02-2",
-          "cap": "Layanan tersimpan — total naik 5→6 dan rata-rata harga ikut terhitung ulang menjadi Rp 18.550.000."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N03",
@@ -116,6 +100,27 @@
       "verdict": "Pass",
       "note": "302. DB: `id=1` hilang, tersisa `id=2,3,4,5`. Efeknya ke invoice diuji di C02",
       "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Tambah layanan lewat dialog dan dampaknya ke statistik",
+      "verdict": "Pass",
+      "note": "Total 5 → 6; rata-rata harga berubah Rp 20.760.000 → Rp 18.550.000",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Katalog layanan dengan statistik harga rata-rata dan tertinggi."
+        },
+        {
+          "img": "N02-1",
+          "cap": "Form tambah layanan terisi: nama, kategori Perizinan, harga Rp 7.500.000 lewat CurrencyInput."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Layanan tersimpan — total naik 5→6 dan rata-rata harga ikut terhitung ulang menjadi Rp 18.550.000."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

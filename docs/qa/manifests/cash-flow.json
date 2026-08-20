@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/cash-flow",
   "report_out": "../report/Laporan-QA-cash-flow.pdf",
   "summary": [
-    "56 test case dirancang untuk modul ini; 50 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "57 test case dirancang untuk modul ini; 51 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "5 temuan tercatat (BUG-CF-01, BUG-CF-02, BUG-CF-03, BUG-CF-04, BUG-CF-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -76,21 +76,7 @@
       "title": "Redirect index cash-flow",
       "verdict": "Pass",
       "note": "`302 → http://127.0.0.1:8000/c/qa-tiga/cash-flow/income`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Halaman Pengeluaran kosong — periode default \"Semua waktu\", bukan bulan berjalan."
-        },
-        {
-          "img": "N01-2",
-          "cap": "Pemilih kategori: induk \"OPERATIONAL EXPENSES\" hanya jadi judul grup, hanya anak (↳ MAKAN MINUM) yang bisa dipilih."
-        },
-        {
-          "img": "N01-3",
-          "cap": "Pengeluaran tersimpan Rp 350.000 dan langsung terhitung di kartu total serta jumlah transaksi."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -224,6 +210,27 @@
       "verdict": "Pass",
       "note": "Setelah N02–N04: rek1 `104.250.000` (100jt + 2jt + 3jt − 750rb). Setelah transfer N05: rek1 `94.243.500`, rek2 `110.000.000` (biaya admin 6.500 hilang dari total kas)",
       "attempts": "p"
+    },
+    {
+      "id": "N21",
+      "title": "Catat pengeluaran lewat form, termasuk pemilih kategori berjenjang",
+      "verdict": "Pass",
+      "note": "Tersimpan. Induk \"OPERATIONAL EXPENSES\" hanya tampil sebagai judul grup, tidak dapat dipilih. DB `bank_transactions id=1 amount=350000 transaction_type=debit`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Halaman Pengeluaran kosong — periode default \"Semua waktu\", bukan bulan berjalan."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Pemilih kategori: induk hanya menjadi judul grup, hanya anak (↳ MAKAN MINUM) yang bisa dipilih."
+        },
+        {
+          "img": "N01-3",
+          "cap": "Pengeluaran tersimpan Rp 350.000 dan langsung terhitung di kartu total serta jumlah transaksi."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

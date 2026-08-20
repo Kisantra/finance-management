@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/reimbursements",
   "report_out": "../report/Laporan-QA-reimbursements.pdf",
   "summary": [
-    "32 test case dirancang untuk modul ini; 24 lolos, 8 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "33 test case dirancang untuk modul ini; 25 lolos, 8 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "7 temuan tercatat (BUG-R1, BUG-R2, BUG-R3, BUG-R4, BUG-R5, BUG-R6, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -98,13 +98,7 @@
       "title": "Staff membuat reimbursement sebagai draft",
       "verdict": "Pass",
       "note": "302. DB id 1: `status=draft`, `payment_status=unpaid`, `category_input=transport`, `category_id=NULL`, `amount_paid=0`, `user_id=3`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar reimbursement dengan tab Semua/Saya dan kartu status."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
@@ -175,6 +169,19 @@
       "verdict": "Pass",
       "note": "Props: `QA Ops balance=498100000`, `QA Cadangan balance=99800000` — cocok persis",
       "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Daftar reimbursement terbuka dengan tab Semua/Saya",
+      "verdict": "Pass",
+      "note": "Tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar reimbursement dengan tab Semua/Saya dan kartu status."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"

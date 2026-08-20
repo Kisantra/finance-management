@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/fund-requests",
   "report_out": "../report/Laporan-QA-fund-requests.pdf",
   "summary": [
-    "47 test case dirancang untuk modul ini; 37 lolos, 10 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "49 test case dirancang untuk modul ini; 39 lolos, 10 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "7 temuan tercatat (BUG-FR-01, BUG-FR-02, BUG-FR-03, BUG-FR-04, BUG-FR-05, BUG-FR-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -98,30 +98,14 @@
       "title": "Buat pengajuan draft + total dihitung dari item",
       "verdict": "Pass",
       "note": "302. DB: `id=1 status=draft total_amount=1850000`; item id 1 `amount=1500000`, item id 2 `amount=350000`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar permintaan dana kosong dengan kartu status per tahap."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
       "title": "Penomoran otomatis",
       "verdict": "Pass",
       "note": "`\"001/TIG/VIII/2026\"` (abbreviation `TIG` dari profil perusahaan \"QA Tiga\", bulan VIII, tahun 2026)",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N02-1",
-          "cap": "Form pengajuan: nomor ter-generate otomatis per perusahaan (001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000."
-        },
-        {
-          "img": "N02-2",
-          "cap": "Pengajuan masuk berstatus Pending Review; badge sidebar menampilkan 1 item menunggu."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N03",
@@ -227,6 +211,27 @@
       "verdict": "Pass",
       "note": "`\"disbursement_account_name\":\"QA3 Rek 1 — Bank QA3\"`, `\"disbursement_attachment_name\":\"bukti.png\"`, `\"disbursement_attachment_url\":\"/storage/transaction-attachments/hkI8PT….png\"` — isi prop benar (rekening & nama berkas diambil dari `BankTransaction` tertaut), tetapi URL-nya tidak bisa dibuka; kegagalan URL dilacak terpisah di A21",
       "attempts": "p"
+    },
+    {
+      "id": "N18",
+      "title": "Ajukan permintaan dana lewat form, nomor ter-generate otomatis",
+      "verdict": "Pass",
+      "note": "Nomor `001/SAT/VIII/2026`; total Rp 1.200.000; status Pending Review; badge sidebar menampilkan 1",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar permintaan dana kosong dengan kartu status per tahap."
+        },
+        {
+          "img": "N02-1",
+          "cap": "Form pengajuan: nomor ter-generate otomatis per perusahaan (001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Pengajuan masuk berstatus Pending Review; badge sidebar menampilkan 1 item menunggu."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
@@ -421,29 +426,7 @@
       "title": "Siklus penuh lintas aktor & lintas modul",
       "verdict": "Pass",
       "note": "Semua langkah sesuai. Cash Flow `?search=Pencairan` → `stats={\"total_amount\":1850000,\"total_count\":2}`, baris 16 `1.500.000 / OPERASIONAL` dan 17 `350.000 / MAKAN MINUM`, `reference_number=REF-CAIR-QA3-001`. Saldo rek 1 `92.460.500 → 90.610.500`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "C01-1",
-          "cap": "Dialog persetujuan menampilkan pemohon dan nominal sebelum keputusan diambil."
-        },
-        {
-          "img": "C01-2",
-          "cap": "Status berpindah ke Approved dan tombol aksi berganti menjadi Cairkan."
-        },
-        {
-          "img": "C01-3",
-          "cap": "Dialog pencairan: catatan opsional (perbaikan nullable) dan bukti bayar terunggah lewat drag & drop."
-        },
-        {
-          "img": "C01-4",
-          "cap": "Status akhir Disbursed tanpa catatan pencairan diisi. DB: transaksi pengeluaran Rp 1.200.000 terbentuk dengan lampiran."
-        },
-        {
-          "img": "C01-5",
-          "cap": "Berkas bukti bayar terbuka lewat URL storage per-perusahaan (/c/qa-satu/storage/…) — bukti BUG-02 tertutup end-to-end."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "C02",
@@ -465,6 +448,35 @@
       "verdict": "Fail",
       "note": "`bank_transactions id=18 debit 100.000 category_id=5`. Halaman Expenses memuat id `17,16,10,13,6,2` — tanpa id 18; halaman Income juga tidak memuatnya (arah `debit`). Saldo rek 2 tetap turun `109.667.000 → 109.567.000`. Pengeluaran Rp 100.000 tidak muncul di layar mana pun. Lihat BUG-FR-05 (+ BUG-CF-04)",
       "attempts": "f"
+    },
+    {
+      "id": "C05",
+      "title": "Siklus penuh lewat layar: ajukan → setujui → cairkan + bukti bayar",
+      "verdict": "Pass",
+      "note": "Pending → Approved → Disbursed tanpa catatan diisi. DB: `bank_transactions id=2` Rp 1.200.000 debit dengan `attachment_path` terisi. Berkas terbuka di `/c/qa-satu/storage/transaction-attachments/…` — BUG-02 tertutup end-to-end lewat UI",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Dialog persetujuan menampilkan pemohon dan nominal sebelum keputusan diambil."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Status berpindah ke Approved dan tombol aksi berganti menjadi Cairkan."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Dialog pencairan: catatan opsional (perbaikan nullable) dan bukti bayar terunggah lewat drag & drop."
+        },
+        {
+          "img": "C01-4",
+          "cap": "Status akhir Disbursed tanpa catatan pencairan diisi."
+        },
+        {
+          "img": "C01-5",
+          "cap": "Berkas bukti bayar terbuka lewat URL storage per-perusahaan — bukti BUG-02 tertutup."
+        }
+      ]
     }
   ],
   "tooling_problems": [

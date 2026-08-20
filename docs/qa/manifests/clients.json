@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/clients",
   "report_out": "../report/Laporan-QA-clients.pdf",
   "summary": [
-    "32 test case dirancang untuk modul ini; 26 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "34 test case dirancang untuk modul ini; 28 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "4 temuan tercatat (C-01, C-02, C-03, C-04). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -65,34 +65,14 @@
       "title": "Buat klien badan usaha dengan seluruh field pajak",
       "verdict": "Pass",
       "note": "302. DB: `id=1`, semua kolom terisi persis seperti input",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N01-1",
-          "cap": "Daftar klien dengan statistik dan kolom ringkasan penagihan."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N02",
       "title": "Buat klien perorangan hanya dengan field wajib",
       "verdict": "Pass",
       "note": "302. DB: `id=2`, `email/NPWP/KPP/EFIN/address/person_in_charge` semua `IS NULL = 1`",
-      "attempts": "p",
-      "steps": [
-        {
-          "img": "N02-1",
-          "cap": "Dialog tambah klien terbuka dari tombol Tambah Klien."
-        },
-        {
-          "img": "N02-2",
-          "cap": "Form terisi: tipe Perusahaan dipilih, NPWP dan PIC diisi."
-        },
-        {
-          "img": "N02-3",
-          "cap": "Klien tersimpan — jumlah total naik 5 menjadi 6 dan baris baru tampil lengkap dengan NPWP-nya."
-        }
-      ]
+      "attempts": "p"
     },
     {
       "id": "N03",
@@ -156,6 +136,48 @@
       "verdict": "Pass (dengan catatan)",
       "note": "200, 6 entri urut nama. Catatan: endpoint ini mengembalikan klien Inactive juga (`CV Kosong Field`, `PT Alpha Beta Gamma`), berbeda dengan `/invoices/create` yang memfilter `Active`",
       "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Buat klien badan usaha lewat dialog, dengan NPWP dan PIC",
+      "verdict": "Pass",
+      "note": "Total naik 5 → 6; baris baru tampil lengkap dengan NPWP",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar klien dengan statistik dan kolom ringkasan penagihan."
+        },
+        {
+          "img": "N02-1",
+          "cap": "Dialog tambah klien terbuka dari tombol Tambah Klien."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Form terisi: tipe Perusahaan dipilih, NPWP dan PIC diisi."
+        },
+        {
+          "img": "N02-3",
+          "cap": "Klien tersimpan — jumlah total naik 5 menjadi 6 dan baris baru tampil lengkap dengan NPWP-nya."
+        }
+      ]
+    },
+    {
+      "id": "N13",
+      "title": "Dialog hapus klien menyatakan penolakan, bukan menjanjikan cascade",
+      "verdict": "Pass",
+      "note": "GAGAL pada percobaan pertama: dialog masih berbunyi \"Semua invoice terkait akan ikut dihapus\" padahal server sudah menolak. Setelah diperbaiki (`resources/js/pages/clients/index.tsx`): teks menyebut \"masih memiliki 1 invoice\" dan penghapusan ditolak sambil menyebut nomor invoice penahannya",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "Konfirmasi hapus menyebut jumlah invoice dan menyatakan penghapusan tidak bisa dilakukan — sebelumnya justru menjanjikan invoice ikut terhapus."
+        },
+        {
+          "img": "C02-2",
+          "cap": "Server menolak penghapusan dan menyebut invoice penahannya; baris klien tetap ada di tabel."
+        }
+      ]
     },
     {
       "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
@@ -287,17 +309,7 @@
       "title": "Efek samping C01 — item milik klien terhapus di invoice milik klien lain, header invoice jadi tidak konsisten",
       "verdict": "Fail (TEMUAN C-02)",
       "note": "Item `id=2` ikut terhapus. Query: `id=1 / 001/INV/QS-RP/VIII/2026 / partially_paid / header_subtotal=3800000 / sum_item=3000000`. Invoice bernomor & sudah dibayar sebagian kini rusak: header ≠ isi",
-      "attempts": "f",
-      "steps": [
-        {
-          "img": "C02-1",
-          "cap": "Konfirmasi hapus untuk klien yang masih punya 1 invoice: teks menyebut jumlah invoice dan menyatakan penghapusan tidak bisa dilakukan — sebelumnya teks ini justru menjanjikan invoice ikut terhapus."
-        },
-        {
-          "img": "C02-2",
-          "cap": "Server menolak penghapusan dan menyebut invoice penahannya; baris klien tetap ada di tabel."
-        }
-      ]
+      "attempts": "f"
     },
     {
       "id": "C03",
