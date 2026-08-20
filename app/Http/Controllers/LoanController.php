@@ -148,6 +148,15 @@ class LoanController extends Controller
 
     public function update(UpdateLoanRequest $request, Loan $loan): RedirectResponse
     {
+        // Nominal pokok dan tanggal mulai sudah tercermin di mutasi bank.
+        // Mengubahnya tanpa menyinkronkan transaksi membuat saldo dan riwayat
+        // pinjaman bercerita berbeda, jadi keduanya dikunci begitu pencairan
+        // tercatat. Kolom lain (nama pemberi pinjaman, catatan, lampiran)
+        // tetap dapat disunting.
+        $adaPencairan = BankTransaction::where('reference_number', $loan->loan_number)
+            ->where('transaction_type', 'credit')
+            ->exists();
+
         abort_if($loan->status !== 'active', 403, 'Pinjaman yang sudah lunas tidak dapat diedit');
 
         $validated = $request->validated();
@@ -168,12 +177,14 @@ class LoanController extends Controller
 
         $loan->update([
             'lender_name' => $validated['lender_name'],
-            'principal_amount' => $validated['principal_amount'],
+            // Nominal pokok & tanggal mulai dipertahankan bila pencairannya
+            // sudah tercatat di bank (lihat catatan di awal metode).
+            'principal_amount' => $adaPencairan ? $loan->principal_amount : $validated['principal_amount'],
             'interest_type' => $validated['interest_type'],
             'interest_amount' => $validated['interest_type'] === 'fixed' ? $validated['interest_amount'] : null,
             'interest_rate' => $validated['interest_type'] === 'percentage' ? $validated['interest_rate'] : null,
             'term_months' => $validated['term_months'],
-            'start_date' => $validated['start_date'],
+            'start_date' => $adaPencairan ? $loan->start_date : $validated['start_date'],
             'maturity_date' => $validated['maturity_date'],
             'purpose' => $validated['purpose'] ?? null,
             'contract_attachment' => $attachmentPath,
@@ -186,13 +197,26 @@ class LoanController extends Controller
     {
         abort_if($loan->payments()->exists(), 403, 'Pinjaman yang sudah memiliki pembayaran tidak dapat dihapus');
 
-        if ($loan->contract_attachment) {
-            Storage::disk('public')->delete($loan->contract_attachment);
-        }
+        DB::transaction(function () use ($loan) {
+            // Pencairan pinjaman membentuk transaksi masuk di bank, ditautkan
+            // lewat `reference_number` = nomor pinjaman. Menghapus pinjamannya
+            // saja meninggalkan dana masuk yatim yang menggelembungkan saldo
+            // tanpa dokumen pendukung. Karena penghapusan hanya diizinkan
+            // selama belum ada pembayaran, membalik pencairannya aman.
+            BankTransaction::where('reference_number', $loan->loan_number)
+                ->where('transaction_type', 'credit')
+                ->get()
+                ->each
+                ->delete();
 
-        $loan->delete();
+            if ($loan->contract_attachment) {
+                Storage::disk('public')->delete($loan->contract_attachment);
+            }
 
-        return back()->with('success', 'Pinjaman berhasil dihapus');
+            $loan->delete();
+        });
+
+        return back()->with('success', 'Pinjaman berhasil dihapus beserta mutasi pencairannya');
     }
 
     public function pay(PayLoanRequest $request, Loan $loan): RedirectResponse
@@ -280,9 +304,22 @@ class LoanController extends Controller
 
     private function generateLoanNumber(): string
     {
-        $latest = Loan::latest('id')->first();
-        $nextId = $latest ? $latest->id + 1 : 1;
+        // Diturunkan dari NOMOR terbesar yang sudah dipakai, bukan dari id
+        // terakhir. `loan_number` boleh diketik manual dan barisnya boleh
+        // dihapus, sehingga urutan id dan urutan nomor bisa berbeda — prefill
+        // berbasis id lalu menawarkan nomor yang sudah terpakai.
+        $terbesar = Loan::query()
+            ->pluck('loan_number')
+            ->map(fn ($n) => (int) preg_replace('/\D/', '', (string) $n))
+            ->max() ?? 0;
 
-        return 'LOAN-'.str_pad($nextId, 5, '0', STR_PAD_LEFT);
+        $urut = $terbesar + 1;
+
+        do {
+            $nomor = 'LOAN-'.str_pad((string) $urut, 5, '0', STR_PAD_LEFT);
+            $urut++;
+        } while (Loan::where('loan_number', $nomor)->exists());
+
+        return $nomor;
     }
 }

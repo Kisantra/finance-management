@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/loans",
   "report_out": "../report/Laporan-QA-loans.pdf",
   "summary": [
-    "27 test case dirancang untuk modul ini; 21 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "27 test case dirancang untuk modul ini; 27 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "4 temuan tercatat (BUG-L1, BUG-L2, BUG-L3, BUG-L4). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -30,7 +30,6 @@
       "gejala": "Setelah ada loan bernomor `LOAN-00006` dengan `id=5`, server mengirim `nextLoanNumber = \"LOAN-00006\"`. Form yang disubmit apa adanya ditolak 422 `The loan number has already been taken.`",
       "sebab": "`app/Http/Controllers/LoanController.php:267-273` `generateLoanNumber()` menurunkan nomor dari `id` terakhir + 1, bukan dari nomor terbesar yang sudah dipakai. Karena `loan_number` boleh diketik manual (dan record boleh dihapus), urutan `id` dan urutan nomor bisa berbeda.",
       "cakupan": "Setiap perusahaan yang pernah mengetik nomor pinjaman manual atau menghapus pinjaman. Bukan korupsi data — validasi `unique` tetap jadi penjaga terakhir — tetapi menghambat alur create.",
-      "perbaikan": "Turunkan nomor dari `MAX(CAST(SUBSTRING(loan_number, 6) AS UNSIGNED))` + 1, dan/atau ulangi increment sampai menemukan nomor yang belum dipakai.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -40,8 +39,7 @@
       "cases": "C02, C03.",
       "gejala": "(a) Pokok diubah 25.000.000 → 90.000.000 dan lender diganti, tetapi `bank_transactions` id 13 tetap `amount=25000000` dengan deskripsi nama lender lama. (b) Pinjaman dihapus, transaksi credit Rp 25.000.000 tetap tinggal sebagai dana masuk tanpa sumber; saldo rekening tetap membesar.",
       "sebab": "`LoanController::update()` (baris 149-183) hanya memanggil `$loan-›update(...)`; `LoanController::destroy()` (baris 185-196) hanya menghapus loan + lampiran. Tidak ada relasi/hook antara `Loan` dan `BankTransaction` (keterkaitan hanya lewat `reference_number` berupa string).",
-      "cakupan": "Role dengan `edit loans` / `delete loans` (admin, finance manager). Dampak: saldo bank dan Cash Flow tidak lagi bisa direkonsiliasi dengan daftar pinjaman.",
-      "perbaikan": "Simpan FK `bank_transaction_id` pada `loans` saat pencairan, lalu (a) sinkronkan `amount`/`description`/`transaction_date` saat update, dan (b) hapus atau buat transaksi pembalik saat destroy — semuanya dalam satu `DB::transaction`. Alternatif minimal: larang mengubah `principal_amount`/`start_date` setelah pencairan dan tampilkan peringatan eksplisit saat menghapus.",
+      "cakupan": "Role dengan `edit loans` / `delete loans` (admin, finance manager). Dampak: saldo bank dan Cash Flow tidak lagi bisa direkonsiliasi dengan daftar pinjaman. - DIPERBAIKI dengan gabungan: `destroy()` menghapus mutasi pencairan dalam satu `DB::transaction` (aman karena penghapusan memang hanya diizinkan selama belum ada pembayaran), dan `update()` mengunci `principal_amount`/`start_date` begitu pencairan tercatat sementara kolom lain tetap dapat disunting. Menambah FK `bank_transaction_id` ditunda: itu perubahan skema yang perlu backfill untuk pinjaman lama, sedangkan penautan lewat `reference_number` sudah cukup untuk kedua jalur ini. Ditutup dua tes regresi, salah satunya memeriksa saldo kembali ke nol setelah penghapusan.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -184,16 +182,16 @@
     {
       "id": "A07",
       "title": "Bayar bunga melebihi total bunga",
-      "verdict": "Fail (BUG-L1)",
-      "note": "302 — DITERIMA penuh. `loan_payments` id 3 `interest_paid=5000000`; `bank_transactions` id 10 debit 5.000.000 kategori `EXP-INTEREST`. Label FE `Pembayaran Bunga (maks. Rp 3.600.000)` hanya kosmetik",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pembayaran pokok melebihi sisa diterima. Setelah BUG-L1 diperbaiki: ditolak dengan pesan yang menyebut sisa pokok aktual",
+      "attempts": "fp"
     },
     {
       "id": "A08",
       "title": "Bayar pokok melebihi sisa pokok",
-      "verdict": "Fail (BUG-L1)",
-      "note": "302 — DITERIMA. Akumulasi pokok terbayar 130.000.000 atas pokok 100.000.000 → sisa −30.000.000, `status=paid_off`. `bank_transactions` id 12 mendebit rekening penuh 100.000.000",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pembayaran bunga melebihi sisa diterima. Setelah diperbaiki: ditolak dengan menyebut sisa bunga",
+      "attempts": "fp"
     },
     {
       "id": "A09",
@@ -226,9 +224,15 @@
     {
       "id": "A13",
       "title": "Prefill `nextLoanNumber` bentrok dengan nomor yang sudah dipakai",
-      "verdict": "Fail (BUG-L2)",
-      "note": "Prefill yang dikirim server = `LOAN-00006`, padahal nomor itu sudah dipakai loan id 5. Submit apa adanya → 422 `{\"loan_number\":[\"The loan number has already been taken.\"]}`. User harus mengarang nomor sendiri",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: prefill nomor diturunkan dari id terakhir, sehingga menawarkan nomor yang sudah dipakai. Setelah BUG-L2 diperbaiki: diturunkan dari NOMOR terbesar lalu dinaikkan sampai bebas. Ditutup tes regresi",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A13-1",
+          "cap": "Modul Pinjaman; prefill nomor kini diturunkan dari nomor terbesar yang sudah dipakai, bukan dari id terakhir, sehingga tidak lagi menawarkan nomor yang sudah ada."
+        }
+      ]
     },
     {
       "section": "C. ALUR BERANTAI"
@@ -243,23 +247,23 @@
     {
       "id": "C02",
       "title": "Edit pinjaman tidak mengoreksi mutasi bank",
-      "verdict": "Fail (BUG-L3, invarian terdokumentasi)",
-      "note": "Loan menjadi Rp 90.000.000 atas nama `Investor QA Revisi`, tetapi `bank_transactions` id 13 tetap `amount=25000000` dengan deskripsi `Penerimaan pinjaman dari Investor QA` (nama lama). Buku kas dan catatan utang berbeda Rp 65.000.000",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: mengubah pokok/tanggal tidak mengoreksi mutasi bank. Setelah BUG-L3 diperbaiki: keduanya dikunci setelah pencairan tercatat; kolom lain tetap dapat disunting",
+      "attempts": "fp"
     },
     {
       "id": "C03",
       "title": "Hapus pinjaman meninggalkan dana masuk yatim",
-      "verdict": "Fail (BUG-L3, invarian terdokumentasi)",
-      "note": "Loan hilang, tetapi `bank_transactions` id 13 (credit Rp 25.000.000, kategori `FIN-LOAN-IN`, `reference_number=LOAN-00003`) tetap ada. Saldo `QA Ops` tetap naik 25.000.000 tanpa utang yang menaunginya",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: menghapus pinjaman meninggalkan dana masuk yatim yang menggelembungkan saldo. Setelah BUG-L3 diperbaiki: mutasi pencairan ikut dihapus dalam satu transaksi DB, saldo kembali seperti semula. Ditutup tes regresi",
+      "attempts": "fp"
     },
     {
       "id": "C04",
       "title": "Bunga pinjaman masuk Laporan Laba Rugi sebagai \"Beban Lain\"",
-      "verdict": "Fail (BUG-L4)",
-      "note": "Pokok memang tidak masuk P&L (benar), tetapi `other_expense.by_category` kosong — `Beban Bunga Pinjaman` (kategori id 13) muncul di blok `unclassified.expense`, bukan \"Beban Lain\"",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: beban bunga tidak masuk baris Beban Lain karena `pl_group` NULL. Setelah BUG-L4 diperbaiki: seeder mengisi `other_expense`/`other_income`, dan migration backfill menutup tenant yang sudah ada",
+      "attempts": "fp"
     }
   ],
   "tooling_problems": [

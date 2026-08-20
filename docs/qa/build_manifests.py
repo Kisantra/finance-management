@@ -252,6 +252,7 @@ BUKTI_LAYAR = {
         ],
     },
     'loans': {
+        'A13': [('A13-1', 'Modul Pinjaman; prefill nomor kini diturunkan dari nomor terbesar yang sudah dipakai, bukan dari id terakhir, sehingga tidak lagi menawarkan nomor yang sudah ada.')],
         'N10': [
             ('N01-1', 'Daftar pinjaman dengan ringkasan pokok, bunga, dan sisa.'),
         ],
