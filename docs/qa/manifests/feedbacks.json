@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/feedbacks",
   "report_out": "../report/Laporan-QA-feedbacks.pdf",
   "summary": [
-    "36 test case dirancang untuk modul ini; 35 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "36 test case dirancang untuk modul ini; 36 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "1 temuan tercatat (BUG-FB-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -19,7 +19,6 @@
       "gejala": "Feedback id 4 milik staff berisi lampiran `bukti.png` tersimpan di `storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png`. Setelah pemilik menghapus feedback (`DELETE /c/qa-lima/feedbacks/4` → 302, baris hilang dari `feedbacks`), berkas itu masih ada persis di path yang sama. Dokumentasi modul menyatakan sebaliknya: \"Hapus feedback otomatis menghapus lampirannya (hook `deleting`)\".",
       "sebab": "Ketidakcocokan disk antara penyimpanan dan penghapusan. - `app/Http/Controllers/FeedbackController.php:92` menyimpan ke disk `public`: `$file-›store('feedbacks', 'public')`. - `app/Models/Feedback.php:322-326` menghapus dari disk default: `Storage::exists($feedback-›attachment_path)` / `Storage::delete(...)` tanpa `disk('public')`. - `config/filesystems.php:16` → default `env('FILESYSTEM_DISK', 'local')`, dan `.env` menyetel `FILESYSTEM_DISK=local`. Karena berkas tidak pernah ada di disk `local`, `Storage::exists()` selalu `false` dan blok hapus tidak pernah berjalan — tanpa error, tanpa log.",
       "cakupan": "Setiap penghapusan feedback berlampiran, oleh pemilik maupun pengelola. Berkas menumpuk tanpa batas dan tetap dapat diunduh siapa pun yang menyimpan URL-nya (disk `public` dilayani `TenantStorageController`). Sebagai pembanding: `CustomFontController` melakukan hal yang benar — pada uji Settings N14 penghapusan font berhasil menghapus berkasnya dari disk, sehingga masalah ini spesifik pada modul Feedback, bukan keterbatasan lingkungan.",
-      "perbaikan": "Samakan disk di hook: `Storage::disk('public')-›exists(...)` / `Storage::disk('public')-›delete(...)` di `app/Models/Feedback.php:322-326`. Sekalian pertimbangkan menambahkan tes regresi yang memverifikasi ketiadaan berkas setelah `delete()`, karena kegagalan jenis ini tidak memunculkan gejala apa pun di jalur happy-path.",
       "status": "SUDAH DIPERBAIKI"
     }
   ],
@@ -270,9 +269,15 @@
     {
       "id": "A19",
       "title": "Lampiran ikut terhapus saat feedback dihapus",
-      "verdict": "Fail (BUG-FB-01)",
-      "note": "Baris hilang (302, DB bersih), tetapi file masih ada di `storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png`",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: berkas lampiran tertinggal di disk karena hook memakai disk default sementara berkas disimpan ke disk `public`. Setelah BUG-FB-01 diperbaiki: hook memakai `Storage::disk('public')`. Ditutup tes regresi yang mengunggah, menghapus, lalu memastikan berkasnya hilang",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Modul Feedback; lampiran kini benar-benar terhapus dari disk saat feedback dihapus (dibuktikan tes regresi, karena kegagalannya tak bergejala di layar)."
+        }
+      ]
     },
     {
       "section": "C. ALUR BERANTAI"

@@ -220,6 +220,7 @@ BUKTI_LAYAR = {
         ],
     },
     'feedbacks': {
+        'A19': [('A19-1', 'Modul Feedback; lampiran kini benar-benar terhapus dari disk saat feedback dihapus (dibuktikan tes regresi, karena kegagalannya tak bergejala di layar).')],
         'N15': [
             ('N01-1', 'Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis.'),
         ],
@@ -263,6 +264,8 @@ BUKTI_LAYAR = {
         ],
     },
     'profit-loss': {
+        'A09': [('A09-1', 'Panel "Perlu Diklasifikasi" menangkap Rp 1.550.000 yang belum masuk laporan — sebelumnya nilai dengan arah/tipe tak cocok hilang total tanpa jejak.')],
+        'A10': [('A09-1', 'Jaring pengaman yang sama menampilkan kategorinya beserta nominalnya, bukan mendiamkannya.')],
         'N12': [
             ('N01-1', 'Laporan Laba Rugi tersusun bertingkat dari Pendapatan Usaha sampai Laba Bersih, dengan panel klasifikasi kategori.'),
         ],

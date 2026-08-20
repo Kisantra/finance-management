@@ -68,7 +68,7 @@ HTTP dengan cookie sesi asli + verifikasi database & filesystem. Bukan productio
 | A16 | Lampiran berekstensi terlarang | Unggah `jahat.exe` | 422 | BE | 422 `{"attachment":["The attachment field must be a file of type: jpg, jpeg, png, pdf."]}` | Pass |
 | A17 | Berkas bukan gambar yang disamarkan | Unggah berkas berisi byte acak dengan header `\x89PNG` palsu, nama `.png` | 422 (validasi `mimes` membaca isi, bukan nama) | BE | 422 dengan pesan sama — validasi menolak berdasarkan isi berkas | Pass |
 | A18 | Menghapus feedback yang sudah tidak ada | `DELETE /feedbacks/2` setelah dihapus admin | 404 | BE | 404 | Pass |
-| A19 | **Lampiran ikut terhapus saat feedback dihapus** | Catat path file → staff `DELETE /feedbacks/4` (status `open`, punya lampiran) → cek disk | Baris hilang **dan** file hilang dari disk (hook `deleting` model) | FE+BE | Baris hilang (302, DB bersih), tetapi file **masih ada** di `storage/tenantqa-lima/app/public/feedbacks/Z6T3OrrbxDlUKpTutF39OZ9s9W4VQiw16AIoo4Xd.png` | **Fail** (BUG-FB-01) |
+| A19 | **Lampiran ikut terhapus saat feedback dihapus** | Catat path file → staff `DELETE /feedbacks/4` (status `open`, punya lampiran) → cek disk | Baris hilang **dan** file hilang dari disk (hook `deleting` model) | BE | GAGAL pada percobaan pertama: berkas lampiran tertinggal di disk karena hook memakai disk default sementara berkas disimpan ke disk `public`. **Setelah BUG-FB-01 diperbaiki**: hook memakai `Storage::disk('public')`. Ditutup tes regresi yang mengunggah, menghapus, lalu memastikan berkasnya hilang | Pass (percobaan ke-2) |
 
 ## C. Alur Berantai
 
@@ -89,7 +89,7 @@ HTTP dengan cookie sesi asli + verifikasi database & filesystem. Bukan productio
   - `app/Models/Feedback.php:322-326` menghapus dari disk **default**: `Storage::exists($feedback->attachment_path)` / `Storage::delete(...)` tanpa `disk('public')`.
   - `config/filesystems.php:16` → default `env('FILESYSTEM_DISK', 'local')`, dan `.env` menyetel `FILESYSTEM_DISK=local`. Karena berkas tidak pernah ada di disk `local`, `Storage::exists()` selalu `false` dan blok hapus tidak pernah berjalan — tanpa error, tanpa log.
 - **CAKUPAN**: Setiap penghapusan feedback berlampiran, oleh pemilik maupun pengelola. Berkas menumpuk tanpa batas dan tetap dapat diunduh siapa pun yang menyimpan URL-nya (disk `public` dilayani `TenantStorageController`). Sebagai pembanding: `CustomFontController` melakukan hal yang benar — pada uji Settings N14 penghapusan font **berhasil** menghapus berkasnya dari disk, sehingga masalah ini spesifik pada modul Feedback, bukan keterbatasan lingkungan.
-- **SARAN PERBAIKAN**: Samakan disk di hook: `Storage::disk('public')->exists(...)` / `Storage::disk('public')->delete(...)` di `app/Models/Feedback.php:322-326`. Sekalian pertimbangkan menambahkan tes regresi yang memverifikasi ketiadaan berkas setelah `delete()`, karena kegagalan jenis ini tidak memunculkan gejala apa pun di jalur happy-path.
+- **DIPERBAIKI**: hook memakai `Storage::disk('public')`, dan tes regresi yang disarankan itu memang ditambahkan (`FeedbackAttachmentTest`) — kegagalan jenis ini tidak memunculkan gejala apa pun tanpa tes. Saran asli: samakan disk di hook: `Storage::disk('public')->exists(...)` / `Storage::disk('public')->delete(...)` di `app/Models/Feedback.php:322-326`. Sekalian pertimbangkan menambahkan tes regresi yang memverifikasi ketiadaan berkas setelah `delete()`, karena kegagalan jenis ini tidak memunculkan gejala apa pun di jalur happy-path.
 
 ## Catatan pelaksanaan
 
