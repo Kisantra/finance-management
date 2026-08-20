@@ -159,7 +159,7 @@ class ReceivableController extends Controller
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
-            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 2) : 0;
+            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 4) : 0;
         } else {
             $interestRate = (float) ($validated['interest_rate'] ?? 0);
             $totalInterest = (int) round($principalAmount * $interestRate / 100);
@@ -219,7 +219,7 @@ class ReceivableController extends Controller
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
-            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 2) : 0;
+            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 4) : 0;
         } else {
             $interestRate = (float) ($validated['interest_rate'] ?? 0);
             $totalInterest = (int) round($principalAmount * $interestRate / 100);
@@ -244,8 +244,14 @@ class ReceivableController extends Controller
             'disbursement_account' => $validated['disbursement_account'],
             'contract_attachment_path' => $attachmentPath,
             'contract_attachment_name' => $attachmentName,
+            // Jejak persetujuan/penolakan lama harus ikut bersih. Tanpa ini,
+            // piutang yang direvisi setelah ditolak tetap membawa `approved_by`
+            // dan `approved_at` dari siklus sebelumnya — terbaca seolah revisi
+            // barunya sudah pernah disetujui orang.
             'status' => 'draft',
             'rejection_reason' => null,
+            'approved_by' => null,
+            'approved_at' => null,
         ]);
 
         return back()->with('success', 'Piutang berhasil diperbarui');

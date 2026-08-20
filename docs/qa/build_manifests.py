@@ -268,6 +268,9 @@ BUKTI_LAYAR = {
         ],
     },
     'receivables': {
+        'A10': [('A10-1', 'Modul Piutang; pembayaran bermetode transfer kini wajib menyertakan rekening, sehingga tidak ada lagi pembayaran yang mengurangi piutang tanpa mutasi bank.')],
+        'A11': [('A10-1', 'Debitur divalidasi keberadaannya sesuai jenis piutang, bukan sekadar diterima sebagai angka.')],
+        'A12': [('A10-1', 'Jenis piutang dan jenis debitur kini harus cocok; ketidakcocokan ditolak dengan pesan yang menyebut karyawan/klien.')],
         'N14': [
             ('N01-1', 'Daftar piutang dengan debitur polimorfik (User atau Klien).'),
         ],
