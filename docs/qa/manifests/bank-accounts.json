@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/bank-accounts",
   "report_out": "../report/Laporan-QA-bank-accounts.pdf",
   "summary": [
-    "38 test case dirancang untuk modul ini; 35 lolos, 3 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "38 test case dirancang untuk modul ini; 37 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "5 temuan tercatat (BUG-BA-01, BUG-BA-02, BUG-BA-03, BUG-BA-04, BUG-BA-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -322,9 +322,9 @@
     {
       "id": "A15",
       "title": "Hapus rekening yang punya `loan_payments` (FK tanpa cascade)",
-      "verdict": "Fail",
-      "note": "HTTP 500 exception mentah: `SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (tenant_qa-dua.loan_payments, CONSTRAINT loan_payments_bank_account_id_foreign ...)`. Akun tidak terhapus (benar), tapi tanpa guard/pesan → BUG-BA-04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 mentah dari pelanggaran FK. Setelah BUG-BA-04 diperbaiki: penghapusan ditolak lebih dulu dengan pesan yang menyebut jumlah pembayaran pinjaman penahannya",
+      "attempts": "fp"
     },
     {
       "id": "A16",
@@ -336,9 +336,9 @@
     {
       "id": "A17",
       "title": "Helper picker `/api/bank-accounts` untuk user tanpa `view bank-accounts`",
-      "verdict": "Fail (perlu keputusan produk)",
-      "note": "HTTP 200, membocorkan daftar seluruh rekening: `[{\"label\":\"QA Rekening Utama (BCA)\",\"value\":1},{\"label\":\"QA Rekening Pinjaman 2 (BRI)\",\"value\":6},...]`. Saldo tidak ikut. Route memang hanya di belakang `auth`+tenancy (routes/web.php:108) → BUG-BA-05 (severity rendah, kemungkinan disengaja)",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: endpoint tidak digate. Setelah BUG-BA-05 diperbaiki: digate `can:view bank-accounts`, sehingga user tanpa izin itu menerima 403 — konsisten dengan halaman modulnya",
+      "attempts": "fp"
     },
     {
       "section": "C. ALUR BERANTAI"

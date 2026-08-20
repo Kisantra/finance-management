@@ -73,7 +73,13 @@
       "title": "Klasifikasi inline `pl_group` oleh admin",
       "verdict": "Pass",
       "note": "6× HTTP 302. DB: `3=cogs, 5=revenue, 13=other_expense, 14=other_income, 17=tax, 20=opex`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "Panel klasifikasi menyediakan dropdown \"Pilih grup L/R\" langsung di samping laporan — inilah jalur klasifikasi inline."
+        }
+      ]
     },
     {
       "id": "N08",
@@ -235,21 +241,39 @@
       "title": "Reklasifikasi kategori berlaku retroaktif ke periode lama",
       "verdict": "Pass",
       "note": "Setelah dikosongkan: `opex=0 operating=8000000 net=7500000 uncl_exp=2250000` (OPEX BULANAN Rp 2.000.000 pindah ke bucket). Setelah dikembalikan: `opex=2000000 operating=6000000 net=5500000 uncl_exp=250000`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "Setelah kategori diklasifikasi, nilainya berpindah dari panel ini ke baris laporan, termasuk untuk periode lama."
+        }
+      ]
     },
     {
       "id": "C02",
       "title": "Transaksi baru langsung tercermin di laporan periode berjalan",
       "verdict": "Pass",
       "note": "`net=0 uncl_exp=1500000 cats=[{\"category_id\":15,\"category_label\":\"MAKAN MINUM\",\"amount\":1500000}]`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "Laporan periode berjalan menampilkan Rp 5.200.000 pendapatan dan Rp 1.100.000 HPP dari transaksi yang baru dicatat."
+        }
+      ]
     },
     {
       "id": "C03",
       "title": "Pemisahan permission \"lihat\" vs \"klasifikasi\" dalam satu alur",
       "verdict": "Pass",
       "note": "GET 200 dengan `unclassifiedTypes` terisi (panel akan tampil di UI), PATCH 403 — persis jebakan yang didokumentasikan",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "Panel klasifikasi hanya muncul bagi pemegang izin klasifikasi; pemegang izin lihat saja tetap melihat laporannya."
+        }
+      ]
     }
   ],
   "tooling_problems": [

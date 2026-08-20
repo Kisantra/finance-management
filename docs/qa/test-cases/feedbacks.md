@@ -68,7 +68,7 @@ HTTP dengan cookie sesi asli + verifikasi database & filesystem. Bukan productio
 | A16 | Lampiran berekstensi terlarang | Unggah `jahat.exe` | 422 | BE | 422 `{"attachment":["The attachment field must be a file of type: jpg, jpeg, png, pdf."]}` | Pass |
 | A17 | Berkas bukan gambar yang disamarkan | Unggah berkas berisi byte acak dengan header `\x89PNG` palsu, nama `.png` | 422 (validasi `mimes` membaca isi, bukan nama) | BE | 422 dengan pesan sama — validasi menolak berdasarkan isi berkas | Pass |
 | A18 | Menghapus feedback yang sudah tidak ada | `DELETE /feedbacks/2` setelah dihapus admin | 404 | BE | 404 | Pass |
-| A19 | **Lampiran ikut terhapus saat feedback dihapus** | Catat path file → staff `DELETE /feedbacks/4` (status `open`, punya lampiran) → cek disk | Baris hilang **dan** file hilang dari disk (hook `deleting` model) | BE | GAGAL pada percobaan pertama: berkas lampiran tertinggal di disk karena hook memakai disk default sementara berkas disimpan ke disk `public`. **Setelah BUG-FB-01 diperbaiki**: hook memakai `Storage::disk('public')`. Ditutup tes regresi yang mengunggah, menghapus, lalu memastikan berkasnya hilang | Pass (percobaan ke-2) |
+| A19 | **Lampiran ikut terhapus saat feedback dihapus** | Catat path file → staff `DELETE /feedbacks/4` (status `open`, punya lampiran) → cek disk | Baris hilang **dan** file hilang dari disk (hook `deleting` model) | FE+BE | GAGAL pada percobaan pertama: berkas lampiran tertinggal di disk karena hook memakai disk default sementara berkas disimpan ke disk `public`. **Setelah BUG-FB-01 diperbaiki**: hook memakai `Storage::disk('public')`. Ditutup tes regresi yang mengunggah, menghapus, lalu memastikan berkasnya hilang | Pass (percobaan ke-2) |
 
 ## C. Alur Berantai
 

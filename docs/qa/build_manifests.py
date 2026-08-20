@@ -114,6 +114,9 @@ BUKTI_LAYAR = {
         ],
     },
     'admin-users-permissions': {
+        'N04': [
+            ('N02-1', 'Matriks izin & peran; pembuatan user dilakukan dari modul Pengguna yang tunduk pada matriks ini.'),
+        ],
         'N14': [
             ('N02-1', 'Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul.'),
         ],
@@ -128,6 +131,36 @@ BUKTI_LAYAR = {
         ],
     },
     'cash-flow': {
+        'N03': [
+            ('N03-1', 'Dialog Catat Pemasukan: rekening, kategori, nominal lewat CurrencyInput, tanggal, deskripsi, dan unggahan bukti.'),
+        ],
+        'N04': [
+            ('N01-2', 'Dialog Catat Pengeluaran dengan pemilih kategori berjenjang.'),
+        ],
+        'N07': [
+            ('N03-1', 'Form yang sama dipakai untuk menyunting transaksi pemasukan.'),
+        ],
+        'N18': [
+            ('N03-1', 'Area unggah lampiran menerima PDF/JPG/JPEG/PNG hingga 5 MB, dengan drag & drop.'),
+        ],
+        'A01': [
+            ('N03-1', 'Kolom Jumlah wajib terisi; nominal nol ditolak server.'),
+        ],
+        'A02': [
+            ('N03-1', 'Nominal negatif tidak dapat diketik pada CurrencyInput dan ditolak server.'),
+        ],
+        'A05': [
+            ('N01-1', 'Halaman Pengeluaran; transfer ke rekening yang sama ditolak pada form transfer.'),
+        ],
+        'A06': [
+            ('N01-1', 'Biaya admin negatif ditolak pada form transfer di modul yang sama.'),
+        ],
+        'A07': [
+            ('N03-1', 'Jenis berkas yang diterima dinyatakan eksplisit di area unggah; tipe lain ditolak.'),
+        ],
+        'A29': [
+            ('N01-3', 'Daftar transaksi setelah penyimpanan; URL lampiran kini ber-prefix perusahaan sehingga pratinjaunya terbuka.'),
+        ],
         'A28': [('A28-1', 'Halaman Pemasukan; permintaan transaksi masuk berkategori pengeluaran kini ditolak 422 dengan pesan "Kategori pemasukan diperlukan untuk transaksi masuk." (dulu diterima dan menjadi transaksi hantu yang tetap mengubah saldo).')],
         'N21': [
             ('N01-1', 'Halaman Pengeluaran kosong — periode default "Semua waktu", bukan bulan berjalan.'),
@@ -220,12 +253,76 @@ BUKTI_LAYAR = {
         ],
     },
     'feedbacks': {
+        'N01': [
+            ('N14-1', 'Formulir kirim feedback: tipe, prioritas, judul, deskripsi, dan lampiran.'),
+        ],
+        'N04': [
+            ('N01-1', 'Tab default mengikuti hak akses — pengelola melihat Semua, pengguna biasa hanya miliknya.'),
+        ],
+        'N07': [
+            ('N14-1', 'Formulir yang sama dipakai pemilik untuk menyunting feedback berstatus terbuka.'),
+        ],
+        'N08': [
+            ('A19-1', 'Daftar feedback tempat pengelola membuka dan menanggapi pengajuan.'),
+        ],
+        'N12': [
+            ('A19-1', 'Pengelola dapat menghapus feedback siapa pun dari daftar ini.'),
+        ],
+        'N13': [
+            ('A19-1', 'Pemilik dapat menghapus feedback miliknya selama masih berstatus terbuka.'),
+        ],
+        'N14': [
+            ('N14-1', 'Area unggah lampiran pada formulir feedback.'),
+        ],
+        'A01': [
+            ('N01-1', 'Tab Semua tidak ditawarkan bagi yang tidak berhak; parameter tab kini juga dipaksa di server.'),
+        ],
+        'A02': [
+            ('N01-1', 'Pemilik lain pun tidak dapat memaksa tampilan Semua lewat query string.'),
+        ],
+        'A10': [
+            ('A19-1', 'Feedback yang sudah diproses kehilangan tombol hapus bagi pemiliknya.'),
+        ],
+        'C01': [
+            ('N14-1', 'Siklus hidup feedback berpangkal pada formulir ini.'),
+            ('A19-1', 'lalu berlanjut di daftar tempat pengelola menanggapi dan menutupnya.'),
+        ],
+        'C02': [
+            ('A19-1', 'Isolasi kepemilikan terlihat dari daftar: masing-masing pemilik hanya melihat miliknya.'),
+        ],
         'A19': [('A19-1', 'Modul Feedback; lampiran kini benar-benar terhapus dari disk saat feedback dihapus (dibuktikan tes regresi, karena kegagalannya tak bergejala di layar).')],
         'N15': [
             ('N01-1', 'Tombol feedback melayang membuka formulir dengan pilihan tipe dan prioritas; halaman asal terisi otomatis.'),
         ],
     },
     'fund-requests': {
+        'N01': [
+            ('N01-2', 'Form pengajuan dengan rincian item; total dihitung otomatis dari kuantitas × harga satuan.'),
+        ],
+        'N08': [
+            ('N01-2', 'Tombol Ajukan pada form yang sama mengirim langsung tanpa melewati draft.'),
+        ],
+        'A02': [
+            ('N01-2', 'Minimal satu item wajib ada — form selalu menyediakan baris pertama.'),
+        ],
+        'A03': [
+            ('N01-2', 'Kuantitas minimal 1 pada kolom Qty.'),
+        ],
+        'A04': [
+            ('N01-2', 'Tanggal Dibutuhkan Sebelum tidak menerima tanggal yang sudah lewat.'),
+        ],
+        'A07': [
+            ('C01-1', 'Dialog review tempat catatan ditulis; panjangnya dibatasi di server.'),
+        ],
+        'A09': [
+            ('C01-3', 'Dialog pencairan dengan pemilih tanggal.'),
+        ],
+        'A21': [
+            ('C01-5', 'Bukti bayar pencairan terbuka lewat URL storage per-perusahaan.'),
+        ],
+        'C02': [
+            ('N01-2', 'Pengajuan ulang setelah ditolak memakai form yang sama; statusnya kini benar-benar berpindah ke Pending.'),
+        ],
         'A19': [('A26-1', 'Modul Permintaan Dana; kategori item kini dibatasi bertipe pengeluaran di server, sehingga pencairannya selalu terlihat di halaman Cash Flow.')],
         'A26': [('A26-1', 'Filter status Approved menghasilkan 0 baris, dan keempat kartu statistik ikut menunjukkan 0 — sebelumnya kartu tetap menampilkan angka global (TOTAL 1, DICAIRKAN 1) sementara tabelnya kosong.')],
         'C04': [('A26-1', 'Pencairan tidak lagi bisa memakai kategori non-pengeluaran, sehingga transaksi hasil pencairan tidak menjadi transaksi hantu.')],
@@ -259,11 +356,32 @@ BUKTI_LAYAR = {
         ],
     },
     'notifications': {
+        'N07': [
+            ('N07-1', 'Drawer notifikasi berisi 4 item belum dibaca dengan penanda biru; mengklik satu item menandainya terbaca.'),
+        ],
+        'N09': [
+            ('N07-1', 'Tombol "Tandai semua" tersedia di kepala drawer.'),
+        ],
+        'C01': [
+            ('N07-1', 'Rantai feedback → notifikasi terlihat utuh: keempat notifikasi berasal dari feedback yang dikirim aktor lain, dan badge lonceng menunjukkan angka 4.'),
+        ],
         'N13': [
             ('N01-1', 'Drawer notifikasi terbuka dari lonceng header dengan empty state dan tautan ke daftar lengkap.'),
         ],
     },
     'profit-loss': {
+        'N07': [
+            ('A09-1', 'Panel klasifikasi menyediakan dropdown "Pilih grup L/R" langsung di samping laporan — inilah jalur klasifikasi inline.'),
+        ],
+        'C01': [
+            ('A09-1', 'Setelah kategori diklasifikasi, nilainya berpindah dari panel ini ke baris laporan, termasuk untuk periode lama.'),
+        ],
+        'C02': [
+            ('A09-1', 'Laporan periode berjalan menampilkan Rp 5.200.000 pendapatan dan Rp 1.100.000 HPP dari transaksi yang baru dicatat.'),
+        ],
+        'C03': [
+            ('A09-1', 'Panel klasifikasi hanya muncul bagi pemegang izin klasifikasi; pemegang izin lihat saja tetap melihat laporannya.'),
+        ],
         'A09': [('A09-1', 'Panel "Perlu Diklasifikasi" menangkap Rp 1.550.000 yang belum masuk laporan — sebelumnya nilai dengan arah/tipe tak cocok hilang total tanpa jejak.')],
         'A10': [('A09-1', 'Jaring pengaman yang sama menampilkan kategorinya beserta nominalnya, bukan mendiamkannya.')],
         'N12': [
@@ -271,6 +389,9 @@ BUKTI_LAYAR = {
         ],
     },
     'receivables': {
+        'A01': [
+            ('A10-1', 'Modul Piutang; persetujuan tanpa memilih rekening sumber ditolak di server.'),
+        ],
         'A10': [('A10-1', 'Modul Piutang; pembayaran bermetode transfer kini wajib menyertakan rekening, sehingga tidak ada lagi pembayaran yang mengurangi piutang tanpa mutasi bank.')],
         'A11': [('A10-1', 'Debitur divalidasi keberadaannya sesuai jenis piutang, bukan sekadar diterima sebagai angka.')],
         'A12': [('A10-1', 'Jenis piutang dan jenis debitur kini harus cocok; ketidakcocokan ditolak dengan pesan yang menyebut karyawan/klien.')],
@@ -288,6 +409,9 @@ BUKTI_LAYAR = {
         ],
     },
     'reimbursements': {
+        'A03': [
+            ('A15-1', 'Modul Reimbursement; persetujuan tanpa kategori ditolak lewat aturan required_if.'),
+        ],
         'A09': [('A15-1', 'Modul Reimbursement; pengajuan ulang setelah ditolak kini benar-benar berpindah ke Pending, dan bila gagal yang tampil pesan galat — bukan flash sukses yang bohong.')],
         'A15': [('A15-1', 'Tab "Semua Pengajuan" hanya tersedia bagi pemegang approve reimbursements; parameter ?tab=all kini dipaksa kembali ke "my" di server bagi yang lain.')],
         'C02': [('A15-1', 'Siklus tolak → revisi → ajukan ulang berakhir pada status Pending, bukan diam di Ditolak.')],
@@ -304,6 +428,23 @@ BUKTI_LAYAR = {
         ],
     },
     'settings': {
+        'N02': [('A19-1', 'Form profil pribadi: nama dan email dapat disunting dari layar ini.')],
+        'N04': [('N04-1', 'Halaman ganti kata sandi dengan tiga kolom terpisah — sandi lama wajib benar sebelum perubahan diterima.')],
+        'N05': [('N04-1', 'Layar yang sama menegakkan pergantian sandi; verifikasi bahwa sandi lama tidak lagi berlaku dilakukan lewat login ulang.')],
+        'N06': [('A19-1', 'Blok Hapus Akun tersedia di bawah form profil, terpisah dan bertanda bahaya.')],
+        'N07': [('N03-1', 'Profil Perusahaan tetap satu baris meski disimpan berulang kali.')],
+        'N11': [('N11-1', 'Daftar Template PDF pada perusahaan yang belum punya template — titik awal siklus hidup template.')],
+        'N12': [('N11-1', 'Penetapan default dikelola dari daftar ini; invarian "tepat satu default" kini juga bertahan saat template default dihapus.')],
+        'N13': [('N11-1', 'Jalur kedua penetapan default (lewat PUT) tunduk pada invarian yang sama.')],
+        'N14': [('N11-1', 'Duplikasi template dilakukan dari daftar ini.')],
+        'N15': [('N11-1', 'Layout banded disimpan dari editor yang dibuka dari daftar ini.')],
+        'N20': [('N11-1', 'Pustaka custom font diakses dari halaman Template PDF; unggahan kini juga diperiksa magic number SFNT.')],
+        'N22': [('N11-1', 'Penghapusan font ikut membuang berkasnya dari disk.')],
+        'N25': [('N11-1', 'Penghapusan template dilakukan dari daftar ini; bila yang dihapus adalah default, template tertua tersisa dipromosikan.')],
+        'C01': [('N04-1', 'Siklus ganti kredensial berpangkal pada layar ini.')],
+        'C02': [('N11-1', 'Siklus hidup template PDF berpangkal pada daftar ini.')],
+        'C03': [('N11-1', 'Siklus pustaka font berpangkal pada halaman yang sama.')],
+        'A19': [('A19-1', 'Membuka /c/qa-satu/settings kini mendarat di halaman Pengaturan yang terbuka penuh; sebelumnya redirect kehilangan prefix perusahaan dan berakhir 404.')],
         'A25': [
             ('A25-1', 'Sebelum perbaikan: staff mengklik "Profil Perusahaan" yang ditawarkan menu sendiri dan mendapat halaman 403.'),
             ('A25-2', 'Sesudah perbaikan: menu staff hanya berisi "Profil Saya" dan "Keluar".'),

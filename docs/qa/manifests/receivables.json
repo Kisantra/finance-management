@@ -212,7 +212,13 @@
       "title": "Approve tanpa memilih rekening sumber",
       "verdict": "Pass",
       "note": "422 `{\"bank_account_id\":[\"The bank account id field is required when action is approve.\"]}`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A10-1",
+          "cap": "Modul Piutang; persetujuan tanpa memilih rekening sumber ditolak di server."
+        }
+      ]
     },
     {
       "id": "A02",

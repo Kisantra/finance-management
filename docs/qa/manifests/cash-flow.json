@@ -87,14 +87,26 @@
       "title": "Catat pemasukan",
       "verdict": "Pass",
       "note": "302; DB `bank_transactions` id 1 `amount=3000000 type=credit category_id=5`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Dialog Catat Pemasukan: rekening, kategori, nominal lewat CurrencyInput, tanggal, deskripsi, dan unggahan bukti."
+        }
+      ]
     },
     {
       "id": "N04",
       "title": "Catat pengeluaran",
       "verdict": "Pass",
       "note": "302; DB id 2; prop expenses `stats={\"total_amount\":750000,\"total_count\":1}`, `category_label=\"MAKAN MINUM\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Dialog Catat Pengeluaran dengan pemilih kategori berjenjang."
+        }
+      ]
     },
     {
       "id": "N05",
@@ -115,7 +127,13 @@
       "title": "Edit transaksi income (nominal + kategori + reference)",
       "verdict": "Pass",
       "note": "DB id 1: `amount=3500000 category_id=28 reference_number=INV-QA3-9 transaction_date=2026-08-15`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Form yang sama dipakai untuk menyunting transaksi pemasukan."
+        }
+      ]
     },
     {
       "id": "N08",
@@ -192,7 +210,13 @@
       "title": "Unggah lampiran PNG pada pengeluaran",
       "verdict": "Pass",
       "note": "id 7 `attachment_path=transaction-attachments/Ttrphi….png`, `attachment_name=bukti.png`; file ada di `storage/tenantqa-tiga/app/public/transaction-attachments/`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Area unggah lampiran menerima PDF/JPG/JPEG/PNG hingga 5 MB, dengan drag & drop."
+        }
+      ]
     },
     {
       "id": "N19",
@@ -237,14 +261,26 @@
       "title": "Nominal 0",
       "verdict": "Pass",
       "note": "422 `\"The amount field must be at least 1.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Kolom Jumlah wajib terisi; nominal nol ditolak server."
+        }
+      ]
     },
     {
       "id": "A02",
       "title": "Nominal negatif",
       "verdict": "Pass",
       "note": "422 `\"The amount field must be at least 1.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Nominal negatif tidak dapat diketik pada CurrencyInput dan ditolak server."
+        }
+      ]
     },
     {
       "id": "A03",
@@ -265,21 +301,39 @@
       "title": "Transfer ke rekening yang sama",
       "verdict": "Pass",
       "note": "422 `\"The from account id field and to account id must be different.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Halaman Pengeluaran; transfer ke rekening yang sama ditolak pada form transfer."
+        }
+      ]
     },
     {
       "id": "A06",
       "title": "Biaya admin negatif",
       "verdict": "Pass",
       "note": "422 `\"The admin fee field must be at least 0.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Biaya admin negatif ditolak pada form transfer di modul yang sama."
+        }
+      ]
     },
     {
       "id": "A07",
       "title": "Lampiran bertipe salah",
       "verdict": "Pass",
       "note": "422 `\"The attachment field must be a file of type: pdf, jpg, jpeg, png.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Jenis berkas yang diterima dinyatakan eksplisit di area unggah; tipe lain ditolak."
+        }
+      ]
     },
     {
       "id": "A08",
@@ -439,7 +493,13 @@
       "title": "URL lampiran yang dikirim server",
       "verdict": "Pass (percobaan ke-2)",
       "note": "GAGAL pada percobaan pertama: `attachment_url` tanpa prefix perusahaan → 403 pada setiap pratinjau. Setelah BUG-CF-01 diperbaiki: URL memakai route storage per-perusahaan `/c/{company}/storage/...` dan berkas tampil",
-      "attempts": "fp"
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N01-3",
+          "cap": "Daftar transaksi setelah penyimpanan; URL lampiran kini ber-prefix perusahaan sehingga pratinjaunya terbuka."
+        }
+      ]
     },
     {
       "id": "A30",

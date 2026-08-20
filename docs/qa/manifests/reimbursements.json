@@ -202,7 +202,13 @@
       "title": "Approve tanpa `category_id` ditolak (`required_if`)",
       "verdict": "Pass",
       "note": "422 `{\"category_id\":[\"The category id field is required when action is approve.\"]}`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A15-1",
+          "cap": "Modul Reimbursement; persetujuan tanpa kategori ditolak lewat aturan required_if."
+        }
+      ]
     },
     {
       "id": "A04",

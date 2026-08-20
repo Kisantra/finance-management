@@ -53,7 +53,13 @@
       "title": "Tambah user baru",
       "verdict": "Pass (percobaan ke-2, setelah BUG-ADM-01 diperbaiki)",
       "note": "302; user id 12 `status=active`; `model_has_roles` → `role=staff, company_id=qa-satu`",
-      "attempts": "fp"
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Matriks izin & peran; pembuatan user dilakukan dari modul Pengguna yang tunduk pada matriks ini."
+        }
+      ]
     },
     {
       "id": "N05",

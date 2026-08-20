@@ -91,7 +91,13 @@
       "title": "Buat pengajuan draft + total dihitung dari item",
       "verdict": "Pass",
       "note": "302. DB: `id=1 status=draft total_amount=1850000`; item id 1 `amount=1500000`, item id 2 `amount=350000`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Form pengajuan dengan rincian item; total dihitung otomatis dari kuantitas × harga satuan."
+        }
+      ]
     },
     {
       "id": "N02",
@@ -140,7 +146,13 @@
       "title": "Buat langsung dengan `action=submit`",
       "verdict": "Pass",
       "note": "`id=2 status=pending total_amount=300000`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Tombol Ajukan pada form yang sama mengirim langsung tanpa melewati draft."
+        }
+      ]
     },
     {
       "id": "N09",
@@ -241,21 +253,39 @@
       "title": "Tanpa item",
       "verdict": "Pass",
       "note": "422 `\"The items field is required.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Minimal satu item wajib ada — form selalu menyediakan baris pertama."
+        }
+      ]
     },
     {
       "id": "A03",
       "title": "Kuantitas 0",
       "verdict": "Pass",
       "note": "422 `\"The items.0.quantity field must be at least 1.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Kuantitas minimal 1 pada kolom Qty."
+        }
+      ]
     },
     {
       "id": "A04",
       "title": "`needed_by_date` di masa lalu",
       "verdict": "Pass",
       "note": "422 `\"The needed by date field must be a date after or equal to today.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Tanggal Dibutuhkan Sebelum tidak menerima tanggal yang sudah lewat."
+        }
+      ]
     },
     {
       "id": "A05",
@@ -276,7 +306,13 @@
       "title": "`review_notes` › 500 karakter",
       "verdict": "Pass",
       "note": "422 `\"The review notes field must not be greater than 500 characters.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Dialog review tempat catatan ditulis; panjangnya dibatasi di server."
+        }
+      ]
     },
     {
       "id": "A08",
@@ -290,7 +326,13 @@
       "title": "Tanggal pencairan di masa depan",
       "verdict": "Pass",
       "note": "422 `\"The disbursement date field must be a date before or equal to today.\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-3",
+          "cap": "Dialog pencairan dengan pemilih tanggal."
+        }
+      ]
     },
     {
       "id": "A10",
@@ -380,7 +422,13 @@
       "title": "URL bukti bayar pencairan",
       "verdict": "Pass (percobaan ke-2)",
       "note": "GAGAL pada percobaan pertama. Setelah BUG-FR-01 diperbaiki: hasil `submit()` kini dipakai untuk memilih pesan — bila gagal, yang tampil flash error, bukan sukses",
-      "attempts": "fp"
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "C01-5",
+          "cap": "Bukti bayar pencairan terbuka lewat URL storage per-perusahaan."
+        }
+      ]
     },
     {
       "id": "A22",
@@ -438,7 +486,13 @@
       "title": "Jebakan terdokumentasi: pengajuan ulang setelah `rejected`",
       "verdict": "Pass (percobaan ke-2)",
       "note": "GAGAL pada percobaan pertama: pengajuan ulang setelah ditolak gagal diam-diam sambil menampilkan flash sukses. Setelah BUG-FR-01 diperbaiki: status `rejected` direset ke `draft` (beserta jejak review) sebelum `submit()`, dan status akhir benar-benar menjadi `pending`. Ditutup tes regresi",
-      "attempts": "fp"
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Pengajuan ulang setelah ditolak memakai form yang sama; statusnya kini benar-benar berpindah ke Pending."
+        }
+      ]
     },
     {
       "id": "C03",

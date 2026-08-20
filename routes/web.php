@@ -583,7 +583,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     // SETTINGS
     // ------------------------------------------------------------------------
     Route::prefix('settings')->name('settings.')->group(function () {
-        Route::redirect('/', '/settings/profile');
+        // Route::redirect menulis path LITERAL: di dalam grup ber-prefix
+        // /c/{company} target itu tidak ikut mendapat prefix, sehingga
+        // /c/{slug}/settings melempar ke /settings/profile yang 404. Redirect
+        // berbasis nama route membentuk prefix-nya sendiri.
+        Route::get('/', fn () => redirect()->route('settings.profile'));
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

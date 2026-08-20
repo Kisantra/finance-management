@@ -71,10 +71,10 @@ tidak dihapus.
 | A16 | Font: nama duplikat | Unggah lagi dengan `name=QA5 Arial` | 422 | BE | 422 `{"name":["The name has already been taken."]}` | Pass |
 | A17 | Font: berkas `.ttf` berisi byte acak | Unggah 3.000 byte acak bernama `palsu.ttf` | Diterima (mimetypes sengaja longgar menerima `application/octet-stream`) | BE | 302, tersimpan sebagai `qa5-font_d3127558.ttf`. Sesuai desain yang didokumentasikan ("validasi double-layer: mimetypes longgar, ekstensi wajib `.ttf`"), tetapi berarti berkas rusak bisa masuk pustaka font | Pass (lihat CATATAN-SET-04) |
 | A18 | Template `builder:` yang tidak ada | `GET /c/qa-lima/invoice/1/download?template=builder:999` | 404, bukan 500 | BE | 404 | Pass |
-| A19 | **Root pengaturan kehilangan prefix perusahaan** | `GET /c/qa-lima/settings` lalu ikuti redirect | 302 ke `/c/qa-lima/settings/profile` (200) | BE | 302 `Location: /settings/profile` (**tanpa** `/c/qa-lima`) → tujuan **404** | **Fail** (BUG-SET-01) |
-| A20 | **Profil perusahaan dapat ditimpa user tanpa hak kelola** | `staff@gmail.com` (role staff) `POST /c/qa-lima/settings/company` | Ditolak (403) — identitas, NPWP, dan `ppn_rate` perusahaan bukan data yang boleh diubah staff | BE | **302 — berhasil.** DB berubah menjadi `name="Diambil Staff" is_pkp=0 npwp=NULL ppn_rate=0.00`. Dipulihkan kembali oleh penguji sesudahnya | **Fail** (BUG-SET-02) |
-| A21 | **Unduh invoice dengan template PDF bawaan** | `GET /c/qa-lima/invoice/1/download` (tanpa `template=`, memakai `kisantra-invoice`) | 200 PDF | BE | **HTTP 500**. Log: `foreach() argument must be of type array\|object, null given (View: resources/views/pdf/kisantra-invoice.blade.php)` | **Fail** (BUG-SET-03) |
-| A22 | Menghapus template yang sedang menjadi default | `DELETE .../pdf-templates/1` saat `is_default=1` | Aplikasi tetap punya template default | FE+BE | 302; setelah itu `SUM(is_default)=0` — tidak ada template default tersisa dan tidak ada promosi otomatis | Pass (invarian "maksimal satu" tetap terjaga; lihat CATATAN-SET-05) |
+| A19 | **Root pengaturan kehilangan prefix perusahaan** | `GET /c/qa-lima/settings` lalu ikuti redirect | 302 ke `/c/qa-lima/settings/profile` (200) | FE+BE | GAGAL pada percobaan pertama: `/c/{company}/settings` melempar ke `/settings/profile` tanpa prefix, lalu 404. **Setelah BUG-SET-01 diperbaiki**: redirect berbasis nama route membentuk prefix sendiri. Diverifikasi lewat layar — membuka `/c/qa-satu/settings` mendarat di halaman Pengaturan yang terbuka penuh | Pass (percobaan ke-2) |
+| A20 | **Profil perusahaan dapat ditimpa user tanpa hak kelola** | `staff@gmail.com` (role staff) `POST /c/qa-lima/settings/company` | Ditolak (403) — identitas, NPWP, dan `ppn_rate` perusahaan bukan data yang boleh diubah staff | BE | GAGAL pada percobaan pertama: staff dapat menimpa profil perusahaan. **Setelah BUG-SET-02 diperbaiki**: route digate `can:manage company profile`; menu yang menawarkannya juga disaring (BUG-SET-07) | Pass (percobaan ke-2) |
+| A21 | **Unduh invoice dengan template PDF bawaan** | `GET /c/qa-lima/invoice/1/download` (tanpa `template=`, memakai `kisantra-invoice`) | 200 PDF | BE | GAGAL pada percobaan pertama: **500** pada template PDF bawaan karena `bank_accounts` NULL. **Setelah BUG-SET-03/TEMUAN I-08 diperbaiki**: service mengirim `[]` dan ketiga template Blade diberi penjaga; diverifikasi 200 pada tenant yang kolomnya memang masih NULL | Pass (percobaan ke-2) | **Fail** (BUG-SET-03) |
+| A22 | Menghapus template yang sedang menjadi default | `DELETE .../pdf-templates/1` saat `is_default=1` | Aplikasi tetap punya template default | BE | Menghapus template default kini mempromosikan template tertua yang tersisa, sehingga selalu ada tepat satu default selama masih ada template. Ditutup tes regresi | Pass (percobaan ke-2) |
 | A25 | **Menu tidak boleh menawarkan halaman yang akan menolak** | Staff (`qa-solo`) buka menu user di sidebar → klik "Profil Perusahaan" | Item tidak muncul sama sekali bagi yang tidak punya `manage company profile` | FE | GAGAL pada percobaan pertama: item tetap tampil dan mengantar staff ke halaman **403 THIS ACTION IS UNAUTHORIZED**. **Setelah diperbaiki** (`sidebar.tsx` + `settings-layout.tsx`): menu staff hanya berisi "Profil Saya" dan "Keluar" | Pass |
 
 ## C. Alur Berantai
@@ -94,7 +94,7 @@ tidak dihapus.
 - **GEJALA**: `GET /c/qa-lima/settings` menjawab `302` dengan `Location: /settings/profile` — tanpa segmen `/c/qa-lima`. Mengikuti redirect menghasilkan **404** (`GET /settings/profile` = 404, diverifikasi terpisah).
 - **SEBAB**: `routes/web.php:567` — `Route::redirect('/', '/settings/profile');` menuliskan **path literal**. Di dalam grup ber-prefix `/c/{company}`, target redirect tidak ikut mendapat prefix. Bandingkan dengan `routes/web.php:145` (`/template-builder-test`) yang memakai `redirect()->route(...)` dan **benar** menghasilkan `/c/qa-lima/settings/pdf-templates` (dibuktikan N24) — jadi polanya sudah ada di file yang sama, hanya baris ini yang tertinggal.
 - **CAKUPAN**: Siapa pun yang membuka `/settings` tanpa sub-halaman: tautan lama, bookmark, atau menu yang menunjuk root pengaturan. Bukan kehilangan data, tetapi jalan buntu yang terlihat seperti aplikasi rusak.
-- **SARAN PERBAIKAN**: Ganti menjadi redirect berbasis nama route, mis. `Route::get('/', fn () => redirect()->route('settings.profile'))`, agar prefix perusahaan ikut terbentuk. Sisir juga `Route::redirect` lain di dalam grup ber-prefix.
+- **DIPERBAIKI**: persis seperti itu. `Route::redirect` lain (`/` → `/choose-company`) sudah benar karena berada di luar grup ber-prefix. Ditutup dua tes regresi — satu memeriksa Location-nya masih memuat `/c/{company}`, satu lagi memastikan halaman tujuannya benar-benar 200.
 
 ### BUG-SET-02 — Profil perusahaan (identitas, NPWP, tarif PPN) dapat ditimpa oleh user mana pun yang login
 
@@ -131,7 +131,7 @@ tidak dihapus.
 - **GEJALA**: Berkas 3.000 byte acak bernama `palsu.ttf` diterima (302) dan masuk pustaka font. Sebaliknya PNG asli bernama `.ttf` ditolak dengan benar (A15).
 - **SEBAB**: Daftar `mimetypes` di `CustomFontController::store` menyertakan `application/octet-stream` — sengaja, agar TTF yang tidak terdeteksi tetap bisa diunggah. Byte acak juga terdeteksi sebagai `application/octet-stream`, sehingga lolos.
 - **CAKUPAN**: Font rusak dapat masuk pustaka global dan dipilih di editor; teks yang memakainya akan jatuh ke font default DomPDF (atau menggagalkan render) tanpa pesan yang menjelaskan sebabnya.
-- **SARAN PERBAIKAN**: Tambahkan pemeriksaan magic number SFNT (`0x00010000` atau `true`/`ttcf` pada 4 byte pertama) sebagai lapis ketiga — murah, dan menutup celah tanpa mengorbankan kelonggaran mimetypes yang memang diperlukan.
+- **DIPERBAIKI**: lapis ketiga dipasang (`0x00010000`, `true`, `ttcf`, `OTTO`). Ditutup dua tes regresi: byte acak ditolak, dan berkas ber-magic SFNT tetap diterima — supaya perbaikannya tidak sekadar menutup pintu.
 
 ### CATATAN-SET-05 — Menghapus template default menyisakan nol template default
 
@@ -139,7 +139,7 @@ tidak dihapus.
 - **TERKAIT**: A22.
 - **GEJALA**: Setelah `DELETE .../pdf-templates/1` yang saat itu `is_default=1`, `SUM(is_default)` menjadi **0**. Invarian yang didokumentasikan ("hanya satu `is_default`") tidak dilanggar, tetapi keadaan "tidak ada default sama sekali" juga tidak pernah dibahas.
 - **SEBAB**: `PdfTemplateController::destroy()` menghapus baris tanpa mempromosikan template lain.
-- **SARAN PERBAIKAN**: Bila ada template lain tersisa, promosikan yang tertua/pertama menjadi default; atau tolak penghapusan template default selama masih ada template lain — pilih satu dan tuliskan sebagai invarian.
+- **DIPERBAIKI** dengan opsi promosi: template tertua yang tersisa naik menjadi default. Menolak penghapusan ditolak sebagai opsi karena memaksa pengguna memindahkan default lebih dulu hanya untuk membuang template yang tidak dipakai. **Invarian yang kini berlaku**: selama masih ada template, tepat satu di antaranya adalah default.
 
 ### BUG-SET-06 — Gate `manage company profile` mengunci Profil Perusahaan untuk semua orang, termasuk admin, sampai seeder izin dijalankan ulang
 

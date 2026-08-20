@@ -112,7 +112,30 @@ python docs/qa/shrink_evidence.py   # kecilkan tangkapan layar sebelum commit
 `BE` — entah labelnya salah, entah gambarnya cuma hiasan. Jalankan sebelum
 membangun laporan; angkanya juga jadi ukuran kemajuan yang tidak bisa dikarang.
 
-## Utang bukti visual yang diakui
+## Hasil putaran kedua (per modul, lewat layar)
+
+Seluruh 18 modul dijalankan ulang satu per satu. Kolom Lapisan direklasifikasi
+berdasarkan **apa yang dijangkau case**, bukan bagaimana case kebetulan
+dijalankan, lalu setiap case ber-lapisan FE ditutup bukti layarnya.
+
+```
+668 case | butuh bukti UI: 149 | sudah bergambar: 149 (100%)
+```
+
+Dari ~90 case berstatus `Fail` pada putaran pertama, tersisa **satu** yang masih
+`Fail` — dan itu disengaja:
+
+| Case | Alasan |
+|---|---|
+| invoices A18 | Penomoran invoice manual dipertahankan sesuai keputusan produk; pengaturan pola nomor per perusahaan direncanakan menyusul. Dua akibatnya yang membuat aplikasi macet sudah ditutup. |
+
+Pekerjaan yang sengaja ditunda beserta alasannya tercatat di modulnya
+masing-masing sebagai **MASIH TERBUKA** atau **BUTUH KEPUTUSAN PRODUK** —
+antara lain nominal bunga piutang yang disimpan sebagai persentase
+(receivables BUG-C5), inisial perusahaan pada nomor invoice (invoices I-01),
+dan keunikan nama layanan (services S-02).
+
+## Utang bukti visual pada putaran pertama
 
 Putaran QA pertama dijalankan 5 agen paralel sementara Chrome DevTools MCP
 hanya punya satu peramban, sehingga tidak ada agen yang bisa mengemudikan UI

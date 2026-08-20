@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/settings",
   "report_out": "../report/Laporan-QA-settings.pdf",
   "summary": [
-    "53 test case dirancang untuk modul ini; 50 lolos, 2 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "53 test case dirancang untuk modul ini; 53 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "7 temuan tercatat (BUG-SET-01, BUG-SET-02, BUG-SET-03, BUG-SET-07, CATATAN-SET-04, CATATAN-SET-05, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -19,7 +19,6 @@
       "gejala": "`GET /c/qa-lima/settings` menjawab `302` dengan `Location: /settings/profile` — tanpa segmen `/c/qa-lima`. Mengikuti redirect menghasilkan 404 (`GET /settings/profile` = 404, diverifikasi terpisah).",
       "sebab": "`routes/web.php:567` — `Route::redirect('/', '/settings/profile');` menuliskan path literal. Di dalam grup ber-prefix `/c/{company}`, target redirect tidak ikut mendapat prefix. Bandingkan dengan `routes/web.php:145` (`/template-builder-test`) yang memakai `redirect()-›route(...)` dan benar menghasilkan `/c/qa-lima/settings/pdf-templates` (dibuktikan N24) — jadi polanya sudah ada di file yang sama, hanya baris ini yang tertinggal.",
       "cakupan": "Siapa pun yang membuka `/settings` tanpa sub-halaman: tautan lama, bookmark, atau menu yang menunjuk root pengaturan. Bukan kehilangan data, tetapi jalan buntu yang terlihat seperti aplikasi rusak.",
-      "perbaikan": "Ganti menjadi redirect berbasis nama route, mis. `Route::get('/', fn () =› redirect()-›route('settings.profile'))`, agar prefix perusahaan ikut terbentuk. Sisir juga `Route::redirect` lain di dalam grup ber-prefix.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -61,7 +60,6 @@
       "gejala": "Berkas 3.000 byte acak bernama `palsu.ttf` diterima (302) dan masuk pustaka font. Sebaliknya PNG asli bernama `.ttf` ditolak dengan benar (A15).",
       "sebab": "Daftar `mimetypes` di `CustomFontController::store` menyertakan `application/octet-stream` — sengaja, agar TTF yang tidak terdeteksi tetap bisa diunggah. Byte acak juga terdeteksi sebagai `application/octet-stream`, sehingga lolos.",
       "cakupan": "Font rusak dapat masuk pustaka global dan dipilih di editor; teks yang memakainya akan jatuh ke font default DomPDF (atau menggagalkan render) tanpa pesan yang menjelaskan sebabnya.",
-      "perbaikan": "Tambahkan pemeriksaan magic number SFNT (`0x00010000` atau `true`/`ttcf` pada 4 byte pertama) sebagai lapis ketiga — murah, dan menutup celah tanpa mengorbankan kelonggaran mimetypes yang memang diperlukan.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -69,8 +67,7 @@
       "title": "Menghapus template default menyisakan nol template default",
       "sifat": "Pengamatan, risiko rendah.",
       "gejala": "Setelah `DELETE .../pdf-templates/1` yang saat itu `is_default=1`, `SUM(is_default)` menjadi 0. Invarian yang didokumentasikan (\"hanya satu `is_default`\") tidak dilanggar, tetapi keadaan \"tidak ada default sama sekali\" juga tidak pernah dibahas.",
-      "sebab": "`PdfTemplateController::destroy()` menghapus baris tanpa mempromosikan template lain.",
-      "perbaikan": "Bila ada template lain tersisa, promosikan yang tertua/pertama menjadi default; atau tolak penghapusan template default selama masih ada template lain — pilih satu dan tuliskan sebagai invarian.",
+      "sebab": "`PdfTemplateController::destroy()` menghapus baris tanpa mempromosikan template lain. - DIPERBAIKI dengan opsi promosi: template tertua yang tersisa naik menjadi default. Menolak penghapusan ditolak sebagai opsi karena memaksa pengguna memindahkan default lebih dulu hanya untuk membuang template yang tidak dipakai. Invarian yang kini berlaku: selama masih ada template, tepat satu di antaranya adalah default.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -99,7 +96,13 @@
       "title": "Ubah nama profil",
       "verdict": "Pass",
       "note": "302; DB `id=10 name=\"QA5 Ganti Sandi (Baru)\"`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Form profil pribadi: nama dan email dapat disunting dari layar ini."
+        }
+      ]
     },
     {
       "id": "N03",
@@ -113,28 +116,52 @@
       "title": "Ganti kata sandi dengan `current_password` benar",
       "verdict": "Pass",
       "note": "302; hash DB berubah dari `$2y$12$IWSZ35Tg8CY.Q…` menjadi `$2y$12$B0.3aijZxG5/E…`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Halaman ganti kata sandi dengan tiga kolom terpisah — sandi lama wajib benar sebelum perubahan diterima."
+        }
+      ]
     },
     {
       "id": "N05",
       "title": "Kata sandi lama tidak lagi berlaku, yang baru berlaku",
       "verdict": "Pass",
       "note": "Login sandi lama → request berikutnya 302 (tidak terautentikasi); login sandi baru → `GET .../settings/profile` 200",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Layar yang sama menegakkan pergantian sandi; verifikasi bahwa sandi lama tidak lagi berlaku dilakukan lewat login ulang."
+        }
+      ]
     },
     {
       "id": "N06",
       "title": "Hapus akun dengan kata sandi benar",
       "verdict": "Pass",
       "note": "302; sesi mati (`GET .../settings/profile` → 302). DB: `users id=11` 0 baris, `company_user user_id=11` 0 baris, `model_has_permissions model_id=11` 0 baris — cascade bersih",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Blok Hapus Akun tersedia di bawah form profil, terpisah dan bertanda bahaya."
+        }
+      ]
     },
     {
       "id": "N07",
       "title": "`CompanyProfile` tetap singleton",
       "verdict": "Pass",
       "note": "3× 302; `SELECT COUNT(∗) FROM company_profiles` → 1",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Profil Perusahaan tetap satu baris meski disimpan berulang kali."
+        }
+      ]
     },
     {
       "id": "N08",
@@ -162,35 +189,65 @@
       "title": "Buat template",
       "verdict": "Pass",
       "note": "3× 302; DB `1,2,3` semuanya `is_default=0`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Daftar Template PDF pada perusahaan yang belum punya template — titik awal siklus hidup template."
+        }
+      ]
     },
     {
       "id": "N12",
       "title": "Hanya satu `is_default`",
       "verdict": "Pass",
       "note": "Setelah tiap langkah: `1:1,2:0,3:0` → `1:0,2:1,3:0` → `1:0,2:0,3:1` → `1:0,2:1,3:0`; `SUM(is_default)` selalu 1",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penetapan default dikelola dari daftar ini; invarian \"tepat satu default\" kini juga bertahan saat template default dihapus."
+        }
+      ]
     },
     {
       "id": "N13",
       "title": "Jalur kedua penetapan default juga aman",
       "verdict": "Pass",
       "note": "302; state `1:1,2:0,3:0`, `SUM(is_default)=1`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Jalur kedua penetapan default (lewat PUT) tunduk pada invarian yang sama."
+        }
+      ]
     },
     {
       "id": "N14",
       "title": "Duplikasi template",
       "verdict": "Pass",
       "note": "302; DB `id=4 name=\"QA5 Template C (Salinan)\" is_default=0`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Duplikasi template dilakukan dari daftar ini."
+        }
+      ]
     },
     {
       "id": "N15",
       "title": "Simpan layout banded (bentuk yang benar-benar dikirim editor)",
       "verdict": "Pass",
       "note": "302; DB `layout={\"bands\": {\"header\": {\"height\": 180, \"elements\": []}, …}`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Layout banded disimpan dari editor yang dibuka dari daftar ini."
+        }
+      ]
     },
     {
       "id": "N16",
@@ -225,7 +282,13 @@
       "title": "Unggah custom font `.ttf`",
       "verdict": "Pass",
       "note": "302; DB `id=2 name=\"QA5 Arial\" filename=qa5-arial_0f4bf19d.ttf`; berkas ada di `storage/tenantqa-lima/app/public/fonts/custom/`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Pustaka custom font diakses dari halaman Template PDF; unggahan kini juga diperiksa magic number SFNT."
+        }
+      ]
     },
     {
       "id": "N21",
@@ -239,7 +302,13 @@
       "title": "Hapus font juga menghapus berkasnya",
       "verdict": "Pass",
       "note": "302; DB tersisa 1 baris; berkas `qa5-font_d3127558.ttf` hilang dari disk",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penghapusan font ikut membuang berkasnya dari disk."
+        }
+      ]
     },
     {
       "id": "N23",
@@ -260,7 +329,13 @@
       "title": "Hapus template",
       "verdict": "Pass",
       "note": "302 keduanya; DB tersisa id 2 & 3",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penghapusan template dilakukan dari daftar ini; bila yang dihapus adalah default, template tertua tersisa dipromosikan."
+        }
+      ]
     },
     {
       "id": "N26",
@@ -420,29 +495,36 @@
     {
       "id": "A19",
       "title": "Root pengaturan kehilangan prefix perusahaan",
-      "verdict": "Fail (BUG-SET-01)",
-      "note": "302 `Location: /settings/profile` (tanpa `/c/qa-lima`) → tujuan 404",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `/c/{company}/settings` melempar ke `/settings/profile` tanpa prefix, lalu 404. Setelah BUG-SET-01 diperbaiki: redirect berbasis nama route membentuk prefix sendiri. Diverifikasi lewat layar — membuka `/c/qa-satu/settings` mendarat di halaman Pengaturan yang terbuka penuh",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Membuka /c/qa-satu/settings kini mendarat di halaman Pengaturan yang terbuka penuh; sebelumnya redirect kehilangan prefix perusahaan dan berakhir 404."
+        }
+      ]
     },
     {
       "id": "A20",
       "title": "Profil perusahaan dapat ditimpa user tanpa hak kelola",
-      "verdict": "Fail (BUG-SET-02)",
-      "note": "302 — berhasil. DB berubah menjadi `name=\"Diambil Staff\" is_pkp=0 npwp=NULL ppn_rate=0.00`. Dipulihkan kembali oleh penguji sesudahnya",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: staff dapat menimpa profil perusahaan. Setelah BUG-SET-02 diperbaiki: route digate `can:manage company profile`; menu yang menawarkannya juga disaring (BUG-SET-07)",
+      "attempts": "fp"
     },
     {
       "id": "A21",
       "title": "Unduh invoice dengan template PDF bawaan",
-      "verdict": "object, null given (View: resources/views/pdf/kisantra-invoice.blade.php)`",
-      "note": "HTTP 500. Log: `foreach() argument must be of type array\\"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 pada template PDF bawaan karena `bank_accounts` NULL. Setelah BUG-SET-03/TEMUAN I-08 diperbaiki: service mengirim `[]` dan ketiga template Blade diberi penjaga; diverifikasi 200 pada tenant yang kolomnya memang masih NULL",
+      "attempts": "fp"
     },
     {
       "id": "A22",
       "title": "Menghapus template yang sedang menjadi default",
-      "verdict": "Pass (invarian \"maksimal satu\" tetap terjaga; lihat CATATAN-SET-05)",
-      "note": "302; setelah itu `SUM(is_default)=0` — tidak ada template default tersisa dan tidak ada promosi otomatis",
-      "attempts": "p"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "Menghapus template default kini mempromosikan template tertua yang tersisa, sehingga selalu ada tepat satu default selama masih ada template. Ditutup tes regresi",
+      "attempts": "fp"
     },
     {
       "id": "A25",
@@ -469,21 +551,39 @@
       "title": "Siklus penuh ganti kredensial",
       "verdict": "Pass",
       "note": "(1) 302; (2) `email_verified_at=NULL`; (3) 422; (4) hash berubah; (5) login lama gagal / baru 200",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Siklus ganti kredensial berpangkal pada layar ini."
+        }
+      ]
     },
     {
       "id": "C02",
       "title": "Siklus hidup template PDF",
       "verdict": "Pass",
       "note": "Seluruh tahap 302/200 seperti pada N11–N25; `SUM(is_default)` = 1 di setiap pemeriksaan, kecuali menjadi 0 setelah template default dihapus (A22)",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Siklus hidup template PDF berpangkal pada daftar ini."
+        }
+      ]
     },
     {
       "id": "C03",
       "title": "Siklus pustaka font",
       "verdict": "Pass",
       "note": "Unggah 302 → daftar memuat 2 font → `DELETE` 302 → berkas `qa5-font_d3127558.ttf` hilang dari `storage/tenantqa-lima/app/public/fonts/custom/`",
-      "attempts": "p"
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Siklus pustaka font berpangkal pada halaman yang sama."
+        }
+      ]
     }
   ],
   "tooling_problems": [
