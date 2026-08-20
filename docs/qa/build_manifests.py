@@ -119,11 +119,16 @@ BUKTI_LAYAR = {
         ],
     },
     'bank-accounts': {
+        'A11': [('A11-1', 'Halaman Rekening Bank tetap normal; permintaan tab Transaksi dengan kolom urut sembarang menjawab 200 (dulu 500 dengan pesan SQL yang menyebut nama database).')],
+        'A12': [('A11-1', 'Kolom urut di luar whitelist jatuh ke transaction_date alih-alih menjatuhkan endpoint.')],
+        'A13': [('A11-1', 'Arah urut di luar asc/desc jatuh ke desc; endpoint tetap 200.')],
+        'A14': [('A11-1', 'per_page=100000 dijepit menjadi 100 pada respons endpoint transaksi.')],
         'N17': [
             ('N01-1', 'Saldo Rp 14.850.000 dihitung ulang dari saldo awal + pemasukan − pengeluaran, bukan disimpan.'),
         ],
     },
     'cash-flow': {
+        'A28': [('A28-1', 'Halaman Pemasukan; permintaan transaksi masuk berkategori pengeluaran kini ditolak 422 dengan pesan "Kategori pemasukan diperlukan untuk transaksi masuk." (dulu diterima dan menjadi transaksi hantu yang tetap mengubah saldo).')],
         'N21': [
             ('N01-1', 'Halaman Pengeluaran kosong — periode default "Semua waktu", bukan bulan berjalan.'),
             ('N01-2', 'Pemilih kategori: induk hanya menjadi judul grup, hanya anak (↳ MAKAN MINUM) yang bisa dipilih.'),

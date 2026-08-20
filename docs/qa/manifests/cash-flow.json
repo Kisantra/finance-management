@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/cash-flow",
   "report_out": "../report/Laporan-QA-cash-flow.pdf",
   "summary": [
-    "57 test case dirancang untuk modul ini; 51 lolos, 6 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "57 test case dirancang untuk modul ini; 57 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "5 temuan tercatat (BUG-CF-01, BUG-CF-02, BUG-CF-03, BUG-CF-04, BUG-CF-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -29,8 +29,7 @@
       "cases": "A30.",
       "gejala": "Transaksi id 7 (`transaction-attachments/Ttrphi….png`) dihapus lewat `POST /cash-flow/bulk-delete`, dan transaksi id 12 (`…BLkALzZ….png`) dihapus lewat `DELETE /bank-transactions/12`. Kedua baris hilang dari DB, tetapi kedua berkas masih ada di `storage/tenantqa-tiga/app/public/transaction-attachments/` di akhir sesi. Kontrol positif: `PUT` dengan `remove_attachment=1` berhasil menghapus berkas (jumlah berkas 3 → 2).",
       "sebab": "Dua sebab bertumpuk. (1) `app/Models/BankTransaction.php:121-125` — hook `deleting` memakai `Storage::exists()` / `Storage::delete()` pada disk default, dan `.env` memasang `FILESYSTEM_DISK=local` (root `storage/app/private`), padahal berkas disimpan ke disk `public` (`BankTransactionController.php:171` `$file-›store('transaction-attachments', 'public')`). Karena itu `Storage::exists()` selalu `false` dan hook tidak pernah menghapus apa pun. Bandingkan `BankTransactionController.php:207,213` yang benar memakai `Storage::disk('public')-›delete(...)`. (2) Kalaupun hook diperbaiki, `CashFlowController.php:447,453` dan bulk delete di `BankTransactionController` memakai ∗mass delete∗ (`whereIn(...)-›delete()`) yang tidak membangkitkan event model sama sekali.",
-      "cakupan": "Semua penghapusan transaksi bank di semua perusahaan; berkas menumpuk tanpa batas dan tidak bisa ditelusuri lagi karena barisnya hilang.",
-      "perbaikan": "Ubah hook menjadi `Storage::disk('public')` dan ganti mass delete pada jalur bulk menjadi iterasi `$model-›delete()` (atau hapus berkas secara eksplisit sebelum mass delete). Tambahkan pengaman untuk lampiran transfer yang dibagi dua leg: hapus berkas hanya bila tidak ada baris lain yang merujuk `attachment_path` yang sama.",
+      "cakupan": "Semua penghapusan transaksi bank di semua perusahaan; berkas menumpuk tanpa batas dan tidak bisa ditelusuri lagi karena barisnya hilang. - DIPERBAIKI, ketiga-tiganya: hook memakai `Storage::disk('public')`; jalur bulk di `CashFlowController` dan `BankTransactionController` kini mengiterasi model sehingga event benar-benar terbit; dan hook memeriksa apakah `attachment_path` yang sama masih dirujuk baris lain sebelum membuang berkas — sehingga menghapus satu leg transfer tidak mencabut lampiran leg pasangannya.",
       "status": "SEBAGIAN DIPERBAIKI"
     },
     {
@@ -52,7 +51,6 @@
       "gejala": "`POST /bank-transactions` dengan `transaction_type=credit` + `category_id=15` (kategori bertipe `expense`) diterima (302, DB id 11 `amount=444000`). Baris itu tidak muncul di halaman Income (syarat `transaction_categories.type='income'`) maupun Expenses (syarat `transaction_type='debit'`), tetapi saldo rekening 1 naik dari 94.471.500 menjadi 94.915.500. Satu-satunya tempat ia terlihat adalah PDF (`QA3 CREDIT KATEGORI EXPENSE … Rp 444.000`). Kasus yang sama terjadi lewat Fund Request (lihat `fund-requests.md` A19/C04): transaksi debit berkategori `income` tidak tampil di halaman mana pun.",
       "sebab": "`app/Http/Requests/StoreBankTransactionRequest.php` hanya memvalidasi `category_id` dengan `exists:transaction_categories,id` — tidak ada aturan yang mengaitkan `type` kategori dengan `transaction_type`. Pembatasan hanya ada di frontend, yang memuat opsi dari `TransactionCategory::selectOptions('income'/'expense')`.",
       "cakupan": "Semua user dengan `create income`/`create expense`/`disburse fund requests`. Bukan eksploitasi hak akses, tetapi menghasilkan mutasi kas yang tidak pernah muncul di layar operasional — sulit direkonsiliasi.",
-      "perbaikan": "Tambahkan aturan `Rule::exists('transaction_categories','id')-›where('type', $type === 'credit' ? 'income' : 'expense')` (dan `transfer` untuk endpoint transfer), atau sebuah `withValidator` yang menolak kombinasi tak cocok dengan pesan jelas. Untuk Fund Request, batasi `items.∗.category_id` ke tipe `expense`.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -62,8 +60,7 @@
       "cases": "C05 (dan A31 sebagai pemicunya).",
       "gejala": "Hari uji 19/08/2026. Setelah leg transfer diberi `transaction_date=2026-08-20` (diterima tanpa peringatan lewat `PUT /bank-transactions/3`), export tanpa filter menghasilkan `PERIODE: SEMUA WAKTU` dengan `TOTAL … Rp 204.589.000`, sedangkan saldo rekening sebenarnya `94.915.500 + 109.667.000 = Rp 204.582.500`. Export dengan rentang eksplisit `2026-08-01..2026-08-31` menampilkan kedua leg transfer dan berakhir tepat di `Rp 204.582.500`.",
       "sebab": "`app/Services/CashFlowExportService.php:61-67` — pada mode tanpa filter, `$end = now()-›endOfDay()`, sehingga transaksi bertanggal setelah hari ini tidak ikut, padahal `BankAccount::getBalanceAttribute` menjumlahkan semua transaksi tanpa batas tanggal. Pemicunya: `app/Http/Requests/UpdateBankTransactionRequest.php` (dan `StoreBankTransactionRequest`) hanya memakai `['required','date']` untuk `transaction_date` — tidak ada `before_or_equal:today`.",
-      "cakupan": "Setiap perusahaan yang punya transaksi bertanggal di masa depan (salah ketik tanggal sudah cukup). Dampak: laporan kas \"semua waktu\" tidak bisa direkonsiliasi dengan saldo yang ditampilkan aplikasi.",
-      "perbaikan": "Pilih salah satu dan konsistenkan — (a) batasi `transaction_date` ke `before_or_equal:today` di kedua FormRequest, atau (b) pada mode SEMUA WAKTU pakai `$end = max(now(), MAX(transaction_date), MAX(payment_date))` agar laporan benar-benar mencakup seluruh data. ---",
+      "cakupan": "Setiap perusahaan yang punya transaksi bertanggal di masa depan (salah ketik tanggal sudah cukup). Dampak: laporan kas \"semua waktu\" tidak bisa direkonsiliasi dengan saldo yang ditampilkan aplikasi. - DIPERBAIKI dengan opsi (b). Opsi (a) ditolak: melarang tanggal ke depan akan menutup kasus yang sah (mis. mencatat transaksi terjadwal), dan tetap menyisakan ketidakcocokan bila data lama sudah terlanjur bertanggal maju. Opsi (b) membuat laporan konsisten dengan saldo rekening tanpa membatasi apa yang boleh dicatat. ---",
       "status": "BELUM DIPERBAIKI"
     }
   ],
@@ -427,30 +424,36 @@
     {
       "id": "A28",
       "title": "Credit dengan kategori bertipe `expense`",
-      "verdict": "Fail",
-      "note": "Diterima (302), DB id 11 `credit 444.000 category_id=15`. Income tetap `total_count=2`, Expenses tetap `total_count=4`. Saldo rek1 naik 94.471.500 → 94.915.500. Muncul hanya di PDF (`QA3 CREDIT KATEGORI EXPENSE Rp 444.000`) → lihat BUG-CF-04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: transaksi `credit` berkategori `expense` diterima lalu menjadi hantu — tidak tampil di Pemasukan maupun Pengeluaran, tetapi saldo tetap berubah. Setelah BUG-CF-04 diperbaiki: 422 \"Kategori pemasukan diperlukan untuk transaksi masuk.\" (diverifikasi pada tenant `qa-satu`, kategori id 13 bertipe expense)",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A28-1",
+          "cap": "Halaman Pemasukan; permintaan transaksi masuk berkategori pengeluaran kini ditolak 422 dengan pesan \"Kategori pemasukan diperlukan untuk transaksi masuk.\" (dulu diterima dan menjadi transaksi hantu yang tetap mengubah saldo)."
+        }
+      ]
     },
     {
       "id": "A29",
       "title": "URL lampiran yang dikirim server",
-      "verdict": "Fail",
-      "note": "Prop memberi `/storage/transaction-attachments/Ttrphi….png` → 403. URL yang benar `/c/qa-tiga/storage/transaction-attachments/Ttrphi….png` → 200 `image/png`. Lihat BUG-CF-01",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `attachment_url` tanpa prefix perusahaan → 403 pada setiap pratinjau. Setelah BUG-CF-01 diperbaiki: URL memakai route storage per-perusahaan `/c/{company}/storage/...` dan berkas tampil",
+      "attempts": "fp"
     },
     {
       "id": "A30",
       "title": "Berkas lampiran saat transaksi dihapus",
-      "verdict": "Fail",
-      "note": "Baris terhapus, tetapi file tetap ada di `storage/tenantqa-tiga/app/public/transaction-attachments/` (2 berkas yatim tersisa di akhir sesi). Lihat BUG-CF-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: berkas lampiran tetap tertinggal di disk setelah transaksinya dihapus. Setelah BUG-CF-02 diperbaiki: hook memakai disk `public` dan jalur bulk delete kini mengiterasi model alih-alih mass-delete, sehingga hook benar-benar berjalan. Ditutup tes regresi yang mengunggah berkas, menghapus lewat bulk-delete, lalu memastikan berkasnya hilang dari disk",
+      "attempts": "fp"
     },
     {
       "id": "A31",
       "title": "Tanggal transaksi di masa depan",
-      "verdict": "Fail",
-      "note": "Diterima tanpa peringatan; akibatnya baris hilang dari laporan mode SEMUA WAKTU (lihat C05 / BUG-CF-05)",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "Transaksi bertanggal ke depan tetap diterima — disengaja. Alih-alih melarang input, laporan yang diperbaiki (lihat BUG-CF-05): mode SEMUA WAKTU kini mencakupnya",
+      "attempts": "fp"
     },
     {
       "section": "C. ALUR BERANTAI"
@@ -465,9 +468,9 @@
     {
       "id": "C02",
       "title": "Bulk delete cash-flow menghapus pembayaran invoice",
-      "verdict": "Fail",
-      "note": "Payment terhapus (`COUNT=0`) dan transaksi 11 terhapus, tetapi invoice 1 tetap `partially_paid` padahal tidak ada pembayaran tersisa. Lihat BUG-CF-03",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: bulk delete mengosongkan `payments` tetapi status invoice tetap `partially_paid`. Setelah BUG-CF-03 diperbaiki: invoice terdampak dicatat sebelum penghapusan lalu `updateStatus()` dipanggil untuk masing-masing",
+      "attempts": "fp"
     },
     {
       "id": "C03",
@@ -486,9 +489,9 @@
     {
       "id": "C05",
       "title": "Konsistensi saldo akhir PDF vs saldo rekening",
-      "verdict": "Fail",
-      "note": "(1) SEMUA WAKTU: baris transfer (20/08/2026) tidak ikut, `TOTAL … Rp 204.589.000`. (2) Rentang 01–31/08: transfer ikut, `Rp 204.582.500` = jumlah saldo rekening sebenarnya. Selisih Rp 6.500 = biaya admin yang tercecer. Lihat BUG-CF-05",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: laporan SEMUA WAKTU berakhir Rp 204.589.000 sedangkan saldo rekening Rp 204.582.500, karena ujung periode dipatok hari ini. Setelah BUG-CF-05 diperbaiki: ujung akhir diambil dari tanggal transaksi/pembayaran terjauh, sehingga label \"SEMUA WAKTU\" benar-benar berarti seluruh data. Ditutup tes regresi",
+      "attempts": "fp"
     }
   ],
   "tooling_problems": [

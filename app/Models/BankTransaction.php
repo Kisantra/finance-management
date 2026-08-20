@@ -119,7 +119,18 @@ class BankTransaction extends Model
         parent::boot();
 
         static::deleting(function ($transaction) {
-            if ($transaction->attachment_path && Storage::disk('public')->exists($transaction->attachment_path)) {
+            if (! $transaction->attachment_path) {
+                return;
+            }
+
+            // Transfer tersimpan sebagai dua baris yang berbagi satu berkas
+            // lampiran. Menghapus salah satu leg tidak boleh membuang berkas
+            // yang masih dirujuk leg pasangannya.
+            $masihDipakai = static::where('attachment_path', $transaction->attachment_path)
+                ->whereKeyNot($transaction->getKey())
+                ->exists();
+
+            if (! $masihDipakai && Storage::disk('public')->exists($transaction->attachment_path)) {
                 Storage::disk('public')->delete($transaction->attachment_path);
             }
         });

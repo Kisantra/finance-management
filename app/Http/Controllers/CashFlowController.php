@@ -453,14 +453,24 @@ class CashFlowController extends Controller
             $transferRefs = $trxs->filter(fn ($t) => $t->reference_number && str_starts_with($t->reference_number, 'TRF'))
                 ->pluck('reference_number')->unique()->values()->all();
 
+            // Dihapus satu per satu, bukan mass-delete: hook `deleting` pada
+            // BankTransaction yang membuang berkas lampiran dari disk hanya
+            // berjalan lewat event model. Mass-delete meninggalkan berkas yatim
+            // di storage selamanya — tidak terlihat, tetapi menumpuk.
             if (! empty($transferRefs)) {
-                $deleted += BankTransaction::whereIn('reference_number', $transferRefs)->delete();
+                foreach (BankTransaction::whereIn('reference_number', $transferRefs)->get() as $trx) {
+                    $trx->delete();
+                    $deleted++;
+                }
             }
 
             $remainingIds = $trxs->filter(fn ($t) => ! $t->reference_number || ! str_starts_with($t->reference_number, 'TRF'))
                 ->pluck('id')->all();
             if (! empty($remainingIds)) {
-                $deleted += BankTransaction::whereIn('id', $remainingIds)->delete();
+                foreach (BankTransaction::whereIn('id', $remainingIds)->get() as $trx) {
+                    $trx->delete();
+                    $deleted++;
+                }
             }
         }
 

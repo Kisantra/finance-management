@@ -18,6 +18,13 @@ use Illuminate\Support\Facades\Storage;
 class BankTransactionController extends Controller
 {
     /**
+     * Kolom yang boleh dipakai mengurutkan daftar transaksi.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['transaction_date', 'amount', 'description', 'transaction_type', 'created_at'];
+
+    /**
      * Paginated transactions list for the selected account (JSON, called via Inertia router.reload).
      */
     public function indexTransactions(Request $request): JsonResponse
@@ -31,9 +38,15 @@ class BankTransactionController extends Controller
         $type = $request->input('transaction_type');
         $categoryId = $request->input('category_id');
         $month = $request->input('month');
-        $perPage = (int) $request->input('per_page', 15);
-        $sort = $request->input('sort', 'transaction_date');
-        $direction = $request->input('direction', 'desc');
+        // `sort`/`direction` dulu diteruskan mentah ke orderBy(): nilai sembarang
+        // menjatuhkan endpoint ke 500 beserta pesan SQL yang menyebut nama
+        // database, dan `per_page` tanpa batas atas menarik seluruh riwayat
+        // transaksi dalam satu permintaan.
+        $perPage = max(1, min(100, (int) $request->input('per_page', 15)));
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'transaction_date';
+        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
         $query = BankTransaction::with(['category.parent'])
             ->where('bank_account_id', $accountId)
@@ -267,7 +280,11 @@ class BankTransactionController extends Controller
             ->all();
 
         if (! empty($transferRefs)) {
-            BankTransaction::whereIn('reference_number', $transferRefs)->delete();
+            // Iterasi, bukan mass-delete — lihat catatan pada CashFlowController:
+            // hook penghapus berkas lampiran tidak berjalan pada mass-delete.
+            foreach (BankTransaction::whereIn('reference_number', $transferRefs)->get() as $trx) {
+                $trx->delete();
+            }
         }
 
         $nonTransferIds = $transactions
@@ -276,7 +293,9 @@ class BankTransactionController extends Controller
             ->all();
 
         if (! empty($nonTransferIds)) {
-            BankTransaction::whereIn('id', $nonTransferIds)->delete();
+            foreach (BankTransaction::whereIn('id', $nonTransferIds)->get() as $trx) {
+                $trx->delete();
+            }
         }
 
         return redirect()->back()->with('success', __('pages.bulk_delete_success', ['count' => count($validated['ids'])]));

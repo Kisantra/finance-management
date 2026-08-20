@@ -62,8 +62,17 @@ class CashFlowExportService
                 BankTransaction::min('transaction_date'),
                 Payment::min('payment_date'),
             ])->filter()->min();
+            // Ujung akhir dulu dipatok hari ini, sehingga transaksi bertanggal
+            // ke depan tidak ikut — padahal saldo rekening menjumlahkan SEMUA
+            // transaksi tanpa batas tanggal. Akibatnya laporan berlabel "SEMUA
+            // WAKTU" berakhir pada angka yang berbeda dari saldo rekening.
+            $latest = collect([
+                BankTransaction::max('transaction_date'),
+                Payment::max('payment_date'),
+            ])->filter()->max();
+
             $start = $earliest ? Carbon::parse($earliest)->startOfDay() : now()->startOfDay();
-            $end = now()->endOfDay();
+            $end = $latest ? Carbon::parse($latest)->endOfDay()->max(now()->endOfDay()) : now()->endOfDay();
             $periodText = 'SEMUA WAKTU';
         }
 

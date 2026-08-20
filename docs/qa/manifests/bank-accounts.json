@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/bank-accounts",
   "report_out": "../report/Laporan-QA-bank-accounts.pdf",
   "summary": [
-    "38 test case dirancang untuk modul ini; 29 lolos, 9 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "38 test case dirancang untuk modul ini; 35 lolos, 3 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "5 temuan tercatat (BUG-BA-01, BUG-BA-02, BUG-BA-03, BUG-BA-04, BUG-BA-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -30,7 +30,6 @@
       "gejala": "- `GET /c/qa-dua/bank-accounts/transactions?account=1&sort=DROP` → 500, body memuat `SQLSTATE[42S22]: Column not found: 1054 Unknown column 'DROP' in 'order clause' (Connection: tenant, Host: 127.0.0.1, Port: 3306, Database: tenant_qa-dua, SQL: select ∗ from bank_transactions where ...)` — nama host, port, dan nama database tenant ikut terkirim. - `?direction=XYZ` → 500 `InvalidArgumentException: Order direction must be \"asc\" or \"desc\".`",
       "sebab": "`app/Http/Controllers/BankTransactionController.php:33-35, 49` — `$sort` dan `$direction` diambil mentah dari request lalu langsung dipakai `-›orderBy($sort, $direction)`. Bandingkan dengan `indexPayments()` di file yang sama yang sudah memakai `match()` whitelist (terbukti aman di N16). Tidak ada injeksi SQL (Laravel meng-∗quote∗ identifier — dibuktikan A12), tapi penanganan errornya salah.",
       "cakupan": "Endpoint tab Transaksi. Kebocoran detail koneksi hanya terjadi bila `APP_DEBUG=true`; di lingkungan uji ini `APP_ENV=local`. Di production gejalanya menjadi 500 polos — tetap cacat.",
-      "perbaikan": "Terapkan whitelist yang sama seperti `indexPayments()`: `$sort = in_array($sort, ['transaction_date','amount','description','transaction_type'], true) ? $sort : 'transaction_date';` dan `$direction = $direction === 'asc' ? 'asc' : 'desc';`.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -41,7 +40,6 @@
       "gejala": "`GET /bank-accounts/transactions?account=1&per_page=100000` dijawab 200 dengan `\"per_page\":100000`. Nilai apa pun diterima.",
       "sebab": "`BankTransactionController.php:32` — `$perPage = (int) $request-›input('per_page', 15);` lalu langsung `-›paginate($perPage)`, tanpa `min()`/whitelist.",
       "cakupan": "Tab Transaksi (dan pola yang sama perlu dicek di `indexPayments()`). Pada tenant dengan ratusan ribu transaksi, satu request bisa menarik semuanya ke memori.",
-      "perbaikan": "Batasi, mis. `$perPage = min(max($perPage, 1), 100);` atau whitelist `[15, 25, 50, 100]` sesuai opsi yang benar-benar ada di UI.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -272,30 +270,54 @@
     {
       "id": "A11",
       "title": "Parameter `sort` tab Transaksi tidak di-whitelist",
-      "verdict": "Fail",
-      "note": "HTTP 500 dengan SQL mentah bocor ke respons: `SQLSTATE[42S22]: Column not found: 1054 Unknown column 'DROP' in 'order clause' ... SQL: select ∗ from bank_transactions ...` → BUG-BA-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 beserta pesan SQL yang menyebut nama database. Setelah BUG-BA-02 diperbaiki: kolom urut disaring whitelist 5 kolom, permintaan menjawab 200 dan jatuh ke urutan bawaan `transaction_date`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "Halaman Rekening Bank tetap normal; permintaan tab Transaksi dengan kolom urut sembarang menjawab 200 (dulu 500 dengan pesan SQL yang menyebut nama database)."
+        }
+      ]
     },
     {
       "id": "A12",
       "title": "Percobaan injeksi lewat `sort`",
-      "verdict": "Pass (keamanan) / Fail (penanganan error, sama dengan A11)",
-      "note": "HTTP 500, pesan `Unknown column 'id,(select 1)'` — identifier di-∗quote∗ Laravel, tidak ada injeksi SQL. Yang bocor hanya pesan error",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama karena akar yang sama. Setelah diperbaiki: 200",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "Kolom urut di luar whitelist jatuh ke transaction_date alih-alih menjatuhkan endpoint."
+        }
+      ]
     },
     {
       "id": "A13",
       "title": "Parameter `direction` tidak divalidasi",
-      "verdict": "Fail",
-      "note": "HTTP 500 `InvalidArgumentException: Order direction must be \"asc\" or \"desc\".` → bagian dari BUG-BA-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `direction` sembarang juga menjatuhkan endpoint. Setelah diperbaiki: hanya `asc`/`desc` yang diterima, selebihnya jatuh ke `desc`; 200",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "Arah urut di luar asc/desc jatuh ke desc; endpoint tetap 200."
+        }
+      ]
     },
     {
       "id": "A14",
       "title": "`per_page` ekstrem",
-      "verdict": "Fail (untuk `per_page=100000`)",
-      "note": "`per_page=0` → aman, paginator jatuh ke 15. `per_page=100000` → diterima apa adanya (`per_page=100000`), tanpa batas atas → BUG-BA-03 (risiko memori)",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `per_page=100000` menarik seluruh riwayat. Setelah BUG-BA-03 diperbaiki: dijepit ke 100 (dibuktikan dari nilai `per_page` pada respons)",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "per_page=100000 dijepit menjadi 100 pada respons endpoint transaksi."
+        }
+      ]
     },
     {
       "id": "A15",
@@ -331,16 +353,16 @@
     {
       "id": "C02",
       "title": "Hapus rekening → payment ikut hilang, status invoice tidak dihitung ulang",
-      "verdict": "Fail",
-      "note": "`payments` = 0 baris (invoice 1 kini tanpa pembayaran) tetapi `invoices.id=1 status=partially_paid`, `total_amount=1.000.000`. `updateStatus()` tidak dipanggil → BUG-BA-01",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: menghapus rekening mengosongkan tabel `payments` tanpa memperbaiki status invoice. Setelah BUG-BA-01 diperbaiki: penghapusan ditolak selama masih ada transaksi, pembayaran invoice, atau pembayaran pinjaman — pesannya menyebut apa saja yang menahan. FK `payments.bank_account_id` juga diubah menjadi `restrictOnDelete` (migration modul Clients), sehingga penjagaan berlaku pula di luar controller",
+      "attempts": "fp"
     },
     {
       "id": "C03",
       "title": "Transaksi bank yang memakai kategori bertipe salah tetap ikut dihitung sebagai pengeluaran",
-      "verdict": "Fail",
-      "note": "Transaksi diterima (302). Breakdown pengeluaran akun 1: `[{\"name\":\"QA Anak Beban 2\",\"total\":333000},{\"name\":\"QA Pendapatan Lain\",\"total\":222000},...]` — kategori income muncul di daftar pengeluaran. Akar masalah ada di modul Kategori → lihat BUG-TC-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (turunan C02). Setelah diperbaiki: rantai penghapusan itu tidak lagi terjadi, sehingga status invoice dan saldo tetap konsisten",
+      "attempts": "fp"
     },
     {
       "id": "C04",
