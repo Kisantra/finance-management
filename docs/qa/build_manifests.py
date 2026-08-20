@@ -143,8 +143,67 @@ BUKTI_LAYAR = {
         ],
     },
     'dashboard': {
+        'N05': [
+            ('N05-1', 'Saldo Kas QA5 Rp 120.789.000 pada kartu rekening sama persis dengan badge Total Saldo di kepala halaman — satu angka dihitung ulang, bukan dua angka tersimpan.'),
+        ],
         'N13': [
-            ('N01-1', 'Dashboard QA Satu: kartu ringkasan, grafik arus kas 6 bulan, dan daftar rekening dengan saldo terhitung.'),
+            ('N01-1', 'Dashboard perusahaan lain (QA Satu) terbuka utuh: kartu ringkasan, grafik arus kas, dan daftar rekening.'),
+        ],
+        'A03': [
+            ('A03-1', 'Setelah login dari nol, akun tanpa view dashboard dan tanpa view expense mendarat di Feedback & Saran yang terbuka penuh; sebelumnya rantai redirect berakhir 403 dan user terkunci total.'),
+        ],
+        'N01': [
+            ('N02-1', 'Blok atas dashboard terender: ringkasan finansial, stats bulan berjalan, grafik arus kas, dan donut kategori.'),
+            ('N05-1', 'Blok bawah: rekening bank, reimbursement, pengajuan dana, invoice tertunda, dan transaksi terbaru — total sembilan blok props punya wujud di layar.'),
+        ],
+        'N02': [
+            ('N02-1', 'Kartu Total Pemasukan menampilkan Rp 15.000.000 — seluruh pembayaran, termasuk porsi titipan pajak.'),
+        ],
+        'N03': [
+            ('N02-1', 'Total HPP / Billing Klien Rp 4.000.000 dan Total Profit Rp 11.000.000, persis angka yang dihitung tangan sebelum pengujian.'),
+        ],
+        'N04': [
+            ('N02-1', 'Kartu Total PP 0,5% menampilkan Rp 50.000, bukan Rp 75.000 — item titipan pajak dikeluarkan dari basis.'),
+        ],
+        'N06': [
+            ('N02-1', 'Sisa Outstanding Rp 0 pada kartu ringkasan.'),
+            ('N05-1', 'Panel Invoice Tertunda berbunyi "Tidak ada invoice tertunda".'),
+        ],
+        'N07': [
+            ('N02-1', 'Stats bulan berjalan: Pemasukan Rp 0, Pengeluaran Rp 1.500.000, Net −Rp 1.500.000.'),
+        ],
+        'N08': [
+            ('N02-1', 'Grafik enam bulan Mar–Agt dengan label bulan terlokalkan; Juni tertinggi, Juli nyaris rata.'),
+        ],
+        'N09': [
+            ('N02-1', 'Mar, Apr, dan Mei kosong di grafik meski ketiganya punya pembayaran invoice — grafik hanya membaca bank_transactions.'),
+        ],
+        'N10': [
+            ('N05-1', 'Panel Transaksi Terbaru: 8 kartu dengan tanggal, rekening, dan arah dana.'),
+        ],
+        'N11': [
+            ('N05-1', 'Panel Pengajuan Dana menampilkan judul, nominal, status, prioritas, pemohon, dan tanggal.'),
+        ],
+        'N12': [
+            ('N02-1', 'Badge angka 1 pada menu Permintaan Dana untuk admin yang memegang approve fund requests; nilai untuk staff dibaca dari props karena butuh sesi aktor lain.'),
+        ],
+        'A01': [
+            ('A03-1', 'Pendaratan user tanpa view dashboard mengikuti daftar prioritas modul, bukan tujuan yang dipatok.'),
+        ],
+        'A02': [
+            ('A03-1', 'User tanpa view dashboard dan tanpa view expense kini mendarat di Feedback & Saran, bukan 403.'),
+        ],
+        'A07': [
+            ('N02-1', 'Donut Pengeluaran per Kategori terisi satu irisan MAKAN MINUM setelah transaksi C01; sebelum itu kosong tanpa error.'),
+        ],
+        'A08': [
+            ('N05-1', 'Panel Reimburse Terbaru berbunyi "Belum ada pengajuan".'),
+        ],
+        'C01': [
+            ('N02-1', 'Keadaan sesudah transaksi C01: saldo Rp 120.789.000 (turun tepat Rp 1.500.000), Pengeluaran Bln Ini Rp 1.500.000, donut terisi. Angka sebelum transaksi dibaca dari props.'),
+        ],
+        'C02': [
+            ('N02-1', 'Badge Permintaan Dana tetap tampil di halaman non-dashboard karena berupa shared prop; nilainya 1 untuk admin.'),
         ],
     },
     'feedbacks': {
