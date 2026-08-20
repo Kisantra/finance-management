@@ -177,9 +177,14 @@ class ReimbursementController extends Controller
             ]);
 
             if ($validated['action'] === 'submit') {
-                $reimbursement->submit();
+                $berhasil = $reimbursement->submit();
             }
         });
+
+        if (($validated['action'] ?? null) === 'submit' && ! ($berhasil ?? false)) {
+            return redirect()->route('reimbursements.index')
+                ->with('error', 'Reimbursement tersimpan, tetapi tidak dapat diajukan pada status saat ini.');
+        }
 
         $msg = $validated['action'] === 'submit'
             ? 'Reimbursement berhasil diajukan untuk persetujuan'
@@ -226,7 +231,9 @@ class ReimbursementController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($validated, $request, $reimbursement) {
+        $berhasilUpdate = false;
+
+        DB::transaction(function () use ($validated, $request, $reimbursement, &$berhasilUpdate) {
             $attachmentPath = $reimbursement->attachment_path;
             $attachmentName = $reimbursement->attachment_name;
 
@@ -255,9 +262,26 @@ class ReimbursementController extends Controller
             ]);
 
             if ($validated['action'] === 'submit') {
-                $reimbursement->submit();
+                // canEdit() menerima `rejected` tetapi canSubmit() hanya menerima
+                // `draft`, sehingga pengajuan ulang gagal diam-diam sementara
+                // pengguna melihat flash sukses. Status direset lebih dulu.
+                if ($reimbursement->status === 'rejected') {
+                    $reimbursement->update([
+                        'status' => 'draft',
+                        'reviewed_by' => null,
+                        'reviewed_at' => null,
+                        'review_notes' => null,
+                    ]);
+                }
+
+                $berhasilUpdate = $reimbursement->submit();
             }
         });
+
+        if (($validated['action'] ?? null) === 'submit' && ! ($berhasilUpdate ?? false)) {
+            return redirect()->route('reimbursements.index')
+                ->with('error', 'Perubahan tersimpan, tetapi reimbursement tidak dapat diajukan pada status saat ini.');
+        }
 
         $msg = $validated['action'] === 'submit'
             ? 'Reimbursement berhasil diajukan untuk persetujuan'
@@ -270,6 +294,20 @@ class ReimbursementController extends Controller
     {
         if (! $reimbursement->canDelete()) {
             return back()->with('error', 'Reimbursement tidak dapat dihapus');
+        }
+
+        // Pembayaran reimbursement sudah tercatat sebagai pengeluaran di kas.
+        // Menghapus pengajuannya meninggalkan pengeluaran yatim yang tidak bisa
+        // ditelusuri balik ke asalnya, dan saldo tetap berkurang tanpa dokumen
+        // pendukung. canDelete() memberi admin bypass untuk status apa pun,
+        // jadi penjagaannya harus di sini.
+        if ($reimbursement->payments()->exists()) {
+            $nilai = (int) $reimbursement->payments()->sum('amount');
+
+            return back()->withErrors([
+                'delete' => 'Reimbursement ini tidak dapat dihapus karena sudah memiliki pembayaran senilai Rp '
+                    .number_format($nilai, 0, ',', '.').' yang tercatat sebagai pengeluaran kas.',
+            ]);
         }
 
         $reimbursement->delete();

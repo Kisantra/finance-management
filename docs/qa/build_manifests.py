@@ -277,6 +277,9 @@ BUKTI_LAYAR = {
         ],
     },
     'reimbursements': {
+        'A09': [('A15-1', 'Modul Reimbursement; pengajuan ulang setelah ditolak kini benar-benar berpindah ke Pending, dan bila gagal yang tampil pesan galat — bukan flash sukses yang bohong.')],
+        'A15': [('A15-1', 'Tab "Semua Pengajuan" hanya tersedia bagi pemegang approve reimbursements; parameter ?tab=all kini dipaksa kembali ke "my" di server bagi yang lain.')],
+        'C02': [('A15-1', 'Siklus tolak → revisi → ajukan ulang berakhir pada status Pending, bukan diam di Ditolak.')],
         'N12': [
             ('N01-1', 'Daftar reimbursement dengan tab Semua/Saya dan kartu status.'),
         ],

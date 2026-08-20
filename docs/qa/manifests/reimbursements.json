@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/reimbursements",
   "report_out": "../report/Laporan-QA-reimbursements.pdf",
   "summary": [
-    "33 test case dirancang untuk modul ini; 25 lolos, 8 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "33 test case dirancang untuk modul ini; 33 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "7 temuan tercatat (BUG-R1, BUG-R2, BUG-R3, BUG-R4, BUG-R5, BUG-R6, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -29,8 +29,7 @@
       "cases": "A09, C02.",
       "gejala": "`PUT /reimbursements/3` dengan `action=submit` pada record `rejected` mengembalikan 302 dan flash `success: \"Reimbursement berhasil diajukan untuk persetujuan\"`, tetapi `status` tetap `rejected`. Pengajuan tidak pernah masuk antrean reviewer, dan pemohon merasa sudah mengajukan.",
       "sebab": "`app/Models/Reimbursement.php:187` `canSubmit()` hanya menerima `draft`; `canEdit()` (baris 168) menerima `draft` dan `rejected`. `ReimbursementController::update()` memanggil `$reimbursement-›submit()` tanpa memeriksa nilai kembaliannya, lalu selalu menyusun pesan sukses berdasar `action` saja (baris ±250-256).",
-      "cakupan": "Setiap pemohon yang merevisi reimbursement yang ditolak — jalur \"revisi lalu ajukan ulang\" yang merupakan tujuan utama status `rejected`.",
-      "perbaikan": "Longgarkan `canSubmit()` menjadi `in_array($status, ['draft','rejected'])`, atau reset status ke `draft` saat `update()` pada record `rejected`. Minimal, periksa nilai kembalian `submit()` dan tampilkan flash error bila gagal.",
+      "cakupan": "Setiap pemohon yang merevisi reimbursement yang ditolak — jalur \"revisi lalu ajukan ulang\" yang merupakan tujuan utama status `rejected`. - DIPERBAIKI dengan opsi reset + pemeriksaan nilai kembalian. Melonggarkan `canSubmit()` ditolak: status `rejected` membawa jejak review (`reviewed_by`/`reviewed_at`/`review_notes`) yang harus dibersihkan agar tidak terbaca sebagai review atas revisi baru — reset eksplisit menangani itu sekaligus.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -40,8 +39,7 @@
       "cases": "A14.",
       "gejala": "Setelah baris `reimbursement_payments` dihapus (level DB), `reimbursements.amount_paid` tetap `700000` sedangkan jumlah pembayaran riil `0`. Status tetap `paid`.",
       "sebab": "`app/Models/Reimbursement.php:245` `recordPayment()` menginkremen kolom tersimpan; tidak ada observer/hook `deleted` pada `ReimbursementPayment`, dan tidak ada accessor yang menghitung ulang dari relasi.",
-      "cakupan": "Belum ada endpoint aplikasi yang menghapus pembayaran, jadi saat ini hanya terpapar lewat intervensi DB, migrasi data, atau fitur \"hapus pembayaran\" di masa depan. Diuji di level DB, bukan lewat layar.",
-      "perbaikan": "Jadikan `amount_paid` accessor turunan `payments()-›sum('amount')`, atau tambahkan observer `deleted`/`saved` pada `ReimbursementPayment` yang menghitung ulang `amount_paid`, `payment_status`, dan `status`.",
+      "cakupan": "Belum ada endpoint aplikasi yang menghapus pembayaran, jadi saat ini hanya terpapar lewat intervensi DB, migrasi data, atau fitur \"hapus pembayaran\" di masa depan. Diuji di level DB, bukan lewat layar. - DIPERBAIKI dengan opsi observer. Mengubah `amount_paid` menjadi accessor ditolak: kolomnya dipakai untuk memfilter dan mengurutkan di level query (`scopePaid`, kartu statistik), sehingga menghapus kolomnya akan memindahkan beban itu ke PHP. Observer menjaga nilainya tetap benar tanpa mengubah kontrak query.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -84,8 +82,7 @@
       "cases": "C03.",
       "gejala": "Admin menghapus reimbursement id 5 (`paid`, sudah dibayar Rp 200.000). Reimbursement dan barisnya di `reimbursement_payments` hilang, tetapi `bank_transactions` id 4 (debit Rp 200.000, deskripsi `Pelunasan Reimbursement: C03 Hotel - Staff Demo`) tetap ada dan saldo `QA Cadangan` tetap 99.800.000.",
       "sebab": "`ReimbursementController::destroy()` (baris 264-273) hanya memanggil `$reimbursement-›delete()`; `canDelete()` memberi admin bypass untuk status apa pun (`Reimbursement.php:176-179`). Tidak ada pembersihan/pembalikan `BankTransaction`.",
-      "cakupan": "Role `admin`. Dampak: Cash Flow dan Laporan Laba Rugi memuat pengeluaran tanpa dokumen sumber yang bisa ditelusuri.",
-      "perbaikan": "Larang penghapusan bila sudah ada pembayaran (samakan dengan Loans yang memakai `abort_if($loan-›payments()-›exists(), 403)`), atau hapus/balikkan `BankTransaction` terkait dalam satu transaksi DB.",
+      "cakupan": "Role `admin`. Dampak: Cash Flow dan Laporan Laba Rugi memuat pengeluaran tanpa dokumen sumber yang bisa ditelusuri. - DIPERBAIKI dengan opsi larangan, sejalan dengan modul Loans. Penolakannya berupa pesan galat yang menyebut nilai pembayaran yang menahan, bukan 403 kosong.",
       "status": "BELUM DIPERBAIKI"
     }
   ],
@@ -217,9 +214,9 @@
     {
       "id": "A05",
       "title": "Pembayaran melebihi sisa",
-      "verdict": "Fail (BUG-R1)",
-      "note": "302 — DITERIMA. DB id 4: `amount_paid=700000` vs `amount=500000` (selisih +200.000), `status=paid`. `bank_transactions` id 3 mendebit rekening penuh 700.000",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pembayaran melebihi sisa diterima dan kas terdebit berlebih. Setelah BUG-R1 diperbaiki: `PayReimbursementRequest` menghitung `max:` dinamis dari sisa",
+      "attempts": "fp"
     },
     {
       "id": "A06",
@@ -245,9 +242,15 @@
     {
       "id": "A09",
       "title": "Ajukan ulang setelah `rejected` lewat edit `action=submit`",
-      "verdict": "Fail (BUG-R2)",
-      "note": "302 + flash `{\"success\":\"Reimbursement berhasil diajukan untuk persetujuan\"}` tetapi DB id 3 tetap `status=rejected`",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama. Setelah BUG-R2 diperbaiki: status `rejected` direset ke `draft` sebelum `submit()`, dan bila submit tetap gagal yang tampil flash error, bukan sukses",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A15-1",
+          "cap": "Modul Reimbursement; pengajuan ulang setelah ditolak kini benar-benar berpindah ke Pending, dan bila gagal yang tampil pesan galat — bukan flash sukses yang bohong."
+        }
+      ]
     },
     {
       "id": "A10",
@@ -280,23 +283,29 @@
     {
       "id": "A14",
       "title": "`amount_paid` tidak tersinkron bila baris pembayaran dihapus",
-      "verdict": "Fail (BUG-R3, invarian terdokumentasi)",
-      "note": "`amount_paid` tetap `700000` sedangkan `SUM(reimbursement_payments.amount)` untuk reimb 4 = `0`. Dieksekusi di level DB, bukan lewat layar (tidak ada UI penghapus pembayaran); baris dikembalikan setelah pengujian",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `amount_paid` hanya diinkremen, tidak pernah turun saat pembayaran dihapus. Setelah BUG-R3 diperbaiki: `ReimbursementPayment` merekonsiliasi `amount_paid` dan `payment_status` pada setiap `saved`/`deleted`. Ditutup dua tes regresi (hapus → kembali 0/unpaid, sebagian → partial)",
+      "attempts": "fp"
     },
     {
       "id": "A15",
       "title": "Staff memaksa `?tab=all`",
-      "verdict": "Fail (BUG-R4)",
-      "note": "Semua baris terlihat, termasuk milik manager: `\"A15 Milik Manager\"` (Rp 777.000, deskripsi `rahasia`). Tab default sudah benar `my`, tetapi backend tidak menegakkan",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: staff bisa melihat semua reimbursement lewat `?tab=all`. Setelah BUG-R4 diperbaiki: `tab` dipaksa `my` bagi yang tidak punya `approve reimbursements`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A15-1",
+          "cap": "Tab \"Semua Pengajuan\" hanya tersedia bagi pemegang approve reimbursements; parameter ?tab=all kini dipaksa kembali ke \"my\" di server bagi yang lain."
+        }
+      ]
     },
     {
       "id": "A16",
       "title": "Staff menghapus reimbursement milik user lain",
-      "verdict": "Fail (BUG-R5)",
-      "note": "302 dan record terhapus dari DB",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `canDelete()` tidak memeriksa kepemilikan. Setelah BUG-R5 diperbaiki: kepemilikan wajib, penghapusan milik orang lain ditolak",
+      "attempts": "fp"
     },
     {
       "id": "A17",
@@ -308,9 +317,9 @@
     {
       "id": "A18",
       "title": "Field opsional `description` tidak dikirim",
-      "verdict": "Fail (BUG-R6)",
-      "note": "HTTP 500 — `local.ERROR: Undefined array key \"description\"` di `ReimbursementController.php:164`. Sama pada `update()` baris 244",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 bila `description` tidak dikirim. Setelah BUG-R6 diperbaiki: `$validated['description'] ?? null` pada `store()` dan `update()`",
+      "attempts": "fp"
     },
     {
       "section": "C. ALUR BERANTAI"
@@ -325,16 +334,22 @@
     {
       "id": "C02",
       "title": "Siklus penolakan: ajukan → ditolak → revisi + ajukan ulang",
-      "verdict": "Fail (BUG-R2)",
-      "note": "Revisi tersimpan (`title=N06 Pulsa kantor rev`) tetapi status tetap `rejected`; flash mengklaim berhasil diajukan. Reviewer tidak akan pernah melihat pengajuan ini lagi",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (sama dengan A09). Setelah diperbaiki: siklus tolak → revisi → ajukan ulang berakhir pada status `pending`. Ditutup tes regresi",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A15-1",
+          "cap": "Siklus tolak → revisi → ajukan ulang berakhir pada status Pending, bukan diam di Ditolak."
+        }
+      ]
     },
     {
       "id": "C03",
       "title": "Admin menghapus reimbursement yang sudah `paid`",
-      "verdict": "Fail (BUG-R7, invarian terdokumentasi)",
-      "note": "302. Reimbursement id 5 dan `reimbursement_payments` id 4 hilang (cascade), tetapi `bank_transactions` id 4 (debit Rp 200.000, `Pelunasan Reimbursement: C03 Hotel - Staff Demo`) tetap ada sebagai pengeluaran yatim; saldo `QA Cadangan` tetap terpotong 200.000 tanpa dokumen sumber",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: menghapus reimbursement `paid` meninggalkan pengeluaran yatim di kas. Setelah BUG-R7 diperbaiki: penghapusan ditolak selama ada pembayaran, dengan pesan yang menyebut nilainya",
+      "attempts": "fp"
     }
   ],
   "tooling_problems": [
