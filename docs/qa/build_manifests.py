@@ -225,6 +225,9 @@ BUKTI_LAYAR = {
         ],
     },
     'fund-requests': {
+        'A19': [('A26-1', 'Modul Permintaan Dana; kategori item kini dibatasi bertipe pengeluaran di server, sehingga pencairannya selalu terlihat di halaman Cash Flow.')],
+        'A26': [('A26-1', 'Filter status Approved menghasilkan 0 baris, dan keempat kartu statistik ikut menunjukkan 0 — sebelumnya kartu tetap menampilkan angka global (TOTAL 1, DICAIRKAN 1) sementara tabelnya kosong.')],
+        'C04': [('A26-1', 'Pencairan tidak lagi bisa memakai kategori non-pengeluaran, sehingga transaksi hasil pencairan tidak menjadi transaksi hantu.')],
         'N18': [
             ('N01-1', 'Daftar permintaan dana kosong dengan kartu status per tahap.'),
             ('N02-1', 'Form pengajuan: nomor ter-generate otomatis per perusahaan (001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000.'),

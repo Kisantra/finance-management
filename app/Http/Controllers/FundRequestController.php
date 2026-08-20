@@ -65,7 +65,15 @@ class FundRequestController extends Controller
         $paginator = $query->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $statsQuery = FundRequest::query();
+        // Statistik dihitung dari query yang SUDAH difilter. Sebelumnya ia
+        // dibangun dari nol dan hanya menerapkan filter tab, sehingga kartu
+        // ringkasan tetap menampilkan angka global sementara tabel di bawahnya
+        // sudah tersaring — dua angka berbeda pada satu layar.
+        // Eager load dan withCount dilepas: keduanya bertabrakan dengan agregat
+        // (`only_full_group_by`), dan tidak diperlukan untuk menghitung.
+        $statsQuery = (clone $query)->withoutEagerLoads()->setQuery(
+            (clone $query->getQuery())->cloneWithout(['columns'])
+        );
         if ($tab === 'my') {
             $statsQuery->where('user_id', auth()->id());
         }
@@ -129,7 +137,9 @@ class FundRequestController extends Controller
             ]);
 
         $userOptions = $canApprove
-            ? User::orderBy('name')->get()->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])
+            ? User::whereHas('companies', fn ($q) => $q->whereKey(tenant()->getTenantKey()))
+                ->orderBy('name')
+                ->get()->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])
             : collect();
 
         $categories = TransactionCategory::selectOptions('expense');
@@ -315,7 +325,9 @@ class FundRequestController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($validated, $request, $fundRequest) {
+        $berhasil = false;
+
+        DB::transaction(function () use ($validated, $request, $fundRequest, &$berhasil) {
             $attachmentPath = $fundRequest->attachment_path;
             $attachmentName = $fundRequest->attachment_name;
 
@@ -357,9 +369,28 @@ class FundRequestController extends Controller
             }
 
             if ($validated['action'] === 'submit') {
-                $fundRequest->submit();
+                // Pengajuan yang pernah ditolak boleh diedit (canEdit menerima
+                // `rejected`) tetapi tidak boleh langsung disubmit (canSubmit
+                // hanya menerima `draft`). Tanpa reset ini, submit() diam-diam
+                // mengembalikan false sementara pengguna melihat flash sukses —
+                // pengajuannya tidak pernah sampai ke pe-review.
+                if ($fundRequest->status === 'rejected') {
+                    $fundRequest->update([
+                        'status' => 'draft',
+                        'reviewed_by' => null,
+                        'reviewed_at' => null,
+                        'review_notes' => null,
+                    ]);
+                }
+
+                $berhasil = $fundRequest->submit();
             }
         });
+
+        if (($validated['action'] ?? null) === 'submit' && ! ($berhasil ?? false)) {
+            return redirect()->route('fund-requests.index')
+                ->with('error', 'Perubahan tersimpan, tetapi pengajuan tidak dapat dikirim untuk persetujuan pada status saat ini.');
+        }
 
         $msg = $validated['action'] === 'submit'
             ? 'Permintaan dana berhasil diajukan untuk persetujuan'
@@ -370,6 +401,16 @@ class FundRequestController extends Controller
 
     public function destroy(FundRequest $fundRequest): RedirectResponse
     {
+        // Pencairan sudah membentuk transaksi pengeluaran di bank. Menghapus
+        // pengajuannya meninggalkan pengeluaran yatim yang tidak bisa ditelusuri
+        // balik ke asalnya — dan `fund_requests.bank_transaction_id` hanya
+        // menyimpan transaksi PERTAMA, sehingga item ke-2 dst. tak terjangkau.
+        if ($fundRequest->status === 'disbursed') {
+            return redirect()->back()->withErrors([
+                'delete' => 'Pengajuan yang sudah dicairkan tidak dapat dihapus karena pencairannya sudah tercatat sebagai pengeluaran bank.',
+            ]);
+        }
+
         if (! $fundRequest->canDelete()) {
             return back()->with('error', 'Permintaan dana tidak dapat dihapus');
         }

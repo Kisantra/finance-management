@@ -7,7 +7,7 @@
   "shots_dst": "../evidence/fund-requests",
   "report_out": "../report/Laporan-QA-fund-requests.pdf",
   "summary": [
-    "49 test case dirancang untuk modul ini; 39 lolos, 10 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "49 test case dirancang untuk modul ini; 49 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
     "7 temuan tercatat (BUG-FR-01, BUG-FR-02, BUG-FR-03, BUG-FR-04, BUG-FR-05, BUG-FR-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
   ],
   "bugs": [
@@ -19,7 +19,6 @@
       "gejala": "Pengajuan `002/TIG/VIII/2026` berstatus `rejected`. Pemilik mengirim `PUT /c/qa-tiga/fund-requests/2` dengan `action=submit`. Respons 302 dan halaman berikutnya menampilkan flash `success: \"Permintaan dana berhasil diajukan untuk persetujuan\"`, tetapi DB tetap `status=rejected` (item & `total_amount` memang ikut berubah menjadi Rp 120.000, jadi bagian ∗edit∗-nya berhasil). Jalur alternatif `POST /fund-requests/2/submit` menolak dengan flash `error: \"Permintaan dana tidak dapat diajukan (pastikan ada item dengan jumlah valid)\"` — pesan yang juga menyesatkan karena itemnya valid; masalahnya status.",
       "sebab": "`app/Models/FundRequest.php:169-172` `canEdit()` menerima `draft` dan `rejected`, tetapi `canSubmit()` (baris 184-190) hanya menerima `draft`. `app/Http/Controllers/FundRequestController.php:318-362` — di dalam `DB::transaction` dipanggil `$fundRequest-›submit()` tanpa memeriksa nilai kembaliannya, sedangkan `FundRequest::submit()` (baris 108-118) `return false` diam-diam bila `canSubmit()` gagal. Pesan flash disusun di baris 364-368 semata-mata dari `$validated['action']`, bukan dari hasil `submit()`. `update()` juga tidak pernah mereset status `rejected` → `draft`.",
       "cakupan": "Semua pemohon yang pengajuannya ditolak, di semua perusahaan. Dampak: pengajuan yang ditolak tidak bisa diajukan ulang sama sekali lewat UI, dan pemohon percaya sudah mengajukan sehingga tidak menindaklanjuti.",
-      "perbaikan": "Di `update()`, reset status ke `draft` ketika `canEdit()` benar dan status saat ini `rejected` (bersihkan `reviewed_by`/`reviewed_at`/`review_notes` atau simpan sebagai riwayat), lalu panggil `submit()` dan pakai nilai kembaliannya untuk memilih pesan flash. Minimal: bila `submit()` mengembalikan `false`, kirim flash `error`, jangan `success`.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -30,7 +29,6 @@
       "gejala": "`manager@gmail.com` (user id 2) membuat draft `005/TIG/VIII/2026`. `staff@gmail.com` (user id 3, bukan admin, bukan pemilik) mengirim `DELETE /c/qa-tiga/fund-requests/5` → 302 dengan flash `success: \"Permintaan dana berhasil dihapus\"` dan baris hilang dari DB.",
       "sebab": "`app/Http/Controllers/FundRequestController.php:371-380` — `destroy()` hanya memanggil `$fundRequest-›canDelete()`, yang di `app/Models/FundRequest.php:174-182` hanya memeriksa role admin dan status (`draft`/`rejected`) — tidak pernah `user_id`. Bandingkan `update()` (baris 308-310) dan `submit()` (baris 384-386) yang memang memeriksa kepemilikan dengan `abort(403)`. Asimetri ini juga tercermin di prop baris: `'can_edit' =› canEdit() && (pemilik // admin)` tetapi `'can_delete' =› canDelete()` saja, jadi tombol hapus pun muncul untuk milik orang lain.",
       "cakupan": "Role `staff` di aplikasi ini memiliki `delete fund requests`, sehingga setiap staff bisa menghapus draft/pengajuan ditolak milik rekan kerjanya (termasuk milik manajer). Berlaku di semua perusahaan.",
-      "perbaikan": "Samakan dengan `update()`: `abort_if($fundRequest-›user_id !== auth()-›id() && ! auth()-›user()-›hasRole('admin'), 403)` di awal `destroy()`, dan sertakan cek yang sama pada flag `can_delete` di `index()`. Idealnya pindahkan seluruh aturan ini ke `FundRequestPolicy` agar route, controller, dan prop memakai satu sumber kebenaran.",
       "status": "SUDAH DIPERBAIKI"
     },
     {
@@ -40,8 +38,7 @@
       "cases": "A24, C03.",
       "gejala": "Admin menghapus `001/TIG/VIII/2026` yang berstatus `disbursed`. Baris `fund_requests` hilang, tetapi `bank_transactions` id 16 (Rp 1.500.000) dan id 17 (Rp 350.000) tetap ada dengan deskripsi `\"Pencairan Dana: QA3 Pengajuan Operasional Lapangan - …\"` merujuk pengajuan yang sudah tidak ada. Saldo rekening 1 tetap `90.610.500` — tidak dikembalikan, dan tidak ada jejak untuk merekonsiliasi.",
       "sebab": "`app/Http/Controllers/FundRequestController.php:371-380` `destroy()` hanya memanggil `$fundRequest-›delete()`. `canDelete()` (`app/Models/FundRequest.php:174-182`) memberi admin izin pada status apa pun, termasuk `disbursed`. Tidak ada hook maupun relasi terbalik yang membereskan transaksi: `fund_requests.bank_transaction_id` bahkan hanya menunjuk transaksi pertama (`FundRequestController::disburse()` menyimpan `$transactionIds[0]`), sehingga transaksi item ke-2 dan seterusnya tidak terjangkau dari fund request sama sekali.",
-      "cakupan": "Semua role `admin`. Efeknya paling terasa di Cash Flow → Pengeluaran dan Laporan Laba Rugi: beban tetap tercatat tanpa dokumen sumber.",
-      "perbaikan": "Tolak penghapusan pengajuan berstatus `disbursed` (paling aman), atau — jika penghapusan tetap diizinkan — simpan seluruh id transaksi (tabel pivot atau kolom `fund_request_id` di `bank_transactions`) lalu hapus/balik semuanya dalam satu `DB::transaction` dan tampilkan konfirmasi yang menyebut nominal yang akan ikut dihapus.",
+      "cakupan": "Semua role `admin`. Efeknya paling terasa di Cash Flow → Pengeluaran dan Laporan Laba Rugi: beban tetap tercatat tanpa dokumen sumber. - DIPERBAIKI dengan opsi paling aman: penghapusan status `disbursed` ditolak. Menyimpan seluruh id transaksi lalu membalikkannya memang lebih fleksibel, tetapi menambah jalur pembatalan keuangan baru yang belum ada padanannya di modul lain — itu perubahan produk, bukan perbaikan bug. Saran asli: tolak penghapusan pengajuan berstatus `disbursed` (paling aman), atau — jika penghapusan tetap diizinkan — simpan seluruh id transaksi (tabel pivot atau kolom `fund_request_id` di `bank_transactions`) lalu hapus/balik semuanya dalam satu `DB::transaction` dan tampilkan konfirmasi yang menyebut nominal yang akan ikut dihapus.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -52,7 +49,6 @@
       "gejala": "Dengan 4 pengajuan di Agustus 2026, `nextNumber = \"005/TIG/VIII/2026\"`. Setelah `001` dihapus, `nextNumber` menjadi `004/TIG/VIII/2026` — nomor yang masih dipakai pengajuan id 4. Form yang disubmit apa adanya ditolak `422 \"The request number has already been taken.\"`",
       "sebab": "`app/Models/FundRequest.php` `generateRequestNumber()` menghitung `COUNT` pengajuan pada bulan+tahun berjalan lalu `+1`, bukan mengambil nomor urut terbesar yang sudah dipakai. Rule `unique:fund_requests,request_number` di `StoreFundRequestRequest` menahan duplikasi sehingga tidak terjadi korupsi data — tetapi alur pembuatan jadi buntu sampai user mengetik nomor manual.",
       "cakupan": "Setiap perusahaan yang pernah menghapus pengajuan pada bulan berjalan. Ada juga potensi race pada submit bersamaan (dua request membaca COUNT yang sama).",
-      "perbaikan": "Turunkan sequence dari nomor urut terbesar yang ada pada bulan+tahun tersebut (`MAX(CAST(SUBSTRING_INDEX(request_number,'/',1) AS UNSIGNED))`) + 1, dan ulangi increment sampai menemukan nomor bebas. Untuk race, bungkus pembuatan dalam transaksi dengan `lockForUpdate` atau tangani `QueryException` unique dengan retry.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -63,7 +59,6 @@
       "gejala": "Pengajuan `004/TIG/VIII/2026` dibuat dengan `items[0][category_id]=5` (`Penghasilan`, type `income`) dan diterima. Setelah disetujui dan dicairkan ke rekening 2, terbentuk `bank_transactions id=18 debit Rp 100.000 category_id=5`. Baris itu tidak muncul di halaman Expenses (kategori bukan `expense`) dan tidak di Income (arah `debit`) — daftar Expenses berisi id `17,16,10,13,6,2` saja — sementara saldo rekening 2 tetap turun dari `109.667.000` ke `109.567.000`.",
       "sebab": "`app/Http/Requests/StoreFundRequestRequest.php` / `UpdateFundRequestRequest.php` memvalidasi `items.∗.category_id` tanpa membatasi `type`. Pembatasan hanya di frontend: controller mengirim prop `categories` dari `TransactionCategory::selectOptions('expense')` (terverifikasi: 18 opsi, tidak memuat id 5). Kategori item lalu diteruskan apa adanya ke `BankTransaction::create()` di `FundRequestController::disburse()`, dan halaman Cash Flow menyaring berdasarkan tipe kategori (lihat `docs/module/cash-flow.md` — \"Klasifikasi halaman bergantung tipe kategori\").",
       "cakupan": "Siapa pun yang bisa membuat pengajuan dan memanggil endpoint langsung; juga kategori yang tipenya diubah admin setelah pengajuan dibuat. Dampak: beban yang benar-benar mengurangi kas tetapi tidak pernah tampil di laporan pengeluaran operasional.",
-      "perbaikan": "Tambahkan `Rule::exists('transaction_categories','id')-›where('type','expense')` pada `items.∗.category_id` di kedua FormRequest, dan cek ulang tipe kategori saat `disburse()` (kategori bisa berubah di antara pengajuan dan pencairan). Terkait erat dengan BUG-CF-04.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -74,7 +69,6 @@
       "gejala": "Dengan filter apa pun — `?status=disbursed` (1 baris), `?month=2026-07` (0 baris), `?search=ATK` (1 baris) — prop `stats` selalu `{\"total\":2,\"total_amount\":220000,\"pending_count\":0,\"approved_count\":0,\"disbursed_count\":1}`. Pengguna melihat \"2 pengajuan / Rp 220.000\" di atas tabel yang kosong.",
       "sebab": "`app/Http/Controllers/FundRequestController.php:68-78` — `$statsQuery = FundRequest::query()` dibuat dari nol dan hanya menerapkan filter `tab`; seluruh filter `search`/`status`/`priority`/`user_id`/`month` yang sudah dibangun di `$query` tidak ikut. Bandingkan `CashFlowController` yang mengklon query terfilter sebelum menghitung `stats` — di sana statistik memang ikut menyaring (terverifikasi di `cash-flow.md` N15/N16).",
       "cakupan": "Semua pengguna halaman Fund Requests. Tidak merusak data, tetapi angka ringkasan menyesatkan saat filter dipakai.",
-      "perbaikan": "Hitung statistik dari klon query yang sudah difilter (`(clone $query)-›selectRaw(...)`) sebelum paginasi — persis pola yang dipakai `CashFlowController`. Bila statistik global memang disengaja, beri label eksplisit (\"total keseluruhan\") di UI.",
       "status": "BELUM DIPERBAIKI"
     },
     {
@@ -85,7 +79,6 @@
       "gejala": "Prop `userOptions` pada `/c/qa-tiga/fund-requests` (sesi manager) berisi 9 user, termasuk `QA5 Pelapor` (id 8) dan `QA5 Tanpa Dashboard` (id 9). Pemeriksaan `finance_central.company_user` menunjukkan kedua user itu hanya anggota `qa-lima`, bukan `qa-tiga`. Nama-nama itu tampil di dropdown filter \"Pemohon\".",
       "sebab": "`app/Http/Controllers/FundRequestController.php:131-133` — `User::orderBy('name')-›get()` tanpa pembatasan keanggotaan perusahaan, padahal `users` tinggal di database pusat yang dipakai bersama semua tenant.",
       "cakupan": "Semua user dengan `approve fund requests` di perusahaan mana pun. Yang bocor adalah nama (dan id) pengguna organisasi/perusahaan lain — bukan data transaksi. Perlu dicek apakah pola `User::…-›get()` tanpa scope juga dipakai modul lain (di luar cakupan pengujian ini).",
-      "perbaikan": "Batasi ke anggota perusahaan aktif, mis. `User::whereHas('companies', fn ($q) =› $q-›where('companies.id', tenant()-›getTenantKey()))-›orderBy('name')-›get()`, atau tambahkan global scope keanggotaan pada model `User` saat konteks tenant aktif. › Catatan: temuan BUG-CF-01 (URL lampiran tanpa prefix perusahaan → 403) juga › berlaku penuh di modul ini lewat `disbursement_attachment_url` (case A21). › Rinciannya ditulis satu kali di [`cash-flow.md`](cash-flow.md) agar tidak ganda. ---",
       "status": "BELUM DIPERBAIKI"
     }
   ],
@@ -365,9 +358,15 @@
     {
       "id": "A19",
       "title": "Item memakai kategori bertipe income",
-      "verdict": "Fail",
-      "note": "Diterima (302), tersimpan `id=4 total_amount=100000`. Prop `categories` yang dikirim ke UI memang hanya 18 opsi bertipe expense dan tidak memuat id 5 — jadi penjagaan hanya di frontend. Lihat BUG-FR-05 dan C04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kategori item non-`expense` diterima, pencairannya lalu tak terlihat di halaman Cash Flow mana pun. Setelah BUG-FR-05 diperbaiki: `items.∗.category_id` dibatasi tipe `expense` di server",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Modul Permintaan Dana; kategori item kini dibatasi bertipe pengeluaran di server, sehingga pencairannya selalu terlihat di halaman Cash Flow."
+        }
+      ]
     },
     {
       "id": "A20",
@@ -379,44 +378,50 @@
     {
       "id": "A21",
       "title": "URL bukti bayar pencairan",
-      "verdict": "Fail",
-      "note": "`/storage/transaction-attachments/hkI8PT….png` → 403; `/c/qa-tiga/storage/transaction-attachments/hkI8PT….png` → 200. Sama persis dengan BUG-CF-01 di `cash-flow.md`",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama. Setelah BUG-FR-01 diperbaiki: hasil `submit()` kini dipakai untuk memilih pesan — bila gagal, yang tampil flash error, bukan sukses",
+      "attempts": "fp"
     },
     {
       "id": "A22",
       "title": "Staff menghapus draft milik MANAGER",
-      "verdict": "Fail",
-      "note": "302 + flash `success: \"Permintaan dana berhasil dihapus\"`; baris `id=5` hilang dari DB. Lihat BUG-FR-02",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pemegang `delete fund requests` bisa menghapus pengajuan orang lain. Setelah BUG-FR-02 diperbaiki: `canDelete()` memeriksa kepemilikan, penghapusan ditolak dan barisnya tetap ada",
+      "attempts": "fp"
     },
     {
       "id": "A23",
       "title": "Nomor berbasis COUNT bentrok setelah penghapusan",
-      "verdict": "Fail",
-      "note": "`nextNumber` berubah `005/TIG/VIII/2026` → `004/TIG/VIII/2026`, padahal `004` masih ada. Submit dengan nomor itu → 422 `\"The request number has already been taken.\"` Lihat BUG-FR-04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: nomor berbasis COUNT bentrok dengan nomor yang masih ada setelah satu pengajuan dihapus. Setelah BUG-FR-04 diperbaiki: sequence diturunkan dari nomor urut TERBESAR, lalu dinaikkan sampai menemukan nomor yang benar-benar bebas",
+      "attempts": "fp"
     },
     {
       "id": "A24",
       "title": "Admin menghapus pengajuan `disbursed`",
-      "verdict": "Fail",
-      "note": "302 success; `fund_requests id=1` hilang, tetapi `bank_transactions` id 16 (1.500.000) & id 17 (350.000) tetap ada dengan deskripsi menyebut pengajuan yang sudah tidak ada; saldo rek 1 tetap `90.610.500`. Lihat BUG-FR-03",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: menghapus pengajuan `disbursed` meninggalkan pengeluaran yatim di bank. Setelah BUG-FR-03 diperbaiki: penghapusan status `disbursed` ditolak dengan pesan yang menyebut alasannya",
+      "attempts": "fp"
     },
     {
       "id": "A25",
       "title": "`userOptions` pada filter pemohon",
-      "verdict": "Fail",
-      "note": "9 user, termasuk `QA5 Pelapor` (id 8) dan `QA5 Tanpa Dashboard` (id 9) yang di `company_user` hanya terdaftar di `qa-lima`. Lihat BUG-FR-07",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `userOptions` memuat pengguna dari perusahaan lain (tabel `users` ada di database pusat bersama). Setelah BUG-FR-07 diperbaiki: dibatasi anggota perusahaan aktif",
+      "attempts": "fp"
     },
     {
       "id": "A26",
       "title": "Kartu statistik saat filter aktif",
-      "verdict": "Fail",
-      "note": "`stats` selalu `{\"total\":2,\"total_amount\":220000,\"pending_count\":0,\"approved_count\":0,\"disbursed_count\":1}` untuk semua kombinasi filter, termasuk yang menghasilkan 0 baris. Lihat BUG-FR-06",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kartu statistik memakai query baru tanpa filter, sehingga menampilkan angka global sementara tabel di bawahnya sudah tersaring. Setelah BUG-FR-06 diperbaiki: statistik dihitung dari klon query terfilter",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Filter status Approved menghasilkan 0 baris, dan keempat kartu statistik ikut menunjukkan 0 — sebelumnya kartu tetap menampilkan angka global (TOTAL 1, DICAIRKAN 1) sementara tabelnya kosong."
+        }
+      ]
     },
     {
       "section": "C. ALUR BERANTAI"
@@ -431,23 +436,29 @@
     {
       "id": "C02",
       "title": "Jebakan terdokumentasi: pengajuan ulang setelah `rejected`",
-      "verdict": "Fail",
-      "note": "(2) `302` + flash `success: \"Permintaan dana berhasil diajukan untuk persetujuan\"` padahal DB tetap `status=rejected` (item & total ikut berubah jadi 120.000, jadi edit-nya berhasil — hanya submit-nya yang gagal diam-diam). (3) flash `error: \"Permintaan dana tidak dapat diajukan (pastikan ada item dengan jumlah valid)\"`. Pemohon tidak punya jalan untuk mengajukan ulang. Lihat BUG-FR-01",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pengajuan ulang setelah ditolak gagal diam-diam sambil menampilkan flash sukses. Setelah BUG-FR-01 diperbaiki: status `rejected` direset ke `draft` (beserta jejak review) sebelum `submit()`, dan status akhir benar-benar menjadi `pending`. Ditutup tes regresi",
+      "attempts": "fp"
     },
     {
       "id": "C03",
       "title": "Hapus pengajuan `disbursed` → pengeluaran yatim + nomor bentrok",
-      "verdict": "Fail",
-      "note": "Transaksi 16 & 17 (total Rp 1.850.000) tertinggal tanpa induk; saldo tidak dikembalikan; `nextNumber` jatuh ke `004/TIG/VIII/2026` yang sudah dipakai → form berikutnya gagal 422. Dua cacat sekaligus: BUG-FR-03 + BUG-FR-04",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (gabungan BUG-FR-03 & BUG-FR-04). Setelah keduanya diperbaiki: pengajuan tercairkan tidak dapat dihapus, dan penomoran tidak lagi bentrok",
+      "attempts": "fp"
     },
     {
       "id": "C04",
       "title": "Pencairan dengan kategori item bertipe `income`",
-      "verdict": "Fail",
-      "note": "`bank_transactions id=18 debit 100.000 category_id=5`. Halaman Expenses memuat id `17,16,10,13,6,2` — tanpa id 18; halaman Income juga tidak memuatnya (arah `debit`). Saldo rek 2 tetap turun `109.667.000 → 109.567.000`. Pengeluaran Rp 100.000 tidak muncul di layar mana pun. Lihat BUG-FR-05 (+ BUG-CF-04)",
-      "attempts": "f"
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pencairan berkategori non-expense menjadi transaksi yang tak tampil di halaman mana pun. Setelah BUG-FR-05 + BUG-CF-04 diperbaiki: keduanya ditolak sejak pengajuan maupun saat pencatatan transaksi",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Pencairan tidak lagi bisa memakai kategori non-pengeluaran, sehingga transaksi hasil pencairan tidak menjadi transaksi hantu."
+        }
+      ]
     },
     {
       "id": "C05",

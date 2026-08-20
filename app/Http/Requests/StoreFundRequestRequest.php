@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreFundRequestRequest extends FormRequest
 {
@@ -22,7 +23,14 @@ class StoreFundRequestRequest extends FormRequest
             'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
-            'items.*.category_id' => ['required', 'exists:transaction_categories,id'],
+            // Pencairan membentuk transaksi PENGELUARAN. Kategori bertipe lain
+            // membuat transaksi itu tak terlihat di halaman Cash Flow mana pun,
+            // padahal saldo bank tetap berkurang. Pembatasan yang selama ini
+            // hanya ada di opsi Combobox kini ditegakkan di server.
+            'items.*.category_id' => [
+                'required',
+                Rule::exists('transaction_categories', 'id')->where('type', 'expense'),
+            ],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => ['required', 'integer', 'min:1'],
             'items.*.notes' => ['nullable', 'string'],
