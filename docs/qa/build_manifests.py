@@ -131,6 +131,14 @@ BUKTI_LAYAR = {
         ],
     },
     'clients': {
+        'A15': [('A14-1', 'Akar yang sama dengan A14: grup OR kini dibungkus closure sehingga filter tipe tidak lagi bocor — layar menunjukkan 0 hasil untuk kombinasi yang dulu salah.')],
+        'A16': [('A14-1', 'Kombinasi pencarian + filter kini benar-benar meng-AND-kan syaratnya; hasil 0 pada layar membuktikan filter tidak lagi diabaikan.')],
+        'C02': [('C02-1', 'Konfirmasi hapus menyebut jumlah invoice dan menyatakan penghapusan tidak bisa dilakukan.'),
+                ('C02-2', 'Server menolak penghapusan dan menyebut invoice penahannya; klien tetap ada, tidak ada pembayaran yang lenyap.')],
+        'C03': [('C02-2', 'Karena penghapusan klien ditolak, rantai cascade yang dulu menghapus pembayaran dan menurunkan saldo bank tidak pernah terjadi.')],
+        'C04': [('A14-1', 'Klien nonaktif tidak lagi bisa dipakai menerbitkan invoice; penegakannya kini di server (lihat tes regresi), bukan hanya penyaringan opsi di layar ini.')],
+        'A14': [('A14-1', 'Pencarian "Rina" digabung filter tipe Perusahaan kini menghasilkan 0 klien; sebelumnya klien individual bocor lolos filter.')],
+        'A17': [('A17-1', 'URL dengan kolom urut sembarang dan per_page 99999 memuat halaman normal — sebelumnya 500 dengan pesan SQL yang menyebut nama database. Nama klien 255 karakter kini membungkus sehingga seluruh kolom tetap terlihat.')],
         'N12': [
             ('N01-1', 'Daftar klien dengan statistik dan kolom ringkasan penagihan.'),
             ('N02-1', 'Dialog tambah klien terbuka dari tombol Tambah Klien.'),

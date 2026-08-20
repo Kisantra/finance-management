@@ -104,7 +104,7 @@ class ReceivableController extends Controller
             ->map(fn ($u) => ['value' => $u->id, 'label' => $u->name]);
 
         $companyOptions = Client::where('type', 'company')
-            ->where('status', 'Active')
+            ->where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get()
             ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name]);

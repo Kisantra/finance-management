@@ -62,7 +62,7 @@ class RecurringInvoiceController extends Controller
         $analytics = $this->buildAnalytics($analyticsYear, $analyticsPeriod);
 
         // ── Form data ─────────────────────────────────────────────────────────
-        $clients = Client::where('status', 'active')
+        $clients = Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email'])
             ->map(fn ($c) => [
@@ -464,7 +464,7 @@ class RecurringInvoiceController extends Controller
 
     private function getClientOptions(): Collection
     {
-        return Client::where('status', 'active')
+        return Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email'])
             ->map(fn ($c) => [

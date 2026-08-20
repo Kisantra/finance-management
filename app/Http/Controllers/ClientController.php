@@ -12,21 +12,38 @@ use Inertia\Response;
 
 class ClientController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan daftar klien.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['name', 'type', 'email', 'NPWP', 'status', 'created_at'];
+
     public function index(Request $request): Response
     {
         $search = $request->input('search');
         $type = $request->input('type');
         $status = $request->input('status');
-        $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'name');
-        $direction = $request->input('direction', 'asc');
+        // `sort` dan `direction` masuk langsung ke orderBy(). Nilai sembarang
+        // menghasilkan 500 beserta pesan SQL yang membocorkan nama database dan
+        // struktur tabel; `per_page` tanpa batas atas mengundang permintaan
+        // yang menarik seluruh tabel sekaligus.
+        $perPage = max(1, min(100, (int) $request->input('per_page', 10)));
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'name';
+        $direction = $request->input('direction') === 'desc' ? 'desc' : 'asc';
 
         $clients = Client::query()
-            ->when($search, fn ($q) => $q
+            // Grup OR wajib dibungkus closure. Tanpa itu SQL yang terbentuk adalah
+            // `name LIKE ? OR email LIKE ? OR (NPWP LIKE ? AND type = ?)` — AND
+            // mengikat lebih kuat daripada OR — sehingga filter tipe/status bocor
+            // dan klien yang tidak cocok tetap muncul.
+            ->when($search, fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
                 ->orWhere('NPWP', 'like', "%{$search}%")
-            )
+            ))
             ->when($type, fn ($q) => $q->where('type', $type))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->withCount('invoices')
@@ -54,7 +71,7 @@ class ClientController extends Controller
 
         $stats = [
             'total' => Client::count(),
-            'active' => Client::where('status', 'Active')->count(),
+            'active' => Client::where('status', Client::STATUS_ACTIVE)->count(),
             'individual' => Client::where('type', 'individual')->count(),
             'company' => Client::where('type', 'company')->count(),
         ];

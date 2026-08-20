@@ -492,9 +492,11 @@ export default function ClientsIndex() {
                                 ) : (
                                     clients.data.map((client) => (
                                         <tr key={client.id} className="hover:bg-secondary-50/80 dark:hover:bg-dark-800/50 transition-colors cursor-pointer">
-                                            <td className="px-3 py-3 align-middle">
-                                                <div className="font-medium text-dark-900 dark:text-dark-50">{client.name}</div>
-                                                {client.NPWP && <div className="text-xs text-dark-400 dark:text-dark-500">{client.NPWP}</div>}
+                                            {/* max-w + wrap-break-word: nama tanpa spasi (uji batas 255 karakter)
+                                                melebarkan tabel sampai kolom lain terdorong keluar layar. */}
+                                            <td className="px-3 py-3 align-middle max-w-xs">
+                                                <div className="font-medium text-dark-900 dark:text-dark-50 wrap-break-word">{client.name}</div>
+                                                {client.NPWP && <div className="text-xs text-dark-400 dark:text-dark-500 wrap-break-word">{client.NPWP}</div>}
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 <Badge variant={client.type === 'company' ? 'purple' : 'blue'}>

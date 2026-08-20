@@ -376,7 +376,7 @@ class InvoiceController extends Controller
 
     public function create(): Response
     {
-        $clients = Client::where('status', 'Active')
+        $clients = Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email]);
@@ -459,7 +459,7 @@ class InvoiceController extends Controller
     {
         $invoice->load(['items']);
 
-        $clients = Client::where('status', 'Active')
+        $clients = Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email]);
@@ -563,6 +563,23 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
+        // Pembayaran menempel pada invoice lewat FK. Selama FK-nya cascade,
+        // menghapus invoice ber-pembayaran ikut menghapus pembayarannya, dan
+        // saldo bank — yang dihitung dari pembayaran — turun tanpa jejak.
+        // Penghapusan ditolak selama masih ada pembayaran tercatat.
+        $jumlahPembayaran = $invoice->payments()->count();
+
+        if ($jumlahPembayaran > 0) {
+            $nilai = (int) $invoice->payments()->sum('amount');
+
+            return redirect()->back()->withErrors([
+                'delete' => 'Invoice '.($invoice->invoice_number ?: '(draft)').' tidak dapat dihapus karena '
+                    .'sudah memiliki '.$jumlahPembayaran.' pembayaran senilai Rp '
+                    .number_format($nilai, 0, ',', '.').'. Hapus pembayarannya terlebih dahulu '
+                    .'bila memang ingin membatalkan invoice ini.',
+            ]);
+        }
+
         DB::transaction(function () use ($invoice) {
             $invoice->items()->delete();
             $invoice->delete();

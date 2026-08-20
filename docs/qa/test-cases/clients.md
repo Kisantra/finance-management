@@ -51,18 +51,18 @@ Aktor: `admin@gmail.com` (admin), `manager@gmail.com` (finance manager),
 | A11 | Staff menghapus klien lewat URL langsung (tanpa `delete clients`) | DELETE `/c/qa-satu/clients/4` sebagai staff | 403, baris tidak hilang | BE | 403 `"This action is unauthorized."`, klien 4 masih ada | Pass |
 | A12 | Finance manager menghapus klien lewat URL langsung | DELETE `/c/qa-satu/clients/4` sebagai manager | 403 | BE | 403 `"This action is unauthorized."` | Pass |
 | A13 | Filter status huruf kecil pada query (meniru `RecurringInvoiceController` yang memakai `'active'`) | GET `?status=inactive`; bandingkan SQL `status='active'` vs `'Active'` | Harus konsisten dengan `Active`/`Inactive` | BE | `?status=inactive` → 2 baris (sama dengan `Inactive`). SQL: `status='active'` → 4, `status='Active'` → 4. Collation `utf8mb4_unicode_ci` menutupi inkonsistensi kapitalisasi — bekerja **karena collation**, bukan karena kode benar | Pass (rapuh — lihat TEMUAN C-03) |
-| A14 | Pencarian digabung filter `type` — presedens `orWhere` | GET `?search=Rina&type=company` (Rina berjenis `individual`) | 0 baris | BE | **1 baris: `2:Rina Perorangan (individual)`** — filter `type` diabaikan. SQL pembanding yang benar → `0` | **Fail** (TEMUAN C-01) |
-| A15 | Pencarian digabung filter `status` | GET `?search=Rina&status=Inactive` (Rina `Active`) | 0 baris | BE | **1 baris: `2:Rina Perorangan (Active)`** | **Fail** (TEMUAN C-01) |
-| A16 | Pencarian digabung filter `type` arah sebaliknya | GET `?search=Alpha&type=individual` (Alpha `company`) | 0 baris | BE | **1 baris: `1:PT Alpha Beta Gamma (company)`** | **Fail** (TEMUAN C-01) |
+| A14 | Pencarian digabung filter `type` — presedens `orWhere` | GET `?search=Rina&type=company` (Rina berjenis `individual`) | 0 baris | FE+BE | GAGAL pada percobaan pertama: `?search=Rina&type=company` mengembalikan `Rina Perorangan` yang bertipe `individual`. **Setelah TEMUAN C-01 diperbaiki**: dijalankan lewat layar — filter "Rina" + "Perusahaan" menampilkan **0-0 dari 0 klien** | Pass (percobaan ke-2) |
+| A15 | Pencarian digabung filter `status` | GET `?search=Rina&status=Inactive` (Rina `Active`) | 0 baris | FE+BE | GAGAL pada percobaan pertama karena akar yang sama. **Setelah diperbaiki**: `?search=Alpha&type=individual` tidak lagi mengembalikan `PT Alpha Beta Gamma`. Ditutup tes regresi `ClientIntegrityTest` | Pass (percobaan ke-2) |
+| A16 | Pencarian digabung filter `type` arah sebaliknya | GET `?search=Alpha&type=individual` (Alpha `company`) | 0 baris | FE+BE | GAGAL pada percobaan pertama: `?search=Rina&status=Inactive` mengembalikan klien ber-status `Active`. **Setelah diperbaiki**: 0 hasil. Ditutup tes regresi | Pass (percobaan ke-2) |
 
 ## C. Alur Berantai
 
 | ID | Skenario | Langkah | Hasil Diharapkan | Lapisan | Hasil Aktual | Status |
 |---|---|---|---|---|---|---|
 | C01 | **Invarian destruktif**: hapus klien ikut menghapus seluruh invoice + itemnya | Kondisi awal klien 6: 2 invoice ditagih (`id=3` nomor `002/INV/QS-RP/VIII/2026` status `paid`, `id=4` status `sent`), 2 pembayaran (Rp 1 + Rp 99.000.000), 3 `invoice_items` tersebar di invoice 1, 3, 4. DELETE `/c/qa-satu/clients/6` | Invoice 3 & 4 + itemnya terhapus; **invoice milik klien lain tidak terpengaruh** | BE | 302. `inv 12→10`, `items 14→11`, `pay 3→1`, `clients 6→5`. Invoice 3 & 4 hilang **benar**; namun dua efek samping ikut terjadi — lihat C02 & C03 | Pass (bagian yang dimaksudkan) |
-| C02 | Efek samping C01 — item milik klien terhapus di invoice **milik klien lain**, header invoice jadi tidak konsisten | Sebelum: invoice 1 (`billed_to_id=2`, nomor `001/INV/QS-RP/VIII/2026`, status `partially_paid`) berisi item `id=1` (client 2, Rp 3.000.000) dan item `id=2` (client **6**, Rp 800.000), `subtotal=3.800.000`. Setelah DELETE klien 6, jalankan query konsistensi header vs Σ item | Invoice 1 tidak boleh berubah sama sekali | BE | Item `id=2` **ikut terhapus**. Query: `id=1 / 001/INV/QS-RP/VIII/2026 / partially_paid / header_subtotal=3800000 / sum_item=3000000`. Invoice bernomor & sudah dibayar sebagian kini rusak: header ≠ isi | **Fail** (TEMUAN C-02) |
-| C03 | Efek samping C01 — pembayaran ikut terhapus dan saldo bank turun diam-diam | Baca saldo `QA Kas Utama` sebelum dan sesudah DELETE klien 6 | Saldo tidak boleh berubah karena penghapusan klien | BE | Saldo `109.100.001` → `10.100.000` (turun Rp 99.000.001). `payments` 3 → 1 baris. Penyebab: FK `payments.invoice_id ON DELETE CASCADE` | **Fail** (TEMUAN C-02) |
-| C04 | Klien `Inactive` tidak muncul di opsi form invoice, tetapi tetap diterima backend | GET `/c/qa-satu/invoices/create` prop `clients`; lalu POST invoice dengan `client_id=1` (status `Inactive`) | Opsi tidak memuat klien Inactive **dan** backend menolak | FE+BE | Prop `clients` hanya berisi klien `Active` (4, 5, 7, 2) — FE benar. Tetapi POST `/c/qa-satu/invoices` dengan `client_id=1` → **302, invoice `id=7` dibuat untuk klien Inactive**. Aturan hanya ditegakkan FE | **Fail** (TEMUAN C-04) |
+| C02 | Efek samping C01 — item milik klien terhapus di invoice **milik klien lain**, header invoice jadi tidak konsisten | Sebelum: invoice 1 (`billed_to_id=2`, nomor `001/INV/QS-RP/VIII/2026`, status `partially_paid`) berisi item `id=1` (client 2, Rp 3.000.000) dan item `id=2` (client **6**, Rp 800.000), `subtotal=3.800.000`. Setelah DELETE klien 6, jalankan query konsistensi header vs Σ item | Invoice 1 tidak boleh berubah sama sekali | FE+BE | GAGAL pada percobaan pertama: penghapusan klien merusak invoice milik klien lain (`header_subtotal=3800000` vs `sum_item=3000000`) dan menghapus 2 pembayaran, saldo turun Rp 99.000.001 tanpa peringatan. **Setelah TEMUAN C-02 diperbaiki**: penghapusan ditolak sambil menyebut nomor invoice penahannya; override cascade pada model dihapus; FK `invoice_items.client_id`, `payments.invoice_id`, dan `payments.bank_account_id` diubah menjadi `restrictOnDelete` | Pass (percobaan ke-2) |
+| C03 | Efek samping C01 — pembayaran ikut terhapus dan saldo bank turun diam-diam | Baca saldo `QA Kas Utama` sebelum dan sesudah DELETE klien 6 | Saldo tidak boleh berubah karena penghapusan klien | FE+BE | GAGAL pada percobaan pertama (terpicu C02). **Setelah diperbaiki**: pembayaran tidak dapat lenyap karena invoice ber-pembayaran pun ditolak penghapusannya; saldo bank tidak berubah. Ditutup tes regresi `test_invoice_dengan_pembayaran_tidak_dapat_dihapus` | Pass (percobaan ke-2) |
+| C04 | Klien `Inactive` tidak muncul di opsi form invoice, tetapi tetap diterima backend | GET `/c/qa-satu/invoices/create` prop `clients`; lalu POST invoice dengan `client_id=1` (status `Inactive`) | Opsi tidak memuat klien Inactive **dan** backend menolak | FE+BE | GAGAL pada percobaan pertama: `POST /invoices` dengan klien `Inactive` berhasil (302) — aturan hanya ada di frontend. **Setelah TEMUAN C-04 diperbaiki**: `StoreInvoiceRequest` memakai `Rule::exists(...)->where('status', Client::STATUS_ACTIVE)`, permintaan ditolak 422. Ditutup tes regresi | Pass (percobaan ke-2) |
 | C05 | Inisial nama klien dipakai pada nomor invoice | Klien 2 `Rina Perorangan` → invoice dikirim dengan nomor `001/INV/QS-RP/VIII/2026` | Inisial `RP` terbentuk dari nama klien | BE (referensi) | Nomor tersimpan `001/INV/QS-RP/VIII/2026`. **Catatan kejujuran:** `Invoice::getClientInitials()` **tidak** dipanggil oleh alur send — inisial pada nomor ini diketik pada payload uji. Pembentukan inisial oleh model diverifikasi lewat **baca kode** (`app/Models/Invoice.php::extractInitials`), bukan eksekusi. Lihat TEMUAN I-01 di `invoices.md` | Pass (sebagian lewat baca kode) |
 
 ## Temuan
@@ -86,8 +86,7 @@ Aktor: `admin@gmail.com` (admin), `manager@gmail.com` (finance manager),
   sudah membungkus pencariannya dalam `function ($query) use ($search)`
   (`InvoiceController.php:57-60`) sehingga aman; `ServiceController::index()`
   hanya mencari satu kolom sehingga tidak terdampak.
-- **SARAN PERBAIKAN**: Bungkus grup pencarian —
-  `->when($search, fn ($q) => $q->where(fn ($w) => $w->where('name','like',…)->orWhere('email','like',…)->orWhere('NPWP','like',…)))`.
+- **DIPERBAIKI**: grup pencarian dibungkus closure di `ClientController::index()`, sehingga SQL yang terbentuk kembali menjadi `(name LIKE ? OR email LIKE ? OR NPWP LIKE ?) AND type = ?`. Ditutup dua tes regresi (`type` dan `status`) di `tests/Feature/ClientIntegrityTest.php`.
 
 ### TEMUAN C-02 — Menghapus klien merusak invoice milik klien lain dan menghapus pembayaran (saldo bank turun diam-diam)
 
@@ -117,13 +116,20 @@ Aktor: `admin@gmail.com` (admin), `manager@gmail.com` (finance manager),
   Rp 1.000.000 tanpa konfirmasi; (b) FK `payments.bank_account_id ... onDelete('cascade')`
   pada migration yang sama — menghapus rekening bank akan menghapus seluruh riwayat
   pembayaran yang menunjuk padanya (**belum diuji** dalam sesi ini).
-- **SARAN PERBAIKAN**: (1) Tolak penghapusan klien yang masih memiliki invoice atau
-  item — kembalikan pesan penolakan, atau tawarkan arsip/soft delete. (2) Ubah FK
-  `invoice_items.client_id` menjadi `restrictOnDelete` (atau `nullOnDelete` bila item
-  lintas-klien memang sah). (3) Ubah FK `payments.invoice_id` menjadi `restrictOnDelete`
-  agar invoice ber-pembayaran tidak bisa lenyap diam-diam. (4) Bila penghapusan tetap
-  diizinkan, tampilkan ringkasan dampak (jumlah invoice, item, pembayaran, dan nilai
-  rupiah yang akan hilang) pada `ConfirmDialog`.
+- **DIPERBAIKI**, keempat-empatnya:
+  1. `ClientController::destroy()` menolak penghapusan selama klien masih punya invoice
+     atau item, sambil menyebut nomor invoice penahannya.
+  2. Override `Client::delete()` yang meng-cascade **dihapus seluruhnya** — ia menghapus
+     item lewat `invoice_items.client_id`, yaitu item atas nama klien ini yang menempel
+     di invoice orang lain. Digantikan `Client::isDeletable()` yang hanya membaca.
+  3. Migration `2026_08_20_100000_restrict_cascade_on_financial_foreign_keys` mengubah
+     `invoice_items.client_id`, `payments.invoice_id`, dan `payments.bank_account_id`
+     menjadi `restrictOnDelete`. Penjagaan controller hanya berlaku untuk jalur yang
+     melewatinya; constraint database berlaku untuk semua jalur.
+  4. `InvoiceController::destroy()` menolak penghapusan invoice yang sudah punya
+     pembayaran, menyebut jumlah dan nilai rupiahnya — menutup pula temuan `invoices.md` C07.
+- **CATATAN**: FK `payments.bank_account_id` yang disebut "belum diuji" pada putaran
+  pertama ikut diperketat pada migration yang sama.
 
 ### TEMUAN C-03 — Inkonsistensi kapitalisasi status hanya tertutup oleh collation DB
 
@@ -140,9 +146,7 @@ Aktor: `admin@gmail.com` (admin), `manager@gmail.com` (finance manager),
 - **CAKUPAN**: Seluruh query yang menyaring `clients.status`. Akan langsung rusak bila
   collation kolom diubah ke `_bin`/`_cs`, atau bila DB dipindah ke mesin
   case-sensitive.
-- **SARAN PERBAIKAN**: Menyamakan satu sisi saja tidak cukup — normalkan keduanya,
-  mis. ubah `RecurringInvoiceController` menjadi `'Active'`, atau lebih baik pakai
-  satu konstanta/enum untuk nilai status klien.
+- **DIPERBAIKI**: konstanta `Client::STATUS_ACTIVE` / `Client::STATUS_INACTIVE` diperkenalkan dan dipakai di `ClientController`, `InvoiceController`, `ReceivableController`, serta `RecurringInvoiceController` — enam tempat yang sebelumnya menulis literal dengan kapitalisasi berbeda.
 
 ### TEMUAN C-04 — Klien `Inactive` disaring hanya di frontend
 
@@ -157,9 +161,23 @@ Aktor: `admin@gmail.com` (admin), `manager@gmail.com` (finance manager),
 - **CAKUPAN**: Sama untuk `UpdateInvoiceRequest` (`extends StoreInvoiceRequest`) dan
   `items.*.client_id`. Endpoint `/api/clients` bahkan mengembalikan klien Inactive
   ke Combobox modul lain (N11).
-- **SARAN PERBAIKAN**: Tambahkan
-  `Rule::exists('clients','id')->where('status','Active')` pada `client_id`
-  di `StoreInvoiceRequest`, atau pemeriksaan eksplisit di controller.
+- **DIPERBAIKI**: `StoreInvoiceRequest` (yang juga diwarisi `UpdateInvoiceRequest`) kini memakai `Rule::exists('clients','id')->where('status', Client::STATUS_ACTIVE)` untuk `client_id` **dan** `items.*.client_id`. Ditutup tes regresi `test_invoice_tidak_dapat_dibuat_untuk_klien_nonaktif`.
+
+### TEMUAN C-05 — Kolom urut & `per_page` tidak divalidasi: 500 yang membocorkan nama database
+
+- **SIFAT**: Cacat ketahanan + kebocoran informasi. Ditemukan saat menjalankan ulang lewat layar.
+- **GEJALA**: `?sort=(select 1)&direction=drop` menjatuhkan halaman ke **500** dengan pesan SQL lengkap — termasuk nama database dan struktur query. `?per_page=99999` menarik seluruh tabel sekaligus.
+- **SEBAB**: `ClientController::index()` meneruskan `sort` dan `direction` mentah ke `orderBy()`, dan `per_page` mentah ke `paginate()`.
+- **CAKUPAN**: Siapa pun yang bisa membuka daftar klien dapat memancing pesan galat yang menyebut nama database — informasi yang berguna bagi penyerang dan tidak berguna bagi pengguna.
+- **DIPERBAIKI**: `sort` disaring lewat whitelist `KOLOM_URUT` (6 kolom), `direction` hanya menerima `asc`/`desc`, `per_page` dijepit ke rentang 1–100. Diverifikasi lewat layar: URL yang sama kini memuat halaman normal (bukti `A17-1`).
+
+### TEMUAN C-06 — Nama klien tanpa spasi mendorong seluruh kolom keluar layar
+
+- **SIFAT**: Cacat tata letak. Hanya terlihat dari layar.
+- **GEJALA**: Klien uji batas bernama 255 karakter `N` beruntun membuat tabel melebar sampai kolom Tipe, Kontak, Status, Invoice, Finansial, dan Aksi terdorong keluar viewport — tabel praktis tidak bisa dipakai.
+- **SEBAB**: Sel nama tidak punya batas lebar maupun aturan pemenggalan, sehingga satu kata sepanjang 255 karakter menentukan lebar kolom.
+- **CAKUPAN**: Setiap daftar yang menampilkan teks bebas dari pengguna. Data uji batas memang ekstrem, tetapi nama panjang tanpa spasi (mis. domain atau kode) bukan hal mustahil.
+- **DIPERBAIKI**: sel nama diberi `max-w-xs` + `wrap-break-word`. Diverifikasi lewat layar pada baris yang sama (bukti `A17-1`).
 
 ## Catatan pelaksanaan
 
