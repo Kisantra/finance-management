@@ -54,7 +54,24 @@ class StoreBankTransactionRequest extends FormRequest
                 return;
             }
 
-            $tipeKategori = TransactionCategory::whereKey($categoryId)->value('type');
+            $kategori = TransactionCategory::find($categoryId);
+
+            if (! $kategori) {
+                return;
+            }
+
+            // Yang tidak boleh dipakai adalah kategori yang PUNYA ANAK — ia
+            // berfungsi sebagai judul grup. Kategori datar tanpa anak tetap sah
+            // dipakai langsung (mis. `Beban Bunga Pinjaman` yang dipakai modul
+            // Pinjaman), jadi syaratnya bukan sekadar "punya parent_id".
+            if ($kategori->children()->exists()) {
+                $validator->errors()->add('category_id',
+                    'Kategori "'.$kategori->label.'" adalah kategori induk. Pilih salah satu sub-kategorinya.');
+
+                return;
+            }
+
+            $tipeKategori = $kategori->type;
             $diharapkan = $type === 'credit' ? 'income' : 'expense';
 
             if ($tipeKategori && $tipeKategori !== $diharapkan && $tipeKategori !== 'transfer') {

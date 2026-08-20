@@ -127,6 +127,16 @@ class TransactionCategoryController extends Controller
             'pl_group' => ['nullable', Rule::in(TransactionCategory::PL_GROUPS)],
         ]);
 
+        // Laporan Laba Rugi hanya menyusun kategori pemasukan dan pengeluaran.
+        // Memberi grup L/R pada kategori `financing`/`transfer` menghasilkan
+        // baris yang tidak pernah muncul di laporan mana pun, tetapi terlihat
+        // sudah terklasifikasi pada matriks kategori — menyesatkan.
+        if ($validated['pl_group'] !== null && ! in_array($transactionCategory->type, ['income', 'expense'], true)) {
+            return back()->withErrors([
+                'pl_group' => 'Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori '.$transactionCategory->type.'.',
+            ]);
+        }
+
         $transactionCategory->update(['pl_group' => $validated['pl_group'] ?? null]);
 
         return back();
@@ -160,6 +170,17 @@ class TransactionCategoryController extends Controller
 
         if ($inUse && ! $reassignTo) {
             return redirect()->back()->withErrors(['delete' => 'Kategori ini masih digunakan. Pilih kategori pengganti untuk memindahkan data yang terhubung.']);
+        }
+
+        // Kategori yang punya anak hanya berfungsi sebagai judul grup; transaksi
+        // tidak pernah boleh menunjuk padanya. Dialog reassign dulu menerimanya,
+        // sehingga penghapusan satu kategori justru membuat data melanggar
+        // invarian yang ditegakkan di tempat lain. Kategori datar tanpa anak
+        // tetap pengganti yang sah.
+        if ($inUse && $reassignTo->children()->exists()) {
+            return redirect()->back()->withErrors([
+                'reassign_to_id' => 'Kategori pengganti tidak boleh kategori induk. Pilih kategori yang tidak memiliki sub-kategori.',
+            ]);
         }
 
         if ($inUse && $reassignTo->type !== $transactionCategory->type) {

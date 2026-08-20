@@ -299,6 +299,12 @@ BUKTI_LAYAR = {
         ],
     },
     'transaction-categories': {
+        'A16': [('A16-1', 'Daftar kategori dengan hierarki induk/anak; permintaan transaksi yang menunjuk kategori induk kini ditolak 422 di server, bukan hanya dinonaktifkan di layar.')],
+        'A17': [('A16-1', 'Tipe kategori kini dicocokkan dengan arah transaksi di server; kombinasi yang tidak searah ditolak.')],
+        'A18': [('C01-1', 'Dialog reassign yang sama kini menolak kategori induk sebagai pengganti — pengganti wajib sub-kategori.')],
+        'A20': [('A16-1', 'Daftar pilihan kategori menyaring tipe pada anak, bukan hanya induk, sehingga anak bertipe lain tidak lagi bocor ke daftar yang salah.')],
+        'A21': [('A16-1', 'Kolom Grup L/R hanya dapat diisi untuk kategori pemasukan/pengeluaran; kategori transfer ditolak.')],
+        'C03': [('A16-1', 'Kedua invarian kategori — bukan induk, dan tipe searah — kini ditegakkan di server.')],
         'N15': [
             ('N01-1', 'Daftar kategori hierarkis dengan kolom "Digunakan" dan penanda belum diklasifikasi untuk laporan laba rugi.'),
         ],

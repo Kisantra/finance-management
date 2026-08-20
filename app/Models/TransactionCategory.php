@@ -98,8 +98,19 @@ class TransactionCategory extends Model
             ->get();
 
         foreach ($parents as $parent) {
+            // Tipe disaring pada anak juga. Sebelumnya hanya induk yang disaring,
+            // sehingga anak bertipe `income` tetap muncul di daftar pengeluaran
+            // hanya karena induknya bertipe `expense` — pintu masuk untuk
+            // transaksi yang tipenya tidak cocok dengan arahnya.
+            $anak = $parent->children->where('type', $type);
+
+            if ($anak->isEmpty()) {
+                continue;
+            }
+
             $options[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
-            foreach ($parent->children as $child) {
+
+            foreach ($anak as $child) {
                 $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
             }
         }
