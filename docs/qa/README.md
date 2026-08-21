@@ -72,9 +72,24 @@ memuat riwayatnya: gagal → sebab → perbaikan → lolos.
 docs/qa/
 ├── README.md              ← file ini (lingkungan + cara baca)
 ├── test-cases/<modul>.md  ← test case + hasil aktual + bukti per langkah
-├── evidence/<modul>/      ← screenshot, nama file <CASE-ID>-<langkah>.png
-└── report/                ← laporan terkompilasi per modul + ringkasan
+├── evidence/<modul>/      ← screenshot — LOKAL SAJA, tidak masuk git
+└── report/                ← laporan PDF per modul  ← yang dipush
 ```
+
+**Tangkapan layar sengaja tidak disimpan di git.** Yang didorong ke repositori
+adalah laporan jadinya, dan gambar-gambar itu **tertanam di dalam PDF** (148
+gambar di 18 laporan) — jadi bukti visualnya tetap ikut, tetap bisa ditinjau
+siapa pun yang membuka laporannya, tanpa menambah 79 berkas PNG ke riwayat.
+
+Konsekuensi yang perlu diketahui:
+
+- Pada salinan hasil `clone`, `build_reports.py` **tidak bisa** membangun ulang
+  PDF karena gambarnya tidak ada. PDF yang sudah ada tetap terbaca utuh.
+- `check_evidence.py` mendeteksi keadaan itu dan berhenti menuduh "utang bukti" —
+  gerbang itu hanya bermakna di mesin yang benar-benar menjalankan QA.
+- Untuk memulihkan gambar, QA harus dijalankan ulang terhadap aplikasi hidup
+  dengan data yang setara. Karena itu, jangan hapus folder `evidence/` di mesin
+  yang memegang hasil QA.
 
 ## Sumber test case
 
@@ -104,8 +119,14 @@ mengaku `BE`, karena tidak ada yang tahu harus kembali memeriksanya.
 python docs/qa/build_manifests.py   # test-cases/*.md  -> manifests/*.json
 python docs/qa/check_evidence.py    # GERBANG: gagal selama case FE belum bergambar
 python docs/qa/build_reports.py     # manifests/*.json -> report/*.pdf
-python docs/qa/shrink_evidence.py   # kecilkan tangkapan layar sebelum commit
+python docs/qa/shrink_evidence.py   # kecilkan tangkapan layar
 ```
+
+`build_reports.py` hanya membangun ulang PDF yang manifest atau tangkapan
+layarnya memang berubah. Ini bukan sekadar penghematan waktu: PDF adalah berkas
+biner yang tidak bisa dipadatkan terhadap versi sebelumnya, sehingga membangun
+ulang ke-18-nya di setiap commit menumpuk ratusan kilobyte ke riwayat git
+selamanya. Pakai `--paksa` bila memang perlu membangun ulang semuanya.
 
 `check_evidence.py` keluar dengan status 1 selama masih ada case ber-lapisan
 `FE`/`FE+BE` tanpa gambar, dan menandai case yang punya gambar tetapi berlabel

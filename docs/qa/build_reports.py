@@ -73,14 +73,54 @@ class GambarSiapPakai(build_report.Image):
 build_report.Image = GambarSiapPakai
 
 
+def sumber_terbaru(manifest: Path) -> float:
+    """Waktu ubah terbaru dari manifest beserta tangkapan layar yang dipakainya."""
+    import json
+
+    terbaru = manifest.stat().st_mtime
+
+    try:
+        data = json.loads(manifest.read_text(encoding='utf-8'))
+    except Exception:  # noqa: BLE001 — manifest rusak biar ditangani build_report
+        return terbaru
+
+    shots = data.get('shots_dst')
+    if not shots:
+        return terbaru
+
+    folder = (manifest.parent / shots).resolve()
+    if not folder.is_dir():
+        return terbaru
+
+    for berkas in folder.iterdir():
+        if berkas.is_file():
+            terbaru = max(terbaru, berkas.stat().st_mtime)
+
+    return terbaru
+
+
 def main() -> int:
     manifests = sorted(MANIFESTS.glob('*.json'))
     if not manifests:
         print('Tidak ada manifest. Jalankan build_manifests.py lebih dulu.', file=sys.stderr)
         return 1
 
+    paksa = '--paksa' in sys.argv or '--force' in sys.argv
+
     gagal = 0
+    dilewati = 0
     for path in manifests:
+        pdf = ROOT / 'docs' / 'qa' / 'report' / f'Laporan-QA-{path.stem}.pdf'
+
+        # PDF adalah berkas biner: tiap pembangunan ulang menghasilkan blob baru
+        # yang tidak bisa dipadatkan terhadap versi sebelumnya, sehingga
+        # membangun ulang ke-18-nya di tiap commit menumpuk di riwayat git
+        # selamanya. Bangun ulang hanya yang manifest atau tangkapan layarnya
+        # memang lebih baru.
+        if not paksa and pdf.exists() and pdf.stat().st_mtime >= sumber_terbaru(path):
+            dilewati += 1
+            continue
+
         try:
             build_report.build(str(path))
         except Exception as e:  # noqa: BLE001 — laporkan, jangan hentikan sisanya
@@ -88,7 +128,10 @@ def main() -> int:
             gagal += 1
 
     print()
-    print(f'{len(manifests) - gagal} PDF terbentuk, {gagal} gagal.')
+    dibangun = len(manifests) - gagal - dilewati
+    print(f'{dibangun} PDF dibangun ulang, {dilewati} dilewati (tidak berubah), {gagal} gagal.')
+    if dilewati:
+        print('Pakai --paksa untuk membangun ulang semuanya.')
     return 1 if gagal else 0
 
 
