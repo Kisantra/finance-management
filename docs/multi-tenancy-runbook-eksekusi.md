@@ -318,8 +318,17 @@ sekarang TIDAK kompatibel. Dua jalur:
 
 - Aktifkan `FilesystemTenancyBootstrapper` → path `storage/` ter-suffix tenant
   otomatis. Prasyarat: 0.4 selesai (semua akses via `Storage::disk('public')`).
-- Migrasikan file existing per perusahaan ke folder tenant masing-masing (script
-  satu kali, bagian dari `central:adopt-database`).
+- Migrasikan file existing per perusahaan ke folder tenant masing-masing dengan
+  **`php artisan central:adopt-storage {slug}`**.
+  **Koreksi:** dokumen ini sebelumnya menyatakan pemindahan berkas adalah "bagian
+  dari `central:adopt-database`". Itu tidak benar — perintah tersebut hanya
+  menyentuh database. Tanpa langkah terpisah ini, seluruh lampiran transaksi,
+  bukti pencairan, berkas reimbursement, serta tanda tangan/stempel PDF tetap ada
+  di disk tetapi tidak pernah ditemukan aplikasi, karena
+  `FilesystemTenancyBootstrapper` memindahkan pembacaan ke
+  `storage/tenant{slug}/app/public/`.
+  Jalankan `--dry-run` lebih dulu untuk melihat daftarnya. Bawaannya **menyalin**
+  (berkas asli tetap utuh); hapus manual setelah verifikasi.
 - `php artisan storage:link` per konvensi stancl (docs: tenancy + public storage links).
 
 ### 3.4 Scheduler & command
@@ -409,8 +418,13 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
    sehingga gate `can:manage company profile` menolak **semua orang termasuk admin**
    dan halaman Profil Perusahaan mati total. Terbukti terjadi saat QA (BUG-SET-06).
    Lanjutkan dengan `php artisan permission:cache-reset`.
-6. `central:import-users` + `central:adopt-database` per perusahaan (dump lama →
-   `tenant_{slug}`).
+6. `central:adopt-database` per perusahaan (dump lama sudah di-restore sebagai
+   `tenant_{slug}`), lalu `central:import-users {koneksi-legacy}` untuk menyalin
+   user + role ke database pusat.
+6b. **`php artisan central:adopt-storage {slug}`** — memindahkan berkas dari
+   `storage/app/public/` ke `storage/tenant{slug}/app/public/`. Langkah terpisah
+   dan mudah terlupa; tanpa ini semua lampiran hilang dari tampilan meski
+   berkasnya masih ada di server. Lanjutkan `php artisan storage:link`.
 7. `php artisan tenants:migrate --force` — menerapkan seluruh migration bisnis ke
    database hasil adopsi. **Sudah diuji** terhadap database berstruktur produksi
    (dibangun dari migration `main`, lalu seluruh migration tenant diterapkan):
@@ -418,9 +432,10 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
    `RESTRICT`, dan `receivables.interest_rate` menjadi `decimal(8,4)`.
 8. Smoke test satu perusahaan (canary): login → pilih perusahaan → buat invoice draft
    → hapus. Cek nomor urut invoice lanjut dari sequence lama. Tambahkan:
-   buka **Pengaturan → Profil Perusahaan** (membuktikan langkah 5 berhasil) dan
+   buka **Pengaturan → Profil Perusahaan** (membuktikan langkah 5 berhasil),
    **unduh satu invoice sebagai PDF** (membuktikan `bank_accounts` NULL tidak lagi
-   menjatuhkan 500 — TEMUAN I-08).
+   menjatuhkan 500 — TEMUAN I-08), dan **buka satu transaksi berlampiran lalu
+   lihat pratinjaunya** (membuktikan langkah 6b berhasil).
 9. Arahkan DNS/subdomain organization; matikan deployment lama (redirect 301).
 10. Aktifkan backup malam + monitoring sejak malam pertama.
 
