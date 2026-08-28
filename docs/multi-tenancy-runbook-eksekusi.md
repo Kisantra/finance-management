@@ -368,6 +368,96 @@ dan menghasilkan file di storage company A; scheduler jalan untuk semua tenant.
 
 ---
 
+## Dua Jalur Pemasangan — Pilih Satu
+
+Ada dua situasi yang sama sekali berbeda, dan mencampurnya adalah cara tercepat
+merusak data. Tentukan dulu Anda berada di yang mana.
+
+| | **Jalur A — Server baru** | **Jalur B — Server lama yang sudah berjalan** |
+|---|---|---|
+| Kondisi awal | Belum ada data sama sekali | Sudah ada invoice, klien, pembayaran nyata |
+| Perintah inti | `central:bootstrap` | `central:adopt-database` + `central:import-users` |
+| Risiko | Nyaris nol — tidak ada yang bisa hilang | Tinggi — wajib backup, wajib latihan dulu |
+| Waktu | ± 10 menit | ± 1 jam, plus waktu latihan sebelumnya |
+
+**Jangan pernah menjalankan `central:bootstrap` di server yang sudah berisi
+data.** Perintah itu menolak jalan bila menemukan user, tapi jangan bersandar
+pada penolakan itu — sandarkan pada tahu Anda di jalur mana.
+
+---
+
+## Jalur A — Server Baru (belum punya data)
+
+Dilatih penuh pada 2026-08-28 di database kosong; seluruh 16 halaman modul
+merespons 200 setelah langkah terakhir.
+
+```bash
+# 1. Kode & dependensi
+git pull && composer install --no-dev -o && npm ci && npm run build
+
+# 2. .env — periksa sebelum lanjut
+#    DB_CONNECTION=mysql
+#    DB_DATABASE=<nama database pusat, mis. finance_central>
+#    APP_ENV=production, APP_DEBUG=false, APP_KEY terisi
+
+# 3. Database pusat (dibuat otomatis bila belum ada)
+php artisan migrate --force
+
+# 4. Hak akses & role — WAJIB, tanpa ini langkah 5 menolak jalan
+php artisan db:seed --class=MasterPermissionSeeder --force
+
+# 5. Organization + admin pertama + perusahaan pertama
+php artisan central:bootstrap   --organization="Nusantara Group" --quota=5   --name="Admin Nusantara" --email="admin@nusantara.test"   --company="Nusantara Jaya" --slug=nusantara --abbreviation=NSJ
+#    Sandi ditanyakan tersembunyi bila --password tidak diberikan — lebih baik
+#    begitu, supaya sandi tidak tertinggal di riwayat shell.
+#    --company boleh dilewati; perusahaan bisa dibuat lewat menu Perusahaan.
+
+# 6. Tautan storage & cache produksi
+php artisan storage:link
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+**Kenapa langkah 5 perlu perintah sendiri.** Database pusat yang baru
+dimigrasikan tidak punya satu pun user, jadi tidak ada yang bisa login;
+sementara satu-satunya layar untuk membuat perusahaan justru menuntut admin
+yang sudah login. Tanpa `central:bootstrap`, instalasi baru mentok di
+lingkaran itu dan hanya bisa dibuka lewat tinker di server produksi.
+
+**Verifikasi sebelum menyerahkan ke pengguna:**
+
+```bash
+php artisan central:tenants-status          # perusahaan berstatus "active", 0 pending
+```
+
+Lalu lewat browser: login → `/c/{slug}/dashboard` terbuka → menu Perusahaan
+(`/c/{slug}/admin/companies`) memperlihatkan kuota terpakai 1. Bila menu
+Perusahaan menjawab 403 "tidak terikat ke organization mana pun", admin
+terbentuk lepas dari organization — hapus user itu dan ulangi langkah 5.
+
+---
+
+## Jalur B — Server Lama yang Sudah Berjalan
+
+Urutan lengkapnya ada di bagian **Cutover** di bawah. Ringkasnya:
+
+1. **Latih dulu di salinan, jangan langsung di produksi.** Dump database
+   produksi, pulihkan dengan nama lain, arahkan `.env` ke salinan itu, dan
+   jalankan seluruh urutan di sana. Latihan 2026-08-28 menemukan tiga cacat
+   yang tidak pernah muncul dengan data buatan — semuanya menghentikan cutover
+   di tengah jalan.
+2. Catat **baseline** sebelum menyentuh apa pun: jumlah invoice, total
+   pembayaran, total saldo bank, jumlah klien. Angka yang sama wajib muncul
+   lagi sesudahnya. Tanpa baseline, "sepertinya aman" hanyalah perasaan.
+3. `artisan down` → backup → migrate central → seed permission →
+   `central:adopt-database` → `central:import-users` → `central:adopt-storage`
+   → `storage:link` → `artisan up`.
+4. Bandingkan baseline. Baru buka akses.
+
+**`central:bootstrap` tidak dipakai di jalur ini** — organization dibuat manual
+atau lewat seeder, dan admin datang dari `central:import-users`.
+
+---
+
 ## GO-LIVE DI SERVER — Urutan Eksekusi
 
 ### G.1 Setup server (sekali saja)
