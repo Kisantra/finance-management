@@ -502,7 +502,7 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
      (opsional `LEGACY_DB_HOST/PORT/USERNAME/PASSWORD` bila berbeda). Tanpa ini
      `central:import-users legacy` tidak punya sumber data.
    - **`mysqldump` harus ada di PATH** — dipakai `central:backup`. Di Windows
-     biasanya `C:\Program Files\MySQL\MySQL Server 8.0in`.
+     biasanya `C:\Program Files\MySQL\MySQL Server 8.0\bin`.
    - `SESSION_DRIVER`: bila produksi memakai **redis**, JANGAN set
      `SESSION_CONNECTION=mysql`. Nilai itu dipakai driver redis sebagai nama
      koneksi Redis, dan akan menghasilkan
@@ -545,12 +545,19 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
 9. Arahkan DNS/subdomain organization; matikan deployment lama (redirect 301).
 10. Aktifkan backup malam + monitoring sejak malam pertama.
 
-**Yang BELUM diverifikasi dan hanya bisa diuji saat cutover sungguhan:**
-`central:adopt-database` belum pernah dijalankan terhadap dump produksi asli —
-seluruh tenant di lingkungan uji dibuat lewat `tenants:migrate` dari nol. Struktur
-akhirnya sudah dibuktikan setara (lihat langkah 7), tetapi hal-hal yang hanya ada
-pada data nyata — koleksi/charset lama, baris yatim, kolom hasil perubahan manual —
-baru akan terlihat di sana. Karena itu langkah 1 (backup penuh) bukan formalitas.
+**Status verifikasi (diperbarui 2026-08-28):** `central:adopt-database` sudah
+dijalankan terhadap dump produksi sungguhan dalam latihan penuh — bukan lagi
+hanya terhadap tenant yang dibangun dari nol. Hasilnya: 4 migration baru
+dijalankan, 44 dilewati karena sudah ada, dan seluruh 11 metrik baseline
+identik sebelum-sesudah. Latihan itu juga yang menemukan tiga cacat penghenti
+cutover (role warisan, koneksi `legacy` tak terdaftar, `BCRYPT_ROUNDS`) yang
+tidak pernah muncul dengan data buatan.
+
+Yang tetap tidak bisa dijamin: data produksi Anda bukan data produksi yang
+dilatih di sini. Koleksi/charset lama, baris yatim, dan kolom hasil perubahan
+manual berbeda di setiap deployment. Karena itu **latihan dengan dump Anda
+sendiri tetap wajib**, dan langkah 1 (backup penuh) bukan formalitas. Cara
+berlatihnya ada di [Panduan Migrasi](panduan-migrasi.md).
 
 ### G.3 Setiap rilis berikutnya
 

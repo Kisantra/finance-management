@@ -237,7 +237,9 @@ Loading skeleton                  → Skeleton
 > (mis. `/c/kisantra/invoices`) — satu database per perusahaan via stancl/tenancy.
 > Migration bisnis ada di `database/migrations/tenant/` (`php artisan tenants:migrate`).
 > Di React, bangun URL dengan `companyUrl()` dari `@/lib/company` (JANGAN literal path);
-> pencocokan URL aktif pakai `appPath()`. Detail: `docs/multi-tenancy-runbook-eksekusi.md`.
+> pencocokan URL aktif pakai `appPath()`.
+> Cara migrasi + latihannya: `docs/panduan-migrasi.md` (untuk dipelajari);
+> daftar periksa hari-H: `docs/multi-tenancy-runbook-eksekusi.md`.
 
 | Module | Route | Fitur / Halaman |
 |--------|-------|-----------------|
