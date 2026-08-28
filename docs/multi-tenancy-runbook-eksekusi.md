@@ -392,14 +392,44 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
 ### G.2 Urutan cutover deployment existing
 
 1. Freeze + backup penuh deployment lama.
-2. Deploy codebase baru (hasil Tahap 0–3) — belum diaktifkan.
-3. `php artisan migrate --force` (central: buat organizations/companies/users/patch Spatie).
-4. `central:import-users` + `central:adopt-database` per perusahaan (dump lama →
+2. **Periksa `.env` sebelum deploy** — dua nilai yang bisa mematikan aplikasi:
+   - `SESSION_DRIVER`: bila produksi memakai **redis**, JANGAN set
+     `SESSION_CONNECTION=mysql`. Nilai itu dipakai driver redis sebagai nama
+     koneksi Redis, dan akan menghasilkan
+     `Redis connection [mysql] not configured`. Config sudah dibuat sadar-driver
+     (default `mysql` hanya saat driver `database`), tetapi `.env` yang menimpanya
+     tetap bisa salah.
+   - `QUEUE_CONNECTION` / `CACHE_STORE`: keduanya dijalankan di konteks central,
+     lihat Tahap 3.1–3.2.
+3. Deploy codebase baru (hasil Tahap 0–3) — belum diaktifkan.
+4. `php artisan migrate --force` (central: buat organizations/companies/users/patch Spatie).
+5. **`php artisan db:seed --class=MasterPermissionSeeder --force`** — WAJIB, dan
+   mudah terlewat karena bukan migration. Rilis ini memperkenalkan permission baru
+   `manage company profile`; tanpa seeder ini permission-nya tidak ada di database,
+   sehingga gate `can:manage company profile` menolak **semua orang termasuk admin**
+   dan halaman Profil Perusahaan mati total. Terbukti terjadi saat QA (BUG-SET-06).
+   Lanjutkan dengan `php artisan permission:cache-reset`.
+6. `central:import-users` + `central:adopt-database` per perusahaan (dump lama →
    `tenant_{slug}`).
-5. Smoke test satu perusahaan (canary): login → pilih perusahaan → buat invoice draft
-   → hapus. Cek nomor urut invoice lanjut dari sequence lama.
-6. Arahkan DNS/subdomain organization; matikan deployment lama (redirect 301).
-7. Aktifkan backup malam + monitoring sejak malam pertama.
+7. `php artisan tenants:migrate --force` — menerapkan seluruh migration bisnis ke
+   database hasil adopsi. **Sudah diuji** terhadap database berstruktur produksi
+   (dibangun dari migration `main`, lalu seluruh migration tenant diterapkan):
+   48 migration Ran, 0 Pending, tiga foreign key keuangan berubah menjadi
+   `RESTRICT`, dan `receivables.interest_rate` menjadi `decimal(8,4)`.
+8. Smoke test satu perusahaan (canary): login → pilih perusahaan → buat invoice draft
+   → hapus. Cek nomor urut invoice lanjut dari sequence lama. Tambahkan:
+   buka **Pengaturan → Profil Perusahaan** (membuktikan langkah 5 berhasil) dan
+   **unduh satu invoice sebagai PDF** (membuktikan `bank_accounts` NULL tidak lagi
+   menjatuhkan 500 — TEMUAN I-08).
+9. Arahkan DNS/subdomain organization; matikan deployment lama (redirect 301).
+10. Aktifkan backup malam + monitoring sejak malam pertama.
+
+**Yang BELUM diverifikasi dan hanya bisa diuji saat cutover sungguhan:**
+`central:adopt-database` belum pernah dijalankan terhadap dump produksi asli —
+seluruh tenant di lingkungan uji dibuat lewat `tenants:migrate` dari nol. Struktur
+akhirnya sudah dibuktikan setara (lihat langkah 7), tetapi hal-hal yang hanya ada
+pada data nyata — koleksi/charset lama, baris yatim, kolom hasil perubahan manual —
+baru akan terlihat di sana. Karena itu langkah 1 (backup penuh) bukan formalitas.
 
 ### G.3 Setiap rilis berikutnya
 
