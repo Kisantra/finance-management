@@ -60,6 +60,21 @@ class CentralImportUsers extends Command
             $result['imported'], $result['existing'], $result['memberships'], $company->getTenantKey()
         ));
 
+        // Role sisa dari deployment lama dilaporkan terang-terangan: user-nya
+        // tetap masuk dan tetap bisa login, tetapi TANPA hak akses sampai
+        // operator menetapkan role penggantinya.
+        if (! empty($result['roles_skipped'])) {
+            $this->newLine();
+            $this->warn('Role berikut tidak ada di sistem baru — user terkait diimpor TANPA role:');
+
+            foreach ($result['roles_skipped'] as $role => $emails) {
+                $this->line(sprintf('  %-16s %d user: %s', $role, count($emails), implode(', ', $emails)));
+            }
+
+            $this->newLine();
+            $this->line('Tetapkan role mereka lewat menu Pengguna, atau abaikan bila memang akun sisa uji coba.');
+        }
+
         return self::SUCCESS;
     }
 }

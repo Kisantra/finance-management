@@ -132,8 +132,8 @@ class CompanyPermissionIsolationTest extends TestCase
         $first = $service->import($rows, $organization, $company);
         $second = $service->import($rows, $organization, $company);
 
-        $this->assertSame(['imported' => 1, 'existing' => 0, 'memberships' => 1], $first);
-        $this->assertSame(['imported' => 0, 'existing' => 1, 'memberships' => 0], $second);
+        $this->assertSame(['imported' => 1, 'existing' => 0, 'memberships' => 1, 'roles_skipped' => []], $first);
+        $this->assertSame(['imported' => 0, 'existing' => 1, 'memberships' => 0, 'roles_skipped' => []], $second);
 
         $budi = User::where('email', 'budi@example.com')->firstOrFail();
         $this->assertSame($organization->id, $budi->organization_id);

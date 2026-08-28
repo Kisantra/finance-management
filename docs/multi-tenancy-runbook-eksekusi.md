@@ -401,7 +401,18 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
 ### G.2 Urutan cutover deployment existing
 
 1. Freeze + backup penuh deployment lama.
-2. **Periksa `.env` sebelum deploy** — dua nilai yang bisa mematikan aplikasi:
+2. **Periksa `.env` sebelum deploy** — nilai yang bisa mematikan aplikasi:
+   - **`BCRYPT_ROUNDS`** wajib **sama atau lebih tinggi** dari deployment lama.
+     Laravel menolak hash yang cost-nya melebihi konfigurasi
+     (`Could not verify the hashed value's configuration`), sehingga
+     `central:import-users` akan mati dan tidak ada user yang bisa login.
+     Periksa dulu: `SELECT LEFT(password, 7) FROM users LIMIT 1;` di database lama —
+     `$2y$12$` berarti cost 12.
+   - **Daftarkan koneksi `legacy`** di `.env`: `LEGACY_DB_DATABASE=<nama db lama>`
+     (opsional `LEGACY_DB_HOST/PORT/USERNAME/PASSWORD` bila berbeda). Tanpa ini
+     `central:import-users legacy` tidak punya sumber data.
+   - **`mysqldump` harus ada di PATH** — dipakai `central:backup`. Di Windows
+     biasanya `C:\Program Files\MySQL\MySQL Server 8.0in`.
    - `SESSION_DRIVER`: bila produksi memakai **redis**, JANGAN set
      `SESSION_CONNECTION=mysql`. Nilai itu dipakai driver redis sebagai nama
      koneksi Redis, dan akan menghasilkan
@@ -419,8 +430,13 @@ kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
    dan halaman Profil Perusahaan mati total. Terbukti terjadi saat QA (BUG-SET-06).
    Lanjutkan dengan `php artisan permission:cache-reset`.
 6. `central:adopt-database` per perusahaan (dump lama sudah di-restore sebagai
-   `tenant_{slug}`), lalu `central:import-users {koneksi-legacy}` untuk menyalin
-   user + role ke database pusat.
+   `tenant_{slug}`), lalu `central:import-users legacy --organization=… --company=…`
+   untuk menyalin user + role ke database pusat. **Jalankan `--dry-run` dulu.**
+   Role yang tidak ada di sistem baru (sisa eksperimen seperti `staff_test`,
+   `admin_t`) tidak lagi menghentikan impor — user tetap masuk, lalu perintah
+   melaporkan daftar role yang dilewati beserta emailnya. Tetapkan role
+   penggantinya lewat menu Pengguna sebelum go-live, karena sampai itu dilakukan
+   mereka bisa login tetapi tanpa hak akses apa pun.
 6b. **`php artisan central:adopt-storage {slug}`** — memindahkan berkas dari
    `storage/app/public/` ke `storage/tenant{slug}/app/public/`. Langkah terpisah
    dan mudah terlupa; tanpa ini semua lampiran hilang dari tampilan meski

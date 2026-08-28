@@ -48,3 +48,6 @@ composer.lock
 # Gambarnya tertanam di dalam docs/qa/report/*.pdf yang justru dipush,
 # jadi bukti visualnya tetap ikut ke repositori lewat laporan jadinya.
 /docs/qa/evidence/
+
+# Artefak latihan migrasi (dump produksi, log) — jangan pernah masuk git
+/storage/latihan/
