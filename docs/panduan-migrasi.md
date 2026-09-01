@@ -1,3 +1,4 @@
+
 # Panduan Migrasi Multi-Tenancy — Untuk Dipelajari, Bukan Sekadar Dijalankan
 
 Dokumen ini untuk Anda yang akan **melakukan migrasinya sendiri**. Tujuannya
@@ -108,6 +109,31 @@ Tentukan ini sebelum mengetik apa pun.
 ## 5. Jalur A — Server Baru
 
 Situasinya: aplikasi dipasang di tempat yang belum punya data apa-apa.
+
+### Langkah 0 — hanya bila Anda berlatih di mesin sendiri
+
+Di server baru sungguhan langkah ini tidak ada: `.env` tinggal diisi sekali dan
+tidak ada yang perlu diselamatkan. Tapi mesin Anda sudah berisi konfigurasi yang
+dipakai sehari-hari, jadi cadangkan dulu sebelum mengarahkannya ke database
+latihan.
+
+```bash
+cp .env .env-backup-belajar
+sed -i 's/^DB_DATABASE=.*/DB_DATABASE=belajar_central/' .env
+php artisan config:clear
+grep '^DB_DATABASE=' .env
+```
+
+Baris terakhir harus mencetak `DB_DATABASE=belajar_central`. Kalau bukan itu,
+jangan lanjut.
+
+`config:clear` perlu karena Laravel bisa menyimpan konfigurasi di cache. Tanpa
+itu `.env` sudah berubah tapi aplikasi masih memakai nilai lama — dan perintah
+berikutnya menyasar database yang salah.
+
+Kebiasaan yang dibangun di sini berlaku sampai hari-H: **setiap perintah yang
+mengubah sesuatu, ikuti dengan perintah yang membuktikannya.** Jangan pernah
+menganggap berhasil hanya karena tidak ada pesan error.
 
 ### Langkah
 
