@@ -216,30 +216,50 @@ mana.
 
 ### 6.1 Berlatih tanpa menyentuh produksi
 
-Intinya: **salin database produksi dengan nama lain, lalu arahkan aplikasi ke
-salinan itu.** Produksi tetap hidup dan tidak tersentuh.
+Intinya: salin database produksi dengan nama lain, lalu arahkan aplikasi ke
+salinan itu. Produksi tetap hidup dan tidak tersentuh.
+
+**Anda akan memulihkan dump yang sama dua kali, dengan nama berbeda.** Ini inti
+Jalur B, bukan pemborosan:
+
+| Database | Perannya | Berubah? |
+|---|---|---|
+| `latihan_produksi` | Pembanding — sumber angka baseline, "dulu invoice-nya berapa" | Dibiarkan utuh |
+| `tenant_latihan` | Bahan yang akan diadopsi menjadi tenant | Inilah yang dimigrasi |
+| produksi asli | Sumber dump; tidak dibuka, tidak ditulis | Aman |
+
+Tanpa pembanding, Anda tidak punya cara membuktikan tidak ada data yang hilang —
+hanya perasaan bahwa semuanya baik-baik saja.
+
+**Nama `tenant_latihan` bukan pilihan bebas.** `central:adopt-database` menyusun
+nama database sebagai `'tenant_' . $slug` (prefix `tenant_` dari
+`config/tenancy.php`). Jadi memulihkan ke `tenant_latihan` berarti slug
+perusahaannya `latihan` — dan slug itu **permanen**: menjadi URL `/c/latihan`,
+nama database, sekaligus nama folder storage. Untuk produksi sungguhan,
+pulihkan ke `tenant_{slug-yang-Anda-mau}`, misalnya `tenant_kisantra`.
 
 ```bash
 # mysqldump sering tidak ada di PATH. Di Windows biasanya:
 export PATH="/c/Program Files/MySQL/MySQL Server 8.0/bin:$PATH"
 
-# 1. Ambil dump produksi
+# 1. Ambil salinan produksi. Ini hanya MEMBACA — produksi tidak berubah.
 mysqldump -u root -p finance_management > dump-produksi.sql
 
-# 2. Pulihkan DUA kali dengan nama berbeda:
-#    latihan_produksi -> jadi "produksi hari ini", untuk mencatat baseline
-#    tenant_latihan   -> jadi calon tenant yang akan diadopsi
+# 2. Siapkan dua database kosong.
 mysql -u root -p -e "CREATE DATABASE latihan_produksi; CREATE DATABASE tenant_latihan;"
+
+# 3. Tuang dump yang SAMA ke keduanya. Tanda < berarti "baca berkas ini".
 mysql -u root -p latihan_produksi < dump-produksi.sql
 mysql -u root -p tenant_latihan   < dump-produksi.sql
 
-# 3. Cadangkan .env sebelum mengarahkannya ke salinan
+# 4. Cadangkan .env sebelum diarahkan ke salinan. Berkas itu satu-satunya
+#    yang menentukan aplikasi menunjuk ke database mana.
 cp .env env-asli-backup
 ```
 
-Kenapa dipulihkan dua kali? Yang satu jadi pembanding ("dulu angkanya berapa"),
-yang satu jadi bahan yang diadopsi. Tanpa pembanding, Anda tidak punya cara
-membuktikan tidak ada yang hilang.
+Periksa hasilnya: `ls -lh dump-produksi.sql` harus menunjukkan ukuran puluhan KB
+atau lebih — **bukan 0**. Berkas 0 byte berarti dump gagal, dan dua database
+tadi akan kosong tanpa satu pun pesan error.
 
 ### 6.2 Catat baseline dulu
 
