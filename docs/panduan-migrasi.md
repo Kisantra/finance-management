@@ -60,6 +60,8 @@ Tanpa ini, perintah-perintahnya terasa seperti mantra.
 | **organization** | Wadah di atas perusahaan. Punya kuota berapa perusahaan boleh dibuat. |
 | **adopt** | Mendaftarkan database lama yang sudah ada sebagai tenant, tanpa mengosongkannya. |
 | **bootstrap** | Menyalakan instalasi yang benar-benar kosong: bikin organization + admin pertama. |
+| **dump** | Salinan database sebagai berkas teks berisi perintah SQL — `CREATE TABLE` untuk rangkanya, `INSERT INTO` untuk datanya. Bukan foto database, melainkan resep membangunnya ulang. Diambil dengan `mysqldump` (hanya membaca), dipulihkan dengan `mysql < berkas.sql`. |
+| **restore** | Menjalankan isi dump ke sebuah database kosong sehingga isinya kembali seperti asal. |
 | **cutover** | Saat peralihannya sendiri: aplikasi lama dimatikan, yang baru dinyalakan. Rentang waktu aplikasi tidak bisa dipakai. |
 | **baseline** | Catatan angka **sebelum** migrasi (jumlah invoice, total pembayaran, dsb.) untuk dibandingkan sesudahnya. |
 | **canary** | Menguji satu perusahaan dulu sebelum semuanya. |
