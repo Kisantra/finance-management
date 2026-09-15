@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeftRight,
     Briefcase,
@@ -459,20 +459,15 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                             </Link>
                         </div>
                         <div className="p-1 border-t border-gray-100 dark:border-white/6">
-                            <form method="POST" action="/logout">
-                                <input
-                                    type="hidden"
-                                    name="_token"
-                                    value={
-                                        document
-                                            .querySelector('meta[name="csrf-token"]')
-                                            ?.getAttribute('content') ?? ''
-                                    }
-                                />
-                                <button
-                                    type="submit"
-                                    className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                >
+                            {/* Lewat klien Inertia, bukan <form> biasa: token CSRF dibaca dari cookie
+                                XSRF-TOKEN yang diperbarui setiap respons. Form lama membaca <meta> yang
+                                dirender sekali saat halaman pertama dimuat — basi begitu sesi berganti,
+                                dan logout berakhir di layar "419 PAGE EXPIRED". */}
+                            <button
+                                type="button"
+                                onClick={() => router.post('/logout')}
+                                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            >
                                     <svg
                                         className="w-3.5 h-3.5"
                                         fill="none"
@@ -487,8 +482,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarP
                                         />
                                     </svg>
                                     Keluar
-                                </button>
-                            </form>
+                            </button>
                         </div>
                     </div>
                 )}

@@ -10,6 +10,7 @@ use App\Models\AppNotification;
 use App\Models\Feedback;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -79,11 +80,11 @@ class FeedbackController extends Controller
         ]);
     }
 
-    public function store(StoreFeedbackRequest $request): RedirectResponse
+    public function store(StoreFeedbackRequest $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validated();
 
-        DB::transaction(function () use ($validated, $request) {
+        $feedback = DB::transaction(function () use ($validated, $request) {
             $attachmentPath = null;
             $attachmentName = null;
 
@@ -106,7 +107,15 @@ class FeedbackController extends Controller
             ]);
 
             $this->notifyAdmins($feedback);
+
+            return $feedback;
         });
+
+        // Halaman error mengirim laporan tanpa berpindah halaman (useHttp, Accept JSON):
+        // redirect back() di sana akan memuat ulang halaman yang justru sedang error.
+        if ($request->wantsJson()) {
+            return response()->json(['id' => $feedback->id], 201);
+        }
 
         return redirect()->back()->with('success', 'Feedback berhasil dikirim. Terima kasih atas masukannya.');
     }

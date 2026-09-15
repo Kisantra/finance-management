@@ -576,3 +576,8 @@ Route::post('/language', function (Request $request) {
 })->middleware('web')->name('language.switch');
 
 require __DIR__.'/auth.php';
+
+// URL yang tidak cocok dengan rute mana pun gagal SEBELUM middleware `web` berjalan,
+// sehingga halaman error tidak tahu siapa yang login (pengguna tampil sebagai tamu
+// dan tombol "Laporkan ke Tim IT" hilang). Fallback membuatnya tetap lewat `web`.
+Route::fallback(fn () => abort(404));
