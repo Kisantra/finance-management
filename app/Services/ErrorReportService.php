@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -78,11 +79,33 @@ class ErrorReportService
 
         $user = $request->user();
 
-        // Rute perusahaan butuh {company}. Hanya bila tenancy sudah ter-inisialisasi
-        // (middleware cek keanggotaan sudah lolos) konteks perusahaan boleh dipakai;
-        // error sebelum tahap itu — 419, /choose-company, slug tak dikenal — tidak.
+        // Rute perusahaan butuh {company}, jadi hanya dipakai bila tenancy sudah
+        // ter-inisialisasi. Itu TIDAK menjamin keanggotaan sudah dicek — keamanannya
+        // datang dari izin Spatie yang per tim: bukan anggota = tanpa role di tim itu.
         $company = tenancy()->initialized ? tenant()->getTenantKey() : null;
 
+        // Pada 404 route model binding, SubstituteBindings gagal SEBELUM SetPermissionsTeam
+        // mana pun berjalan, sehingga tim Spatie masih null dan semua izin terbaca false.
+        $previousTeam = getPermissionsTeamId();
+
+        if ($company !== null) {
+            setPermissionsTeamId($company);
+            $user?->unsetRelation('roles')->unsetRelation('permissions');
+        }
+
+        try {
+            return $this->propsForTeam($status, $title, $description, $user, $company, $e, $request);
+        } finally {
+            setPermissionsTeamId($previousTeam);
+            $user?->unsetRelation('roles')->unsetRelation('permissions');
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function propsForTeam(int $status, string $title, string $description, ?User $user, ?string $company, Throwable $e, Request $request): array
+    {
         $canReport = $user !== null
             && $company !== null
             && $status !== 419

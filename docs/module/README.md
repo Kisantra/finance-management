@@ -100,5 +100,10 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   - Multi-tenancy: tombol "Laporkan ke Tim IT" dan tautan Dashboard hanya muncul bila tenancy sudah
     ter-inisialisasi (error di dalam `/c/{company}` setelah cek keanggotaan). Di luar itu — mis. 419,
     `/choose-company`, atau slug tak dikenal — tautan kembali ke `/choose-company`, tanpa tombol laporan.
+    Tenancy ter-inisialisasi **tidak** berarti keanggotaan sudah dicek; keamanannya datang dari izin
+    Spatie yang per tim. Pada 404 route model binding, `SubstituteBindings` gagal sebelum
+    `SetPermissionsTeam` mana pun, sehingga tim masih `null` — `ErrorReportService` memasang tim
+    perusahaan yang dibuka selama pengecekan izin lalu mengembalikannya. Jangan menulis ke
+    `storage_path()` dari penanganan error: di dalam tenancy path itu diarahkan ke folder tenant.
   - Uji: `tests/Feature/ErrorPageTest.php`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

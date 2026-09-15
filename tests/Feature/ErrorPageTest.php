@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureUserBelongsToCompany;
 use App\Http\Middleware\SetCompanyUrlDefaults;
 use App\Http\Middleware\SetPermissionsTeam;
 use App\Models\Feedback;
+use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -77,6 +78,8 @@ class ErrorPageTest extends TestCase
             Route::post('/_uji/token-basi', fn () => 'tidak pernah sampai');
 
             Route::get('/_uji/query-rusak', fn () => DB::table('tabel_yang_tidak_pernah_ada')->get());
+
+            Route::get('/_uji/invoice/{invoice}', fn (Invoice $invoice) => 'tidak pernah sampai');
         });
     }
 
@@ -216,6 +219,27 @@ class ErrorPageTest extends TestCase
         $this->assertFalse($props['can_report'],
             'Rute /feedbacks ada di dalam /c/{company}; tanpa tenancy tidak ada tujuan laporan yang sah.');
         $this->assertNull($props['report_url']);
+    }
+
+    /**
+     * Route model binding (SubstituteBindings) berjalan di grup web SEBELUM
+     * SetPermissionsTeam mana pun, sehingga pada 404 binding konteks tim Spatie belum
+     * pernah diset. Izin lalu dicek tanpa tim dan admin kehilangan tombol laporan.
+     * TestCase::setUp() memasang tim secara global, jadi di sini dikosongkan agar
+     * kondisinya sama dengan server sungguhan — tanpa itu tes ini lulus palsu.
+     * Ditemukan saat diuji di browser terhadap data dev.
+     */
+    public function test_404_binding_tetap_memeriksa_izin_di_perusahaan_yang_dibuka(): void
+    {
+        setPermissionsTeamId(null);
+
+        $props = $this->actingAs($this->admin)
+            ->get('/_uji/invoice/999999')
+            ->assertNotFound()
+            ->viewData('page')['props'];
+
+        $this->assertTrue($props['can_report'],
+            'Admin perusahaan yang sedang dibuka harus tetap bisa melapor dari halaman 404.');
     }
 
     public function test_id_referensi_tercatat_di_log_agar_bisa_dicari(): void
