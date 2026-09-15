@@ -48,6 +48,10 @@ React.useEffect(() => {
 3. Dalam `DB::transaction`: file (bila ada) disimpan `$file->store('feedbacks', 'public')` dengan nama asli disimpan di `attachment_name`; `Feedback::create()` dengan `user_id = auth()->id()` dan `status = 'open'`.
 4. `notifyAdmins($feedback)`: loop semua user role `admin`/`finance manager` → `AppNotification::notify(..., 'feedback_submitted', ...)` berisi `{feedback_id, url}`.
 5. Redirect back + flash "Feedback berhasil dikirim. Terima kasih atas masukannya."
+   **Kecuali** request meminta JSON (`wantsJson()`) → `201 {"id": <feedback_id>}`. Dipakai tombol
+   "Laporkan ke Tim IT" di halaman error (`useHttp`): redirect `back()` di sana justru memuat ulang
+   halaman yang sedang error. Laporan dari halaman error berupa `type=bug`, `priority` `high` untuk
+   5xx / `medium` untuk lainnya, dengan deskripsi Markdown berisi ID referensi `ERR-…`.
 
 **Penjelasan kode** (`app/Http/Controllers/FeedbackController.php`):
 

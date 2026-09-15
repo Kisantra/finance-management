@@ -83,4 +83,22 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   Frontend: literal path WAJIB lewat `companyUrl()`
   (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
   di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
+- **Halaman error**: setiap respons HTTP ≥ 400 untuk request halaman (bukan JSON) dirender sebagai
+  halaman Inertia `error` oleh `App\Services\ErrorReportService`, dipasang lewat
+  `$exceptions->respond()` di `bootstrap/app.php` — **bukan** `render()`: Handler Laravel mengubah
+  `TokenMismatchException` menjadi `HttpException(419)` sebelum callback render dicocokkan, sehingga
+  callback bertipe `TokenMismatchException` tidak pernah terpicu. Aturannya:
+  - Aktif hanya saat `APP_DEBUG=false`; developer tetap mendapat halaman error Laravel lengkap.
+  - Setiap error diberi ID `ERR-XXXXXXXXXX` yang sama dengan `error_id` di `storage/logs/laravel.log`.
+  - Detail teknis (exception, pesan, jejak kode aplikasi) hanya untuk role `admin` dan hanya 5xx —
+    pesan exception bisa memuat SQL beserta datanya.
+  - 419 pada `logout` langsung diarahkan ke login (sesinya memang sudah habis).
+  - `Route::fallback()` di akhir `routes/web.php` wajib dipertahankan: tanpa itu URL tak dikenal gagal
+    sebelum middleware `web`, dan pengguna yang login tampil sebagai tamu di halaman error.
+  - Tombol logout wajib lewat klien Inertia (`router.post('/logout')`), bukan `<form>` dengan token dari
+    `<meta>`: meta dirender sekali saat halaman pertama dimuat dan basi begitu sesi berganti.
+  - Multi-tenancy: tombol "Laporkan ke Tim IT" dan tautan Dashboard hanya muncul bila tenancy sudah
+    ter-inisialisasi (error di dalam `/c/{company}` setelah cek keanggotaan). Di luar itu — mis. 419,
+    `/choose-company`, atau slug tak dikenal — tautan kembali ke `/choose-company`, tanpa tombol laporan.
+  - Uji: `tests/Feature/ErrorPageTest.php`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

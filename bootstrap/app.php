@@ -3,13 +3,15 @@
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetPermissionsTeam;
+use App\Services\ErrorReportService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Session\TokenMismatchException;
+use Illuminate\Http\Request;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,10 +34,19 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
     })
-    // bootstrap/app.php
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (TokenMismatchException $e, $request) {
-            // Silent redirect - no dialog, no flash message
-            return redirect()->route('login');
+        $exceptions->context(fn () => ['error_id' => ErrorReportService::referenceId(request())]);
+
+        // respond(), bukan render(): Handler mengubah TokenMismatchException menjadi
+        // HttpException(419) SEBELUM callback render dicocokkan, sehingga callback
+        // bertipe TokenMismatchException tidak pernah terpicu (penyebab layar
+        // "419 PAGE EXPIRED" saat logout di produksi).
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
+            // Logout dengan sesi yang sudah habis: pengguna memang sudah keluar.
+            if ($response->getStatusCode() === 419 && $request->routeIs('logout')) {
+                return redirect()->route('login');
+            }
+
+            return app(ErrorReportService::class)->respond($response, $e, $request);
         });
     })->create();
