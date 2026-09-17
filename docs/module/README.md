@@ -64,24 +64,14 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.
   Komponen wajib pakai katalog di CLAUDE.md (Combobox, DatePicker, CurrencyInput, FileUpload, dll.).
 - **Workflow status**: state machine hidup di model (`canSubmit()`, `approve()`, dst.), bukan controller.
-- **⚠ Kategori sistem Loans/Receivables**: `LoanController`/`ReceivableController` masih mencari
-  kategori via `where('code', 'FIN-LOAN-IN')` dst., padahal kolom `code` **sudah di-drop** oleh
-  migration `2026_02_05_..._refactor_transaction_categories...` — lookup ini bug laten
-  (`QueryException`) yang harus diperbaiki sebelum fitur transaksi otomatis loan/receivable dipakai.
-  Detail di [loans.md](loans.md) / [receivables.md](receivables.md).
-- **Halaman error**: setiap respons HTTP ≥ 400 untuk request halaman (bukan JSON) dirender sebagai
-  halaman Inertia `error` oleh `App\Services\ErrorReportService`, dipasang lewat
-  `$exceptions->respond()` di `bootstrap/app.php` — **bukan** `render()`: Handler Laravel mengubah
-  `TokenMismatchException` menjadi `HttpException(419)` sebelum callback render dicocokkan, sehingga
-  callback bertipe `TokenMismatchException` tidak pernah terpicu. Aturannya:
-  - Aktif hanya saat `APP_DEBUG=false`; developer tetap mendapat halaman error Laravel lengkap.
-  - Setiap error diberi ID `ERR-XXXXXXXXXX` yang sama dengan `error_id` di `storage/logs/laravel.log`.
-  - Detail teknis (exception, pesan, jejak kode aplikasi) hanya untuk role `admin` dan hanya 5xx —
-    pesan exception bisa memuat SQL beserta datanya.
-  - 419 pada `logout` langsung diarahkan ke login (sesinya memang sudah habis).
-  - `Route::fallback()` di akhir `routes/web.php` wajib dipertahankan: tanpa itu URL tak dikenal gagal
-    sebelum middleware `web`, dan pengguna yang login tampil sebagai tamu di halaman error.
-  - Tombol logout wajib lewat klien Inertia (`router.post('/logout')`), bukan `<form>` dengan token dari
-    `<meta>`: meta dirender sekali saat halaman pertama dimuat dan basi begitu sesi berganti.
-  - Uji: `tests/Feature/ErrorPageTest.php`.
+- **Kategori sistem Loans/Receivables** (diperbaiki 2026-09-17): kategori sistem diidentifikasi
+  lewat kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `FIN-RCV-OUT`, `FIN-RCV-IN`,
+  `EXP-INTEREST`, `REV-INTEREST`) via `TransactionCategory::findSystem()`. Kolom `code` sudah
+  di-drop sejak migration 2026_02_05; lookup lama melempar `Unknown column 'code'` di MySQL dan
+  menjatuhkan create/pay loan serta approve/pay receivable. `system_key` di luar `$fillable`
+  supaya tidak bisa diklaim lewat form. Detail di [loans.md](loans.md) / [receivables.md](receivables.md).
+- **⚠ SQLite menutupi kesalahan kolom**: suite memakai SQLite in-memory (`phpunit.xml`), yang
+  mem-fallback identifier tak dikenal menjadi string literal — query ke kolom yang tidak ada
+  mengembalikan `null` diam-diam alih-alih error, persis yang membuat bug `code` lolos berbulan-bulan.
+  Tes yang menyentuh kolom harus memeriksa **data yang terbentuk**, bukan sekadar status HTTP.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

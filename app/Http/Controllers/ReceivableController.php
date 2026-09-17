@@ -283,7 +283,7 @@ class ReceivableController extends Controller
 
         if ($validated['action'] === 'approve') {
             DB::transaction(function () use ($receivable, $validated) {
-                $category = TransactionCategory::where('code', 'FIN-RCV-OUT')->first();
+                $category = TransactionCategory::findSystem('FIN-RCV-OUT');
 
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
@@ -351,7 +351,7 @@ class ReceivableController extends Controller
 
             if ($validated['payment_method'] === 'bank_transfer' && $validated['bank_account_id']) {
                 if ($principalPaid > 0) {
-                    $cat = TransactionCategory::where('code', 'FIN-RCV-IN')->first();
+                    $cat = TransactionCategory::findSystem('FIN-RCV-IN');
                     BankTransaction::create([
                         'bank_account_id' => $validated['bank_account_id'],
                         'amount' => $principalPaid,
@@ -364,7 +364,7 @@ class ReceivableController extends Controller
                 }
 
                 if ($interestPaid > 0) {
-                    $cat = TransactionCategory::where('code', 'REV-INTEREST')->first();
+                    $cat = TransactionCategory::findSystem('REV-INTEREST');
                     BankTransaction::create([
                         'bank_account_id' => $validated['bank_account_id'],
                         'amount' => $interestPaid,

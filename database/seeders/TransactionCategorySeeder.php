@@ -9,7 +9,8 @@ class TransactionCategorySeeder extends Seeder
 {
     public function run(): void
     {
-        // Parent categories
+        // Parent categories — system_key menandai kategori sistem yang dipakai
+        // otomatis oleh modul Loans/Receivables (tidak boleh diedit/dihapus user)
         $parents = [
             ['type' => 'expense', 'label' => 'Operational Expenses'],
             ['type' => 'expense', 'label' => 'PENGELUARAN LAIN-LAIN'],
@@ -17,20 +18,40 @@ class TransactionCategorySeeder extends Seeder
             ['type' => 'expense', 'label' => 'CAPEX'],
             ['type' => 'income', 'label' => 'Penghasilan'],
             ['type' => 'transfer', 'label' => 'Transfer Internal'],
-            ['type' => 'financing', 'label' => 'Penerimaan Pinjaman'],
-            ['type' => 'financing', 'label' => 'Pembayaran Pokok Pinjaman'],
+            ['type' => 'financing', 'label' => 'Penerimaan Pinjaman', 'system_key' => 'FIN-LOAN-IN'],
+            ['type' => 'financing', 'label' => 'Pembayaran Pokok Pinjaman', 'system_key' => 'FIN-LOAN-OUT'],
             ['type' => 'financing', 'label' => 'Setoran Modal'],
             ['type' => 'financing', 'label' => 'Penarikan Modal'],
-            ['type' => 'financing', 'label' => 'Piutang Diberikan'],
-            ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima'],
-            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman'],
-            ['type' => 'income', 'label' => 'Pendapatan Bunga'],
+            ['type' => 'financing', 'label' => 'Piutang Diberikan', 'system_key' => 'FIN-RCV-OUT'],
+            ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima', 'system_key' => 'FIN-RCV-IN'],
+            // pl_group WAJIB terisi: tanpa ini bunga pinjaman & bunga piutang
+            // jatuh ke bucket "belum diklasifikasi" dan tidak pernah masuk baris
+            // Beban Lain / Pendapatan Lain di Laporan Laba Rugi.
+            ['type' => 'expense', 'label' => 'Beban Bunga Pinjaman', 'system_key' => 'EXP-INTEREST', 'pl_group' => 'other_expense'],
+            ['type' => 'income', 'label' => 'Pendapatan Bunga', 'system_key' => 'REV-INTEREST', 'pl_group' => 'other_income'],
         ];
 
         foreach ($parents as $parent) {
-            TransactionCategory::firstOrCreate(
+            $category = TransactionCategory::firstOrCreate(
                 ['type' => $parent['type'], 'label' => $parent['label'], 'parent_id' => null]
             );
+
+            $patch = [];
+
+            if (isset($parent['system_key']) && $category->system_key !== $parent['system_key']) {
+                $patch['system_key'] = $parent['system_key'];
+            }
+
+            // pl_group hanya diisi bila masih kosong — klasifikasi yang sudah
+            // disesuaikan pengguna lewat panel Laba Rugi tidak boleh ditimpa
+            // saat seeder dijalankan ulang.
+            if (isset($parent['pl_group']) && $category->pl_group === null) {
+                $patch['pl_group'] = $parent['pl_group'];
+            }
+
+            if ($patch) {
+                $category->forceFill($patch)->save();
+            }
         }
 
         // Child categories: 'parent_label' => children
