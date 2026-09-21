@@ -54,7 +54,7 @@ Cash Flow (input manual income/expense/transfer)──► bank_transactions
 
 Laporan Laba Rugi membaca `payments` (pendapatan) + `bank_transactions` yang kategorinya
 punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
-[profit-loss.md](profit-loss.md) dan dokumen kebijakan `.claude/context/laba-rugi.md`.
+[profit-loss.md](profit-loss.md) dan dokumen kebijakan `docs/design/laba-rugi.md`.
 
 ## Konvensi Lintas Modul
 

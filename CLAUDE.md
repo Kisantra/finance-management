@@ -383,7 +383,7 @@ Berlaku untuk: shadcn/ui components, library React (react-day-picker, cmdk, reac
 | File | Purpose |
 |------|---------|
 | **`docs/module/README.md`** | **Indeks dokumentasi per modul + peta alur data lintas modul — WAJIB dibaca sebelum menyentuh modul apa pun** |
-| `MIGRATION_PLAN.md` | Status migrasi, fase & progress |
+| `docs/archive/MIGRATION_PLAN.md` | Status migrasi, fase & progress |
 | `.claude/design-systems/archipelago.md` | Design system tokens, typography, spacing, color palette |
 | `app/Services/InvoicePrintService.php` | PDF generation |
 | `app/Models/Invoice.php` | Status & profit calculations |
@@ -431,8 +431,6 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 This project has domain-specific skills available. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
 
-- `livewire-development` — Develops reactive Livewire 3 components. Activates when creating, updating, or modifying Livewire components; working with wire:model, wire:click, wire:loading, or any wire: directives; adding real-time updates, loading states, or reactivity; debugging component behavior; writing Livewire tests; or when the user mentions Livewire, component, counter, or reactive UI.
-- `volt-development` — Develops single-file Livewire components with Volt. Activates when creating Volt components, converting Livewire to Volt, working with @volt directive, functional or class-based Volt APIs; or when the user mentions Volt, single-file components, functional Livewire, or inline component logic in Blade files.
 - `tailwindcss-development` — Styles applications using Tailwind CSS v4 utilities. Activates when adding styles, restyling components, working with gradients, spacing, layout, flex, grid, responsive design, dark mode, colors, typography, or borders; or when the user mentions CSS, styling, classes, Tailwind, restyle, hero section, cards, buttons, or any visual/UI changes.
 
 ## Conventions
@@ -632,7 +630,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - Livewire allows you to build dynamic, reactive interfaces using only PHP — no JavaScript required.
 - Instead of writing frontend code in JavaScript frameworks, you use Alpine.js to build the UI when client-side interactions are required.
 - State lives on the server; the UI reflects it. Validate and authorize in actions (they're like HTTP requests).
-- IMPORTANT: Activate `livewire-development` every time you're working with Livewire-related tasks.
 
 === volt/core rules ===
 
@@ -641,7 +638,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - Single-file Livewire components: PHP logic and Blade templates in one file.
 - Always check existing Volt components to determine functional vs class-based style.
 - IMPORTANT: Always use `search-docs` tool for version-specific Volt documentation and updated code examples.
-- IMPORTANT: Activate `volt-development` every time you're working with a Volt or single-file component-related task.
 
 === pint/core rules ===
 

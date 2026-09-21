@@ -151,9 +151,9 @@ if ($user->can('disburse fund requests')) {
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\app\Http\Controllers\DashboardController.php` — invokable, seluruh agregasi
-- `d:\Laravel\finance-management\routes\web.php` — `Route::get('/dashboard', DashboardController::class)->name('dashboard')` (baris ±106)
-- `d:\Laravel\finance-management\resources\js\pages\dashboard.tsx` — kartu overview, ApexCharts (cash flow & donut), feed section
-- `d:\Laravel\finance-management\app\Http\Middleware\HandleInertiaRequests.php` — shared prop `actionCounts` (badge sidebar) & `auth.permissions`
-- `d:\Laravel\finance-management\app\Models\BankAccount.php` — accessor `balance` computed yang menjadi dasar semua angka saldo
-- `d:\Laravel\finance-management\tests\Feature\DashboardAccessTest.php`, `DashboardTest.php`
+- `app/Http/Controllers/DashboardController.php` — invokable, seluruh agregasi
+- `routes/web.php` — `Route::get('/dashboard', DashboardController::class)->name('dashboard')` (baris ±106)
+- `resources/js/pages/dashboard.tsx` — kartu overview, ApexCharts (cash flow & donut), feed section
+- `app/Http/Middleware/HandleInertiaRequests.php` — shared prop `actionCounts` (badge sidebar) & `auth.permissions`
+- `app/Models/BankAccount.php` — accessor `balance` computed yang menjadi dasar semua angka saldo
+- `tests/Feature/DashboardAccessTest.php`, `DashboardTest.php`

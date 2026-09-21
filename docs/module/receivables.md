@@ -168,9 +168,9 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 
 | File | Peran |
 |------|------|
-| `d:\Laravel\finance-management\app\Http\Controllers\ReceivableController.php` | index/store/update/destroy/submit/approve/pay + generate nomor |
-| `d:\Laravel\finance-management\app\Http\Requests\StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
-| `d:\Laravel\finance-management\app\Models\Receivable.php`, `app\Models\ReceivablePayment.php` | Model, morph `debtor`, casts |
-| `d:\Laravel\finance-management\routes\web.php` (baris 466-474) | Route + permission middleware |
-| `d:\Laravel\finance-management\resources\js\pages\receivables\index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
-| `d:\Laravel\finance-management\database\seeders\MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |
+| `app/Http/Controllers/ReceivableController.php` | index/store/update/destroy/submit/approve/pay + generate nomor |
+| `app/Http/Requests/StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
+| `app/Models/Receivable.php`, `app/Models/ReceivablePayment.php` | Model, morph `debtor`, casts |
+| `routes/web.php` (baris 466-474) | Route + permission middleware |
+| `resources/js/pages/receivables/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
+| `database/seeders/MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |

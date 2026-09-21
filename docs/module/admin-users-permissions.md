@@ -280,14 +280,14 @@ Dipakai di sidebar, halaman users, cash-flow, bank-accounts, dll. untuk menyembu
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\routes\web.php` (baris 477–519 — blok admin)
-- `d:\Laravel\finance-management\app\Http\Controllers\Admin\UserController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Admin\PermissionController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Admin\RoleController.php`
-- `d:\Laravel\finance-management\app\Http\Requests\Admin\StoreUserRequest.php`, `UpdateUserRequest.php`, `BulkDestroyUserRequest.php`
-- `d:\Laravel\finance-management\database\seeders\MasterPermissionSeeder.php` — sumber kebenaran permission
-- `d:\Laravel\finance-management\app\Models\User.php`
-- `d:\Laravel\finance-management\app\Http\Middleware\HandleInertiaRequests.php`
-- `d:\Laravel\finance-management\resources\js\hooks\use-can.ts`
-- `d:\Laravel\finance-management\resources\js\pages\users\index.tsx`, `resources\js\pages\permissions\index.tsx`
-- `d:\Laravel\finance-management\tests\Feature\Admin\UserControllerTest.php`
+- `routes/web.php` (baris 477–519 — blok admin)
+- `app/Http/Controllers/Admin/UserController.php`
+- `app/Http/Controllers/Admin/PermissionController.php`
+- `app/Http/Controllers/Admin/RoleController.php`
+- `app/Http/Requests/Admin/StoreUserRequest.php`, `UpdateUserRequest.php`, `BulkDestroyUserRequest.php`
+- `database/seeders/MasterPermissionSeeder.php` — sumber kebenaran permission
+- `app/Models/User.php`
+- `app/Http/Middleware/HandleInertiaRequests.php`
+- `resources/js/hooks/use-can.ts`
+- `resources/js/pages/users/index.tsx`, `resources/js/pages/permissions/index.tsx`
+- `tests/Feature/Admin/UserControllerTest.php`

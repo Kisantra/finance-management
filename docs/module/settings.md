@@ -216,16 +216,16 @@ if (str_starts_with((string) $template, 'builder:')) {
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\routes\web.php` (baris 521–556 — blok settings; 109–111 redirect sandbox; 155–196 download builder)
-- `d:\Laravel\finance-management\app\Http\Controllers\Settings\ProfileController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Settings\PasswordController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Settings\CompanyController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Settings\PdfTemplateController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\Settings\CustomFontController.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\TemplateBuilderController.php` (sandbox legacy)
-- `d:\Laravel\finance-management\app\Http\Requests\Settings\UpdateCompanyRequest.php`
-- `d:\Laravel\finance-management\app\Models\CompanyProfile.php`, `PdfTemplate.php`, `CustomFont.php`
-- `d:\Laravel\finance-management\app\Services\BuilderInvoicePrinter.php`, `TemplateTokens.php`, `ItemColumns.php`
-- `d:\Laravel\finance-management\resources\views\pdf\template-builder.blade.php`
-- `d:\Laravel\finance-management\resources\js\pages\settings\profile.tsx`, `password.tsx`, `company.tsx`, `pdf-templates\`
-- Tests: `d:\Laravel\finance-management\tests\Feature\Settings\ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `tests\Feature\PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`
+- `routes/web.php` (baris 521–556 — blok settings; 109–111 redirect sandbox; 155–196 download builder)
+- `app/Http/Controllers/Settings/ProfileController.php`
+- `app/Http/Controllers/Settings/PasswordController.php`
+- `app/Http/Controllers/Settings/CompanyController.php`
+- `app/Http/Controllers/Settings/PdfTemplateController.php`
+- `app/Http/Controllers/Settings/CustomFontController.php`
+- `app/Http/Controllers/TemplateBuilderController.php` (sandbox legacy)
+- `app/Http/Requests/Settings/UpdateCompanyRequest.php`
+- `app/Models/CompanyProfile.php`, `PdfTemplate.php`, `CustomFont.php`
+- `app/Services/BuilderInvoicePrinter.php`, `TemplateTokens.php`, `ItemColumns.php`
+- `resources/views/pdf/template-builder.blade.php`
+- `resources/js/pages/settings/profile.tsx`, `password.tsx`, `company.tsx`, `pdf-templates/`
+- Tests: `tests/Feature/Settings/ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `tests/Feature/PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`

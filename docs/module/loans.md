@@ -158,10 +158,10 @@ Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada
 
 | File | Peran |
 |------|------|
-| `d:\Laravel\finance-management\app\Http\Controllers\LoanController.php` | Seluruh logic index/store/update/destroy/pay + generate nomor |
-| `d:\Laravel\finance-management\app\Http\Requests\StoreLoanRequest.php` / `UpdateLoanRequest.php` / `PayLoanRequest.php` | Validasi |
-| `d:\Laravel\finance-management\app\Models\Loan.php`, `app\Models\LoanPayment.php` | Model + casts + relasi |
-| `d:\Laravel\finance-management\routes\web.php` (baris 458-464) | Route + permission middleware |
-| `d:\Laravel\finance-management\resources\js\pages\loans\index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit/pay/detail/hapus |
-| `d:\Laravel\finance-management\database\migrations\2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` | Migration yang menghapus kolom `code` (sumber bug lookup kategori) |
-| `d:\Laravel\finance-management\tests\Feature\LoanControllerTest.php` | Tes feature (SQLite in-memory) |
+| `app/Http/Controllers/LoanController.php` | Seluruh logic index/store/update/destroy/pay + generate nomor |
+| `app/Http/Requests/StoreLoanRequest.php` / `UpdateLoanRequest.php` / `PayLoanRequest.php` | Validasi |
+| `app/Models/Loan.php`, `app/Models/LoanPayment.php` | Model + casts + relasi |
+| `routes/web.php` (baris 458-464) | Route + permission middleware |
+| `resources/js/pages/loans/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit/pay/detail/hapus |
+| `database/migrations/2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` | Migration yang menghapus kolom `code` (sumber bug lookup kategori) |
+| `tests/Feature/LoanControllerTest.php` | Tes feature (SQLite in-memory) |

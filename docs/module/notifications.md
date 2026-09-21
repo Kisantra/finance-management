@@ -145,12 +145,12 @@ Implementasi React saat ini memakai **props/callback antar komponen**, bukan bro
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\app\Models\AppNotification.php`
-- `d:\Laravel\finance-management\app\Http\Controllers\NotificationController.php`
-- `d:\Laravel\finance-management\routes\web.php` (baris 446–453) dan `routes\console.php` (jadwal `invoices:notify-due-dates`)
-- `d:\Laravel\finance-management\app\Console\Commands\NotifyInvoiceDueDates.php`
-- `d:\Laravel\finance-management\app\Http\Middleware\HandleInertiaRequests.php` (`getNotifications()`)
-- `d:\Laravel\finance-management\resources\js\layouts\header.tsx`
-- `d:\Laravel\finance-management\resources\js\components\notifications\notification-bell.tsx`
-- `d:\Laravel\finance-management\resources\js\components\notifications\notification-drawer.tsx`
-- `d:\Laravel\finance-management\app\Http\Controllers\FeedbackController.php` (contoh pemanggil `notify()`)
+- `app/Models/AppNotification.php`
+- `app/Http/Controllers/NotificationController.php`
+- `routes/web.php` (baris 446–453) dan `routes/console.php` (jadwal `invoices:notify-due-dates`)
+- `app/Console/Commands/NotifyInvoiceDueDates.php`
+- `app/Http/Middleware/HandleInertiaRequests.php` (`getNotifications()`)
+- `resources/js/layouts/header.tsx`
+- `resources/js/components/notifications/notification-bell.tsx`
+- `resources/js/components/notifications/notification-drawer.tsx`
+- `app/Http/Controllers/FeedbackController.php` (contoh pemanggil `notify()`)

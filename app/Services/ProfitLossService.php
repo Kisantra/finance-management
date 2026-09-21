@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Generates the Profit & Loss (Laporan Laba Rugi) report.
  *
- * Policy (final, see .claude/context/laba-rugi.md):
+ * Policy (final, see docs/design/laba-rugi.md):
  *  - Cash basis: revenue recognized when payment received.
  *  - "Titipan dulu" allocation: incoming payments first cover any client tax
  *    deposit (invoice_items.is_tax_deposit=true) before being recognized as

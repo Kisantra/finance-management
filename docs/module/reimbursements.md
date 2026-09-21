@@ -163,10 +163,10 @@ return $this->save();
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\routes\web.php` (blok reimbursements, baris ±346-356)
-- `d:\Laravel\finance-management\app\Http\Controllers\ReimbursementController.php`
-- `d:\Laravel\finance-management\app\Models\Reimbursement.php` — state machine, `recordPayment()`, accessor `amount_remaining`, `category_label`
-- `d:\Laravel\finance-management\app\Models\ReimbursementPayment.php` — relasi `bankTransaction`, `payer`
-- `d:\Laravel\finance-management\app\Http\Requests\StoreReimbursementRequest.php`, `UpdateReimbursementRequest.php`, `ReviewReimbursementRequest.php`, `PayReimbursementRequest.php`
-- `d:\Laravel\finance-management\resources\js\pages\reimbursements\index.tsx` (tabs, sheet, dialog detail/review/pay), `create.tsx`, `edit.tsx`, `types.ts`
-- `d:\Laravel\finance-management\tests\Feature\ReimbursementControllerTest.php`
+- `routes/web.php` (blok reimbursements, baris ±346-356)
+- `app/Http/Controllers/ReimbursementController.php`
+- `app/Models/Reimbursement.php` — state machine, `recordPayment()`, accessor `amount_remaining`, `category_label`
+- `app/Models/ReimbursementPayment.php` — relasi `bankTransaction`, `payer`
+- `app/Http/Requests/StoreReimbursementRequest.php`, `UpdateReimbursementRequest.php`, `ReviewReimbursementRequest.php`, `PayReimbursementRequest.php`
+- `resources/js/pages/reimbursements/index.tsx` (tabs, sheet, dialog detail/review/pay), `create.tsx`, `edit.tsx`, `types.ts`
+- `tests/Feature/ReimbursementControllerTest.php`

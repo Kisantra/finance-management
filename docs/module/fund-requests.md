@@ -199,11 +199,11 @@ Baris tabel dapat dibuka menjadi dialog detail (`index.tsx`) yang menampilkan: h
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\routes\web.php` (blok fund-requests, baris ±361-414 termasuk closure export)
-- `d:\Laravel\finance-management\app\Http\Controllers\FundRequestController.php`
-- `d:\Laravel\finance-management\app\Models\FundRequest.php` — state machine, `generateRequestNumber()`, `calculateTotalAmount()`
-- `d:\Laravel\finance-management\app\Models\FundRequestItem.php` — hook auto-recalc total
-- `d:\Laravel\finance-management\app\Http\Requests\StoreFundRequestRequest.php`, `UpdateFundRequestRequest.php`, `ReviewFundRequestRequest.php`, `DisburseFundRequestRequest.php`
-- `d:\Laravel\finance-management\app\Services\FundRequestExportService.php` + `resources\views\pdf\fund-requests.blade.php`
-- `d:\Laravel\finance-management\resources\js\pages\fund-requests\index.tsx` (tabs, sheet create/edit, dialog detail/review/disburse), `create.tsx`, `edit.tsx`, `types.ts`
-- `d:\Laravel\finance-management\tests\Feature\FundRequestControllerTest.php`
+- `routes/web.php` (blok fund-requests, baris ±361-414 termasuk closure export)
+- `app/Http/Controllers/FundRequestController.php`
+- `app/Models/FundRequest.php` — state machine, `generateRequestNumber()`, `calculateTotalAmount()`
+- `app/Models/FundRequestItem.php` — hook auto-recalc total
+- `app/Http/Requests/StoreFundRequestRequest.php`, `UpdateFundRequestRequest.php`, `ReviewFundRequestRequest.php`, `DisburseFundRequestRequest.php`
+- `app/Services/FundRequestExportService.php` + `resources/views/pdf/fund-requests.blade.php`
+- `resources/js/pages/fund-requests/index.tsx` (tabs, sheet create/edit, dialog detail/review/disburse), `create.tsx`, `edit.tsx`, `types.ts`
+- `tests/Feature/FundRequestControllerTest.php`

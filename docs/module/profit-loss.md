@@ -1,6 +1,6 @@
 # Modul: Profit & Loss (Laporan Laba Rugi)
 
-> Laporan laba rugi tingkat perusahaan **berbasis kas** untuk kebutuhan manajemen (bukan audit), dirakit langsung dari data `payments` (pendapatan invoice), `invoice_items` (HPP metode tutup-modal-dulu + pengecualian titipan pajak), dan `bank_transactions` yang diklasifikasi per `transaction_categories.pl_group`. Kebijakan final terdokumentasi di `.claude/context/laba-rugi.md` dan implementasinya di `ProfitLossService` **sesuai** dokumen tersebut. Route: `GET /reports/profit-loss` + `GET /reports/profit-loss/pdf`, keduanya digate permission `view profit-loss` (`routes/web.php:441-444`). Klasifikasi inline memakai endpoint terpisah `PATCH /transaction-categories/{id}/pl-group` (gate `manage categories`).
+> Laporan laba rugi tingkat perusahaan **berbasis kas** untuk kebutuhan manajemen (bukan audit), dirakit langsung dari data `payments` (pendapatan invoice), `invoice_items` (HPP metode tutup-modal-dulu + pengecualian titipan pajak), dan `bank_transactions` yang diklasifikasi per `transaction_categories.pl_group`. Kebijakan final terdokumentasi di `docs/design/laba-rugi.md` dan implementasinya di `ProfitLossService` **sesuai** dokumen tersebut. Route: `GET /reports/profit-loss` + `GET /reports/profit-loss/pdf`, keduanya digate permission `view profit-loss` (`routes/web.php:441-444`). Klasifikasi inline memakai endpoint terpisah `PATCH /transaction-categories/{id}/pl-group` (gate `manage categories`).
 
 ## Tabel Database
 
@@ -143,13 +143,13 @@ return $pdf->download($filename);
 
 | File | Peran |
 |------|------|
-| `d:\Laravel\finance-management\.claude\context\laba-rugi.md` | Dokumen kebijakan final (basis kas, HPP, titipan pajak, pl_group) |
-| `d:\Laravel\finance-management\app\Services\ProfitLossService.php` | Mesin hitung: cost-recovery, titipan-dulu, agregasi per pl_group, bucket unclassified |
-| `d:\Laravel\finance-management\app\Http\Controllers\ProfitLossReportController.php` | index (resolve periode, unclassifiedTypes) + downloadPdf |
-| `d:\Laravel\finance-management\app\Http\Controllers\TransactionCategoryController.php` (`updatePlGroup`, baris 120-129) | Endpoint klasifikasi inline |
-| `d:\Laravel\finance-management\app\Models\TransactionCategory.php` | Konstanta `PL_GROUPS`, kolom `pl_group` |
-| `d:\Laravel\finance-management\database\migrations\2026_05_25_160957_add_pl_group_to_transaction_categories_table.php` | Penambahan kolom `pl_group` (nullable, indexed) |
-| `d:\Laravel\finance-management\resources\js\pages\reports\profit-loss\index.tsx` | Halaman laporan: preset periode, dokumen P&L, panel klasifikasi, tombol PDF |
-| `d:\Laravel\finance-management\resources\views\pdf\profit-loss.blade.php` | Template PDF (DomPDF, A4 portrait) |
-| `d:\Laravel\finance-management\routes\web.php` (baris 339, 441-444) | Route + permission (`view profit-loss`, `manage categories`) |
-| `d:\Laravel\finance-management\tests\Feature\ProfitLossServiceTest.php`, `ProfitLossReportControllerTest.php` | Tes mesin hitung & controller |
+| `docs/design/laba-rugi.md` | Dokumen kebijakan final (basis kas, HPP, titipan pajak, pl_group) |
+| `app/Services/ProfitLossService.php` | Mesin hitung: cost-recovery, titipan-dulu, agregasi per pl_group, bucket unclassified |
+| `app/Http/Controllers/ProfitLossReportController.php` | index (resolve periode, unclassifiedTypes) + downloadPdf |
+| `app/Http/Controllers/TransactionCategoryController.php` (`updatePlGroup`, baris 120-129) | Endpoint klasifikasi inline |
+| `app/Models/TransactionCategory.php` | Konstanta `PL_GROUPS`, kolom `pl_group` |
+| `database/migrations/2026_05_25_160957_add_pl_group_to_transaction_categories_table.php` | Penambahan kolom `pl_group` (nullable, indexed) |
+| `resources/js/pages/reports/profit-loss/index.tsx` | Halaman laporan: preset periode, dokumen P&L, panel klasifikasi, tombol PDF |
+| `resources/views/pdf/profit-loss.blade.php` | Template PDF (DomPDF, A4 portrait) |
+| `routes/web.php` (baris 339, 441-444) | Route + permission (`view profit-loss`, `manage categories`) |
+| `tests/Feature/ProfitLossServiceTest.php`, `ProfitLossReportControllerTest.php` | Tes mesin hitung & controller |

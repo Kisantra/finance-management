@@ -8,8 +8,6 @@
     "nightwatch_mcp": false,
     "sail": false,
     "skills": [
-        "livewire-development",
-        "volt-development",
         "tailwindcss-development"
     ]
 }

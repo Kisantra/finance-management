@@ -182,12 +182,12 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 
 ## File Kunci
 
-- `d:\Laravel\finance-management\routes\web.php` (baris 417–436 — blok feedbacks)
-- `d:\Laravel\finance-management\app\Http\Controllers\FeedbackController.php`
-- `d:\Laravel\finance-management\app\Models\Feedback.php`
-- `d:\Laravel\finance-management\app\Http\Requests\StoreFeedbackRequest.php`, `UpdateFeedbackRequest.php`, `RespondFeedbackRequest.php`, `ChangeStatusFeedbackRequest.php`
-- `d:\Laravel\finance-management\resources\js\components\floating-feedback-button.tsx`
-- `d:\Laravel\finance-management\resources\js\layouts\app-layout.tsx` (mount floating button)
-- `d:\Laravel\finance-management\resources\js\pages\feedbacks\index.tsx`
-- `d:\Laravel\finance-management\lang\id\feedback.php` (label i18n)
-- `d:\Laravel\finance-management\tests\Feature\FeedbackControllerTest.php`
+- `routes/web.php` (baris 417–436 — blok feedbacks)
+- `app/Http/Controllers/FeedbackController.php`
+- `app/Models/Feedback.php`
+- `app/Http/Requests/StoreFeedbackRequest.php`, `UpdateFeedbackRequest.php`, `RespondFeedbackRequest.php`, `ChangeStatusFeedbackRequest.php`
+- `resources/js/components/floating-feedback-button.tsx`
+- `resources/js/layouts/app-layout.tsx` (mount floating button)
+- `resources/js/pages/feedbacks/index.tsx`
+- `lang/id/feedback.php` (label i18n)
+- `tests/Feature/FeedbackControllerTest.php`
