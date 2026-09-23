@@ -38,3 +38,6 @@ composer.lock
 # DomPDF font dir (generated cache + uploaded fonts)
 /storage/fonts/*
 !/storage/fonts/.gitkeep
+
+# Evidence QA: hanya laporan PDF jadi yang masuk git
+/docs/qa/evidence/

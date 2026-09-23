@@ -88,5 +88,11 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
     sebelum middleware `web`, dan pengguna yang login tampil sebagai tamu di halaman error.
   - Tombol logout wajib lewat klien Inertia (`router.post('/logout')`), bukan `<form>` dengan token dari
     `<meta>`: meta dirender sekali saat halaman pertama dimuat dan basi begitu sesi berganti.
-  - Uji: `tests/Feature/ErrorPageTest.php`.
+  - **Lapisan cadangan** (`resources/views/errors/*.blade.php`): dipakai ketika halaman Inertia
+    sendiri gagal dirender (database mati, manifest Vite hilang). Berkas itu HARAM menyentuh
+    database, session, auth, atau Vite — semuanya bisa jadi penyebab error yang sedang
+    ditampilkan. `ViewServiceProvider` melewati view `errors.*` dan menelan kegagalan query
+    profil perusahaan; tanpa itu halaman error ikut jatuh dan Laravel menampilkan halaman
+    Symfony polos (kejadian 2026-09-17).
+  - Uji: `tests/Feature/ErrorPageTest.php`, `tests/Feature/HalamanErrorCadanganTest.php`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.
