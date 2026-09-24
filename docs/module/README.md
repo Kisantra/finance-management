@@ -80,6 +80,9 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   `TokenMismatchException` menjadi `HttpException(419)` sebelum callback render dicocokkan, sehingga
   callback bertipe `TokenMismatchException` tidak pernah terpicu. Aturannya:
   - Aktif hanya saat `APP_DEBUG=false`; developer tetap mendapat halaman error Laravel lengkap.
+    Untuk melihat halaman custom di lokal tanpa mematikan debug: `ERROR_PAGE_IN_DEBUG=true`.
+    Catatan: saat `APP_DEBUG=true` tanpa saklar itu, error HTTP (404/403/419/...) tetap memakai
+    view `errors/*` Blade — jadi yang tampil halaman cadangan, bukan halaman Inertia.
   - Setiap error diberi ID `ERR-XXXXXXXXXX` yang sama dengan `error_id` di `storage/logs/laravel.log`.
   - Detail teknis (exception, pesan, jejak kode aplikasi) hanya untuk role `admin` dan hanya 5xx —
     pesan exception bisa memuat SQL beserta datanya.

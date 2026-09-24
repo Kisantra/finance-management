@@ -43,6 +43,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Halaman Error Custom Saat Debug
+    |--------------------------------------------------------------------------
+    |
+    | Halaman error custom (halaman Inertia `error`) biasanya hanya aktif saat
+    | APP_DEBUG=false, supaya developer tetap mendapat stack trace Laravel.
+    | Nyalakan ini untuk melihat halaman custom di lokal tanpa mematikan debug.
+    | Jangan dinyalakan di produksi — di sana debug memang sudah mati.
+    |
+    */
+
+    'error_page_in_debug' => (bool) env('ERROR_PAGE_IN_DEBUG', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |

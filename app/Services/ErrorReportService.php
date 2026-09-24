@@ -53,7 +53,9 @@ class ErrorReportService
     {
         $status = $response->getStatusCode();
 
-        if ($status < 400 || config('app.debug') || ($request->expectsJson() && ! $request->header('X-Inertia'))) {
+        $debugMenang = config('app.debug') && ! config('app.error_page_in_debug');
+
+        if ($status < 400 || $debugMenang || ($request->expectsJson() && ! $request->header('X-Inertia'))) {
             return $response;
         }
 
