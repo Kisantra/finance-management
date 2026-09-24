@@ -25,9 +25,6 @@ export default defineConfig(({ mode }) => {
             wayfinder(),
             tailwindcss(),
         ],
-        server: {
-            host: '127.0.0.1',
-        },
         build: {
             chunkSizeWarningLimit: 1500,
         },
