@@ -31,17 +31,43 @@ Use these blues for primary actions and active states:
 - `dark-200` (`#f4f4f5`) — headings, prominent text
 - `dark-50` (`#fafafa`) — highest-contrast text on dark surfaces
 
+These values live in `resources/css/app.css` as `--color-dark-*`; that file is canonical if the two ever disagree.
+
+**Compose new components with these dark-mode class conventions:**
+```
+// Input / Select trigger
+dark:bg-dark-800 dark:text-dark-300 dark:ring-dark-600 dark:placeholder-dark-400
+
+// Dropdown panel / floating container
+dark:bg-dark-700 dark:ring-white/10
+
+// Dropdown item (normal)
+dark:text-dark-300 dark:hover:bg-dark-600
+
+// Border / separator
+dark:border-dark-600
+
+// Icon inside an input
+dark:text-dark-400
+
+// Disabled input
+dark:bg-dark-600 dark:text-dark-500
+
+// Label text
+dark:text-dark-300
+```
+
 **Set text in a three-level hierarchy.** Body and table data use gray-900 (`#111827`) in light / `dark-200` (`#f4f4f5`) in dark. Labels, captions, and table headers drop to gray-600 / `dark-400`. Placeholders and hints are the quietest: gray-500† / `dark-500`. **Render every page `<h1>` as a clipped gradient** — `from-gray-900 via-blue-800 to-indigo-800` in light, `from-white via-blue-200 to-indigo-200` in dark. Sidebar section labels (`DATA MASTER`, `KEUANGAN`, …) are uppercase, small, gray, and non-interactive.
 
 **Encode status with semantic badge colors** (solid background + tinted-50 text): Terkirim/sent → blue-600; Jatuh Tempo/overdue → red-600; Lunas/paid & Aktif/active → green-600; Sebagian/partial → yellow-600†; Draft → zinc-600 on white.
 
-**Charts speak their own dialect:** income/Pemasukan in green-500 (`#22c55e`†), expense/Pengeluaran in red-500 (`#ef4444`†), grid lines at white/10%† in dark. The Livewire progress bar is intentionally cyan (`#2299dd`), distinct from primary blue.
+**Charts speak their own dialect:** income/Pemasukan in green-500 (`#22c55e`†), expense/Pengeluaran in red-500 (`#ef4444`†), grid lines at white/10%† in dark.
 
 **Borders stay subtle:** cards use zinc-200 (`#e4e4e7`) in light / `white/8%` in dark; dropdowns use gray-100 / `white/8%`; the slide-over backdrop is `gray-400/75%` light / `black/30%` dark.
 
 ## Typography
 
-**Set headings in Plus Jakarta Sans and everything else in Inter.** Headings and display text use `--font-heading` (Plus Jakarta Sans) at weights 600/700/800; body and UI use `--font-sans` (Inter) at 400/500/600/700. Reach for system mono† (400) only when monospace is genuinely needed.
+**Set headings in Plus Jakarta Sans and everything else in Inter.** Headings and display text use `--font-heading` (Plus Jakarta Sans) at weights 600/700/800; body and UI use `--font-sans` (Inter) at 400/500/600/700. Reach for system mono† (400) only when monospace is genuinely needed. The heading font is applied globally by `app.css` (`h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }`), so never set `font-heading` by hand on heading elements.
 
 Match size and weight to the role:
 - Page title `<h1>` — 36px / 700, with the clipped gradient (see Color)
@@ -61,6 +87,15 @@ Treat a few cases specially:
 ## Spacing & Layout
 
 **Build every spacing value on a 4px base:** `space-1` 4px (icon–text gap), `space-2` 8px (badge padding, inline gaps), `space-3` 12px (card sub-element padding), `space-4` 16px (modal padding, field gaps), `space-6` 24px (section separation, stats-grid gap), `space-8` 32px (major layout separation).
+
+**Use these page-level spacing and text-size conventions:**
+- Root page container — `space-y-6`
+- Filter section — `space-y-4`
+- Stats grid gap — `gap-4`
+- Filter grid gap — `gap-3`
+- Section title — `text-xl font-semibold`
+- Label / info text — `text-sm`
+- Small / helper text — `text-xs`
 
 Hold to these layout dimensions:
 - Sidebar: 224px fixed, collapsible via a chevron toggle
@@ -136,7 +171,7 @@ Apply these patterns: slide-overs and modals enter with `transform transition-al
 
 **CSS custom properties (verified naming):** `--color-primary-{50–800}` (blue scale, hex), `--color-dark-{50–950}` (gray scale, hex), `--font-heading` (`"Plus Jakarta Sans", …`), `--font-sans` (`"Inter", …`), `--radius-{sm|md|lg|xl}` (4 / 6 / 8 / 12px).
 
-**Stack:** Laravel + Livewire 3 + TallStackUI in production; the migration branch is Inertia.js + React 18 + shadcn/ui. Tokens are identical across both.
+**Stack:** Laravel 12 + Inertia.js + React 18 + shadcn/ui + Tailwind CSS v4. Blade is used only for PDF templates (`resources/views/pdf/`), which do not use these tokens.
 
 **Dark mode** uses the `class` strategy on `<html>`, toggled by the header moon button and persisted to `localStorage`.
 
@@ -164,7 +199,7 @@ summary {
 
 **Make table rows clickable** by adding `onClick` + `cursor-pointer` to the `<tr>`, and `onClick={(e) => e.stopPropagation()}` to the actions cell so the row click doesn't fire when the dropdown is used.
 
-**Icons:** Heroicons in Blade; `lucide-react` (or `@heroicons/react`) in React.
+**Icons:** `lucide-react` in React pages and components.
 
 **Render the gradient page heading like this:**
 ```tsx

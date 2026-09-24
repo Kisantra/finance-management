@@ -140,8 +140,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');
         Route::put('/{invoice}', [InvoiceController::class, 'update'])->middleware('can:edit invoices')->name('update');
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->middleware('can:delete invoices')->name('destroy');
-        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->name('send');
-        Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->name('rollback');
+        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->middleware('can:edit invoices')->name('send');
+        Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->middleware('can:edit invoices')->name('rollback');
         Route::post('/{invoice}/payments', [PaymentController::class, 'store'])->middleware('can:create invoices')->name('payments.store');
     });
 

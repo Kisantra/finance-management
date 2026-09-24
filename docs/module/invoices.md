@@ -1,6 +1,6 @@
 # Modul: Invoice & Pembayaran
 
-> Modul inti untuk menagih klien: membuat invoice berisi item layanan (dengan HPP/COGS dan titipan pajak), mengirimkannya (penomoran resmi), mencatat pembayaran ke rekening bank, serta mengekspor rekap (Excel/PDF) dan mencetak invoice per-lembar (PDF klasik maupun template builder). Route prefix: `/invoices` (CRUD + export), `/payments` (update/hapus pembayaran), `/invoice/{invoice}/download|preview` (PDF). Semua route digate permission Spatie: `view invoices` (grup), plus `create invoices`, `edit invoices`, `delete invoices` per aksi (lihat `routes/web.php` baris 133–203).
+> Modul inti untuk menagih klien: membuat invoice berisi item layanan (dengan HPP/COGS dan titipan pajak), mengirimkannya (penomoran resmi), mencatat pembayaran ke rekening bank, serta mengekspor rekap (Excel/PDF) dan mencetak invoice per-lembar (PDF klasik maupun template builder). Route prefix: `/invoices` (CRUD + export), `/payments` (update/hapus pembayaran), `/invoice/{invoice}/download|preview` (PDF). Semua route digate permission Spatie: `view invoices` (grup), plus `create invoices`, `edit invoices`, `delete invoices` per aksi; `send` dan `rollback` ikut digate `edit invoices` (lihat `routes/web.php` baris 133–203).
 
 ## Tabel Database
 
@@ -44,7 +44,7 @@
 **Alur step-by-step:**
 1. User membuka `/invoices` (GET, `can:view invoices`). Query string: `search`, `status`, `client_ids[]`, `month` (default bulan berjalan `Y-m`), `date_from`/`date_to`, `per_page`, `sort`, `direction`.
 2. `InvoiceController::index()` membangun query dengan join `clients` + subquery jumlah `payments` per invoice, memfilter periode via `applyPeriodFilter()` (range tanggal **menimpa** filter bulan bila salah satu bound terisi).
-3. Statistik dihitung dari scope terfilter yang sama tetapi **tanpa** filter status (karena tab status): revenue/HPP/laba **mengecualikan `draft` dan `cancelled`**; `total_cogs` mengecualikan item `is_tax_deposit`; outstanding = billed − paid pada invoice `sent`/`partially_paid`.
+3. Kartu statistik mengikuti **semua** filter aktif termasuk tab status (sejak QA 2026-09-21; sebelumnya status diabaikan dan angka kartu terasa "tidak sesuai filter"). Hanya **hitungan per tab** yang mengabaikan status agar tab lain tidak membaca 0. Revenue/HPP/laba **mengecualikan `draft` dan `cancelled`**; `total_cogs` mengecualikan item `is_tax_deposit`; outstanding = billed − paid pada invoice `sent`/`partially_paid`.
 4. Respons: `Inertia::render('invoices/index', ...)` dengan props `invoices` (paginated), `stats`, `clients`, `rollbackableIds`, `customTemplates` (daftar `PdfTemplate` builder), `filters`.
 5. UI menampilkan DataTable + StatsCard + tab per status; klik baris membuka Sheet detail yang fetch `/invoices/{id}` (JSON).
 
@@ -86,11 +86,11 @@ Diskon persentase dikonversi ke nominal integer saat simpan (kedua bentuk disimp
 **Alur:** GET `/invoices/{invoice}/edit` (`can:edit invoices`) merender `invoices/edit` dengan data invoice + items; PUT `/invoices/{invoice}` divalidasi `UpdateInvoiceRequest` (identik dengan Store — `class UpdateInvoiceRequest extends StoreInvoiceRequest {}`). `update()` menghitung ulang subtotal/diskon/total seperti store, lalu **menghapus semua item lama dan membuat ulang** (`$invoice->items()->delete()` + insert baru) dalam satu transaksi. Status dan `invoice_number` **tidak diubah** oleh update.
 
 ### Hapus Invoice (Destroy)
-**Alur:** DELETE `/invoices/{invoice}` (`can:delete invoices`) → transaksi: hapus `invoice_items` lalu invoice; redirect back. Catatan: pembayaran terkait tidak dihapus eksplisit di controller (bergantung pada FK constraint DB) — hapus invoice yang sudah punya pembayaran perlu kehati-hatian.
+**Alur:** DELETE `/invoices/{invoice}` (`can:delete invoices`) → **ditolak dengan flash `error`** bila invoice sudah punya pembayaran ("Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu."); jika tidak, transaksi: hapus `invoice_items` lalu invoice; redirect back. Guard ini mencegah FK cascade menghapus `payments` diam-diam (yang menurunkan saldo bank tanpa peringatan dan meninggalkan file lampiran yatim).
 
 ### Kirim Invoice (Send — penomoran resmi)
 **Alur step-by-step:**
-1. Di sheet detail invoice `draft`, user klik "Kirim" → dialog menampilkan nomor yang akan dipakai (frontend memakai `nextSeq` + inisial).
+1. Di sheet detail invoice `draft`, user klik "Kirim" → dialog **terisi otomatis** dengan `next_invoice_number` dari respons `show()` (dihitung server via `Invoice::generateInvoiceNumber($issue_date, $billed_to_id)`, jadi inisial klien sama persis dengan backend); user masih boleh mengubahnya sebelum konfirmasi.
 2. POST `/invoices/{invoice}/send` payload `{ invoice_number }`, divalidasi `SendInvoiceRequest` (`unique:invoices,invoice_number` kecuali dirinya).
 3. `send()` menolak jika status bukan `draft` (flash `error`). Jika lolos: `$invoice->update(['invoice_number' => ..., 'status' => 'sent'])`.
 
@@ -115,7 +115,7 @@ return sprintf('%03d/INV/%s-%s/%s/%d',
 **Penjelasan kode** (`app/Models/Invoice.php::updateStatus`):
 ```php
 if ($amountPaid == 0) {
-    $this->status = 'draft';
+    $this->status = $this->invoice_number ? 'sent' : 'draft';
 } elseif ($amountPaid >= $this->total_amount) {
     $this->status = 'paid';
 } else {
@@ -123,7 +123,7 @@ if ($amountPaid == 0) {
 }
 $this->save();
 ```
-Status murni turunan dari `amount_paid` vs `total_amount`. Gotcha: bila **semua** pembayaran dihapus, invoice jatuh ke `draft` (bukan `sent`), meskipun masih ber-nomor.
+Status murni turunan dari `amount_paid` vs `total_amount`. Bila **semua** pembayaran dihapus, invoice yang sudah ber-nomor kembali ke `sent` (bukan `draft`) — sebelumnya ia jatuh ke `draft` sambil tetap memegang nomor, yang membuat `isInvoiceLatestInMonth()` memblokir rollback invoice lain di bulan yang sama.
 
 ### Pembayaran — Ubah & Hapus (/payments/{payment})
 **Alur:** POST `/payments/{payment}` dan DELETE `/payments/{payment}` digate `can:edit invoices`. `update()` (validasi `UpdatePaymentRequest` = Store + `remove_attachment` boolean) mengganti field, mengelola siklus lampiran (hapus file lama jika diganti/di-remove), lalu `$payment->invoice->updateStatus()`. `destroy()` menghapus payment (hook model ikut menghapus file lampiran) lalu `updateStatus()` pada invoice-nya. Keduanya merespons JSON.
@@ -175,11 +175,13 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 - Semua nominal **integer rupiah penuh** — jangan pernah pakai float; `quantity` satu-satunya decimal.
 - Invoice `draft` tidak punya `invoice_number`; nomor hanya diberikan saat `send`, unik global, sequence reset per bulan `issue_date`.
 - Rollback hanya untuk invoice `sent` dengan sequence **tertinggi** di bulannya (`isInvoiceLatestInMonth`) — jaga urutan nomor tanpa lubang.
-- `updateStatus()` hanya menghasilkan `draft`/`partially_paid`/`paid`. Status `sent` diset manual oleh `send()`; `overdue` dan `cancelled` ada di enum DB tetapi tidak ada transisi otomatis di kode saat ini (cancelled hanya dipakai sebagai filter pengecualian statistik/export). Menghapus semua pembayaran invoice `sent` menjatuhkannya ke `draft`.
+- `updateStatus()` menghasilkan `sent` (ber-nomor, belum ada pembayaran) / `draft` (tanpa nomor) / `partially_paid` / `paid`. `overdue` dan `cancelled` ada di enum DB tetapi tidak ada transisi otomatis di kode saat ini (cancelled hanya dipakai sebagai filter pengecualian statistik/export).
+- Invoice yang punya pembayaran **tidak bisa dihapus**; hapus pembayarannya dulu.
+- `send`/`rollback` butuh `edit invoices` — user `view`+`create` saja (role staff) tidak bisa memberi nomor resmi.
 - Pembayaran ditolak untuk invoice `draft` dan `paid` (`PaymentController::store`, HTTP 422).
 - `update()` invoice **menghapus dan membuat ulang seluruh item** — ID `invoice_items` tidak stabil; jangan menyimpan referensi ke ID item.
-- Statistik & export mengecualikan `draft` + `cancelled` dari omzet/HPP/laba; item `is_tax_deposit` dikecualikan dari HPP di stats index tetapi accessor `total_cogs` model **tidak** mengecualikannya.
-- Filter periode: `date_from`/`date_to` diam-diam menimpa `month` bila terisi.
+- Statistik & export mengecualikan `draft` + `cancelled` dari omzet/HPP/laba dan **mengikuti tab status aktif** (hitungan tab tidak); item `is_tax_deposit` dikecualikan dari HPP di stats index tetapi accessor `total_cogs` model **tidak** mengecualikannya.
+- Filter periode: backend memprioritaskan `date_from`/`date_to` atas `month`; UI menjaga keduanya saling eksklusif (pilih rentang → bulan dikosongkan, pilih bulan → rentang dikosongkan) supaya label tidak menyesatkan.
 - Saldo bank dihitung dinamis — tidak ada kolom saldo yang perlu (atau boleh) di-update saat mencatat pembayaran.
 - Endpoint payment & show merespons **JSON** (dipakai via `fetch`), bukan redirect Inertia — jangan diubah ke redirect tanpa menyesuaikan frontend.
 

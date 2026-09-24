@@ -57,6 +57,7 @@ function EditInvoicePage({ invoice, clients, services }: Props) {
         discount_value: invoice.discount_value,
         discount_reason: invoice.discount_reason ?? '',
         items: invoice.items.map((item) => ({
+            client_id: item.client_id,
             service_name: item.service_name,
             quantity: String(item.quantity),
             unit: item.unit,

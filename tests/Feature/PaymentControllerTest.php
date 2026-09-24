@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -97,5 +98,44 @@ class PaymentControllerTest extends TestCase
             ->assertOk();
 
         $this->assertSame($initial + 750000, $this->bankAccount->fresh()->balance);
+    }
+
+    public function test_deleting_the_last_payment_keeps_a_numbered_invoice_sent(): void
+    {
+        $this->invoice->update(['invoice_number' => '001/INV/SPI-XX/III/2026']);
+        $payment = Payment::create([
+            'invoice_id' => $this->invoice->id,
+            'bank_account_id' => $this->bankAccount->id,
+            'amount' => 250000,
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'bank_transfer',
+        ]);
+        $this->invoice->updateStatus();
+        $this->assertSame('partially_paid', $this->invoice->fresh()->status);
+
+        $this->actingAs($this->admin)->deleteJson("/payments/{$payment->id}")->assertOk();
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $this->invoice->id,
+            'status' => 'sent',
+            'invoice_number' => '001/INV/SPI-XX/III/2026',
+        ]);
+    }
+
+    public function test_deleting_the_last_payment_returns_unnumbered_invoice_to_draft(): void
+    {
+        $this->invoice->update(['invoice_number' => null]);
+        $payment = Payment::create([
+            'invoice_id' => $this->invoice->id,
+            'bank_account_id' => $this->bankAccount->id,
+            'amount' => 250000,
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'bank_transfer',
+        ]);
+        $this->invoice->updateStatus();
+
+        $this->actingAs($this->admin)->deleteJson("/payments/{$payment->id}")->assertOk();
+
+        $this->assertDatabaseHas('invoices', ['id' => $this->invoice->id, 'status' => 'draft']);
     }
 }

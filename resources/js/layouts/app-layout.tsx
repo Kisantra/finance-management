@@ -1,5 +1,8 @@
 import * as React from 'react';
-import { Toaster } from 'sonner';
+import { usePage } from '@inertiajs/react';
+import { Toaster, toast } from 'sonner';
+import { toastError } from '@/lib/utils';
+import type { SharedProps } from '@/types';
 import { FloatingFeedbackButton } from '@/components/floating-feedback-button';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
@@ -18,6 +21,19 @@ export function AppLayout({ children }: AppLayoutProps) {
         const stored = localStorage.getItem('theme');
         return stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
     });
+
+    /* Server flash → toast, for error/warning/info only. Controllers reject actions with
+       redirect()->back()->with('error', ...) and no page rendered it, so refusals were silent.
+       Success is deliberately NOT handled here: pages already call toast.success() in their
+       own onSuccess handlers, and doing it again would show every success twice.
+       Errors follow the project standard (toastError: no auto-close, close button). */
+    const { flash } = usePage<SharedProps>().props;
+    React.useEffect(() => {
+        if (!flash) return;
+        if (flash.error) toastError(flash.error);
+        if (flash.warning) toast.warning(flash.warning);
+        if (flash.info) toast.info(flash.info);
+    }, [flash]);
 
     React.useEffect(() => {
         document.documentElement.classList.toggle('dark', darkMode);

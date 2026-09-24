@@ -82,16 +82,18 @@ class InvoiceController extends Controller
                 'faktur' => $invoice->faktur,
             ]);
 
-        // All stat cards + tab counts share one filtered scope: the active
-        // period + client + search (NOT status — the tabs switch status). Each
-        // call returns a fresh query so the aggregates don't interfere.
-        $filtered = function () use ($search, $clientIds, $month, $dateFrom, $dateTo) {
+        // Stat cards follow every active filter, including the status tab, so
+        // the totals always describe the rows on screen. Tab counts are the one
+        // exception ($withStatus = false): they keep the period/client/search
+        // scope but ignore status, otherwise every other tab would read 0.
+        $filtered = function (bool $withStatus = true) use ($search, $status, $clientIds, $month, $dateFrom, $dateTo) {
             $q = Invoice::query()
                 ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
                 ->when($search, fn ($qq) => $qq->where(function ($w) use ($search) {
                     $w->where('invoices.invoice_number', 'like', "%{$search}%")
                         ->orWhere('clients.name', 'like', "%{$search}%");
                 }))
+                ->when($withStatus && $status, fn ($qq) => $qq->where('invoices.status', $status))
                 ->when($clientIds, fn ($qq) => $qq->whereIn('invoices.billed_to_id', $clientIds));
             $this->applyPeriodFilter($q, $month, $dateFrom, $dateTo, 'invoices.issue_date');
 
@@ -124,8 +126,8 @@ class InvoiceController extends Controller
         $paidOnOutstanding = (int) Payment::whereIn('invoice_id', $outstandingIds)->sum('amount');
         $totalOutstanding = max(0, $billed - $paidOnOutstanding);
 
-        // Per-status tab counts within the same filtered scope.
-        $statusCounts = $filtered()
+        // Per-status tab counts within the same filtered scope (minus status).
+        $statusCounts = $filtered(false)
             ->selectRaw('invoices.status as status, COUNT(*) as c')
             ->groupBy('invoices.status')
             ->pluck('c', 'status');
@@ -137,6 +139,7 @@ class InvoiceController extends Controller
             'gross_profit' => $totalRevenue - $totalCogs,
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
+            'outstanding_count' => $outstandingIds->count(),
             'draft_count' => (int) ($statusCounts['draft'] ?? 0),
             'sent_count' => (int) ($statusCounts['sent'] ?? 0),
             'partially_paid_count' => (int) ($statusCounts['partially_paid'] ?? 0),
@@ -328,6 +331,9 @@ class InvoiceController extends Controller
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
+            'next_invoice_number' => $invoice->status === 'draft'
+                ? Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id)
+                : null,
             'status' => $invoice->status,
             'issue_date' => $invoice->issue_date?->format('Y-m-d'),
             'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -553,6 +559,10 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
+        if ($invoice->payments()->exists()) {
+            return redirect()->back()->with('error', 'Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu.');
+        }
+
         DB::transaction(function () use ($invoice) {
             $invoice->items()->delete();
             $invoice->delete();

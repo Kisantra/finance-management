@@ -104,6 +104,7 @@ interface Stats {
     gross_profit: number;
     total_paid: number;
     total_outstanding: number;
+    outstanding_count: number;
     draft_count: number;
     sent_count: number;
     partially_paid_count: number;
@@ -130,6 +131,7 @@ interface Filters {
 interface InvoiceDetail {
     id: number;
     invoice_number: string | null;
+    next_invoice_number?: string | null;
     status: string;
     issue_date: string;
     due_date: string;
@@ -302,7 +304,7 @@ function InvoiceDrawer({
             .then((data) => {
                 setDetail(data);
                 if (data.status === 'draft') {
-                    sendForm.setData('invoice_number', data.invoice_number ?? '');
+                    sendForm.setData('invoice_number', data.invoice_number ?? data.next_invoice_number ?? '');
                 }
             })
             .catch(console.error)
@@ -1137,7 +1139,10 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
     };
 
     const handleDateRangeChange = (range: { from: Date | null; to: Date | null }) => {
+        // Month and range are mutually exclusive on screen: picking a range
+        // clears the month label, clearing the range restores the default month.
         navigate({
+            month: range.from || range.to ? '' : DEFAULT_MONTH,
             date_from: range.from ? toLocalIso(range.from) : '',
             date_to: range.to ? toLocalIso(range.to) : '',
         });
@@ -1244,7 +1249,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                             {formatCurrency(stats.total_revenue)}
                                         </p>
                                         <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            Semua status invoice
+                                            Tanpa draft & dibatalkan
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1272,7 +1277,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                             {formatCurrency(stats.gross_profit)}
                                         </p>
                                         <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            Pendapatan − HPP − Pajak
+                                            Pendapatan − HPP
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1324,7 +1329,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                             {formatCurrency(stats.total_outstanding)}
                                         </p>
                                         <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            {stats.sent_count + stats.partially_paid_count} invoice belum lunas
+                                            {stats.outstanding_count} invoice belum lunas
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1414,7 +1419,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                                         mode="month"
                                                         label="Bulan"
                                                         value={currentFilters.month || null}
-                                                        onChange={(v) => navigate({ month: v ?? '' })}
+                                                        onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })}
                                                         placeholder="Pilih bulan..."
                                                         disabled
                                                     />
@@ -1428,7 +1433,7 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                                         mode="month"
                                         label="Bulan"
                                         value={currentFilters.month || null}
-                                        onChange={(v) => navigate({ month: v ?? '' })}
+                                        onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })}
                                         placeholder="Pilih bulan..."
                                     />
                                 )}

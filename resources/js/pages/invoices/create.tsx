@@ -59,6 +59,9 @@ interface Props extends SharedProps {
 
 const ROMAN_MONTHS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
+/* Mirrors Invoice::extractInitials() on the backend — keep both lists in sync. */
+const COMPANY_PREFIXES = ['pt', 'cv', 'ud', 'tb', 'pd', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
+
 const COMMON_UNITS = [
     'jam', 'hari', 'minggu', 'bulan', 'tahun',
     'project', 'paket', 'set', 'lot', 'kali',
@@ -76,7 +79,7 @@ function previewInvoiceNumber(seq: number, company: string, clientName: string, 
     const d = new Date(date);
     const clientInitials = clientName
         .split(/\s+/)
-        .filter((w) => !['pt', 'cv', 'ud', 'tb'].includes(w.toLowerCase()))
+        .filter((w) => !COMPANY_PREFIXES.includes(w.toLowerCase().replace(/\.$/, '')))
         .map((w) => w[0]?.toUpperCase() ?? '')
         .join('') || 'XXX';
     return `${String(seq).padStart(3, '0')}/INV/${company}-${clientInitials}/${getRomanMonth(d.getMonth() + 1)}/${d.getFullYear()}`;

@@ -208,7 +208,7 @@ class Invoice extends Model
         $amountPaid = $this->amount_paid;
 
         if ($amountPaid == 0) {
-            $this->status = 'draft';
+            $this->status = $this->invoice_number ? 'sent' : 'draft';
         } elseif ($amountPaid >= $this->total_amount) {
             $this->status = 'paid';
         } else {

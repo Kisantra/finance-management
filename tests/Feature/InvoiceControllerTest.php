@@ -493,4 +493,98 @@ class InvoiceControllerTest extends TestCase
             'invoice_number' => null,
         ]);
     }
+
+    public function test_send_requires_edit_invoices_permission(): void
+    {
+        $invoice = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id, 'invoice_number' => null]);
+
+        $this->actingAs($this->viewer)
+            ->post("/invoices/{$invoice->id}/send", ['invoice_number' => '001/INV/SPI-XX/III/2026'])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'draft', 'invoice_number' => null]);
+    }
+
+    public function test_rollback_requires_edit_invoices_permission(): void
+    {
+        $invoice = Invoice::factory()->sent()->create([
+            'billed_to_id' => $this->client->id,
+            'invoice_number' => '001/INV/SPI-XX/III/2026',
+            'issue_date' => '2026-03-01',
+        ]);
+
+        $this->actingAs($this->viewer)->post("/invoices/{$invoice->id}/rollback")->assertForbidden();
+
+        $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'sent']);
+    }
+
+    public function test_show_exposes_generated_number_for_draft(): void
+    {
+        $invoice = Invoice::factory()->draft()->create([
+            'billed_to_id' => $this->client->id,
+            'issue_date' => '2026-03-01',
+        ]);
+
+        $response = $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('next_invoice_number', Invoice::generateInvoiceNumber($invoice->issue_date, $this->client->id));
+        $this->assertStringStartsWith('001/INV/', $response->json('next_invoice_number'));
+    }
+
+    public function test_show_has_no_generated_number_for_sent_invoice(): void
+    {
+        $invoice = Invoice::factory()->sent()->create([
+            'billed_to_id' => $this->client->id,
+            'invoice_number' => '001/INV/SPI-XX/III/2026',
+        ]);
+
+        $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}")
+            ->assertOk()
+            ->assertJsonPath('next_invoice_number', null);
+    }
+
+    public function test_destroy_refuses_invoice_with_payments(): void
+    {
+        $invoice = Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id]);
+        Payment::factory()->create(['invoice_id' => $invoice->id, 'amount' => 1000]);
+
+        $this->actingAs($this->admin)->delete("/invoices/{$invoice->id}")->assertSessionHas('error');
+
+        $this->assertDatabaseHas('invoices', ['id' => $invoice->id]);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_stats_follow_status_tab_but_tab_counts_do_not(): void
+    {
+        Invoice::factory()->paid()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-03-05', 'total_amount' => 2_000_000]);
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-03-06', 'total_amount' => 1_000_000]);
+
+        $this->actingAs($this->admin)
+            ->get('/invoices?month=2026-03&status=paid')
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.total_revenue', 2_000_000)
+                ->where('stats.invoice_count', 1)
+                ->where('stats.total_outstanding', 0)
+                ->where('stats.paid_count', 1)
+                ->where('stats.sent_count', 1)
+            );
+    }
+
+    public function test_update_preserves_item_client(): void
+    {
+        $other = Client::factory()->create();
+        $invoice = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id]);
+
+        $this->actingAs($this->admin)->put("/invoices/{$invoice->id}", [
+            'client_id' => $this->client->id,
+            'issue_date' => '2026-03-01',
+            'due_date' => '2026-03-15',
+            'items' => [
+                ['client_id' => $other->id, 'service_name' => 'Jasa untuk anak usaha', 'quantity' => 1, 'unit_price' => 1000],
+            ],
+        ]);
+
+        $this->assertDatabaseHas('invoice_items', ['invoice_id' => $invoice->id, 'client_id' => $other->id]);
+    }
 }
