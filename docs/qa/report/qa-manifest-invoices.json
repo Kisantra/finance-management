@@ -1,0 +1,595 @@
+{
+  "module": "invoices",
+  "title": "Modul Invoice & Pembayaran",
+  "date": "21 September 2026",
+  "environment": "database finance_management_qc (MySQL 127.0.0.1, migrate:fresh --seed), server lokal php artisan serve 127.0.0.1:8001, aset dari npm run build, Chromium via Playwright MCP viewport 1366×900 pada skala perangkat 2× (tangkapan 2732×1800 px); akun admin@gmail.com / fm@qc.test / staff@qc.test",
+  "scope": "Eksekusi seluruh 33 test case di docs/qa/test-cases/invoices.md: 13 kondisi normal, 17 abnormal/edge, 3 alur berantai. Fokus khusus laporan \"total rekap invoice tidak sesuai dengan filter\". Kasus yang tidak bisa dicapai dari layar (bertanda API) dijalankan lewat curl dengan cookie sesi dan diverifikasi di database. Baseline PHPUnit sebelum perubahan: 415 lolos; sesudah: 424 lolos.",
+  "shots_src": "../../../.playwright-mcp/shots/invoices",
+  "shots_dst": "../evidence/invoices",
+  "evidence_into": "../test-cases/invoices.md",
+  "report_out": "Laporan-QA-Invoices.pdf",
+  "shots_per_row": 1,
+  "summary": [
+    "Seluruh 33 test case akhirnya lolos. Sembilan gagal di percobaan pertama; enam di antaranya adalah bug nyata di aplikasi, tiga sisanya masalah label/UX yang ikut diperbaiki.",
+    "Keluhan \"total rekap invoice tidak sesuai dengan filter\" terkonfirmasi (N02): kartu statistik sengaja mengabaikan tab status, sehingga saat tab Lunas aktif kartu masih menampilkan Outstanding Rp 2.000.000. Kartu kini mengikuti semua filter aktif; hitungan per tab tetap tidak difilter status. Dua penyebab pendukung juga diperbaiki: rentang tanggal yang diam-diam menimpa bulan (A14) dan subjudul kartu yang salah (A16).",
+    "Temuan paling berbahaya: BUG-03 (staff bisa memberi nomor resmi invoice karena route send/rollback tanpa permission), BUG-05 (menghapus invoice ikut menghapus pembayarannya dan menurunkan saldo bank tanpa peringatan), dan BUG-06 (flash error dari server tidak pernah ditampilkan, sehingga setiap penolakan aksi oleh controller terjadi tanpa pesan).",
+    "Permintaan pengembangan #3 (nomor invoice otomatis) ternyata sebagian besar sudah ada di backend: BUG-02 adalah dialog Kirim yang tidak pernah mengisi nomor hasil hitungan server. Setelah diperbaiki, nomor terisi otomatis dan tetap bisa diedit sebelum konfirmasi."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-01",
+      "title": "Edit invoice menghapus klien per item secara diam-diam",
+      "sifat": "Tinggi — kehilangan data pada invoice multi-klien",
+      "cases": "A17 (terlihat pertama di N08)",
+      "gejala": "Form edit menampilkan \"Pilih klien…\" di setiap baris item walau DB punya client_id; setelah simpan tanpa perubahan, item yang tadinya client 3 menjadi client 4 (klien penagihan).",
+      "sebab": "resources/js/pages/invoices/edit.tsx memetakan item awal tanpa field client_id, sehingga payload PUT tidak membawa client_id per item dan controller memakai fallback billed_to_id.",
+      "cakupan": "Semua invoice yang itemnya ditujukan ke klien berbeda dari penagih (fitur \"Tiap item bisa ditujukan ke klien berbeda\"). Halaman create tidak terdampak.",
+      "perbaikan": "edit.tsx mengirim client_id per item. Diverifikasi ulang lewat UI (A17-3: form menampilkan PT. Global Solusi Prima, DB tetap client_id=3) dan test backend test_update_preserves_item_client."
+    },
+    {
+      "id": "BUG-02",
+      "title": "Dialog Kirim Invoice tidak mengisi nomor otomatis",
+      "sifat": "Sedang — sumber keluhan \"nomor harus diketik manual\" (permintaan #3)",
+      "cases": "N05",
+      "gejala": "Field Nomor Invoice kosong; submit kosong ditolak validasi; user harus mengarang nomor sendiri. Preview di form buat juga menulis inisial klien berbeda (KSN-CKB) dari backend (KSN-KB).",
+      "sebab": "index.tsx mengisi sendForm dari data.invoice_number yang selalu NULL untuk draft; respons show() tidak pernah membawa nomor hasil Invoice::generateInvoiceNumber(). Preview create.tsx memakai daftar kata perusahaan yang berbeda dari Invoice::extractInitials().",
+      "cakupan": "Semua pengiriman invoice. Penomoran berurutan sepenuhnya bergantung pada ketelitian user.",
+      "perbaikan": "show() mengembalikan next_invoice_number (hitungan server) untuk draft; dialog terisi otomatis dan tetap bisa diedit. Daftar kata perusahaan di create.tsx disamakan dengan backend. Test: test_show_exposes_generated_number_for_draft, test_show_has_no_generated_number_for_sent_invoice. Verifikasi UI N05-5 (terisi 005/INV/KSN-KB/IX/2026) dan UX02-1."
+    },
+    {
+      "id": "BUG-03",
+      "title": "Route send & rollback tanpa permission — staff bisa memberi nomor resmi",
+      "sifat": "Tinggi — kontrol akses",
+      "cases": "A13, C03",
+      "gejala": "Akun staff (hanya view+create invoices) POST /invoices/9/send → 302 dan invoice menjadi sent bernomor 004/INV/KSN-BS/IX/2026; rollback juga tidak diblokir.",
+      "sebab": "routes/web.php: hanya index/create/store/edit/update/destroy yang punya middleware can:…; send dan rollback cuma mewarisi can:view invoices dari grup.",
+      "cakupan": "Semua role yang punya view invoices tanpa edit invoices (role staff bawaan). Tombol memang tersembunyi di UI, tetapi endpoint terbuka.",
+      "perbaikan": "Middleware can:edit invoices ditambahkan pada kedua route. Test: test_send_requires_edit_invoices_permission, test_rollback_requires_edit_invoices_permission. Verifikasi API ulang: keduanya 403."
+    },
+    {
+      "id": "BUG-04",
+      "title": "Invoice bernomor jatuh ke draft saat semua pembayarannya dihapus",
+      "sifat": "Sedang — merusak invarian penomoran & memblokir rollback invoice lain",
+      "cases": "A11, N09",
+      "gejala": "Setelah satu-satunya pembayaran dihapus, invoice terkirim berubah status draft tetapi nomornya tetap (tampil \"Draft\" bernomor). isInvoiceLatestInMonth() lalu menganggap draft itu nomor tertinggi, sehingga rollback invoice sent yang sah (#7) ditolak walau tombolnya tampil.",
+      "sebab": "Invoice::updateStatus() memetakan amount_paid == 0 selalu ke draft, tanpa melihat apakah invoice sudah bernomor.",
+      "cakupan": "Setiap koreksi pembayaran (hapus/edit menjadi 0) pada invoice yang sudah dikirim.",
+      "perbaikan": "updateStatus(): amount_paid 0 → sent bila bernomor, draft bila tidak. Test: test_deleting_the_last_payment_keeps_a_numbered_invoice_sent dan …returns_unnumbered_invoice_to_draft. Verifikasi ulang A11 (#7 tetap sent) dan N09 (#11 rollback sukses). Data uji yang telanjur rusak (#9) diperbaiki manual ke sent sebelum percobaan ulang."
+    },
+    {
+      "id": "BUG-05",
+      "title": "Menghapus invoice ikut menghapus pembayarannya tanpa peringatan",
+      "sifat": "Tinggi — saldo bank berubah diam-diam",
+      "cases": "A12",
+      "gejala": "Dialog konfirmasi hanya menyebut \"beserta semua item-nya\". Setelah hapus, pembayaran Rp 4.580.000 lenyap, saldo Mandiri turun 35.580.000 → 30.000.000, dan file lampiran pembayaran tertinggal di storage (hook deleting model tidak jalan karena cascade di level DB).",
+      "sebab": "InvoiceController::destroy() tanpa guard; FK payments.invoice_id onDelete cascade.",
+      "cakupan": "Semua invoice sent/partially_paid/paid yang punya pembayaran. Berdampak ke Rekening Bank, Cash Flow Pemasukan, Dashboard, dan Laba Rugi.",
+      "perbaikan": "destroy() menolak bila ada pembayaran dengan flash error yang jelas; user harus menghapus pembayarannya dulu (jalur yang mengoreksi status & saldo dengan benar). Test: test_destroy_refuses_invoice_with_payments. Verifikasi UI A12-5."
+    },
+    {
+      "id": "BUG-06",
+      "title": "Flash error dari server tidak pernah ditampilkan di halaman React",
+      "sifat": "Tinggi (lintas modul) — setiap penolakan aksi oleh controller terjadi tanpa pesan",
+      "cases": "A12 (percobaan 2)",
+      "gejala": "Setelah guard BUG-05 dipasang, penolakan hapus terjadi di server tetapi layar diam saja. Berlaku untuk semua redirect()->back()->with('error', …) di aplikasi, mis. \"Hanya invoice terbaru di bulan ini yang bisa di-rollback.\" (itulah sebabnya N09 percobaan 1 juga tampak bisu).",
+      "sebab": "HandleInertiaRequests membagikan prop flash, tetapi hanya halaman login yang membacanya. Pesan SUKSES tetap terlihat karena 28 halaman memanggil toast.success() sendiri di onSuccess; pesan ERROR dari flash tidak punya jalur tampil sama sekali.",
+      "cakupan": "Semua modul yang controllernya menolak aksi lewat flash error (invoice send/rollback/destroy, kategori, fund request, reimbursement, dst.).",
+      "perbaikan": "AppLayout membaca usePage().props.flash dan menampilkan error (toastError: tidak auto-close), warning, dan info. Success SENGAJA tidak ditangani di sini. Versi pertama perbaikan ini menangani success juga dan ternyata membuat toast sukses muncul DOBEL (halaman + flash) — ketahuan saat memeriksa ulang screenshot, lalu dipersempit. Verifikasi UI: simpan edit → tepat 1 toast sukses; hapus invoice berpembayaran → toast error (A12 langkah 4). Belum ada test otomatis (perilaku frontend)."
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Index Februari 2026: tabel & statistik",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Semua angka kartu, tab, dan baris sesuai seed.",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Kondisi awal `/invoices`: bulan berjalan (September 2026) kosong karena seed berisi Jan–Mar."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Setelah pilih Februari 2026: 2 baris, Pendapatan Rp 6.000.000, Laba Rp 4.100.000, Terbayar Rp 4.000.000, Outstanding Rp 2.000.000 — cocok dengan seed."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Tab status Lunas — kartu mengikuti filter",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: tabel 1 baris tetapi kartu tetap angka semua status (sumber keluhan poin 2). Percobaan 2 setelah CHG-01: kartu mengikuti tab.",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "SEBELUM: tab Lunas aktif, tabel hanya INV/03, tetapi kartu masih Outstanding Rp 2.000.000 \"1 invoice belum lunas\"."
+        },
+        {
+          "img": "N02-2",
+          "cap": "SESUDAH: Pendapatan Rp 2.000.000, Laba Rp 1.600.000, Outstanding Rp 0 \"0 invoice belum lunas\"; subjudul baru \"Tanpa draft & dibatalkan\" dan \"Pendapatan − HPP\"."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Filter klien + rentang tanggal",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "2 invoice PT Teknologi Maju Jan & Mar; Pendapatan Rp 5.000.000, Laba Rp 3.800.000.",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Rentang 01 Jan–31 Mar + klien terpilih: baris Jan & Mar tampil; perhatikan label Bulan masih \"Februari 2026\" (A14)."
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Buat invoice draft 2 item (titipan pajak)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Diskon tidak terkirim karena kesalahan otomasi (bukan aplikasi); dicakup ulang di N08.",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Form terisi: klien CV. Karya Bersama, 2 item, item 2 ditandai Titipan Pajak (subtotal Rp 3.200.000, Titipan Rp 200.000)."
+        },
+        {
+          "img": "N04-2",
+          "cap": "Kembali ke index: baris baru \"—\" Draft Rp 3.200.000. DB: nomor NULL, 2 item, tax=1 pada item 2."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Kirim invoice → nomor resmi",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1 gagal (BUG-02): field nomor kosong. Percobaan 2: terisi otomatis dari server.",
+      "steps": [
+        {
+          "img": "N05-1",
+          "cap": "Sheet detail draft: tombol Kirim Invoice / Edit / Hapus."
+        },
+        {
+          "img": "N05-2",
+          "cap": "SEBELUM: dialog Kirim Invoice dengan field nomor **kosong** (hanya placeholder)."
+        },
+        {
+          "img": "N05-3",
+          "cap": "Submit dengan nomor kosong ditolak: \"The invoice number field is required.\" — validasi berbahasa Inggris (UX-03). Diambil ulang di kode final dengan mengosongkan field; perilaku validasinya sama di kedua versi."
+        },
+        {
+          "img": "N05-4",
+          "cap": "Setelah diketik manual 001/INV/KSN-KB/IX/2026: status Terkirim, kartu terisi."
+        },
+        {
+          "img": "N05-5",
+          "cap": "SESUDAH perbaikan: dialog untuk draft berikutnya langsung terisi 005/INV/KSN-KB/IX/2026."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Pembayaran sebagian Rp 1.000.000",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: partially_paid, sisa 4.580.000, Mandiri 31.000.000.",
+      "steps": [
+        {
+          "img": "N06-1",
+          "cap": "Sheet invoice Terkirim: tombol Catat Pembayaran tersedia."
+        },
+        {
+          "img": "N06-2",
+          "cap": "Dialog Catat Pembayaran: Rp 1.000.000, Mandiri - Payroll, ref TRF-QC-001."
+        },
+        {
+          "img": "N06-3",
+          "cap": "Setelah simpan: Sudah Dibayar Rp 1.000.000, Sisa Rp 4.580.000, status Sebagian."
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Pelunasan + lampiran PNG",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 batal oleh tooling (klik file chooser tertahan overlay, selector opsi ambigu). Percobaan 2 lolos; file tersimpan di disk.",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Dialog: Rp 4.580.000 (prefill sisa), rekening Mandiri terpilih, lampiran N01-1.png terpasang."
+        },
+        {
+          "img": "N07-2",
+          "cap": "Setelah simpan: status Lunas, dua pembayaran tercatat. DB: attachment ada, Mandiri 35.580.000."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Edit: qty ×2 + diskon 10%",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Subtotal 6.200.000, diskon 620.000, total 5.580.000, item dibuat ulang. Kolom klien item kosong → A17.",
+      "steps": [
+        {
+          "img": "N08-1",
+          "cap": "Form edit terbuka: nilai tersimpan tampil, tetapi kolom klien per item \"Pilih klien…\" (gejala BUG-01)."
+        },
+        {
+          "img": "N08-2",
+          "cap": "Qty item 1 = 2, diskon 10% \"Diskon klien lama\"; Total Rp 6.200.000 sebelum diskon di ringkasan."
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Rollback terkirim → draft",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: rollback #7 ditolak backend karena draft bernomor #9 (BUG-04) dianggap nomor tertinggi. Percobaan 2 setelah perbaikan: #11 sukses.",
+      "steps": [
+        {
+          "img": "N09-1",
+          "cap": "Daftar September: 001 Lunas, 002 & 003 Terkirim, dan baris **004 berstatus Draft tetapi bernomor** (dampak BUG-04)."
+        },
+        {
+          "img": "N09-2",
+          "cap": "Sheet 003/INV/KSN-SN: tombol Rollback ke Draft tampil (FE menganggap eligible)."
+        },
+        {
+          "img": "N09-3",
+          "cap": "Setelah klik: 003 tetap Terkirim — backend menolak. FE dan BE tidak sepakat."
+        },
+        {
+          "img": "N09-4",
+          "cap": "SESUDAH: #11 dikirim sebagai 005/INV/KSN-KB/IX/2026, sheet terbuka."
+        },
+        {
+          "img": "N09-5",
+          "cap": "Rollback berhasil: baris kembali \"—\" Draft; DB nomor NULL."
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "title": "Detail sheet: item & riwayat pembayaran",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "2 item, 2 pembayaran dengan rekening & lampiran, NPWP, sisa 0.",
+      "steps": [
+        {
+          "img": "N10-1",
+          "cap": "Sheet Lunas: Riwayat Pembayaran 2 baris (ref TRF-QC-001; lampiran N01-1.png), Analisis Laba Rp 4.880.000."
+        }
+      ]
+    },
+    {
+      "id": "N11",
+      "title": "Export Excel & PDF rekap (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — GET export via curl. Excel: 2 baris Feb 2026, tanpa draft, kolom Omzet/HPP/Profit/PPh Final 0,5%; TOTAL 6.000.000/1.900.000/4.100.000/30.000. PDF 200 application/pdf."
+    },
+    {
+      "id": "N12",
+      "title": "Download & preview PDF invoice (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI. Download: attachment Invoice-001-INV-KSN-KB-IX-2026.pdf (10,2 KB). Preview DP: inline application/pdf (12,4 KB)."
+    },
+    {
+      "id": "N13",
+      "title": "Hapus invoice draft",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Draft #10 dan itemnya terhapus dari DB.",
+      "steps": [
+        {
+          "img": "N13-1",
+          "cap": "Sheet draft Rp 250.000 (klien Siti Nurhaliza) sebelum dihapus."
+        },
+        {
+          "img": "N13-2",
+          "cap": "Setelah konfirmasi: baris hilang dari tabel."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Form kosong / tanpa item",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "FE: toast \"3 kesalahan ditemukan\"; API items:[] → 422.",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Submit form kosong: error di bawah Klien, Jatuh Tempo, dan nama layanan; toast merah merangkum 3 kesalahan (pesan Inggris, UX-03)."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Jatuh tempo < tanggal invoice",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "FE picker menonaktifkan tanggal sebelum tgl invoice; API 422 after_or_equal.",
+      "steps": [
+        {
+          "img": "A02-1",
+          "cap": "Kalender Jatuh Tempo: tanggal 1–20 September abu-abu (disabled), 21 (hari ini) ke atas aktif — aturan ditegakkan di picker."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Quantity 0 (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — 422 \"must be at least 0.001\"."
+    },
+    {
+      "id": "A04",
+      "title": "Bayar invoice draft (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — 422 \"Invoice tidak dapat menerima pembayaran.\""
+    },
+    {
+      "id": "A05",
+      "title": "Bayar invoice lunas",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tombol Catat Pembayaran hilang di sheet Lunas (lihat N10-1); API 422."
+    },
+    {
+      "id": "A06",
+      "title": "Pembayaran tanpa rekening / amount 0",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "UI menampilkan pesan 422 dari server di bawah field; API mengembalikan dua error.",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Simpan tanpa rekening: \"Rekening tujuan wajib dipilih.\" tampil merah di bawah field — pesan berasal dari respons 422 backend."
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "title": "Kirim invoice bukan draft (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — #5 tetap paid dengan nomor lama."
+    },
+    {
+      "id": "A08",
+      "title": "Rollback bukan sequence tertinggi (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — #6 (002) tetap sent."
+    },
+    {
+      "id": "A09",
+      "title": "Kirim dengan nomor duplikat (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — 422 unique."
+    },
+    {
+      "id": "A10",
+      "title": "Nomor legacy tidak merusak sequence (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — #8 Jan 2026 mendapat 001/INV/KSN-TMI/I/2026 walau INV/01/KSN/01.26 ada."
+    },
+    {
+      "id": "A11",
+      "title": "Hapus semua pembayaran invoice terkirim",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1 (API): status draft tetapi nomor tetap (BUG-04). Percobaan 2 setelah perbaikan: tetap sent.",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "SEBELUM: baris 004/INV/KSN-BS/IX/2026 berstatus **Draft** padahal bernomor — keadaan yang seharusnya mustahil."
+        }
+      ]
+    },
+    {
+      "id": "A12",
+      "title": "Hapus invoice yang punya pembayaran",
+      "verdict": "Pass (percobaan ke-3)",
+      "attempts": "ffp",
+      "note": "Percobaan 1: terhapus beserta pembayaran, saldo turun diam-diam (BUG-05). Percobaan 2: server menolak tetapi layar bisu (BUG-06). Percobaan 3: toast error tampil.",
+      "steps": [
+        {
+          "img": "A12-1",
+          "cap": "SEBELUM: dialog hanya menyebut \"beserta semua item-nya\" — tidak ada peringatan soal pembayaran Rp 4.580.000."
+        },
+        {
+          "img": "A12-2",
+          "cap": "Setelah konfirmasi: invoice hilang. DB: pembayaran ikut hilang, Mandiri 30.000.000, file lampiran yatim."
+        },
+        {
+          "img": "A12-3",
+          "cap": "Percobaan 2 (guard terpasang): invoice 002 masih ada, tetapi tidak ada pesan apa pun — flash tidak dirender (BUG-06)."
+        },
+        {
+          "img": "A12-5",
+          "cap": "Percobaan 3 (handler flash global): toast merah \"Invoice yang sudah memiliki pembayaran tidak dapat dihapus…\"."
+        }
+      ]
+    },
+    {
+      "id": "A13",
+      "title": "Otorisasi via URL — staff (API)",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Tanpa langkah UI. Percobaan 1: edit/delete 403 tetapi **send & rollback lolos** (BUG-03) — invoice #9 jadi sent bernomor. Percobaan 2: keduanya 403."
+    },
+    {
+      "id": "A14",
+      "title": "Rentang tanggal vs bulan",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: label bulan menyesatkan. Percobaan 2: memilih rentang mengosongkan bulan.",
+      "steps": [
+        {
+          "img": "A14-1",
+          "cap": "SEBELUM: Bulan \"Februari 2026\" + rentang Jan–Mar; baris Jan dan Mar tampil — label bulan bohong."
+        },
+        {
+          "img": "A14-2",
+          "cap": "SESUDAH: pilih rentang 01–30 Sep dari picker → Bulan menjadi \"Pilih bulan…\", URL month= kosong."
+        }
+      ]
+    },
+    {
+      "id": "A15",
+      "title": "Lampiran .txt (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI — 422 mimes jpg/jpeg/png/pdf."
+    },
+    {
+      "id": "A16",
+      "title": "Label kartu statistik jujur",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Subjudul diganti agar sesuai rumus.",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "SEBELUM: ada 1 Draft di periode, semua kartu Rp 0, tetapi subjudul \"Semua status invoice\" dan \"Pendapatan − HPP − Pajak\"."
+        }
+      ]
+    },
+    {
+      "id": "A17",
+      "title": "Edit invoice multi-klien",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: client_id item 3 → 4 setelah simpan tanpa perubahan (BUG-01). Percobaan 2: tetap 3.",
+      "steps": [
+        {
+          "img": "A17-1",
+          "cap": "SEBELUM: item yang di DB milik klien 3 tampil \"Pilih klien…\"."
+        },
+        {
+          "img": "A17-2",
+          "cap": "Setelah simpan tanpa perubahan: kembali ke index; DB client_id berubah menjadi 4 (klien penagih)."
+        },
+        {
+          "img": "A17-3",
+          "cap": "SESUDAH: form edit menampilkan \"PT. Global Solusi Prima\"; setelah simpan DB tetap client_id=3."
+        }
+      ]
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Pembayaran tampil di Rekening Bank & Cash Flow",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Saldo & kedua baris pembayaran konsisten di tiga tempat.",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Rekening Bank: Mandiri - Payroll Rp 35.580.000, Pemasukan akun Rp 5.580.000."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Tab Pembayaran: dua pembayaran 001/INV/KSN-KB/IX/2026 (Rp 1.000.000 & Rp 4.580.000)."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Cash Flow Pemasukan: kedua pembayaran muncul sebagai baris \"Invoice\" dengan kategori \"—\" (NOTE-01)."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Hapus pembayaran → status & saldo terkoreksi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "partially_paid, Mandiri 34.580.000.",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "ConfirmDialog hapus pembayaran Rp 1.000.000 dengan tanggal — jelas dan spesifik."
+        },
+        {
+          "img": "C02-2",
+          "cap": "Setelah hapus: status Sebagian, Sisa Rp 1.000.000; saldo Mandiri turun sesuai."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Staff: buat boleh, kirim tidak (API)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tanpa langkah UI. Staff membuat draft (302 sukses). Pengiriman: lihat A13."
+    }
+  ],
+  "notes": [
+    {
+      "id": "CHG-01",
+      "title": "Kartu statistik kini mengikuti tab status (perubahan perilaku yang disengaja)",
+      "body": "Sebelumnya dirancang mengabaikan status (docs/module/invoices.md lama). Diubah karena inilah persis keluhan poin 2. Hitungan per tab sengaja tetap mengabaikan status. Dokumen modul sudah diperbarui. Keputusan ini perlu dikonfirmasi pemilik produk."
+    },
+    {
+      "id": "NOTE-01",
+      "title": "Pembayaran invoice tanpa kategori di Cash Flow Pemasukan",
+      "body": "Baris pembayaran invoice selalu berkategori \"—\" dan filter kategori menyembunyikannya. Ini celah yang dibahas untuk permintaan #1 (kategori per item invoice + alokasi proporsional); belum dikerjakan karena menunggu keputusan desain."
+    },
+    {
+      "id": "UX-03",
+      "title": "Pesan validasi berbahasa Inggris",
+      "body": "lang/id/validation.php berisi teks Inggris apa adanya (147 baris belum diterjemahkan), padahal locale id aktif. Tidak diperbaiki: pekerjaan penerjemahan, di luar cakupan QA modul."
+    },
+    {
+      "id": "UX-04",
+      "title": "Tombol ikon tanpa nama aksesibel",
+      "body": "Tombol edit/hapus pada baris pembayaran dan dua tombol header (Export, Buat Invoice) tampil sebagai button tanpa teks di accessibility tree; perlu aria-label. Tidak diperbaiki."
+    },
+    {
+      "id": "UX-05",
+      "title": "Salinan halaman login usang",
+      "body": "Halaman login masih menampilkan \"121+ Komponen Livewire\" padahal stack sudah React. Tidak diperbaiki (di luar modul)."
+    },
+    {
+      "id": "UX-06",
+      "title": "Metode pembayaran dipaksa bank_transfer",
+      "body": "Dialog pembayaran tidak menawarkan pilihan cash; frontend selalu mengirim bank_transfer (hint \"untuk tunai pilih rekening kas\"). Backend menerima cash. Butuh keputusan apakah pilihan tunai memang tidak diinginkan."
+    },
+    {
+      "id": "NOTE-02",
+      "title": "File lampiran yatim di storage QC",
+      "body": "Percobaan 1 A12 meninggalkan payments/MPJP…png tanpa record (cascade DB melewati hook model). Setelah guard BUG-05 kejadian ini tidak bisa terulang lewat aplikasi; file di storage QC dibiarkan sebagai bukti."
+    }
+  ],
+  "tooling_problems": [
+    "Screenshot eksekusi 21 September sempat diperkecil ke 720 px langsung di file aslinya sehingga tidak terbaca di laporan. Seluruh alur dijalankan ulang pada 22 September dengan tangkapan 2732×1800 px: database QC di-seed ulang, kode sebelum perbaikan dipulihkan sementara (7 file, diverifikasi kembali identik lewat sha256 setelah dipulihkan) untuk layar SEBELUM, satu build antara tanpa handler flash untuk A12 langkah 3, lalu kode perbaikan untuk layar SESUDAH. Hasil di database pada eksekusi ulang sama dengan eksekusi pertama; tanggal yang terlihat di layar karenanya 22 September.",
+    "Chrome DevTools MCP tidak bisa tersambung (port 9222 ditolak); seluruh pengujian memakai Playwright MCP. Bukan cacat aplikasi.",
+    "N04: setelah klik toggle \"%\" ref elemen berubah sehingga fill diskon gagal, tetapi klik simpan tetap terkirim — invoice tersimpan tanpa diskon. Diskon dicakup ulang di N08.",
+    "N07 percobaan 1: klik tombol file chooser tertahan overlay dropzone dan selector opsi rekening ambigu (strict mode) → form terkirim tanpa rekening. Kejadian ini justru menjadi bukti A06.",
+    "Git Bash + Python/PHP di Windows tidak membaca path /c/…; parsing cookie jar diganti perl, path Excel dikonversi cygpath.",
+    "Screenshot A12-4 diambil sebelum toast sempat tampil pada percobaan 2 — dikonfirmasi ulang pada percobaan 3 (A12-5) dengan wait eksplisit.",
+    "Perbaikan BUG-06 versi pertama menampilkan flash success juga, yang menduplikasi toast sukses milik halaman. Ini kesalahan perbaikan oleh penguji, bukan cacat bawaan aplikasi; ditemukan saat meninjau screenshot kode lama yang ternyata sudah menampilkan toast sukses, lalu dipersempit ke error/warning/info."
+  ],
+  "honesty": "Semua perbaikan ditulis oleh asisten yang sama yang merancang dan menjalankan pengujian, sehingga pengujian ulang mewarisi asumsi yang sama. Tiga hal yang sebaiknya diperiksa manusia secara independen: (1) apakah kartu statistik yang kini mengikuti tab status (CHG-01) memang perilaku yang diinginkan tim keuangan, karena ini perubahan desain, bukan sekadar bug; (2) handler flash global baru (BUG-06) hanya menampilkan error/warning/info — buka beberapa modul lain (Kategori: hapus kategori yang masih dipakai; Fund Request: ajukan ulang yang ditolak) dan pastikan pesan error muncul tepat sekali dan pesan sukses tidak dobel; (3) buka satu invoice lama di database produksi yang itemnya milik klien berbeda dari penagih, tekan Edit lalu Simpan tanpa mengubah apa pun, dan pastikan klien per item tidak berubah (BUG-01)."
+}

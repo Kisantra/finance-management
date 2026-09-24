@@ -38,3 +38,7 @@ composer.lock
 # DomPDF font dir (generated cache + uploaded fonts)
 /storage/fonts/*
 !/storage/fonts/.gitkeep
+
+# Python bytecode from QA skill scripts
+__pycache__/
+*.pyc
