@@ -1,506 +1,492 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
-    ArrowLeftRight,
-    Briefcase,
-    Building2,
+    BarChart3,
     ChevronLeft,
-    CreditCard,
-    FileBarChart,
+    ChevronRight,
+    ClipboardList,
     FileText,
-    FolderOpen,
-    LayoutDashboard,
-    MessageSquare,
-    Receipt,
-    RefreshCw,
-    Shield,
-    TrendingDown,
+    Home,
+    Landmark,
+    Moon,
+    ShieldCheck,
+    Sun,
     TrendingUp,
-    UserCog,
     Users,
-    Wallet,
     X,
 } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
+/*
+ * Rel navigasi Obsidian: "rel yang membuka labelnya".
+ * Ciut 76 px = kolom ikon grup. Lebar 260 px = kolom ikon yang sama + panel label 184 px,
+ * tanpa garis pemisah; ikon dan label duduk di baris 48 px yang sama. Grup aktif = satu pil
+ * (bg-ob-invert) yang dimulai di belakang ikon dan berakhir di ujung label — saat diciutkan,
+ * pil yang sama tinggal di ikonnya. Hanya satu grup terbuka (accordion). Spesifikasi:
+ * artboard "Navigasi" di kanvas desain dan .claude/design-systems/archipelago.md → Obsidian.
+ */
+
+export const RAIL_WIDTH = 76;
+export const RAIL_EXPANDED_WIDTH = 260;
+
 interface SidebarProps {
     open: boolean;
     collapsed: boolean;
     onClose: () => void;
     onToggleCollapse: () => void;
+    darkMode: boolean;
+    onToggleDark: () => void;
 }
+
+type BadgeKey = 'reimbursements' | 'fund_requests';
 
 interface NavItem {
     label: string;
     href: string;
-    icon: React.ReactNode;
     permission?: string;
+    matchPrefix: string;
+    badgeKey?: BadgeKey;
+}
+
+interface NavGroup {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    /** Grup tanpa sub-item adalah tautan langsung. */
+    href?: string;
     matchPrefix?: string;
-    comingSoon?: boolean;
-    /** Key into the shared actionCounts prop for a "needs action" badge. */
-    badgeKey?: 'reimbursements' | 'fund_requests';
-}
-
-interface NavSection {
-    title: string;
+    permission?: string;
     items: NavItem[];
-    anyPermission?: string[];
 }
 
-const NAV: NavSection[] = [
+const ICON = 'w-5 h-5 shrink-0';
+
+const NAV: NavGroup[] = [
     {
-        title: '',
-        anyPermission: ['view dashboard'],
+        key: 'ringkasan',
+        label: 'Ringkasan',
+        icon: <Home className={ICON} />,
+        href: '/dashboard',
+        matchPrefix: '/dashboard',
+        permission: 'view dashboard',
+        items: [],
+    },
+    {
+        key: 'keuangan',
+        label: 'Keuangan',
+        icon: <FileText className={ICON} />,
         items: [
-            {
-                label: 'Dashboard',
-                href: '/dashboard',
-                icon: <LayoutDashboard className="w-4 h-4 shrink-0" />,
-                permission: 'view dashboard',
-                matchPrefix: '/dashboard',
-            },
+            { label: 'Invoice', href: '/invoices', permission: 'view invoices', matchPrefix: '/invoices' },
+            { label: 'Invoice Berulang', href: '/recurring-invoices', permission: 'view recurring-invoices', matchPrefix: '/recurring-invoices' },
+            { label: 'Rekening Bank', href: '/bank-accounts', permission: 'view bank-accounts', matchPrefix: '/bank-accounts' },
         ],
     },
     {
-        title: 'Master Data',
-        anyPermission: ['view clients', 'view services'],
+        key: 'arus-kas',
+        label: 'Arus Kas',
+        icon: <TrendingUp className={ICON} />,
         items: [
-            {
-                label: 'Klien',
-                href: '/clients',
-                icon: <Users className="w-4 h-4 shrink-0" />,
-                permission: 'view clients',
-                matchPrefix: '/clients',
-            },
-            {
-                label: 'Layanan',
-                href: '/services',
-                icon: <Briefcase className="w-4 h-4 shrink-0" />,
-                permission: 'view services',
-                matchPrefix: '/services',
-            },
+            { label: 'Pemasukan', href: '/cash-flow/income', permission: 'view income', matchPrefix: '/cash-flow/income' },
+            { label: 'Pengeluaran', href: '/cash-flow/expenses', permission: 'view expense', matchPrefix: '/cash-flow/expenses' },
+            { label: 'Transfer & Penyesuaian', href: '/cash-flow/transfers', permission: 'view transfer', matchPrefix: '/cash-flow/transfers' },
         ],
     },
     {
-        title: 'Keuangan',
-        anyPermission: ['view invoices', 'view recurring-invoices', 'view bank-accounts'],
+        key: 'operasional',
+        label: 'Operasional',
+        icon: <ClipboardList className={ICON} />,
         items: [
-            {
-                label: 'Invoice',
-                href: '/invoices',
-                icon: <FileText className="w-4 h-4 shrink-0" />,
-                permission: 'view invoices',
-                matchPrefix: '/invoices',
-            },
-            {
-                label: 'Invoice Berulang',
-                href: '/recurring-invoices',
-                icon: <RefreshCw className="w-4 h-4 shrink-0" />,
-                permission: 'view recurring-invoices',
-                matchPrefix: '/recurring-invoices',
-            },
-            {
-                label: 'Rekening Bank',
-                href: '/bank-accounts',
-                icon: <Building2 className="w-4 h-4 shrink-0" />,
-                permission: 'view bank-accounts',
-                matchPrefix: '/bank-accounts',
-            },
+            { label: 'Reimbursement', href: '/reimbursements', permission: 'view reimbursements', matchPrefix: '/reimbursements', badgeKey: 'reimbursements' },
+            { label: 'Permintaan Dana', href: '/fund-requests', permission: 'view fund requests', matchPrefix: '/fund-requests', badgeKey: 'fund_requests' },
+            { label: 'Kategori Transaksi', href: '/transaction-categories', permission: 'view categories', matchPrefix: '/transaction-categories' },
         ],
     },
     {
-        title: 'Arus Kas',
-        anyPermission: ['view income', 'view expense', 'view transfer'],
+        key: 'utang-piutang',
+        label: 'Utang & Piutang',
+        icon: <Landmark className={ICON} />,
         items: [
-            {
-                label: 'Pemasukan',
-                href: '/cash-flow/income',
-                icon: <TrendingUp className="w-4 h-4 shrink-0" />,
-                permission: 'view income',
-                matchPrefix: '/cash-flow/income',
-            },
-            {
-                label: 'Pengeluaran',
-                href: '/cash-flow/expenses',
-                icon: <TrendingDown className="w-4 h-4 shrink-0" />,
-                permission: 'view expense',
-                matchPrefix: '/cash-flow/expenses',
-            },
-            {
-                label: 'Transfer & Penyesuaian',
-                href: '/cash-flow/transfers',
-                icon: <ArrowLeftRight className="w-4 h-4 shrink-0" />,
-                permission: 'view transfer',
-                matchPrefix: '/cash-flow/transfers',
-            },
+            { label: 'Pinjaman', href: '/loans', permission: 'view loans', matchPrefix: '/loans' },
+            { label: 'Piutang', href: '/receivables', permission: 'view receivables', matchPrefix: '/receivables' },
         ],
     },
     {
-        title: 'Operasional',
-        anyPermission: ['view categories', 'view fund requests', 'view reimbursements'],
+        key: 'master-data',
+        label: 'Master Data',
+        icon: <Users className={ICON} />,
         items: [
-            {
-                label: 'Kategori',
-                href: '/transaction-categories',
-                icon: <FolderOpen className="w-4 h-4 shrink-0" />,
-                permission: 'view categories',
-                matchPrefix: '/transaction-categories',
-            },
-            {
-                label: 'Permintaan Dana',
-                href: '/fund-requests',
-                icon: <Receipt className="w-4 h-4 shrink-0" />,
-                permission: 'view fund requests',
-                matchPrefix: '/fund-requests',
-                badgeKey: 'fund_requests',
-            },
-            {
-                label: 'Reimbursement',
-                href: '/reimbursements',
-                icon: <ArrowLeftRight className="w-4 h-4 shrink-0" />,
-                permission: 'view reimbursements',
-                matchPrefix: '/reimbursements',
-                badgeKey: 'reimbursements',
-            },
+            { label: 'Klien', href: '/clients', permission: 'view clients', matchPrefix: '/clients' },
+            { label: 'Layanan', href: '/services', permission: 'view services', matchPrefix: '/services' },
         ],
     },
     {
-        title: 'Utang & Piutang',
-        anyPermission: ['view loans', 'view receivables'],
+        key: 'laporan',
+        label: 'Laporan',
+        icon: <BarChart3 className={ICON} />,
         items: [
-            {
-                label: 'Pinjaman',
-                href: '/loans',
-                icon: <CreditCard className="w-4 h-4 shrink-0" />,
-                permission: 'view loans',
-                matchPrefix: '/loans',
-            },
-            {
-                label: 'Piutang',
-                href: '/receivables',
-                icon: <Wallet className="w-4 h-4 shrink-0" />,
-                permission: 'view receivables',
-                matchPrefix: '/receivables',
-            },
+            { label: 'Laba Rugi', href: '/reports/profit-loss', permission: 'view profit-loss', matchPrefix: '/reports/profit-loss' },
         ],
     },
     {
-        title: 'Laporan',
-        anyPermission: ['view profit-loss'],
+        key: 'administrasi',
+        label: 'Administrasi',
+        icon: <ShieldCheck className={ICON} />,
         items: [
-            {
-                label: 'Laba Rugi',
-                href: '/reports/profit-loss',
-                icon: <FileBarChart className="w-4 h-4 shrink-0" />,
-                permission: 'view profit-loss',
-                matchPrefix: '/reports/profit-loss',
-            },
-        ],
-    },
-    {
-        title: 'Administrasi',
-        anyPermission: ['view feedbacks', 'view permissions', 'manage users'],
-        items: [
-            {
-                label: 'Feedback',
-                href: '/feedbacks',
-                icon: <MessageSquare className="w-4 h-4 shrink-0" />,
-                permission: 'view feedbacks',
-                matchPrefix: '/feedbacks',
-            },
-            {
-                label: 'Izin & Peran',
-                href: '/admin/permissions',
-                icon: <Shield className="w-4 h-4 shrink-0" />,
-                permission: 'view permissions',
-                matchPrefix: '/admin/permissions',
-            },
-            {
-                label: 'Pengguna',
-                href: '/admin/users',
-                icon: <UserCog className="w-4 h-4 shrink-0" />,
-                permission: 'manage users',
-                matchPrefix: '/admin/users',
-            },
+            { label: 'Pengguna', href: '/admin/users', permission: 'manage users', matchPrefix: '/admin/users' },
+            { label: 'Izin & Peran', href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
+            { label: 'Feedback', href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
         ],
     },
 ];
 
-function NavLink({
-    item,
-    collapsed,
-    currentUrl,
-    onClick,
-    badge = 0,
-}: {
-    item: NavItem;
-    collapsed: boolean;
-    currentUrl: string;
-    onClick: () => void;
-    badge?: number;
-}) {
-    const isActive =
-        !item.comingSoon &&
-        (item.matchPrefix
-            ? currentUrl === item.matchPrefix || currentUrl.startsWith(item.matchPrefix + '/')
-            : currentUrl === item.href);
+function matches(url: string, prefix: string): boolean {
+    return url === prefix || url.startsWith(prefix + '/') || url.startsWith(prefix + '?');
+}
 
-    if (item.comingSoon) {
-        return (
-            <div
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                    'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[0.8125rem] font-medium',
-                    'text-gray-400 dark:text-dark-600 opacity-50 cursor-not-allowed select-none',
-                    collapsed && 'justify-center px-2',
-                )}
-            >
-                {item.icon}
-                {!collapsed && (
-                    <span className="flex-1 truncate">{item.label}</span>
-                )}
-            </div>
-        );
-    }
-
+function CountBadge({ count, className }: { count: number; className?: string }) {
+    if (count <= 0) return null;
     return (
-        <Link
-            href={item.href}
-            onClick={onClick}
-            title={collapsed ? item.label : undefined}
+        <span
             className={cn(
-                'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[0.8125rem] font-medium transition-all duration-150 relative whitespace-nowrap',
-                isActive
-                    ? [
-                          'bg-blue-50 dark:bg-blue-600/15 text-blue-600 dark:text-blue-400 font-semibold',
-                          "before:content-[''] before:absolute before:left-0 before:top-[20%] before:bottom-[20%] before:w-[2.5px] before:bg-current before:rounded-r-sm",
-                      ]
-                    : 'text-gray-600 dark:text-dark-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-dark-200 hover:translate-x-px',
-                collapsed && 'justify-center px-2',
+                'inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-ob-badge px-1.5 text-xs font-bold text-ob-badge-ink',
+                className,
             )}
         >
-            <span className="relative shrink-0">
-                {item.icon}
-                {/* Collapsed: a dot on the icon hints there are items to act on. */}
-                {collapsed && badge > 0 && (
-                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-900" />
-                )}
-            </span>
-            {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-            {!collapsed && badge > 0 && (
-                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-px text-[0.6875rem] font-bold leading-tight text-white">
-                    {badge > 99 ? '99+' : badge}
-                </span>
-            )}
-        </Link>
+            {count > 99 ? '99+' : count}
+        </span>
     );
 }
 
-export function Sidebar({ open, collapsed, onClose, onToggleCollapse }: SidebarProps) {
+/** Tooltip terang di kanan ikon saat rel diciutkan. */
+function RailTooltip({ label, hint }: { label: string; hint?: string }) {
+    return (
+        <span
+            role="tooltip"
+            className="pointer-events-none absolute left-[60px] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-ob-invert px-2.5 py-1.5 text-xs font-semibold text-ob-invert-ink group-hover:inline-flex group-focus-visible:inline-flex items-center gap-2"
+        >
+            {label}
+            {hint && <span className="font-medium opacity-60">{hint}</span>}
+        </span>
+    );
+}
+
+export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, onToggleDark }: SidebarProps) {
     const { auth, actionCounts } = usePage<SharedProps>().props;
     const permissions = auth.permissions;
-    const user = auth.user;
     const currentUrl = usePage().url;
 
-    const can = (permission: string) => permissions.includes(permission);
-    const canAny = (perms: string[]) => perms.some((p) => permissions.includes(p));
+    const can = (permission?: string) => !permission || permissions.includes(permission);
 
-    const [userMenuOpen, setUserMenuOpen] = React.useState(false);
-    const userMenuRef = React.useRef<HTMLDivElement>(null);
+    /* Drawer di layar kecil selalu lebar; ciut hanya berlaku di desktop. */
+    const isCollapsed = collapsed && !open;
+
+    const groups = React.useMemo(
+        () =>
+            NAV.map((g) => ({ ...g, items: g.items.filter((i) => can(i.permission)) })).filter(
+                (g) => (g.href ? can(g.permission) : g.items.length > 0),
+            ),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [permissions],
+    );
+
+    const activeGroupKey = React.useMemo(() => {
+        const hit = groups.find(
+            (g) =>
+                (g.matchPrefix && matches(currentUrl, g.matchPrefix)) ||
+                g.items.some((i) => matches(currentUrl, i.matchPrefix)),
+        );
+        return hit?.key ?? null;
+    }, [groups, currentUrl]);
+
+    /* Satu grup terbuka; mengikuti halaman aktif, bisa dibuka manual, menutup yang lain. */
+    const [openKey, setOpenKey] = React.useState<string | null>(activeGroupKey);
+    React.useEffect(() => setOpenKey(activeGroupKey), [activeGroupKey]);
+
+    /* Flyout untuk rel ciut: posisi tetap (fixed) supaya tidak terpotong oleh area gulir. */
+    const [flyout, setFlyout] = React.useState<{ key: string; top: number } | null>(null);
+    const asideRef = React.useRef<HTMLElement>(null);
 
     React.useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-                setUserMenuOpen(false);
+        const onDown = (e: MouseEvent) => {
+            if (asideRef.current && !asideRef.current.contains(e.target as Node)) {
+                setFlyout(null);
             }
         };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setFlyout(null);
+            }
+        };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
     }, []);
 
-    const initials = user?.name
-        ? user.name
-              .split(' ')
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join('')
-              .toUpperCase()
-        : 'U';
+    React.useEffect(() => {
+        setFlyout(null);
+    }, [currentUrl, isCollapsed]);
+
+    const badgeOf = (item: NavItem) => (item.badgeKey ? actionCounts?.[item.badgeKey] ?? 0 : 0);
+    const groupBadge = (g: NavGroup) => g.items.reduce((n, i) => n + badgeOf(i), 0);
+
+
+    const rowBase =
+        'group relative flex h-12 items-center rounded-xl text-[13px] transition-colors duration-150 ob-motion focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-rail';
+    const rowIdle = 'text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink font-medium';
+    const rowActive = 'bg-ob-invert text-ob-invert-ink font-semibold';
+
+    const flyoutGroup = flyout ? groups.find((g) => g.key === flyout.key) : null;
 
     return (
         <aside
+            ref={asideRef}
+            aria-label="Navigasi utama"
+            style={{ width: isCollapsed ? RAIL_WIDTH : RAIL_EXPANDED_WIDTH }}
             className={cn(
-                'fixed lg:relative z-50 lg:z-auto h-full flex flex-col shrink-0',
-                'bg-white dark:bg-dark-900',
-                'border-r border-gray-100 dark:border-white/6',
-                'transition-all duration-300 ease-in-out',
-                open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-                collapsed ? 'w-16' : 'w-56',
+                'fixed lg:relative z-50 lg:z-auto h-full flex shrink-0 flex-col bg-ob-rail border-r border-ob-line',
+                'ob-motion transition-[width,transform] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                // lg:translate-none, bukan lg:translate-x-0: nilai translate apa pun (termasuk 0) membuat
+                // stacking context, sehingga flyout & tooltip rel (z-50) tertutup konten utama.
+                open ? 'translate-x-0' : '-translate-x-full lg:translate-none',
             )}
-            data-sidebar-collapsed={collapsed}
+            data-sidebar-collapsed={isCollapsed}
         >
-            {/* Brand */}
-            <div className="h-14 flex items-center gap-2.5 px-3 shrink-0 border-b border-gray-100 dark:border-white/6">
-                <div className="w-8 h-8 rounded-lg bg-primary-600 dark:bg-primary-500 flex items-center justify-center shrink-0 shadow-sm shadow-primary-600/30">
-                    <img src="/images/kisantra.png" alt="Logo" className="w-5 h-5 object-contain" />
-                </div>
-                {!collapsed && (
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
-                            KISANTRA
-                        </p>
-                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium tracking-wide leading-tight">
-                            Finance Management
-                        </p>
-                    </div>
-                )}
-                <button
-                    onClick={onClose}
-                    className="lg:hidden p-1 rounded-md text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+            {/* Header: logo + nama (label memudar masuk saat rel dibuka) */}
+            <div className="flex h-11 items-center gap-3 pl-[14px] pr-3 mt-5 mb-[18px]">
+                <span
+                    aria-label="Kisantra"
+                    className="flex h-11 w-12 shrink-0 items-center justify-center rounded-xl border border-ob-line bg-ob-inner"
                 >
-                    <X className="w-4 h-4" />
-                </button>
+                    <img src="/images/kisantra.png" alt="" className="h-6 w-6 object-contain" />
+                </span>
+                {!isCollapsed && (
+                    <span className="min-w-0 flex-1 leading-tight ob-fade-in">
+                        <span className="block truncate text-[13px] font-semibold text-ob-ink">Kisantra Finance</span>
+                        <span className="block truncate text-xs text-ob-ink-3">Finance Management</span>
+                    </span>
+                )}
+                {open && (
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Tutup navigasi"
+                        className="lg:hidden flex h-9 w-9 items-center justify-center rounded-lg text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-thin">
-                {NAV.map((section, si) => {
-                    const visibleItems = section.items.filter(
-                        (item) => !item.permission || can(item.permission),
-                    );
-                    const sectionVisible =
-                        !section.anyPermission || canAny(section.anyPermission);
+            {/* Grup */}
+            <nav className="ob-scroll flex-1 min-h-0 pr-3" aria-label="Menu">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 pl-[14px]">
+                    {groups.map((g) => {
+                        const isActive = g.key === activeGroupKey;
+                        const isOpen = !isCollapsed && g.key === openKey && g.items.length > 0;
+                        const badge = groupBadge(g);
+                        const iconBox = (
+                            <span className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                                {g.icon}
+                                {isCollapsed && (
+                                    <CountBadge count={badge} className="absolute right-1 top-1" />
+                                )}
+                            </span>
+                        );
+                        const label = !isCollapsed && (
+                            <span className="min-w-0 flex-1 truncate pl-0.5">{g.label}</span>
+                        );
 
-                    if (!sectionVisible || visibleItems.length === 0) return null;
+                        /* Grup tanpa sub-item: tautan langsung. */
+                        if (g.href) {
+                            return (
+                                <li key={g.key}>
+                                    <Link
+                                        href={g.href}
+                                        onClick={onClose}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        className={cn(rowBase, isActive ? rowActive : rowIdle)}
+                                    >
+                                        {iconBox}
+                                        {label}
+                                        {isCollapsed && <RailTooltip label={g.label} />}
+                                    </Link>
+                                </li>
+                            );
+                        }
 
-                    return (
-                        <div key={si} className="space-y-0.5">
-                            {section.title && !collapsed && (
-                                <p className="px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-1">
-                                    {section.title}
-                                </p>
-                            )}
-                            {visibleItems.map((item) => (
-                                <NavLink
-                                    key={item.href}
-                                    item={item}
-                                    collapsed={collapsed}
-                                    currentUrl={currentUrl}
-                                    onClick={onClose}
-                                    badge={item.badgeKey ? actionCounts?.[item.badgeKey] ?? 0 : 0}
-                                />
-                            ))}
-                        </div>
-                    );
-                })}
+                        const onGroupClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+                            if (isCollapsed) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setFlyout((f) => (f?.key === g.key ? null : { key: g.key, top: rect.top }));
+                            } else {
+                                setOpenKey((k) => (k === g.key ? null : g.key));
+                            }
+                        };
+
+                        return (
+                            <li key={g.key}>
+                                <button
+                                    type="button"
+                                    onClick={onGroupClick}
+                                    aria-expanded={isCollapsed ? flyout?.key === g.key : isOpen}
+                                    aria-haspopup={isCollapsed ? 'menu' : undefined}
+                                    aria-current={isActive ? 'true' : undefined}
+                                    className={cn(rowBase, 'w-full text-left', isActive ? rowActive : rowIdle)}
+                                >
+                                    {iconBox}
+                                    {label}
+                                    {!isCollapsed && (
+                                        badge > 0 ? (
+                                            <CountBadge count={badge} className="mr-3.5" />
+                                        ) : (
+                                            <ChevronRight
+                                                className={cn(
+                                                    'mr-3 h-3.5 w-3.5 shrink-0 transition-transform duration-150',
+                                                    isOpen && 'rotate-90',
+                                                    isActive ? 'text-ob-invert-ink' : 'text-ob-ink-3',
+                                                )}
+                                            />
+                                        )
+                                    )}
+                                    {isCollapsed && (
+                                        <RailTooltip label={g.label} hint={g.items.map((i) => i.label).join(' · ')} />
+                                    )}
+                                </button>
+
+                                {/* Sub-item: menggantung di garis pandu dari ikon grupnya */}
+                                {isOpen && (
+                                    <ul className="relative m-0 mt-1 mb-2 ml-6 list-none py-0.5 pl-[22px] pr-0 flex flex-col gap-0.5 ob-fade-in">
+                                        <span aria-hidden="true" className="absolute left-0 top-1 bottom-1 w-px bg-ob-line-strong" />
+                                        {g.items.map((item) => {
+                                            const cur = matches(currentUrl, item.matchPrefix);
+                                            const count = badgeOf(item);
+                                            return (
+                                                <li key={item.href}>
+                                                    <Link
+                                                        href={item.href}
+                                                        onClick={onClose}
+                                                        aria-current={cur ? 'page' : undefined}
+                                                        className={cn(
+                                                            'flex h-[34px] items-center justify-between gap-2 rounded-[10px] pl-3.5 pr-3 text-[13px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
+                                                            cur
+                                                                ? 'bg-ob-inner font-semibold text-ob-ink'
+                                                                : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
+                                                        )}
+                                                    >
+                                                        <span className="truncate">{item.label}</span>
+                                                        {count > 0 && (
+                                                            <span className={cn('text-xs font-medium', cur ? 'text-ob-ink-2' : 'text-ob-ink-3')}>
+                                                                {count}
+                                                            </span>
+                                                        )}
+                                                    </Link>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </li>
+                        );
+                    })}
+                </ul>
             </nav>
 
-            {/* User profile */}
-            <div
-                ref={userMenuRef}
-                className="shrink-0 border-t border-gray-100 dark:border-white/6 p-2 relative"
-            >
-                <button
-                    onClick={() => setUserMenuOpen((v) => !v)}
-                    title={collapsed ? (user?.name ?? 'User') : undefined}
-                    className="flex items-center gap-2.5 w-full p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/4 transition-colors text-left"
+            {/* Flyout grup untuk rel ciut */}
+            {isCollapsed && flyout && flyoutGroup && (
+                <div
+                    role="menu"
+                    aria-label={flyoutGroup.label}
+                    style={{ top: flyout.top, left: RAIL_WIDTH + 8 }}
+                    className="fixed z-50 flex w-48 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20 ob-fade-in"
                 >
-                    <div className="w-7 h-7 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center shrink-0 text-primary-700 dark:text-primary-300 text-xs font-bold">
-                        {initials}
-                    </div>
-                    {!collapsed && (
-                        <>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate leading-tight">
-                                    {user?.name ?? 'User'}
-                                </p>
-                            </div>
-                            <ChevronLeft
+                    <span className="px-2.5 pt-1.5 pb-2 text-xs font-semibold text-ob-ink-3">{flyoutGroup.label}</span>
+                    {flyoutGroup.items.map((item) => {
+                        const cur = matches(currentUrl, item.matchPrefix);
+                        const count = badgeOf(item);
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                role="menuitem"
+                                onClick={() => setFlyout(null)}
                                 className={cn(
-                                    'w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 shrink-0 transition-transform duration-150 -rotate-90',
-                                    userMenuOpen && 'rotate-90',
+                                    'flex h-[34px] items-center justify-between rounded-[10px] px-2.5 text-[13px]',
+                                    cur ? 'bg-ob-inner font-semibold text-ob-ink' : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
                                 )}
-                            />
-                        </>
-                    )}
-                </button>
+                            >
+                                <span className="truncate">{item.label}</span>
+                                {count > 0 && <span className="text-xs text-ob-ink-3">{count}</span>}
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
 
-                {userMenuOpen && (
-                    <div
-                        className={cn(
-                            'absolute bottom-full mb-1 bg-white dark:bg-dark-700',
-                            'border border-gray-100 dark:border-white/8 rounded-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-10',
-                            collapsed ? 'left-full ml-1 w-48' : 'left-0 right-0',
-                        )}
+            {/* Pengalih tema (akun kini ada di header) */}
+            <div className="mt-2 pl-[14px] pr-3 pb-2.5">
+                {isCollapsed ? (
+                    <button
+                        type="button"
+                        onClick={onToggleDark}
+                        aria-label={darkMode ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}
+                        className="group relative flex h-12 w-12 items-center justify-center rounded-xl text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                     >
-                        <div className="px-3 py-2.5 border-b border-gray-100 dark:border-white/6">
-                            <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                                {user?.name ?? 'User'}
-                            </p>
-                            <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-0.5">
-                                {user?.email ?? ''}
-                            </p>
-                        </div>
-                        <div className="p-1">
-                            <Link
-                                href="/settings/profile"
-                                className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
-                            >
-                                <Users className="w-3.5 h-3.5 opacity-60" />
-                                Profil Saya
-                            </Link>
-                            <Link
-                                href="/settings/company"
-                                className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/6 rounded-lg transition-colors"
-                            >
-                                <Building2 className="w-3.5 h-3.5 opacity-60" />
-                                Profil Perusahaan
-                            </Link>
-                        </div>
-                        <div className="p-1 border-t border-gray-100 dark:border-white/6">
-                            {/* Lewat klien Inertia, bukan <form> biasa: token CSRF dibaca dari cookie
-                                XSRF-TOKEN yang diperbarui setiap respons. Form lama membaca <meta> yang
-                                dirender sekali saat halaman pertama dimuat — basi begitu sesi berganti,
-                                dan logout berakhir di layar "419 PAGE EXPIRED". */}
-                            <button
-                                type="button"
-                                onClick={() => router.post('/logout')}
-                                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            >
-                                    <svg
-                                        className="w-3.5 h-3.5"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                        strokeWidth={2}
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
-                                        />
-                                    </svg>
-                                    Keluar
-                            </button>
-                        </div>
+                        {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                        <RailTooltip label={darkMode ? 'Tema terang' : 'Tema gelap'} />
+                    </button>
+                ) : (
+                    <div role="group" aria-label="Tema" className="flex gap-0.5 rounded-full border border-ob-line bg-ob-card p-[3px]">
+                        {(
+                            [
+                                { dark: true, label: 'Gelap', icon: <Moon className="h-3.5 w-3.5" /> },
+                                { dark: false, label: 'Terang', icon: <Sun className="h-3.5 w-3.5" /> },
+                            ] as const
+                        ).map((opt) => {
+                            const pressed = darkMode === opt.dark;
+                            return (
+                                <button
+                                    key={opt.label}
+                                    type="button"
+                                    aria-pressed={pressed}
+                                    onClick={() => !pressed && onToggleDark()}
+                                    className={cn(
+                                        'flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
+                                        pressed ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink',
+                                    )}
+                                >
+                                    {opt.icon}
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Collapse toggle (desktop only) */}
-            <button
-                onClick={onToggleCollapse}
-                title={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
-                className="hidden lg:flex absolute top-17 -right-3 w-6 h-6 rounded-full bg-white dark:bg-dark-700 border border-gray-200 dark:border-white/10 shadow-sm items-center justify-center hover:bg-gray-50 dark:hover:bg-dark-600 transition-colors text-gray-400 dark:text-zinc-500 hover:text-gray-700 dark:hover:text-zinc-200"
-            >
-                <ChevronLeft
+            {/* Ciut / lebar (desktop) */}
+            <div className="hidden lg:block pl-[14px] pr-3 pb-5">
+                <button
+                    type="button"
+                    onClick={onToggleCollapse}
+                    aria-expanded={!isCollapsed}
+                    aria-label={isCollapsed ? 'Perlebar navigasi, pintasan [' : 'Ciutkan navigasi, pintasan ['}
                     className={cn(
-                        'w-3 h-3 transition-transform duration-300',
-                        collapsed && 'rotate-180',
+                        'group relative flex h-9 items-center gap-2.5 rounded-xl border border-ob-line text-xs font-medium text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
+                        isCollapsed ? 'w-12 justify-center' : 'w-full px-3.5',
                     )}
-                />
-            </button>
+                >
+                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                    {!isCollapsed && <span className="flex-1 text-left">Ciutkan</span>}
+                    {!isCollapsed && (
+                        <kbd className="rounded-md border border-ob-line px-1.5 text-xs leading-[18px]">[</kbd>
+                    )}
+                    {isCollapsed && <RailTooltip label="Perlebar" hint="[" />}
+                </button>
+            </div>
         </aside>
     );
 }

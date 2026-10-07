@@ -67,6 +67,39 @@ class PaymentControllerTest extends TestCase
         ]);
     }
 
+    public function test_store_rejects_amount_above_remaining(): void
+    {
+        Payment::factory()->create(['invoice_id' => $this->invoice->id, 'amount' => 600000, 'bank_account_id' => $this->bankAccount->id]);
+
+        $this->actingAs($this->admin)
+            ->postJson("/invoices/{$this->invoice->id}/payments", [
+                'amount' => 500000,
+                'payment_date' => '2026-03-10',
+                'payment_method' => 'cash',
+                'bank_account_id' => $this->bankAccount->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.amount.0', 'Melebihi sisa tagihan Rp 400.000. Catat kelebihan sebagai transaksi terpisah.');
+
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_update_may_use_the_remaining_including_its_own_amount(): void
+    {
+        $payment = Payment::factory()->create(['invoice_id' => $this->invoice->id, 'amount' => 600000, 'bank_account_id' => $this->bankAccount->id]);
+
+        $this->actingAs($this->admin)
+            ->postJson("/payments/{$payment->id}", [
+                'amount' => 1000000,
+                'payment_date' => '2026-03-10',
+                'payment_method' => 'bank_transfer',
+                'bank_account_id' => $this->bankAccount->id,
+            ])
+            ->assertOk();
+
+        $this->assertSame('paid', $this->invoice->fresh()->status);
+    }
+
     public function test_store_requires_a_bank_account(): void
     {
         $this->actingAs($this->admin)

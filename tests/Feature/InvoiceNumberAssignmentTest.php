@@ -86,8 +86,8 @@ class InvoiceNumberAssignmentTest extends TestCase
             'billed_to_id' => $client->id,
         ]);
 
-        $this->assertFalse(Invoice::isInvoiceLatestInMonth($invoice1));
-        $this->assertTrue(Invoice::isInvoiceLatestInMonth($invoice2));
+        $this->assertFalse(Invoice::isLatestInNumberingPeriod($invoice1));
+        $this->assertTrue(Invoice::isLatestInNumberingPeriod($invoice2));
     }
 
     public function test_is_invoice_latest_in_month_false_for_null_invoice_number(): void
@@ -101,6 +101,6 @@ class InvoiceNumberAssignmentTest extends TestCase
             'billed_to_id' => $client->id,
         ]);
 
-        $this->assertFalse(Invoice::isInvoiceLatestInMonth($invoice));
+        $this->assertFalse(Invoice::isLatestInNumberingPeriod($invoice));
     }
 }

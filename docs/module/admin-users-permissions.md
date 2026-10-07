@@ -35,6 +35,7 @@ Konvensi nama permission = `aksi + spasi + modul`. Modul dan aksinya:
 | Feedbacks | CRUD + `respond feedbacks`, `manage feedbacks` |
 | Reports | `view profit-loss` |
 | PDF Templates | `manage pdf templates` |
+| Invoice Settings | `manage invoice settings` (format penomoran invoice) |
 
 ### 3 Role Bawaan & Filosofinya
 

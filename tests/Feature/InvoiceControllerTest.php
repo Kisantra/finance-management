@@ -413,6 +413,203 @@ class InvoiceControllerTest extends TestCase
         ]);
     }
 
+    public function test_store_validation_messages_are_in_indonesian(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/invoices', ['issue_date' => '2026-03-01', 'due_date' => '2026-03-31', 'items' => [['service_name' => '', 'quantity' => 1, 'unit_price' => 0]]])
+            ->assertSessionHasErrors([
+                'client_id' => 'Klien wajib dipilih.',
+                'items.0.service_name' => 'Nama layanan baris 1 wajib diisi.',
+            ]);
+    }
+
+    public function test_detail_data_is_self_contained_for_the_global_modal(): void
+    {
+        $invoice = Invoice::factory()->sent()->create([
+            'billed_to_id' => $this->client->id,
+            'invoice_number' => '001/INV/SPI-XX/III/2026',
+            'issue_date' => '2026-03-01',
+        ]);
+
+        $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}/data")
+            ->assertOk()
+            ->assertJsonPath('rollbackable', true)
+            ->assertJsonPath('custom_templates', []);
+    }
+
+    public function test_drawer_actions_answer_json_instead_of_redirecting(): void
+    {
+        $draft = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-03-01']);
+
+        $this->actingAs($this->admin)
+            ->postJson("/invoices/{$draft->id}/send", ['invoice_number' => '001/INV/SPI-XX/III/2026'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Invoice diterbitkan: 001/INV/SPI-XX/III/2026');
+
+        $this->actingAs($this->admin)->postJson("/invoices/{$draft->id}/send", ['invoice_number' => '002/INV/SPI-XX/III/2026'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Hanya invoice draft yang dapat dikirim.');
+
+        $this->actingAs($this->admin)->postJson("/invoices/{$draft->id}/rollback")->assertOk();
+        $this->assertSame('draft', $draft->fresh()->status);
+
+        $this->actingAs($this->admin)->deleteJson("/invoices/{$draft->id}")->assertOk();
+        $this->assertDatabaseMissing('invoices', ['id' => $draft->id]);
+    }
+
+    public function test_delete_with_payments_is_refused_as_json(): void
+    {
+        $invoice = Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id]);
+        Payment::factory()->create(['invoice_id' => $invoice->id, 'amount' => 1000]);
+
+        $this->actingAs($this->admin)->deleteJson("/invoices/{$invoice->id}")->assertUnprocessable();
+        $this->assertDatabaseHas('invoices', ['id' => $invoice->id]);
+    }
+
+    public function test_send_rejects_a_number_already_used(): void
+    {
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'invoice_number' => '001/INV/SPI-XX/III/2026']);
+        $draft = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id]);
+
+        $this->actingAs($this->admin)
+            ->post("/invoices/{$draft->id}/send", ['invoice_number' => '001/INV/SPI-XX/III/2026'])
+            ->assertSessionHasErrors(['invoice_number' => 'Nomor ini sudah dipakai invoice lain.']);
+
+        $this->assertSame('draft', $draft->fresh()->status);
+    }
+
+    public function test_store_redirects_to_the_new_invoice_detail(): void
+    {
+        $response = $this->actingAs($this->admin)->post('/invoices', $this->invoicePayload());
+
+        $invoice = Invoice::latest('id')->first();
+        $response->assertRedirect("/invoices/{$invoice->id}");
+        $this->assertNull($invoice->invoice_number);
+    }
+
+    public function test_store_with_publish_assigns_number_and_sends(): void
+    {
+        $this->actingAs($this->admin)->post('/invoices', [...$this->invoicePayload(), 'publish' => true]);
+
+        $invoice = Invoice::latest('id')->first();
+        $this->assertSame('sent', $invoice->status);
+        $this->assertStringStartsWith('001/INV/', $invoice->invoice_number);
+        $this->assertStringEndsWith('/III/2026', $invoice->invoice_number);
+    }
+
+    public function test_update_with_publish_only_publishes_drafts(): void
+    {
+        $sent = Invoice::factory()->sent()->create([
+            'billed_to_id' => $this->client->id,
+            'invoice_number' => '005/INV/SPI-XX/III/2026',
+        ]);
+
+        $this->actingAs($this->admin)->put("/invoices/{$sent->id}", [...$this->invoicePayload(), 'publish' => true]);
+
+        $this->assertSame('005/INV/SPI-XX/III/2026', $sent->fresh()->invoice_number);
+    }
+
+    public function test_show_renders_the_list_with_the_invoice_selected(): void
+    {
+        $invoice = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id]);
+
+        $this->actingAs($this->admin)->get("/invoices/{$invoice->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('invoices/index')
+                ->where('selectedInvoiceId', $invoice->id)
+                ->has('invoices.data')
+            );
+    }
+
+    public function test_show_for_missing_invoice_still_renders_the_list(): void
+    {
+        $this->actingAs($this->admin)->get('/invoices/999999')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('selectedInvoiceId', 999999));
+
+        $this->actingAs($this->admin)->getJson('/invoices/999999/data')->assertNotFound();
+    }
+
+    public function test_preview_returns_a_pdf_of_unsaved_data(): void
+    {
+        $response = $this->actingAs($this->admin)->post('/invoices/preview', [
+            ...$this->invoicePayload(),
+            'highlight' => 0,
+            'items' => [
+                ['service_name' => 'Website company profile', 'quantity' => '2', 'unit' => 'paket', 'unit_price' => 1_500_000],
+                ['service_name' => 'Titipan PPh 23', 'quantity' => '1', 'unit_price' => 60_000, 'is_tax_deposit' => true],
+            ],
+        ]);
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $this->assertStringStartsWith('001/INV/', $response->headers->get('X-Invoice-Number'));
+        $this->assertDatabaseCount('invoices', 0);
+    }
+
+    public function test_preview_tolerates_an_incomplete_form(): void
+    {
+        $this->actingAs($this->admin)->post('/invoices/preview', [
+            'items' => [['service_name' => '', 'quantity' => '', 'unit_price' => null]],
+        ])->assertOk()->assertHeader('X-Invoice-Number', '');
+    }
+
+    public function test_preview_pdf_is_identical_to_the_downloaded_pdf(): void
+    {
+        $invoice = Invoice::factory()->sent()->create([
+            'billed_to_id' => $this->client->id,
+            'invoice_number' => '001/INV/SPI-XX/III/2026',
+            'issue_date' => '2026-03-01',
+            'due_date' => '2026-03-31',
+            'subtotal' => 1_000_000,
+            'discount_amount' => 0,
+            'discount_type' => 'fixed',
+            'discount_value' => 0,
+            'total_amount' => 1_000_000,
+        ]);
+        InvoiceItem::factory()->create([
+            'invoice_id' => $invoice->id,
+            'client_id' => $this->client->id,
+            'service_name' => 'Jasa Konsultasi',
+            'quantity' => 1,
+            'unit' => 'pcs',
+            'unit_price' => 1_000_000,
+            'amount' => 1_000_000,
+            'cogs_amount' => 0,
+            'is_tax_deposit' => false,
+        ]);
+
+        $downloaded = $this->actingAs($this->admin)->get("/invoice/{$invoice->id}/download")->assertOk()->streamedContent();
+        $preview = $this->actingAs($this->admin)->post('/invoices/preview', [
+            ...$this->invoicePayload(),
+            'invoice_id' => $invoice->id,
+        ])->assertOk()->getContent();
+
+        $this->assertSame($this->withoutTimestamps($downloaded), $this->withoutTimestamps($preview));
+    }
+
+    /** Stempel waktu & /ID acak berbeda di tiap render; sisanya harus identik byte demi byte. */
+    private function withoutTimestamps(string $pdf): string
+    {
+        return preg_replace(['/\/(CreationDate|ModDate) \(D:[^)]*\)/', '/\/ID\[<[0-9a-f]+><[0-9a-f]+>\]/'], '', $pdf);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invoicePayload(): array
+    {
+        return [
+            'client_id' => $this->client->id,
+            'issue_date' => '2026-03-01',
+            'due_date' => '2026-03-31',
+            'items' => [
+                ['service_name' => 'Jasa Konsultasi', 'quantity' => 1, 'unit' => 'pcs', 'unit_price' => 1_000_000, 'cogs_amount' => 0, 'is_tax_deposit' => false],
+            ],
+        ];
+    }
+
     public function test_store_requires_create_invoices_permission(): void
     {
         $this->actingAs($this->viewer)->post('/invoices', [
@@ -525,7 +722,7 @@ class InvoiceControllerTest extends TestCase
             'issue_date' => '2026-03-01',
         ]);
 
-        $response = $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}");
+        $response = $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}/data");
 
         $response->assertOk()
             ->assertJsonPath('next_invoice_number', Invoice::generateInvoiceNumber($invoice->issue_date, $this->client->id));
@@ -539,7 +736,7 @@ class InvoiceControllerTest extends TestCase
             'invoice_number' => '001/INV/SPI-XX/III/2026',
         ]);
 
-        $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}")
+        $this->actingAs($this->admin)->getJson("/invoices/{$invoice->id}/data")
             ->assertOk()
             ->assertJsonPath('next_invoice_number', null);
     }
@@ -553,6 +750,60 @@ class InvoiceControllerTest extends TestCase
 
         $this->assertDatabaseHas('invoices', ['id' => $invoice->id]);
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_index_sends_calendar_dates_without_timezone_shift(): void
+    {
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-09-22', 'due_date' => '2026-10-06']);
+
+        $this->actingAs($this->admin)
+            ->get('/invoices?month=2026-09')
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.data.0.issue_date', '2026-09-22')
+                ->where('invoices.data.0.due_date', '2026-10-06')
+            );
+    }
+
+    public function test_overdue_filter_spans_months_and_reports_remaining(): void
+    {
+        Carbon::setTestNow('2026-09-25');
+        $late = Invoice::factory()->sent()->create(['status' => 'partially_paid', 'billed_to_id' => $this->client->id, 'issue_date' => '2026-07-01', 'due_date' => '2026-07-31', 'total_amount' => 4_000_000]);
+        Payment::factory()->create(['invoice_id' => $late->id, 'amount' => 1_500_000]);
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-09-01', 'due_date' => '2026-09-20', 'total_amount' => 2_000_000]);
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-09-01', 'due_date' => '2026-10-20', 'total_amount' => 9_000_000]);
+        Invoice::factory()->paid()->create(['billed_to_id' => $this->client->id, 'issue_date' => '2026-09-01', 'due_date' => '2026-09-02', 'total_amount' => 7_000_000]);
+
+        $this->actingAs($this->admin)
+            ->get('/invoices?month=2026-09&status=overdue')
+            ->assertInertia(fn ($page) => $page
+                ->has('invoices.data', 2)
+                ->where('stats.overdue_count', 2)
+                ->where('stats.overdue_amount', 4_500_000)
+            );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_export_follows_the_overdue_filter_across_months(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-25 10:00:00'));
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'invoice_number' => 'LATE-FEB', 'issue_date' => '2026-02-01', 'due_date' => '2026-02-15', 'total_amount' => 4_000_000]);
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'invoice_number' => 'SEP-OPEN', 'issue_date' => '2026-09-01', 'due_date' => '2026-10-20', 'total_amount' => 9_000_000]);
+        Invoice::factory()->paid()->create(['billed_to_id' => $this->client->id, 'invoice_number' => 'SEP-PAID', 'issue_date' => '2026-09-01', 'due_date' => '2026-09-02', 'total_amount' => 7_000_000]);
+
+        Excel::fake();
+
+        $this->actingAs($this->admin)->get('/invoices/export/excel?month=2026-09&status=overdue')->assertOk();
+
+        Excel::assertDownloaded('rekap-invoice-20260925-100000.xlsx', function (InvoiceRecapExport $export) {
+            $flat = collect($export->array())->flatten()->implode('|');
+
+            // Sama dengan daftar: hanya yang lewat jatuh tempo, dari bulan mana pun.
+            return str_contains($flat, 'LATE-FEB')
+                && ! str_contains($flat, 'SEP-OPEN')
+                && ! str_contains($flat, 'SEP-PAID')
+                && str_contains($flat, 'Perlu ditagih');
+        });
     }
 
     public function test_stats_follow_status_tab_but_tab_counts_do_not(): void

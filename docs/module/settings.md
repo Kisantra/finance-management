@@ -1,17 +1,31 @@
-# Modul: Settings (Profil, Password, Perusahaan, PDF Template Builder)
+# Modul: Settings (Hub, Profil, Password, Perusahaan, Penomoran Invoice, PDF Template Builder)
 
-> Modul pengaturan pribadi (profil & kata sandi), profil perusahaan tunggal (identitas, NPWP/PKP, aset gambar untuk PDF), dan **WYSIWYG PDF Template Builder** beserta pustaka font kustom global. Route prefix `/settings` dengan nama route `settings.*`. Profil/password/company terbuka untuk semua user login; sub-grup `pdf-templates` (termasuk custom fonts) digate permission `manage pdf templates`.
+> Modul pengaturan pribadi (profil & kata sandi), profil perusahaan tunggal (identitas, NPWP/PKP, aset gambar untuk PDF), dan **WYSIWYG PDF Template Builder** beserta pustaka font kustom global. Route prefix `/settings` dengan nama route `settings.*`. Profil/password/company terbuka untuk semua user login; `invoice-numbering` digate `manage invoice settings`; sub-grup `pdf-templates` (termasuk custom fonts) digate permission `manage pdf templates`.
 
 ## Tabel Database
 
 | Tabel | Kolom penting | Keterangan |
 |-------|---------------|------------|
 | `users` | `name`, `email`, `password`, `phone_number`, `locale`, `status` | Data akun yang diedit di profile/password. |
-| `company_profiles` | `name`, `abbreviation`, `address`, `email`, `phone`, `logo_path`, `letter_head_path`, `signature_path`, `stamp_path`, `is_pkp` (bool), `npwp`, `ppn_rate` (decimal:2), `bank_accounts` (JSON), `finance_manager_name`, `finance_manager_position` | Singleton — hanya satu baris, diakses via `CompanyProfile::current()`. |
+| `company_profiles` | `name`, `abbreviation`, `address`, `email`, `phone`, `logo_path`, `letter_head_path`, `signature_path`, `stamp_path`, `is_pkp` (bool), `npwp`, `ppn_rate` (decimal:2), `bank_accounts` (JSON), `finance_manager_name`, `finance_manager_position`, `invoice_number_format` (default `{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`), `invoice_number_padding` (1–5 digit minimum, default 3), `invoice_number_reset` (`monthly`/`yearly`/`never`, default `monthly`) | Singleton — hanya satu baris, diakses via `CompanyProfile::current()`. |
 | `pdf_templates` | `name`, `description`, `layout` (JSON), `is_default` (bool) | Layout builder: banded (`{paper, bands:{header, content, footerFlow, footerFixed}}`) atau legacy flat-array. |
 | `custom_fonts` | `name` (unique), `filename` | Font .ttf global untuk semua template; file di `storage/app/public/fonts/custom/`. |
 
 ## Fitur
+
+### Hub Pengaturan (`GET /settings`)
+
+`Route::inertia('/', 'settings/index')` — halaman `settings/index.tsx` (gaya Obsidian, referensi "General & Security Settings"): kartu baris berkelompok **Akun** (Profil, Kata sandi), **Perusahaan** (Profil perusahaan), **Invoice** (Penomoran invoice, Template PDF). Tiap baris = ikon, nama, keterangan, panah; baris bertanda permission disembunyikan dari user tanpa izin itu (`auth.permissions`). Halaman detail memakai `SettingsLayout` (tautan "‹ Pengaturan" + judul + satu kartu isi; prop `bare` untuk halaman yang menyusun kartunya sendiri) — tidak ada lagi menu samping antarpengaturan. Menu akun di header menautkan "Pengaturan" ke hub.
+
+### Penomoran Invoice (`GET/PUT /settings/invoice-numbering`, `can:manage invoice settings`)
+
+**Alur step-by-step:**
+1. `InvoiceSettingsController::edit()` merender `settings/invoice-numbering` dengan `settings` aktif, `defaults`, katalog `tokens`, `paddings`, `hasCompany`, bahan pratinjau `sample` (tanggal hari ini, inisial perusahaan, nama + inisial klien terbaru, `next_sequence` untuk tiap pilihan reset — dihitung server) dan `recent` (4 nomor terakhir yang terbit).
+2. User menyusun **pola** (teks bebas + chip token yang disisipkan di posisi kursor), memilih **jumlah digit minimum** (tanpa nol / 2 / 3 / 4 / 5 — nomor tetap bertambah melewatinya) dan **kapan nomor kembali ke 1** (tiap bulan/tiap tahun/tidak pernah). Kartu Pratinjau langsung menampilkan nomor contoh dengan bagian asal token ditandai + daftar nilai per token. Validasi instan di frontend mencerminkan `InvoiceNumberService::formatError()` (pesan sama); Simpan nonaktif selama pola tidak valid/tidak berubah.
+3. `PUT` divalidasi `UpdateInvoiceSettingsRequest` (`padding` ∈ 1–5, `reset` ∈ RESETS, lalu `after()` → profil perusahaan wajib ada + `formatError()`), lalu `CompanyProfile::current()->update([...])`.
+4. Berlaku untuk invoice yang **dikirim setelah disimpan**; nomor yang sudah terbit tidak berubah, urutan tetap lanjut dari `invoice_sequence` (lihat `invoices.md`).
+
+Tanpa baris profil perusahaan, simpan ditolak ("Lengkapi Profil Perusahaan terlebih dahulu…") — halaman ini tidak membuat profil kosong (kolom profil lain wajib diisi).
 
 ### Profil — Edit & Hapus Akun (`GET/PATCH/DELETE /settings/profile`)
 
@@ -196,9 +210,10 @@ if (str_starts_with((string) $template, 'builder:')) {
 ## Keterkaitan Antar Modul
 
 - **Invoice/PDF**: `InvoicePrintService` dan template Blade `resources/views/pdf/*.blade.php` memakai `CompanyProfile::current()` + accessor base64 (logo/letterhead/signature/stamp) dan `ppn_rate`/`is_pkp`/`npwp` untuk perhitungan & tampilan pajak.
-- **Fund Request**: nomor dokumen `001/KSN/I/2026` memakai `computed_abbreviation`.
+- **Fund Request**: nomor dokumen `001/KSN/I/2026` memakai `computed_abbreviation` (tidak ikut pengaturan penomoran invoice).
+- **Invoice**: `InvoiceNumberService` membaca pengaturan penomoran dari `company_profiles`.
 - **Invoice download/preview** menerima `template=builder:{id}` → `BuilderInvoicePrinter` (lihat `routes/web.php` baris 158–196).
-- **Permissions**: `manage pdf templates` didefinisikan di `MasterPermissionSeeder` (hanya admin).
+- **Permissions**: `manage pdf templates` didefinisikan di `MasterPermissionSeeder` (hanya admin); `manage invoice settings` (admin + finance manager) ditambahkan oleh migrasi `2026_10_08_005001_add_manage_invoice_settings_permission` dan seeder.
 - **Header React** (`resources/js/layouts/header.tsx`): switcher bahasa memanggil `POST /language` yang menyimpan `locale` ke session — dibaca `HandleInertiaRequests` sebagai prop `locale`.
 
 ## Invarian & Jebakan
@@ -222,10 +237,11 @@ if (str_starts_with((string) $template, 'builder:')) {
 - `app/Http/Controllers/Settings/CompanyController.php`
 - `app/Http/Controllers/Settings/PdfTemplateController.php`
 - `app/Http/Controllers/Settings/CustomFontController.php`
+- `app/Http/Controllers/Settings/InvoiceSettingsController.php`, `app/Http/Requests/Settings/UpdateInvoiceSettingsRequest.php`, `app/Services/InvoiceNumberService.php`
 - `app/Http/Controllers/TemplateBuilderController.php` (sandbox legacy)
 - `app/Http/Requests/Settings/UpdateCompanyRequest.php`
 - `app/Models/CompanyProfile.php`, `PdfTemplate.php`, `CustomFont.php`
 - `app/Services/BuilderInvoicePrinter.php`, `TemplateTokens.php`, `ItemColumns.php`
 - `resources/views/pdf/template-builder.blade.php`
-- `resources/js/pages/settings/profile.tsx`, `password.tsx`, `company.tsx`, `pdf-templates/`
-- Tests: `tests/Feature/Settings/ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `tests/Feature/PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`
+- `resources/js/pages/settings/index.tsx` (hub), `invoice-numbering.tsx`, `profile.tsx`, `password.tsx`, `company.tsx`, `pdf-templates/`; `resources/js/layouts/settings-layout.tsx`
+- Tests: `tests/Feature/Settings/ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `InvoiceNumberingSettingsTest.php`, `tests/Feature/InvoiceNumberServiceTest.php`, `tests/Feature/PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`

@@ -8,8 +8,100 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* =========================================================================
+   Obsidian tokens (dark soft-surface) — satu set variabel, dua nilai per tema.
+   Sumber: .claude/design-systems/archipelago.md → "Obsidian".
+   Kelas Tailwind: bg-ob-page, bg-ob-rail, bg-ob-card, bg-ob-inner, bg-ob-chip,
+   bg-ob-hover, text-ob-ink, text-ob-ink-2, text-ob-ink-3, border-ob-line,
+   text-ob-pos / -neg / -wait / -late / -act (chip tinted: bg-ob-pos/15 dst.).
+   ========================================================================= */
+:root {
+    --ob-page: #f6f6f8;
+    --ob-rail: #efeff2;
+    --ob-card: #ffffff;
+    --ob-inner: #f1f1f4;
+    --ob-chip: #e4e4e9;
+    --ob-hover: #e9e9ee;
+    --ob-ink: #141416;
+    --ob-ink-2: #52525c;
+    --ob-ink-3: #66666f;
+    --ob-line: rgba(0, 0, 0, 0.08);
+    --ob-line-soft: rgba(0, 0, 0, 0.06);
+    --ob-line-strong: rgba(0, 0, 0, 0.14);
+    --ob-invert: #141416;
+    --ob-invert-ink: #ffffff;
+    --ob-pos: #047857;
+    --ob-neg: #c2410c;
+    --ob-wait: #854d0e;
+    --ob-late: #b91c1c;
+    --ob-act: #1d4ed8;
+    --ob-act-fill: #2563eb;
+    --ob-badge: #f59e0b;
+    --ob-badge-ink: #141416;
+    --ob-bar-past: rgba(37, 99, 235, 0.75);
+    --ob-bar-now: #2563eb;
+    --ob-hatch: rgba(20, 20, 22, 0.55);
+    --ob-hatch-edge: rgba(20, 20, 22, 0.35);
+    --ob-scroll: #c9c9d1;
+}
+
+.dark {
+    --ob-page: #0b0b0d;
+    --ob-rail: #0f0f12;
+    --ob-card: #151518;
+    --ob-inner: #1c1c21;
+    --ob-chip: #26262c;
+    --ob-hover: #22222a;
+    --ob-ink: #f2f2f3;
+    --ob-ink-2: #a3a3ab;
+    --ob-ink-3: #8b8b95;
+    --ob-line: rgba(255, 255, 255, 0.07);
+    --ob-line-soft: rgba(255, 255, 255, 0.06);
+    --ob-line-strong: rgba(255, 255, 255, 0.14);
+    --ob-invert: #f2f2f3;
+    --ob-invert-ink: #0b0b0d;
+    --ob-pos: #34d399;
+    --ob-neg: #fb923c;
+    --ob-wait: #fbbf24;
+    --ob-late: #f87171;
+    --ob-act: #60a5fa;
+    --ob-act-fill: #2563eb;
+    --ob-badge: #fbbf24;
+    --ob-badge-ink: #0b0b0d;
+    --ob-bar-past: rgba(59, 130, 246, 0.7);
+    --ob-bar-now: #60a5fa;
+    --ob-hatch: rgba(255, 255, 255, 0.4);
+    --ob-hatch-edge: rgba(255, 255, 255, 0.35);
+    --ob-scroll: #2e2e36;
+}
+
+@theme inline {
+    --color-ob-page: var(--ob-page);
+    --color-ob-rail: var(--ob-rail);
+    --color-ob-card: var(--ob-card);
+    --color-ob-inner: var(--ob-inner);
+    --color-ob-chip: var(--ob-chip);
+    --color-ob-hover: var(--ob-hover);
+    --color-ob-ink: var(--ob-ink);
+    --color-ob-ink-2: var(--ob-ink-2);
+    --color-ob-ink-3: var(--ob-ink-3);
+    --color-ob-line: var(--ob-line);
+    --color-ob-line-soft: var(--ob-line-soft);
+    --color-ob-line-strong: var(--ob-line-strong);
+    --color-ob-invert: var(--ob-invert);
+    --color-ob-invert-ink: var(--ob-invert-ink);
+    --color-ob-pos: var(--ob-pos);
+    --color-ob-neg: var(--ob-neg);
+    --color-ob-wait: var(--ob-wait);
+    --color-ob-late: var(--ob-late);
+    --color-ob-act: var(--ob-act);
+    --color-ob-act-fill: var(--ob-act-fill);
+    --color-ob-badge: var(--ob-badge);
+    --color-ob-badge-ink: var(--ob-badge-ink);
+}
+
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 
     /* =========================================================================
@@ -44,20 +136,20 @@
     --color-secondary-900: #0f172a;
     --color-secondary-950: #020617;
 
-    /* DARK COLOR - Zinc palette (dark mode) */
+    /* DARK COLOR - skala Obsidian (dark mode); nilainya disamakan dengan --ob-* di atas */
     /* Hierarchy: 950=body bg → 900=sidebar/header → 800=input field → 700=card/modal/panel → 600=border/hover/disabled → 500=divider → 400=icon/placeholder → 300=body text → 200=heading text */
-    --color-dark: #3f3f46;
+    --color-dark: #26262c;
     --color-dark-50: #fafafa;
     --color-dark-100: #f4f4f5;
-    --color-dark-200: #f4f4f5;  /* Heading/prominent text */
+    --color-dark-200: #f2f2f3;  /* Heading/prominent text */
     --color-dark-300: #e4e4e7;  /* Body text / content text */
-    --color-dark-400: #a1a1aa;  /* Icon, placeholder, muted text */
-    --color-dark-500: #71717a;  /* Divider */
-    --color-dark-600: #3f3f46;  /* Border, hover bg, disabled bg */
-    --color-dark-700: #1a1a1d;  /* Card, modal, dropdown panel */
-    --color-dark-800: #141414;  /* Input field background */
-    --color-dark-900: #0f0f11;  /* Sidebar, header background */
-    --color-dark-950: #09090a;  /* Body / main content background */
+    --color-dark-400: #a3a3ab;  /* Icon, placeholder, muted text */
+    --color-dark-500: #8b8b95;  /* Divider, teks paling redup (5,4:1) */
+    --color-dark-600: #26262c;  /* Border, hover bg, disabled bg */
+    --color-dark-700: #151518;  /* Card, modal, dropdown panel */
+    --color-dark-800: #1c1c21;  /* Input field / kartu-dalam */
+    --color-dark-900: #0f0f12;  /* Sidebar, header background */
+    --color-dark-950: #0b0b0d;  /* Body / main content background */
 
     /* =========================================================================
        Layout-Specific Variables
@@ -119,6 +211,54 @@ h1, h2, h3, h4, h5, h6,
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-dark-400) transparent;
+}
+
+/* =========================================================================
+   Obsidian helpers
+   ========================================================================= */
+
+/* Daftar yang menggulir di dalam kartu: scrollbar tipis, tanpa scroll chaining. */
+.ob-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: var(--ob-scroll) transparent;
+}
+.ob-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--ob-scroll);
+}
+/* Fade hanya di zona gap bawah, dan hanya saat masih ada sisa (class dipasang lewat JS). */
+.ob-scroll.has-more {
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(#000 calc(100% - 12px), transparent);
+}
+
+/* Tekstur garis miring = pengeluaran / di luar rentang / placeholder. */
+.ob-hatch {
+    background-image: repeating-linear-gradient(135deg, var(--ob-hatch) 0 2px, transparent 2px 6px);
+    border: 1px solid var(--ob-hatch-edge);
+}
+.ob-hatch-soft {
+    background-image: repeating-linear-gradient(135deg, var(--ob-line) 0 2px, transparent 2px 6px);
+}
+
+.ob-tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes ob-fade-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: none; }
+}
+@utility ob-fade-in {
+    animation: ob-fade-in 150ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ob-fade-in { animation: none; }
+    .ob-motion, .ob-motion * {
+        transition-duration: 0ms !important;
+        animation-duration: 0ms !important;
+    }
 }
 
 /* =========================================================================

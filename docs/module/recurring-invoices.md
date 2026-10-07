@@ -95,12 +95,11 @@ Siklus maju dari `start_date` per interval; bulan penagihan pertama adalah **sat
 **Alur step-by-step:**
 1. User klik Publish pada draft → dialog minta `issue_date` & `due_date` → POST `/recurring-invoices/monthly/{invoice}/publish` (`can:edit recurring-invoices`).
 2. `publishMonthly()` menolak jika sudah `published`; menyimpan issue/due date lalu memanggil `$invoice->publish()`.
-3. Respons JSON berisi `invoice_number` hasil publish.
+3. Respons JSON berisi `invoice_id` invoice draft yang dibuat + pesan "Invoice draft dibuat. Kirim invoice untuk mendapat nomor resmi." Tautan di daftar membuka modal `#invoice/{id}` (label nomor bila sudah dikirim, "Draft · belum dikirim" bila belum).
 
 **Penjelasan kode** (`app/Models/RecurringInvoice.php::publish`):
 ```php
 $invoice = Invoice::create([
-    'invoice_number' => $this->generateInvoiceNumber(),  // format sama: {seq}/INV/...
     'billed_to_id' => $this->client_id,
     'subtotal' => $this->invoice_data['subtotal'],
     ...
@@ -109,7 +108,7 @@ $invoice = Invoice::create([
 foreach ($this->items as $itemData) { $invoice->items()->create([...]); }
 $this->update(['status' => 'published', 'published_invoice_id' => $invoice->id]);
 ```
-Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah published, mengembalikan `publishedInvoice` yang ada). Perhatikan dua hal: (1) invoice hasil publish **langsung diberi `invoice_number`** (sequence dihitung dari bulan `issue_date`) padahal statusnya `draft` — berbeda dengan alur invoice manual yang baru ber-nomor saat send; (2) `is_tax_deposit` dan `unit` **tidak disalin** ke `invoice_items` (hanya service_name, quantity, unit_price, amount, cogs_amount). `due_date` fallback = issue/scheduled + 30 hari.
+Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah published, mengembalikan `publishedInvoice` yang ada). Perhatikan dua hal: (1) sejak 2026-10-08 invoice hasil publish **tidak diberi nomor** — sama dengan invoice manual, nomor resmi diberikan saat "Kirim" lewat `InvoiceNumberService` (sebelumnya publish memberi nomor lewat generator salinan sendiri padahal statusnya `draft`, dan tidak ikut format yang diatur); (2) `is_tax_deposit` dan `unit` **tidak disalin** ke `invoice_items` (hanya service_name, quantity, unit_price, amount, cogs_amount). `due_date` fallback = issue/scheduled + 30 hari.
 
 ### Bulk Publish & Bulk Destroy
 **Alur:** POST `/monthly/bulk-publish` (payload `ids[]`, `issue_date`, `due_date`) — loop publish semua draft terpilih; kegagalan per-item dicatat ke log tanpa menghentikan sisanya; respons `{published}`. POST `/monthly/bulk-destroy` (payload `ids[]`) — `whereIn(id)->where('status','draft')->delete()`; yang published otomatis kebal terhapus.
@@ -119,7 +118,7 @@ Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah 
 
 ## Keterkaitan Antar Modul
 - **Invoices:** `publish()` menulis ke `invoices` + `invoice_items`; setelah itu invoice mengikuti alur normal (send, payment, PDF). `published_invoice_id` menautkan balik.
-- **Clients:** `client_id` di template & draft; klien juga dipakai untuk inisial nomor invoice saat publish.
+- **Clients:** `client_id` di template & draft; inisial klien untuk nomor invoice dipakai saat invoice hasil publish dikirim.
 - **Services:** master pilihan item saat menyusun template/draft (snapshot, bukan FK).
 - **Dashboard/Sidebar:** jumlah draft recurring dipakai sebagai action count.
 

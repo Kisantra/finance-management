@@ -1,13 +1,14 @@
 # Modul: Invoice & Pembayaran
 
-> Modul inti untuk menagih klien: membuat invoice berisi item layanan (dengan HPP/COGS dan titipan pajak), mengirimkannya (penomoran resmi), mencatat pembayaran ke rekening bank, serta mengekspor rekap (Excel/PDF) dan mencetak invoice per-lembar (PDF klasik maupun template builder). Route prefix: `/invoices` (CRUD + export), `/payments` (update/hapus pembayaran), `/invoice/{invoice}/download|preview` (PDF). Semua route digate permission Spatie: `view invoices` (grup), plus `create invoices`, `edit invoices`, `delete invoices` per aksi; `send` dan `rollback` ikut digate `edit invoices` (lihat `routes/web.php` baris 133–203).
+> Modul inti untuk menagih klien: membuat invoice berisi item layanan (dengan HPP/COGS dan titipan pajak), mengirimkannya (penomoran resmi), mencatat pembayaran ke rekening bank, serta mengekspor rekap (Excel/PDF) dan mencetak invoice per-lembar (PDF klasik maupun template builder). Route prefix: `/invoices` (CRUD + export), `/payments` (update/hapus pembayaran), `/invoice/{invoice}/download|preview` (PDF), `POST /invoices/preview` (PDF pratinjau editor dari data belum tersimpan). Semua route digate permission Spatie: `view invoices` (grup), plus `create invoices`, `edit invoices`, `delete invoices` per aksi; `send` dan `rollback` ikut digate `edit invoices` (lihat `routes/web.php` baris 133–203).
 
 ## Tabel Database
 
 ### `invoices`
 | Kolom | Tipe/Catatan |
 |---|---|
-| `invoice_number` | string, **nullable saat draft**; diisi saat "send" dengan format `{seq 3 digit}/INV/{inisial perusahaan}-{inisial klien}/{bulan romawi}/{tahun}` (mis. `001/INV/KSN-ABC/VIII/2026`). Unique (divalidasi di `SendInvoiceRequest`). |
+| `invoice_number` | string, **nullable saat draft**; diisi saat "send" mengikuti **format yang bisa diatur** di Pengaturan › Penomoran invoice (default `{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`, mis. `001/INV/KSN-ABC/VIII/2026`). Unique (divalidasi di `SendInvoiceRequest`). |
+| `invoice_sequence` | unsigned int nullable — nomor urut di dalam `invoice_number`, **diisi otomatis** oleh hook `saving` model setiap kali `invoice_number` berubah (`InvoiceNumberService::sequenceOf()` dengan pola aktif); null untuk draft dan nomor manual yang tidak cocok pola. Dasar hitungan nomor berikutnya & aturan rollback. Diisi untuk data lama oleh migrasi 2026-10-08 (angka di depan `/INV/`). |
 | `billed_to_id` | FK → `clients.id` (relasi `client()` di model) |
 | `subtotal` | **integer rupiah penuh** — jumlah `amount` semua item |
 | `discount_amount` / `discount_type` / `discount_value` / `discount_reason` | diskon; `discount_type` = `fixed` \| `percentage`; `discount_amount` adalah hasil hitung (integer) |
@@ -42,34 +43,37 @@
 
 ### Daftar Invoice (Index + Statistik)
 **Alur step-by-step:**
-1. User membuka `/invoices` (GET, `can:view invoices`). Query string: `search`, `status`, `client_ids[]`, `month` (default bulan berjalan `Y-m`), `date_from`/`date_to`, `per_page`, `sort`, `direction`.
+1. User membuka `/invoices` (GET, `can:view invoices`). Query string: `search`, `status` (`draft|sent|partially_paid|paid|overdue`), `client_ids[]`, `month` (default bulan berjalan `Y-m`), `date_from`/`date_to`, `per_page`, `sort`, `direction`.
 2. `InvoiceController::index()` membangun query dengan join `clients` + subquery jumlah `payments` per invoice, memfilter periode via `applyPeriodFilter()` (range tanggal **menimpa** filter bulan bila salah satu bound terisi).
 3. Kartu statistik mengikuti **semua** filter aktif termasuk tab status (sejak QA 2026-09-21; sebelumnya status diabaikan dan angka kartu terasa "tidak sesuai filter"). Hanya **hitungan per tab** yang mengabaikan status agar tab lain tidak membaca 0. Revenue/HPP/laba **mengecualikan `draft` dan `cancelled`**; `total_cogs` mengecualikan item `is_tax_deposit`; outstanding = billed − paid pada invoice `sent`/`partially_paid`.
-4. Respons: `Inertia::render('invoices/index', ...)` dengan props `invoices` (paginated), `stats`, `clients`, `rollbackableIds`, `customTemplates` (daftar `PdfTemplate` builder), `filters`.
-5. UI menampilkan DataTable + StatsCard + tab per status; klik baris membuka Sheet detail yang fetch `/invoices/{id}` (JSON).
+4. **"Perlu ditagih"** (`status=overdue`) bukan status tersimpan: `applyStatusFilter()` memilih `sent`/`partially_paid` dengan `due_date < today` dan **mengabaikan filter periode** (lintas bulan), tetap ikut klien/pencarian. `stats.overdue_count` & `stats.overdue_amount` (Σ sisa tagihan) selalu dihitung lintas bulan, tidak terpengaruh tab.
+5. Tanggal di baris daftar dikirim sebagai `Y-m-d` (bukan ISO UTC) — zona waktu app `Asia/Makassar` membuat ISO UTC mundur sehari di browser (QA 2026-09-26, BUG-02).
+6. Respons: `Inertia::render('invoices/index', ...)` dengan props `invoices` (paginated), `stats`, `clients`, `customTemplates` (daftar `PdfTemplate` builder), `selectedInvoiceId`, `filters`.
+7. UI (gaya Obsidian): kartu ringkasan (total ditagih, sudah dibayar, belum dibayar, perlu ditagih + bar sebaran status), pil status + pil "Perlu ditagih", tabel. Klik baris → drawer detail (lihat berikut).
 
-**Penjelasan kode** (`app/Http/Controllers/InvoiceController.php`):
-```php
-$rollbackableIds = Invoice::where('status', 'sent')
-    ->whereNotNull('invoice_number')
-    ->where('invoice_number', 'LIKE', '%/INV/%')
-    ->get(['id', 'invoice_number', 'issue_date'])
-    ->groupBy(fn ($inv) => date('Y-m', strtotime($inv->issue_date)))
-    ->map(fn ($group) => $group->sortByDesc(fn ($inv) => (int) explode('/INV/', $inv->invoice_number)[0])->first())
-    ->pluck('id');
-```
-Hanya invoice `sent` dengan **sequence tertinggi per bulan** yang boleh di-rollback — dikirim ke frontend agar tombol rollback hanya muncul di invoice yang eligible (menjaga penomoran tetap berurutan).
+Kelayakan rollback dihitung per invoice di `data()` (`rollbackable` = status `sent` dan `Invoice::isInvoiceLatestInMonth()`), sama dengan aturan yang ditegakkan `rollback()`.
 
-### Detail Invoice (Show — JSON)
-**Alur:** UI (Sheet di `resources/js/pages/invoices/index.tsx`) melakukan `fetch('/invoices/{id}')` → `show()` mengembalikan JSON lengkap: header invoice + accessor `amount_paid`/`amount_remaining`, data klien (termasuk `NPWP`), daftar `items`, dan daftar `payments` beserta nama rekening bank & URL lampiran. Bukan halaman Inertia terpisah — semua interaksi detail terjadi dalam modal/sheet di halaman index.
+### Detail Invoice (modal global `#invoice/{id}`)
+Detail invoice adalah **modal yang menumpang di halaman mana pun**, seperti Settings di claude.ai: halaman di belakang tidak berganti, URL hanya ditambah hash. Contoh: dari Ringkasan → `/dashboard#invoice/13`; dari daftar → `/invoices?month=2026-09#invoice/13`.
+
+**Alur step-by-step:**
+1. Tautan detail adalah anchor biasa ke `#invoice/{id}` (`resourceHref()`), atau `openResource('invoice', id)` dari kode (klik baris daftar, notifikasi). Tidak ada permintaan ke server untuk halaman di belakang.
+2. `lib/resource-modal.ts::installResourceModal()` (dipasang di `inertia.tsx` **sebelum** `createInertiaApp`) mencegat `popstate` yang hanya mengubah hash: Inertia tidak menangani (tidak menggulir ke atas / memasang ulang halaman), lalu `router.replace` sisi klien menyamakan URL & state riwayat Inertia.
+3. `ResourceModalHost` (`components/resource-modal-host.tsx`, dirender `AppLayout`) membaca **`window.location.hash`** lewat `useResource()` — bukan `usePage().url`, karena saat halaman dimuat ulang Inertia menempelkan hash ke objek halamannya tanpa memicu render ulang — dan me-render `InvoiceDrawer` (dimuat malas).
+4. Drawer mengambil `GET /invoices/{id}/data` (JSON: header + `amount_paid`/`amount_remaining`, klien, `items` (+ `client_name`), `payments` (+ `created_at`), `next_invoice_number` untuk draft, `rollbackable`, `custom_templates`, `created_at`/`updated_at`) — mandiri, tidak butuh props halaman invoice. 404 → "Invoice tidak ditemukan", halaman di belakang tetap.
+5. Aksi di drawer (kirim, rollback, hapus, bayar) memakai **fetch JSON** (`send`/`rollback`/`destroy` menjawab JSON bila `expectsJson()`, lewat `actionResult()`), bukan kunjungan Inertia yang akan mengganti halaman di belakang. Setelah berhasil drawer memuat ulang datanya dan host memanggil `router.reload()` — URL sama sehingga Inertia mempertahankan hash dan modal tetap terbuka, sementara angka di halaman belakang ikut segar.
+6. Tutup: bila modal dibuka dari dalam aplikasi → `history.back()`; bila datang dari tautan/refresh → `router.replace` ke URL tanpa hash. Back/Forward browser menutup/membuka ulang modal; refresh dan tautan yang dibagikan (tombol salin tautan menyalin `location.href`) membuka halaman yang sama dengan modal terbuka.
+7. Rute lama `GET /invoices/{id}` (`show()`, notifikasi lama, redirect setelah simpan) tetap merender daftar dengan `selectedInvoiceId`; halaman daftar langsung mengubahnya menjadi `/invoices#invoice/{id}` (`showResource()`). Notifikasi jatuh tempo baru memakai `/invoices#invoice/{id}` dan membuka modal di halaman yang sedang dibuka.
+8. Isi drawer: metrik (total, dibayar, sisa, laba kotor), tab **Ringkasan** (item, total, riwayat dari `created_at` + pembayaran, kartu klien, daftar pembayaran edit/hapus) dan **Pratinjau cetak** (PDF asli via `/invoice/{id}/preview`). Aksi: Cetak, Kirim invoice (draft), Catat pembayaran (sent/partial), menu Edit / Kembalikan ke draft / Hapus, salin tautan.
 
 ### Buat Invoice (Create + Store)
 **Alur step-by-step:**
-1. User klik "Buat Invoice" → GET `/invoices/create` (`can:create invoices`). Controller mengirim props: klien `Active`, daftar `services` (id, name, price, type), `nextSeq` (preview nomor berikutnya), `companyInitials`.
-2. User memilih klien penagihan, menyusun item (pilih service → `service_name` & `unit_price` terisi dari master, bisa diedit; isi `quantity`, `unit`, `cogs_amount`, centang `is_tax_deposit` bila item titipan pajak), atur diskon (`fixed`/`percentage`) + alasan, tanggal terbit & jatuh tempo.
-3. Submit → POST `/invoices` (`can:create invoices`), divalidasi `StoreInvoiceRequest` (`items` min 1; `quantity` numeric min 0.001; `unit_price`/`cogs_amount` integer; `due_date after_or_equal:issue_date`).
-4. `store()` dalam `DB::transaction`: hitung `amount = round(unit_price × quantity)` per item, `subtotal` = Σ amount, `discount_amount` (persen dihitung dari subtotal), `total_amount = max(0, subtotal − discount)`; insert `invoices` dengan `status='draft'` dan **tanpa `invoice_number`**, lalu insert semua `invoice_items`.
-5. Redirect ke `invoices.index` dengan flash `success`.
+1. User klik "Buat Invoice" → GET `/invoices/create` (`can:create invoices`). Props dari `formOptions()`: klien `Active` (id, name, email, npwp, type) dan `services`. Editor (`InvoiceEditor` di `create.tsx`, dipakai juga `edit.tsx`): kiri isian, kanan **pratinjau PDF langsung**.
+2. User memilih klien, tanggal (jatuh tempo default +14 hari), menyusun item (nama layanan dengan saran katalog saat mengetik, atau tombol katalog 🔍 di setiap baris yang mengisi nama & harga baris itu saja, qty, harga, satuan, **HPP baris** = HPP seluruh baris, sakelar titipan pajak), opsional "Tagih ke beberapa klien" (klien per baris), dan diskon nominal/persen + alasan. Ctrl+Enter menambah baris.
+3. **Pratinjau langsung:** setiap isian berubah (jeda 350 ms, permintaan lama dibatalkan) editor mengirim `POST /invoices/preview` (`InvoicePreviewRequest`, semua field boleh kosong) → `preview()` membangun `Invoice` + `InvoiceItem` **tanpa menyimpan** (relasi di-`setRelation`), lalu `InvoicePrintService::renderPdf()` — jalur yang sama dengan unduhan — dan membalas **PDF**; nomor (tersimpan atau perkiraan `generateInvoiceNumber`) di header `X-Invoice-Number`. Parameter `highlight` (indeks baris yang sedang diedit) menyuntikkan CSS latar biru pada baris itu — hanya di pratinjau. Browser menampilkan PDF dengan penampil bawaan (`#toolbar=0&view=FitH`).
+4. Submit → POST `/invoices`, divalidasi `StoreInvoiceRequest` (pesan Indonesia di `messages()`, mis. "Nama layanan baris 1 wajib diisi."). Tombol **Simpan draft** atau **Simpan & terbitkan** (`publish=1`).
+5. `store()` dalam `DB::transaction`: `buildInvoiceData()` (satu-satunya tempat hitungan: `amount = round(unit_price × quantity)`, `subtotal`, `discount_amount`, `total_amount = max(0, subtotal − discount)`) → insert `draft` tanpa nomor + items; bila `publish`, `publish()` memberi `generateInvoiceNumber()` dan status `sent` di transaksi yang sama.
+6. Redirect ke **`invoices.show`** (drawer invoice baru terbuka) dengan flash `success`.
 
 **Penjelasan kode** (`app/Http/Controllers/InvoiceController.php::store`):
 ```php
@@ -83,34 +87,36 @@ $invoice = Invoice::create([... 'status' => 'draft']);
 Diskon persentase dikonversi ke nominal integer saat simpan (kedua bentuk disimpan: `discount_value` mentah + `discount_amount` hasil). Invoice selalu lahir sebagai `draft` tanpa nomor — nomor baru diberikan saat "send".
 
 ### Edit Invoice (Edit + Update)
-**Alur:** GET `/invoices/{invoice}/edit` (`can:edit invoices`) merender `invoices/edit` dengan data invoice + items; PUT `/invoices/{invoice}` divalidasi `UpdateInvoiceRequest` (identik dengan Store — `class UpdateInvoiceRequest extends StoreInvoiceRequest {}`). `update()` menghitung ulang subtotal/diskon/total seperti store, lalu **menghapus semua item lama dan membuat ulang** (`$invoice->items()->delete()` + insert baru) dalam satu transaksi. Status dan `invoice_number` **tidak diubah** oleh update.
+**Alur:** GET `/invoices/{invoice}/edit` (`can:edit invoices`) merender `invoices/edit` dengan data invoice + items; PUT `/invoices/{invoice}` divalidasi `UpdateInvoiceRequest` (identik dengan Store — `class UpdateInvoiceRequest extends StoreInvoiceRequest {}`). `update()` memakai `buildInvoiceData()` yang sama, lalu **menghapus semua item lama dan membuat ulang** dalam satu transaksi. Status dan `invoice_number` tidak diubah, kecuali `publish=1` pada invoice `draft` (Simpan & terbitkan). Redirect ke `invoices.show`.
 
 ### Hapus Invoice (Destroy)
 **Alur:** DELETE `/invoices/{invoice}` (`can:delete invoices`) → **ditolak dengan flash `error`** bila invoice sudah punya pembayaran ("Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu."); jika tidak, transaksi: hapus `invoice_items` lalu invoice; redirect back. Guard ini mencegah FK cascade menghapus `payments` diam-diam (yang menurunkan saldo bank tanpa peringatan dan meninggalkan file lampiran yatim).
 
 ### Kirim Invoice (Send — penomoran resmi)
 **Alur step-by-step:**
-1. Di sheet detail invoice `draft`, user klik "Kirim" → dialog **terisi otomatis** dengan `next_invoice_number` dari respons `show()` (dihitung server via `Invoice::generateInvoiceNumber($issue_date, $billed_to_id)`, jadi inisial klien sama persis dengan backend); user masih boleh mengubahnya sebelum konfirmasi.
-2. POST `/invoices/{invoice}/send` payload `{ invoice_number }`, divalidasi `SendInvoiceRequest` (`unique:invoices,invoice_number` kecuali dirinya).
-3. `send()` menolak jika status bukan `draft` (flash `error`). Jika lolos: `$invoice->update(['invoice_number' => ..., 'status' => 'sent'])`.
+1. Di drawer invoice `draft`, user klik "Kirim invoice" → dialog **terisi otomatis** dengan `next_invoice_number` dari `/invoices/{id}/data` (dihitung server via `Invoice::generateInvoiceNumber($issue_date, $billed_to_id)` → `InvoiceNumberService::next()`, jadi inisial klien sama persis dengan backend); user masih boleh mengubahnya sebelum konfirmasi.
+2. POST `/invoices/{invoice}/send` payload `{ invoice_number }`, divalidasi `SendInvoiceRequest` (`unique:invoices,invoice_number` kecuali dirinya; pesan "Nomor ini sudah dipakai invoice lain." + tautan "Pakai nomor yang disarankan" di UI).
+3. `send()` menolak jika status bukan `draft` (flash `error`). Jika lolos: `$invoice->update(['invoice_number' => ..., 'status' => 'sent'])`; hook `saving` model mengisi `invoice_sequence` dari nomor itu.
 
-**Penjelasan kode** (`app/Models/Invoice.php`):
-```php
-return sprintf('%03d/INV/%s-%s/%s/%d',
-    $sequence, $companyInitials, $clientInitials, $romanMonth, $year);
-```
-`generateInvoiceNumber()` membentuk nomor. `getMaxSequenceFromDb()` mengambil sequence tertinggi dari invoice ber-nomor (`LIKE '%/INV/%'`) pada bulan-tahun `issue_date` yang sama, lalu +1 — sequence di-reset per bulan (dibuktikan `InvoiceNumberAssignmentTest::test_generate_invoice_number_starts_at_001_for_new_month`). Inisial diambil dari `CompanyProfile` dan nama klien dengan melewati kata badan usaha (`pt`, `cv`, dst.) via `extractInitials()`. Catatan: format praktis yang terlihat di data KSN adalah varian `{seq}/INV/KSN-.../{romawi}/{tahun}` (KSN = inisial perusahaan).
+**Penjelasan kode** (`app/Services/InvoiceNumberService.php` — satu-satunya tempat nomor disusun):
+
+- `settings()` membaca `invoice_number_format`, `invoice_number_padding` (1–5, jumlah digit **minimum** `{NO}`; 1 = tanpa nol di depan; urutan tetap bertambah melewatinya), `invoice_number_reset` (`monthly`/`yearly`/`never`) dari `CompanyProfile::current()`, dengan default format lama bila belum diisi.
+- `next($issueDate, $clientId)` = `render()` pola dengan `nextSequence()` (MAX `invoice_sequence` dalam periode reset `issue_date` + 1). Token: `{NO}` (urutan, diberi nol sesuai padding), `{PT}` (inisial **nama** perusahaan — sama dengan perilaku lama, bukan kolom `abbreviation`; "SPI" bila profil kosong), `{KLIEN}` (inisial klien/nama perusahaan klien, lewati PT/CV/dst.; "XXX" bila tidak ada), `{BLN_ROMAWI}`, `{BLN}`, `{THN}`, `{THN2}`.
+- `sequenceOf($number)` membangun regex dari pola aktif: `{NO}` → `(\d+)`, token lain dicocokkan per jenis karakter (bukan nilainya) agar nomor tetap terbaca walau nama perusahaan/klien berubah. Dipakai hook `saving` model.
+- `formatError($format, $reset)` — validasi pola (dipakai `UpdateInvoiceSettingsRequest`, dicerminkan di frontend): hanya token dikenal, `{NO}` tepat sekali, reset bulanan wajib memuat bulan + tahun, reset tahunan wajib memuat tahun (tanpa itu nomor periode berbeda akan bentrok).
+
+Pengaturan pola ada di modul Settings (`/settings/invoice-numbering`, lihat `settings.md`). Default (format, 3 digit, reset bulanan) menghasilkan nomor yang persis sama dengan generator lama (`InvoiceNumberServiceTest::test_default_format_matches_the_company_numbering`).
 
 ### Rollback Invoice (Sent → Draft)
-**Alur:** POST `/invoices/{invoice}/rollback` → `rollback()` menolak jika status bukan `sent`, dan menolak jika `Invoice::isInvoiceLatestInMonth($invoice)` false (hanya sequence **tertinggi** di bulan `issue_date`-nya yang boleh, supaya tidak melubangi urutan nomor). Jika lolos: `invoice_number` di-null-kan dan status kembali `draft`.
+**Alur:** POST `/invoices/{invoice}/rollback` → `rollback()` menolak jika status bukan `sent`, dan menolak jika `Invoice::isLatestInNumberingPeriod($invoice)` false (hanya `invoice_sequence` **tertinggi** di periode reset `issue_date`-nya yang boleh, supaya tidak melubangi urutan nomor; invoice bernomor manual di luar pola tidak bisa di-rollback). Jika lolos: `invoice_number` di-null-kan (hook mengosongkan `invoice_sequence`) dan status kembali `draft`.
 
 ### Pembayaran — Catat (POST /invoices/{invoice}/payments)
 **Alur step-by-step:**
-1. Di sheet detail, user klik "Tambah Pembayaran" → form: `amount` (CurrencyInput), `payment_date`, `payment_method` (`cash`/`bank_transfer`), `bank_account_id` (wajib; daftar dari `/api/bank-accounts`), `reference_number`, `attachment`.
+1. Di drawer, user klik "Catat pembayaran" → dialog: `amount` (CurrencyInput + chip Sisa penuh / 50% / Nominal lain), `payment_date`, `bank_account_id` (wajib; `/api/bank-accounts`), `payment_method` (Transfer bank / Tunai — benar-benar dikirim, sebelumnya selalu `bank_transfer`), `reference_number`, `attachment`.
 2. Frontend submit via `fetch` multipart POST ke `/invoices/{invoice}/payments` (route ber-middleware `can:create invoices`), validasi `StorePaymentRequest`.
-3. `PaymentController::store()` menolak (422 JSON) jika status invoice `draft` atau `paid` — hanya `sent`/`partially_paid` (dan status lain non-draft/paid) yang bisa dibayar. Lampiran disimpan ke `storage/app/public/payments`.
+3. `PaymentController::store()` menolak (422 JSON) jika status invoice `draft` atau `paid`, dan **jika nominal melebihi sisa tagihan** (`exceedsRemaining()`: "Melebihi sisa tagihan Rp X. Catat kelebihan sebagai transaksi terpisah."; UI juga memblokir sebelum kirim). `update()` memakai aturan yang sama dengan nominal lama ikut dihitung sebagai sisa. Lampiran disimpan ke `storage/app/public/payments`.
 4. Insert `payments`, lalu **`$invoice->updateStatus()`** menghitung ulang status dari total pembayaran.
-5. Respons JSON payment terformat; frontend `router.reload({ only: ['invoices', 'stats'] })`.
+5. Respons JSON payment terformat; drawer memuat ulang `/data` dan halaman di belakang `router.reload()` (hash dipertahankan).
 
 **Penjelasan kode** (`app/Models/Invoice.php::updateStatus`):
 ```php
@@ -129,15 +135,15 @@ Status murni turunan dari `amount_paid` vs `total_amount`. Bila **semua** pembay
 **Alur:** POST `/payments/{payment}` dan DELETE `/payments/{payment}` digate `can:edit invoices`. `update()` (validasi `UpdatePaymentRequest` = Store + `remove_attachment` boolean) mengganti field, mengelola siklus lampiran (hapus file lama jika diganti/di-remove), lalu `$payment->invoice->updateStatus()`. `destroy()` menghapus payment (hook model ikut menghapus file lampiran) lalu `updateStatus()` pada invoice-nya. Keduanya merespons JSON.
 
 ### Export Rekap Excel & PDF
-**Alur:** GET `/invoices/export/excel` dan `/invoices/export/pdf` (dalam grup `can:view invoices`) menerima query filter yang sama dengan index. `buildRecapData()` membangun baris per invoice — **mengecualikan `draft` & `cancelled`** — dengan kolom: omzet (`total_amount`), HPP (Σ `cogs_amount` per invoice), profit (omzet − HPP), `pph_final = round(omzet × 0.5%)` (PPh Final UMKM PP 55/2022), terbayar, sisa; plus baris summary dan label periode (range tanggal menimpa bulan). Excel via `App\Exports\InvoiceRecapExport` (Maatwebsite); PDF via DomPDF view `pdf.invoice-recap` A4 landscape + `CompanyProfile`. Perilaku ini dikunci oleh test `InvoiceControllerTest` (`test_export_excludes_draft_and_cancelled_from_omzet`, `test_export_includes_hpp_profit_and_pph_final`, `test_date_range_overrides_month_in_export`, dll.).
+**Alur:** GET `/invoices/export/excel` dan `/invoices/export/pdf` (dalam grup `can:view invoices`) menerima query filter yang sama dengan index (tombol Ekspor mengirim semua filter aktif, termasuk `status=overdue`). `buildRecapData()` memakai `applyStatusFilter()` yang sama dengan daftar — "Perlu ditagih" lintas bulan dengan label periode "Perlu ditagih (lewat jatuh tempo, semua periode)" (BUG-07 QA 29 Sep: sebelumnya rekap berisi seluruh bulan terpilih) — membangun baris per invoice — **mengecualikan `draft` & `cancelled`** — dengan kolom: omzet (`total_amount`), HPP (Σ `cogs_amount` per invoice), profit (omzet − HPP), `pph_final = round(omzet × 0.5%)` (PPh Final UMKM PP 55/2022), terbayar, sisa; plus baris summary dan label periode (range tanggal menimpa bulan). Excel via `App\Exports\InvoiceRecapExport` (Maatwebsite); PDF via DomPDF view `pdf.invoice-recap` A4 landscape + `CompanyProfile`. Perilaku ini dikunci oleh test `InvoiceControllerTest` (`test_export_excludes_draft_and_cancelled_from_omzet`, `test_export_includes_hpp_profit_and_pph_final`, `test_date_range_overrides_month_in_export`, dll.).
 
 ### Download / Preview PDF Invoice (per lembar)
 **Alur step-by-step:**
-1. Dari `PrintInvoiceDialog` (`resources/js/pages/invoices/components/print-invoice-dialog.tsx`), user memilih template dan mode pembayaran: full, DP (`dp_amount`), atau Pelunasan (`pelunasan_amount`).
+1. Dari `PrintInvoiceDialog` (`resources/js/pages/invoices/components/print-invoice-dialog.tsx`), user memilih jenis tagihan (Penuh / Uang muka `dp_amount` / Pelunasan `pelunasan_amount`, default Pelunasan bila sudah ada pembayaran) dan template (kartu Kisantra/Semesta/AGSA/Generik + template builder). Panel kanan menampilkan **PDF asli** dari `/invoice/{id}/preview` dengan parameter yang sama (nominal DP ditunda 400 ms).
 2. GET `/invoice/{invoice}/download` atau `/invoice/{invoice}/preview` (`can:view invoices`), query: `template` (default `kisantra-invoice`), `dp_amount`, `pelunasan_amount`.
 3. Routing template (closure di `routes/web.php` ±154–203):
    - `template=builder:{id}` → `PdfTemplate::findOrFail(id)` + `BuilderInvoicePrinter::render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount)`; nama file dari `->filename()` (prefix `DP-`/`Pelunasan-`).
-   - selain itu → `InvoicePrintService::generateSingleInvoicePdf($invoice, $dp, $pelunasan, $template)` dengan template Blade `resources/views/pdf/{template}.blade.php` (`kisantra-invoice`, `semesta-invoice`, `agsa-invoice`, `invoice`).
+   - selain itu → `InvoicePrintService::generateSingleInvoicePdf()` → `renderPdf()` dengan template Blade `resources/views/pdf/{template}.blade.php` (`kisantra-invoice`, `semesta-invoice`, `agsa-invoice`, `invoice`). `renderPdf()` adalah **satu-satunya** jalur render PDF Blade (unduhan, pratinjau tab/iframe, dan pratinjau editor).
 4. `download` mengirim `streamDownload` (attachment); `preview` mengirim body PDF dengan `Content-Disposition: inline` (dibuka di tab/iframe).
 
 **Penjelasan kode** (`app/Services/InvoicePrintService.php`):
@@ -173,8 +179,9 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 
 ## Invarian & Jebakan
 - Semua nominal **integer rupiah penuh** — jangan pernah pakai float; `quantity` satu-satunya decimal.
-- Invoice `draft` tidak punya `invoice_number`; nomor hanya diberikan saat `send`, unik global, sequence reset per bulan `issue_date`.
-- Rollback hanya untuk invoice `sent` dengan sequence **tertinggi** di bulannya (`isInvoiceLatestInMonth`) — jaga urutan nomor tanpa lubang.
+- Invoice `draft` tidak punya `invoice_number`; nomor hanya diberikan saat `send` (termasuk invoice hasil publish recurring), unik global, sequence reset sesuai pengaturan (default per bulan `issue_date`).
+- **Urutan dibaca dari `invoice_sequence`, bukan dari teks nomor** — bentuk nomor bisa diganti kapan saja. Jangan menulis `invoice_sequence` manual kecuali sengaja; biarkan hook `saving` yang mengisinya. Mengganti pola tidak mengubah nomor yang sudah terbit.
+- Rollback hanya untuk invoice `sent` dengan sequence **tertinggi** di periodenya (`isLatestInNumberingPeriod`) — jaga urutan nomor tanpa lubang.
 - `updateStatus()` menghasilkan `sent` (ber-nomor, belum ada pembayaran) / `draft` (tanpa nomor) / `partially_paid` / `paid`. `overdue` dan `cancelled` ada di enum DB tetapi tidak ada transisi otomatis di kode saat ini (cancelled hanya dipakai sebagai filter pengecualian statistik/export).
 - Invoice yang punya pembayaran **tidak bisa dihapus**; hapus pembayarannya dulu.
 - `send`/`rollback` butuh `edit invoices` — user `view`+`create` saja (role staff) tidak bisa memberi nomor resmi.
@@ -183,7 +190,10 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 - Statistik & export mengecualikan `draft` + `cancelled` dari omzet/HPP/laba dan **mengikuti tab status aktif** (hitungan tab tidak); item `is_tax_deposit` dikecualikan dari HPP di stats index tetapi accessor `total_cogs` model **tidak** mengecualikannya.
 - Filter periode: backend memprioritaskan `date_from`/`date_to` atas `month`; UI menjaga keduanya saling eksklusif (pilih rentang → bulan dikosongkan, pilih bulan → rentang dikosongkan) supaya label tidak menyesatkan.
 - Saldo bank dihitung dinamis — tidak ada kolom saldo yang perlu (atau boleh) di-update saat mencatat pembayaran.
-- Endpoint payment & show merespons **JSON** (dipakai via `fetch`), bukan redirect Inertia — jangan diubah ke redirect tanpa menyesuaikan frontend.
+- Endpoint payment & `/invoices/{id}/data` merespons **JSON**; `send`/`rollback`/`destroy` menjawab JSON untuk permintaan `expectsJson()` dan redirect + flash untuk yang lain. Jangan ubah aksi drawer menjadi kunjungan Inertia (`router.post`): redirect back mengganti halaman di belakang modal dan membuang hash.
+- Modal detail ditentukan `location.hash` (`#invoice/{id}`), bukan path. Modul lain yang ingin detail ber-URL memakai `lib/resource-modal.ts` + `ResourceModalHost` yang sama.
+- **Pratinjau = ekspor.** Pratinjau editor, tab Pratinjau cetak, dan dialog cetak menampilkan PDF dari `InvoicePrintService::renderPdf()`, bukan HTML tiruan. Render HTML di browser **tidak** identik dengan DomPDF (DomPDF mengabaikan `display:flex`, tinggi baris tabel berbeda — terukur ±9,7% piksel beda, QA 2026-09-26). `test_preview_pdf_is_identical_to_the_downloaded_pdf` mengunci kesamaan byte (kecuali stempel waktu & `/ID` acak). Satu-satunya pengecualian yang disengaja: sorotan baris `highlight` di pratinjau editor.
+- `buildInvoiceData()` adalah satu-satunya tempat hitungan subtotal/diskon/total untuk store, update, dan pratinjau — jangan menduplikasi rumus.
 
 ## File Kunci
 - `routes/web.php` (baris ±131–203) — definisi route invoices/payments/invoice PDF
@@ -192,5 +202,6 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 - `app/Models/Invoice.php`, `app/Models/InvoiceItem.php`, `app/Models/Payment.php`, `app/Models/BankAccount.php`
 - `app/Services/InvoicePrintService.php`, `app/Services/BuilderInvoicePrinter.php`, `app/Exports/InvoiceRecapExport.php`
 - `resources/views/pdf/kisantra-invoice.blade.php` (+ `semesta-invoice`, `agsa-invoice`, `invoice`, `invoice-recap`)
-- `resources/js/pages/invoices/index.tsx`, `create.tsx`, `edit.tsx`, `components/print-invoice-dialog.tsx`
+- `app/Http/Requests/InvoicePreviewRequest.php`, `resources/js/lib/resource-modal.ts` + `components/resource-modal-host.tsx` (modal global berbasis hash), `resources/js/lib/navigation.ts`
+- `resources/js/pages/invoices/index.tsx` (daftar), `create.tsx` (`InvoiceEditor`), `edit.tsx`, `components/invoice-drawer.tsx` (drawer + dialog kirim/bayar), `components/print-invoice-dialog.tsx`, `components/invoice-paper.tsx` (penampil PDF dua lapis), `components/ob.tsx` (status, format, kelas Obsidian), `components/item-table-helpers.tsx` (sel tabel lama, dipakai Invoice Berulang)
 - `tests/Feature/InvoiceControllerTest.php`, `tests/Feature/PaymentControllerTest.php`, `tests/Feature/InvoiceNumberAssignmentTest.php`

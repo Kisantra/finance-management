@@ -1,15 +1,19 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Bell, Menu, Moon, Sun } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, LogOut, Menu, Settings } from 'lucide-react';
 import * as React from 'react';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationDrawer } from '@/components/notifications/notification-drawer';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
+/*
+ * Header Obsidian: duduk di atas latar halaman tanpa garis, kontrolnya memakai lapis rel
+ * (bg-ob-rail) berbentuk pil supaya tidak menyatu dengan grid kartu. Pengalih tema sudah
+ * pindah ke kartu ruang kerja di rel navigasi.
+ */
+
 interface HeaderProps {
     onMenuClick: () => void;
-    darkMode: boolean;
-    onToggleDark: () => void;
 }
 
 interface BreadcrumbItem {
@@ -18,7 +22,7 @@ interface BreadcrumbItem {
 }
 
 const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
-    '/dashboard': [{ label: 'Dashboard' }],
+    '/dashboard': [{ label: 'Ringkasan' }],
     '/clients': [{ label: 'Master Data' }, { label: 'Klien' }],
     '/services': [{ label: 'Master Data' }, { label: 'Layanan' }],
     '/invoices': [{ label: 'Keuangan' }, { label: 'Invoice' }],
@@ -32,36 +36,40 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
     '/cash-flow/income': [{ label: 'Arus Kas' }, { label: 'Pemasukan' }],
     '/cash-flow/expenses': [{ label: 'Arus Kas' }, { label: 'Pengeluaran' }],
     '/cash-flow/transfers': [{ label: 'Arus Kas' }, { label: 'Transfer & Penyesuaian' }],
-    '/transaction-categories': [{ label: 'Operasional' }, { label: 'Kategori' }],
+    '/transaction-categories': [{ label: 'Operasional' }, { label: 'Kategori Transaksi' }],
     '/fund-requests': [{ label: 'Operasional' }, { label: 'Permintaan Dana' }],
     '/reimbursements': [{ label: 'Operasional' }, { label: 'Reimbursement' }],
     '/loans': [{ label: 'Utang & Piutang' }, { label: 'Pinjaman' }],
     '/receivables': [{ label: 'Utang & Piutang' }, { label: 'Piutang' }],
+    '/reports/profit-loss': [{ label: 'Laporan' }, { label: 'Laba Rugi' }],
     '/feedbacks': [{ label: 'Administrasi' }, { label: 'Feedback' }],
-    '/permissions': [{ label: 'Administrasi' }, { label: 'Izin & Peran' }],
+    '/admin/permissions': [{ label: 'Administrasi' }, { label: 'Izin & Peran' }],
     '/admin/users': [{ label: 'Administrasi' }, { label: 'Pengguna' }],
+    '/settings': [{ label: 'Pengaturan' }],
     '/settings/profile': [{ label: 'Pengaturan' }, { label: 'Profil' }],
     '/settings/password': [{ label: 'Pengaturan' }, { label: 'Kata Sandi' }],
     '/settings/company': [{ label: 'Pengaturan' }, { label: 'Profil Perusahaan' }],
+    '/settings/invoice-numbering': [{ label: 'Pengaturan' }, { label: 'Penomoran Invoice' }],
+    '/settings/pdf-templates': [{ label: 'Pengaturan' }, { label: 'Template PDF' }],
 };
 
 function getBreadcrumbs(url: string): BreadcrumbItem[] {
     const path = url.split('?')[0];
-
     if (BREADCRUMB_MAP[path]) return BREADCRUMB_MAP[path];
-
-    // Prefix matching for dynamic routes
     const prefixMatch = Object.entries(BREADCRUMB_MAP).find(
         ([key]) => key !== '/' && path.startsWith(key + '/'),
     );
-    return prefixMatch ? prefixMatch[1] : [{ label: 'Dashboard' }];
+    return prefixMatch ? prefixMatch[1] : [{ label: 'Ringkasan' }];
 }
 
 const LOCALES = [
-    { code: 'id', label: 'ID', name: 'Indonesia', flag: '🇮🇩' },
-    { code: 'en', label: 'EN', name: 'English', flag: '🇬🇧' },
-    { code: 'zh', label: 'ZH', name: '中文', flag: '🇨🇳' },
+    { code: 'id', label: 'ID', name: 'Indonesia' },
+    { code: 'en', label: 'EN', name: 'English' },
+    { code: 'zh', label: 'ZH', name: '中文' },
 ];
+
+const PILL =
+    'flex items-center justify-center rounded-full border border-ob-line bg-ob-rail text-ob-ink transition-colors hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
 
 function LanguageSwitcher({ locale }: { locale: string }) {
     const [open, setOpen] = React.useState(false);
@@ -78,133 +86,160 @@ function LanguageSwitcher({ locale }: { locale: string }) {
 
     const switchLocale = (code: string) => {
         setOpen(false);
-        router.post(
-            '/language',
-            { locale: code },
-            { preserveScroll: false },
-        );
+        router.post('/language', { locale: code }, { preserveScroll: false });
     };
 
     return (
         <div ref={ref} className="relative">
             <button
+                type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                aria-label={`Bahasa: ${current.name}`}
+                className={cn(PILL, 'h-11 px-4 text-xs font-semibold')}
             >
-                <span>{current.flag}</span>
-                <span>{current.label}</span>
+                {current.label}
             </button>
-
             {open && (
-                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-dark-700 border border-gray-100 dark:border-white/[0.08] rounded-xl shadow-xl shadow-black/10 dark:shadow-black/30 overflow-hidden z-50">
-                    <div className="p-1">
-                        {LOCALES.map((loc) => (
-                            <button
-                                key={loc.code}
-                                onClick={() => switchLocale(loc.code)}
-                                className={cn(
-                                    'flex items-center gap-2 w-full px-2.5 py-1.5 text-xs rounded-lg transition-colors text-left',
-                                    loc.code === locale
-                                        ? 'font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20'
-                                        : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/[0.06]',
-                                )}
-                            >
-                                <span>{loc.flag}</span>
-                                <span>{loc.name}</span>
-                            </button>
-                        ))}
-                    </div>
+                <div
+                    role="listbox"
+                    className="absolute right-0 top-full z-50 mt-1.5 flex w-40 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20"
+                >
+                    {LOCALES.map((loc) => (
+                        <button
+                            key={loc.code}
+                            type="button"
+                            role="option"
+                            aria-selected={loc.code === locale}
+                            onClick={() => switchLocale(loc.code)}
+                            className={cn(
+                                'flex h-[34px] items-center justify-between rounded-[10px] px-2.5 text-[13px] text-left',
+                                loc.code === locale
+                                    ? 'bg-ob-inner font-semibold text-ob-ink'
+                                    : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
+                            )}
+                        >
+                            <span>{loc.name}</span>
+                            <span className="text-xs text-ob-ink-3">{loc.label}</span>
+                        </button>
+                    ))}
                 </div>
             )}
         </div>
     );
 }
 
-export function Header({ onMenuClick, darkMode, onToggleDark }: HeaderProps) {
+/** Chip akun: avatar inisial + nama + peran; membuka menu profil, perusahaan, keluar. */
+function UserChip() {
+    const { auth } = usePage<SharedProps>().props;
+    const [open, setOpen] = React.useState(false);
+    const ref = React.useRef<HTMLDivElement>(null);
+    const user = auth.user;
+    const initials = user?.name
+        ? user.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+        : 'U';
+
+    React.useEffect(() => {
+        const onDown = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, []);
+
+    const item = 'flex h-[34px] items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink';
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={`Akun: ${user?.name ?? 'Pengguna'}`}
+                className={cn(PILL, 'h-11 gap-2.5 pl-1.5 pr-3.5')}
+            >
+                <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-ob-chip text-xs font-bold text-ob-ink">
+                    {initials}
+                </span>
+                <span aria-hidden="true" className="hidden flex-col items-start leading-tight sm:flex">
+                    <span className="max-w-40 truncate text-[13px] font-semibold text-ob-ink">{user?.name ?? 'Pengguna'}</span>
+                    <span className="text-xs text-ob-ink-2">{auth.roles?.[0] ?? ''}</span>
+                </span>
+                <ChevronDown className={cn('hidden h-4 w-4 text-ob-ink-3 transition-transform sm:block', open && 'rotate-180')} />
+            </button>
+            {open && (
+                <div
+                    role="menu"
+                    className="absolute right-0 top-full z-50 mt-1.5 flex w-56 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20 ob-fade-in"
+                >
+                    <span className="truncate px-2.5 pt-1.5 pb-2 text-xs text-ob-ink-3">{user?.email ?? ''}</span>
+                    <Link href="/settings" role="menuitem" className={item} onClick={() => setOpen(false)}>
+                        <Settings className="h-4 w-4 opacity-70" /> Pengaturan
+                    </Link>
+                    <Link href="/settings/company" role="menuitem" className={item} onClick={() => setOpen(false)}>
+                        <Building2 className="h-4 w-4 opacity-70" /> Profil perusahaan
+                    </Link>
+                    {/* Lewat klien Inertia agar token CSRF selalu segar (riwayat "419 PAGE EXPIRED"). */}
+                    <button type="button" role="menuitem" onClick={() => router.post('/logout')} className={cn(item, 'text-ob-late hover:text-ob-late')}>
+                        <LogOut className="h-4 w-4 opacity-80" /> Keluar
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
     const { locale } = usePage<SharedProps>().props;
     const currentUrl = usePage().url;
     const breadcrumbs = getBreadcrumbs(currentUrl);
     const [drawerOpen, setDrawerOpen] = React.useState(false);
 
     return (
-        <header className="h-14 shrink-0 flex items-center gap-3 px-4 md:px-6 bg-white/80 dark:bg-dark-900/80 backdrop-blur-[12px] border-b border-gray-100 dark:border-white/[0.06]">
-            {/* Mobile hamburger */}
+        /* Tinggi 84 = padding rel 20 + tile logo 44 + 20: kontrol header sejajar dengan logo perusahaan. */
+        <header className="flex h-[84px] shrink-0 items-center gap-3 bg-ob-page px-4 md:px-8">
             <button
+                type="button"
                 onClick={onMenuClick}
-                className="lg:hidden p-1.5 rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors shrink-0"
+                aria-label="Buka navigasi"
+                className={cn(PILL, 'lg:hidden h-11 w-11 shrink-0')}
             >
-                <Menu className="w-5 h-5" />
+                <Menu className="h-5 w-5" />
             </button>
 
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1 text-sm flex-1 overflow-x-auto scrollbar-none">
-                <Link
-                    href="/dashboard"
-                    className="shrink-0 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors"
-                >
-                    <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2}
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M3 3h7v7H3zm11 0h7v7h-7zm0 11h7v7h-7zM3 14h7v7H3z"
-                        />
-                    </svg>
-                </Link>
-
-                {breadcrumbs.map((crumb, i) => (
-                    <React.Fragment key={i}>
-                        <svg
-                            className="w-3 h-3 text-gray-300 dark:text-zinc-700 shrink-0 opacity-35"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2.5}
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 18l6-6-6-6"
-                            />
-                        </svg>
-                        {i === breadcrumbs.length - 1 ? (
-                            <span className="text-gray-700 dark:text-zinc-200 font-medium whitespace-nowrap text-sm shrink-0">
-                                {crumb.label}
-                            </span>
-                        ) : crumb.href ? (
-                            <Link
-                                href={crumb.href}
-                                className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors text-sm whitespace-nowrap shrink-0"
-                            >
-                                {crumb.label}
-                            </Link>
-                        ) : (
-                            <span className="text-gray-400 dark:text-zinc-600 text-sm whitespace-nowrap shrink-0">
-                                {crumb.label}
-                            </span>
-                        )}
-                    </React.Fragment>
-                ))}
+            <nav aria-label="Lokasi" className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
+                {breadcrumbs.map((crumb, i) => {
+                    const last = i === breadcrumbs.length - 1;
+                    return (
+                        <React.Fragment key={i}>
+                            {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ob-ink-3/60" />}
+                            {last ? (
+                                <span className="truncate font-semibold text-ob-ink">{crumb.label}</span>
+                            ) : crumb.href ? (
+                                <Link href={crumb.href} className="shrink-0 font-medium text-ob-ink-3 hover:text-ob-ink">
+                                    {crumb.label}
+                                </Link>
+                            ) : (
+                                <span className="shrink-0 font-medium text-ob-ink-3">{crumb.label}</span>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
             </nav>
 
-            {/* Right actions */}
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex shrink-0 items-center gap-2.5">
                 <LanguageSwitcher locale={locale} />
-
-                <button
-                    onClick={onToggleDark}
-                    title={darkMode ? 'Mode terang' : 'Mode gelap'}
-                    className="p-2 rounded-lg text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors"
-                >
-                    {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
-
-                <NotificationBell onOpenDrawer={() => setDrawerOpen(true)} />
+                <div className={cn(PILL, 'h-11 w-11')}>
+                    <NotificationBell onOpenDrawer={() => setDrawerOpen(true)} />
+                </div>
+                <UserChip />
             </div>
 
             <NotificationDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />

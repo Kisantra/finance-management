@@ -61,7 +61,7 @@ public function delete()
 Model meng-override `delete()` untuk cascade manual: **menghapus klien ikut menghapus seluruh invoice dan invoice item-nya** — destruktif dan tidak bisa dibatalkan; UI wajib memakai `ConfirmDialog`. Pembayaran (`payments`) pada invoice tersebut tidak dihapus eksplisit di sini.
 
 ## Keterkaitan Antar Modul
-- **Invoices:** `invoices.billed_to_id` → klien tertagih; `invoice_items.client_id` → item bisa atas nama klien lain dalam satu invoice; nama & `NPWP` klien tampil di invoice PDF; inisial nama klien dipakai dalam format nomor invoice (`{seq}/INV/{perusahaan}-{klien}/...`).
+- **Invoices:** `invoices.billed_to_id` → klien tertagih; `invoice_items.client_id` → item bisa atas nama klien lain dalam satu invoice; nama & `NPWP` klien tampil di invoice PDF; inisial nama klien dipakai token `{KLIEN}` di format nomor invoice (default `{NO}/INV/{PT}-{KLIEN}/...`, bisa diatur di Pengaturan › Penomoran invoice).
 - **Recurring Invoices:** template & draft terikat `client_id`; hanya klien aktif yang muncul di opsi form.
 - **Receivables:** klien bisa menjadi debtor polymorphic (`receivables()` morphMany).
 - **API kecil:** GET `/api/clients` (closure di `routes/web.php`) menyediakan opsi label/value untuk Combobox lintas modul.

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\InvoiceNumberService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,7 @@ class Invoice extends Model
         'discount_amount' => 'integer',
         'discount_value' => 'integer',
         'total_amount' => 'integer',
+        'invoice_sequence' => 'integer',
     ];
 
     public function client(): BelongsTo
@@ -100,106 +102,29 @@ class Invoice extends Model
         return $this->gross_profit - $this->outstanding_profit;
     }
 
-    // Invoice number generation
+    /**
+     * Nomor urut selalu mengikuti nomor: setiap kali invoice_number berubah (kirim, terbitkan,
+     * rollback, data lama/factory) urutannya dibaca ulang dari nomor dengan pola aktif.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Invoice $invoice): void {
+            if ($invoice->isDirty('invoice_number') && ! $invoice->isDirty('invoice_sequence')) {
+                $invoice->invoice_sequence = $invoice->invoice_number
+                    ? app(InvoiceNumberService::class)->sequenceOf($invoice->invoice_number)
+                    : null;
+            }
+        });
+    }
+
     public static function generateInvoiceNumber(\DateTimeInterface $issueDate, int $clientId): string
     {
-        $maxSequence = static::getMaxSequenceFromDb($issueDate);
-        $sequence = $maxSequence + 1;
-
-        $companyInitials = static::getCompanyInitials();
-        $clientInitials = static::getClientInitials($clientId);
-        $romanMonth = static::getRomanMonth($issueDate->month);
-        $year = $issueDate->year;
-
-        return sprintf(
-            '%03d/INV/%s-%s/%s/%d',
-            $sequence,
-            $companyInitials,
-            $clientInitials,
-            $romanMonth,
-            $year
-        );
+        return app(InvoiceNumberService::class)->next(Carbon::instance($issueDate), $clientId);
     }
 
-    public static function getMaxSequenceFromDb(\DateTimeInterface $date): int
+    public static function isLatestInNumberingPeriod(self $invoice): bool
     {
-        $invoiceNumbers = static::whereYear('issue_date', $date->format('Y'))
-            ->whereMonth('issue_date', $date->format('m'))
-            ->where('invoice_number', 'LIKE', '%/INV/%')
-            ->pluck('invoice_number');
-
-        if ($invoiceNumbers->isEmpty()) {
-            return 0;
-        }
-
-        return (int) $invoiceNumbers->map(fn ($num) => (int) explode('/INV/', $num)[0])->max();
-    }
-
-    public static function isInvoiceLatestInMonth(self $invoice): bool
-    {
-        if (! $invoice->invoice_number || ! str_contains($invoice->invoice_number, '/INV/')) {
-            return false;
-        }
-
-        $maxSeq = static::getMaxSequenceFromDb(Carbon::parse($invoice->issue_date));
-        $invoiceSeq = (int) explode('/INV/', $invoice->invoice_number)[0];
-
-        return $invoiceSeq === (int) $maxSeq;
-    }
-
-    private static function getCompanyInitials(): string
-    {
-        $company = CompanyProfile::first();
-        if (! $company || ! $company->name) {
-            return 'SPI';
-        }
-
-        return static::extractInitials($company->name) ?: 'SPI';
-    }
-
-    private static function getClientInitials(int $clientId): string
-    {
-        $client = Client::find($clientId);
-        if (! $client) {
-            return 'XXX';
-        }
-
-        $name = $client->type === 'company' && $client->company_name
-            ? $client->company_name
-            : $client->name;
-
-        return static::extractInitials($name) ?: 'XXX';
-    }
-
-    public static function extractCompanyInitials(string $name): string
-    {
-        return static::extractInitials($name);
-    }
-
-    private static function extractInitials(string $name): string
-    {
-        $skipWords = ['pt', 'pt.', 'cv', 'cv.', 'ud', 'ud.', 'tb', 'tb.', 'pd', 'pd.', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
-
-        $words = preg_split('/\s+/', trim($name));
-        $initials = '';
-        foreach ($words as $word) {
-            if (! empty($word) && ! in_array(strtolower(rtrim($word, '.')), $skipWords) && ! in_array(strtolower($word), $skipWords)) {
-                $initials .= strtoupper($word[0]);
-            }
-        }
-
-        return $initials;
-    }
-
-    private static function getRomanMonth(int $month): string
-    {
-        $romans = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
-            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
-        ];
-
-        return $romans[$month] ?? 'I';
+        return app(InvoiceNumberService::class)->isLatestInPeriod($invoice);
     }
 
     // Update invoice status based on payments

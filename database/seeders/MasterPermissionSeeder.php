@@ -187,6 +187,9 @@ class MasterPermissionSeeder extends Seeder
 
             // PDF Templates
             'manage pdf templates',
+
+            // Invoice Settings (format penomoran)
+            'manage invoice settings',
         ];
 
         $newCount = 0;
@@ -344,6 +347,9 @@ class MasterPermissionSeeder extends Seeder
 
             // Reports
             'view profit-loss',
+
+            // Invoice Settings
+            'manage invoice settings',
         ];
 
         $financeManager->syncPermissions($financeManagerPermissions);

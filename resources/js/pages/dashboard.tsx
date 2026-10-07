@@ -1,30 +1,18 @@
-import { Link, usePage } from '@inertiajs/react';
-import {
-    ArrowDownRight,
-    ArrowUpRight,
-    BadgeDollarSign,
-    Banknote,
-    Building2,
-    ChevronRight,
-    CircleDollarSign,
-    FileText,
-    Landmark,
-    ReceiptText,
-    RefreshCw,
-    TrendingDown,
-    TrendingUp,
-    Wallet,
-} from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Plus } from 'lucide-react';
 import * as React from 'react';
-import ReactApexChart from 'react-apexcharts';
 import { AppLayout } from '@/layouts/app-layout';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/shared/page-header';
-import { formatCurrency } from '@/lib/utils';
+import { CashFlowChart, CashFlowChartSkeleton, compactRupiah } from '@/components/dashboard/cash-flow-chart';
+import { DonutChart, useDonutRamp } from '@/components/dashboard/donut-chart';
+import { RangeCalendar } from '@/components/dashboard/range-calendar';
+import { ScrollList, StatusPill, Widget, WidgetEmpty, WidgetError, WidgetLink } from '@/components/dashboard/widget';
+import { Combobox } from '@/components/ui/combobox';
+import { useCan } from '@/hooks/use-can';
+import { resourceHref } from '@/lib/resource-modal';
+import { cn, formatCurrency, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
-/* ─────────────────────────────────────── interfaces ─── */
+/* ─────────────────────────────────────── tipe props ─── */
 
 interface FinancialOverview {
     total_income: number;
@@ -44,16 +32,21 @@ interface Stats {
     pending_invoices_amount: number;
 }
 
-interface ChartPoint {
-    label: string;
-    income: number;
-    expenses: number;
+type ChartPeriod = 'weekly' | 'monthly' | 'yearly' | 'range';
+
+interface CashFlowChartData {
+    period: ChartPeriod;
+    granularity: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    range: { from: string; to: string };
+    account: { id: number; label: string } | null;
+    labels: string[];
+    income: number[];
+    expenses: number[];
 }
 
 interface CategoryExpense {
     name: string;
     value: number;
-    color: string;
 }
 
 interface BankAccount {
@@ -66,12 +59,14 @@ interface BankAccount {
 
 interface PendingInvoice {
     id: number;
-    invoice_number: string;
+    invoice_number: string | null;
     client: string;
-    amount: number;
-    due_date: string;
+    total_amount: number;
+    paid: number;
+    remaining: number;
+    due_date: string | null;
     status: string;
-    days_until_due: number;
+    days_until_due: number | null;
 }
 
 interface RecentTransaction {
@@ -82,545 +77,553 @@ interface RecentTransaction {
     account: string;
 }
 
-interface RecentReimbursement {
-    id: number;
-    title: string;
-    amount: number;
-    status: string;
-    user: string;
-    date: string;
-}
-
-interface RecentFundRequest {
-    id: number;
-    number: string;
-    title: string;
-    amount: number;
-    status: string;
-    priority: string;
-    user: string;
-    date: string;
-}
-
 interface DashboardProps extends SharedProps {
+    generatedAt: string;
+    period: { from: string; to: string; label: string };
     financialOverview: FinancialOverview;
     stats: Stats;
-    cashFlowChart: ChartPoint[];
+    cashFlowChart: CashFlowChartData;
+    accountOptions: { id: number; label: string }[];
     expensesByCategory: CategoryExpense[];
+    incomeByCategory: CategoryExpense[];
     bankAccounts: BankAccount[];
     pendingInvoices: PendingInvoice[];
     recentTransactions: RecentTransaction[];
-    recentReimbursements: RecentReimbursement[];
-    recentFundRequests: RecentFundRequest[];
 }
 
-/* ─────────────────────────────────── sub-components ─── */
+/* ─────────────────────────────────────── helper ─── */
 
-function InvoiceStatusBadge({ status }: { status: string }) {
-    const map: Record<string, { label: string; variant: 'yellow' | 'red' | 'blue' }> = {
-        sent: { label: 'Terkirim', variant: 'blue' },
-        partially_paid: { label: 'Sebagian', variant: 'yellow' },
-        overdue: { label: 'Jatuh Tempo', variant: 'red' },
-    };
-    const cfg = map[status] ?? { label: status, variant: 'blue' };
-    return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
+const PERIODS: { value: ChartPeriod; label: string }[] = [
+    { value: 'weekly', label: 'Mingguan' },
+    { value: 'monthly', label: 'Bulanan' },
+    { value: 'yearly', label: 'Tahunan' },
+];
+
+const CHART_STORAGE_KEY = 'dashboard.chart';
+
+interface ChartParams {
+    period: ChartPeriod;
+    from: string | null;
+    to: string | null;
+    account: number | null;
 }
 
-function ReimbStatusBadge({ status }: { status: string }) {
-    const map: Record<string, { label: string; variant: 'default' | 'yellow' | 'green' | 'blue' | 'red' }> = {
-        draft: { label: 'Draft', variant: 'default' },
-        pending: { label: 'Menunggu', variant: 'yellow' },
-        approved: { label: 'Disetujui', variant: 'blue' },
-        paid: { label: 'Dibayar', variant: 'green' },
-        rejected: { label: 'Ditolak', variant: 'red' },
-    };
-    const cfg = map[status] ?? { label: status, variant: 'default' };
-    return <Badge variant={cfg.variant as any}>{cfg.label}</Badge>;
+function shortDate(iso: string | null): string {
+    if (!iso) return '–';
+    return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 }
 
-function FundStatusBadge({ status }: { status: string }) {
-    const map: Record<string, { label: string; variant: 'default' | 'yellow' | 'green' | 'blue' | 'red' }> = {
-        draft: { label: 'Draft', variant: 'default' },
-        pending: { label: 'Menunggu', variant: 'yellow' },
-        approved: { label: 'Disetujui', variant: 'blue' },
-        disbursed: { label: 'Dicairkan', variant: 'green' },
-        rejected: { label: 'Ditolak', variant: 'red' },
-    };
-    const cfg = map[status] ?? { label: status, variant: 'default' };
-    return <Badge variant={cfg.variant as any}>{cfg.label}</Badge>;
+/** "Bank Negara Indonesia" → BNI; "Mandiri" → MAN. */
+function bankAbbrev(bank: string): string {
+    const words = bank.replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+    const abbr = words.length >= 2 ? words.map((w) => w[0]).join('') : (words[0] ?? '?').slice(0, 3);
+    return abbr.toUpperCase().slice(0, 3);
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
-    const map: Record<string, { label: string; variant: 'default' | 'yellow' | 'red' | 'blue' }> = {
-        low: { label: 'Rendah', variant: 'default' },
-        medium: { label: 'Sedang', variant: 'blue' },
-        high: { label: 'Tinggi', variant: 'yellow' },
-        urgent: { label: 'Mendesak', variant: 'red' },
-    };
-    const cfg = map[priority] ?? { label: priority, variant: 'default' };
-    return <Badge variant={cfg.variant as any}>{cfg.label}</Badge>;
+function dueText(days: number | null): { text: string; tone: string } {
+    if (days === null) return { text: '', tone: 'text-ob-ink-3' };
+    if (days < 0) return { text: `${Math.abs(days)} hari lewat`, tone: 'text-ob-late' };
+    if (days === 0) return { text: 'hari ini', tone: 'text-ob-neg' };
+    if (days <= 7) return { text: `${days} hari lagi`, tone: 'text-ob-neg' };
+    return { text: `${days} hari lagi`, tone: 'text-ob-ink-3' };
 }
 
-interface FeaturedMetricCardProps {
-    label: string;
-    sublabel: string;
-    value: number;
-    icon: React.ReactNode;
-    accent: string;
-    iconBg: string;
-    iconColor: string;
+function InvoiceStatus({ status }: { status: string }) {
+    if (status === 'overdue') return <StatusPill tone="late">Lewat tempo</StatusPill>;
+    if (status === 'partially_paid') return <StatusPill tone="wait">Sebagian</StatusPill>;
+    if (status === 'paid') return <StatusPill tone="pos" icon={<Check className="h-2.5 w-2.5" strokeWidth={3.5} />}>Lunas</StatusPill>;
+    return <StatusPill tone="act">Terkirim</StatusPill>;
 }
 
-function FeaturedMetricCard({ label, sublabel, value, icon, accent, iconBg, iconColor }: FeaturedMetricCardProps) {
-    return (
-        <div className={`relative overflow-hidden rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 p-5 hover:shadow-lg transition-shadow`}>
-            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accent} rounded-l-xl`} />
-            <div className="flex items-start gap-4 pl-3">
-                <div className={`h-12 w-12 ${iconBg} rounded-xl flex items-center justify-center shrink-0`}>
-                    <div className={iconColor}>{icon}</div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm text-dark-600 dark:text-dark-400">{label}</p>
-                    <p className="text-xs text-dark-400 dark:text-dark-500 mb-1">{sublabel}</p>
-                    <p className="text-2xl font-bold text-dark-900 dark:text-dark-50 truncate">
-                        {formatCurrency(value)}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-}
+const PILL_BTN =
+    'h-[26px] rounded-full px-3 text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
 
-interface CompactMetricCardProps {
-    label: string;
-    value: number | string;
-    icon: React.ReactNode;
-    iconBg: string;
-    iconColor: string;
-    valueColor?: string;
-}
-
-function CompactMetricCard({ label, value, icon, iconBg, iconColor, valueColor }: CompactMetricCardProps) {
-    return (
-        <div className="flex items-center gap-4 rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 p-4 hover:shadow-lg transition-shadow">
-            <div className={`h-11 w-11 ${iconBg} rounded-xl flex items-center justify-center shrink-0`}>
-                <div className={iconColor}>{icon}</div>
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-xs text-dark-500 dark:text-dark-400 mb-0.5">{label}</p>
-                <p className={`text-lg font-bold truncate ${valueColor ?? 'text-dark-900 dark:text-dark-50'}`}>
-                    {typeof value === 'string' && isNaN(Number(value)) ? value : formatCurrency(value as number)}
-                </p>
-            </div>
-        </div>
-    );
-}
-
-function SectionHeader({ title, href }: { title: string; href?: string }) {
-    return (
-        <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">{title}</CardTitle>
-            {href && (
-                <Link
-                    href={href}
-                    className="flex items-center gap-0.5 text-xs text-primary-600 dark:text-primary-400 hover:underline"
-                >
-                    Lihat semua <ChevronRight className="w-3 h-3" />
-                </Link>
-            )}
-        </div>
-    );
-}
-
-/* ──────────────────────────────────── main page ─── */
+/* ─────────────────────────────────────── halaman ─── */
 
 export default function Dashboard() {
+    const props = usePage<DashboardProps>().props;
     const {
+        generatedAt,
+        period,
         financialOverview,
         stats,
         cashFlowChart,
+        accountOptions,
         expensesByCategory,
+        incomeByCategory,
         bankAccounts,
         pendingInvoices,
         recentTransactions,
-        recentReimbursements,
-        recentFundRequests,
-    } = usePage<DashboardProps>().props;
+    } = props;
+    const { can } = useCan();
+    const ramp = useDonutRamp();
 
-    const isDark =
-        typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+    /* ── grafik: pil periode, rentang, filter rekening → partial reload ── */
+    const [chart, setChart] = React.useState<ChartParams>({
+        period: cashFlowChart.period,
+        from: cashFlowChart.period === 'range' ? cashFlowChart.range.from : null,
+        to: cashFlowChart.period === 'range' ? cashFlowChart.range.to : null,
+        account: cashFlowChart.account?.id ?? null,
+    });
+    const [chartLoading, setChartLoading] = React.useState(false);
+    const [chartError, setChartError] = React.useState(false);
+    const [categoryTab, setCategoryTab] = React.useState<'expense' | 'income'>('expense');
 
-    const chartTextColor = isDark ? '#a1a1aa' : '#6b7280';
-    const chartGridColor = isDark ? '#3f3f46' : '#f3f4f6';
-
-    const cashFlowOptions: ApexCharts.ApexOptions = {
-        chart: { type: 'bar', toolbar: { show: false }, background: 'transparent' },
-        plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
-        dataLabels: { enabled: false },
-        xaxis: {
-            categories: cashFlowChart.map((d) => d.label),
-            labels: { style: { colors: chartTextColor, fontSize: '12px' } },
-            axisBorder: { show: false },
-            axisTicks: { show: false },
-        },
-        yaxis: {
-            labels: {
-                style: { colors: chartTextColor, fontSize: '11px' },
-                formatter: (v) => {
-                    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}jt`;
-                    if (v >= 1_000) return `${(v / 1_000).toFixed(0)}rb`;
-                    return String(v);
-                },
+    const loadChart = React.useCallback((next: ChartParams) => {
+        setChart(next);
+        setChartError(false);
+        try {
+            localStorage.setItem(CHART_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+            /* penyimpanan lokal opsional */
+        }
+        router.reload({
+            only: ['cashFlowChart'],
+            data: {
+                chart_period: next.period,
+                chart_from: next.from ?? '',
+                chart_to: next.to ?? '',
+                chart_account: next.account ?? '',
             },
-        },
-        grid: { borderColor: chartGridColor, strokeDashArray: 4 },
-        colors: ['#2563eb', '#ef4444'],
-        legend: { labels: { colors: chartTextColor }, fontSize: '12px' },
-        tooltip: {
-            theme: isDark ? 'dark' : 'light',
-            y: { formatter: (v) => formatCurrency(v) },
-        },
-    };
+            onStart: () => setChartLoading(true),
+            onFinish: () => setChartLoading(false),
+            onError: () => setChartError(true),
+        });
+    }, []);
 
-    const cashFlowSeries = [
-        { name: 'Pemasukan', data: cashFlowChart.map((d) => d.income) },
-        { name: 'Pengeluaran', data: cashFlowChart.map((d) => d.expenses) },
-    ];
+    /* Pilihan terakhir pengguna dipulihkan bila URL tidak membawa parameter grafik. */
+    React.useEffect(() => {
+        if (window.location.search.includes('chart_')) return;
+        try {
+            const stored = localStorage.getItem(CHART_STORAGE_KEY);
+            if (!stored) return;
+            const saved = JSON.parse(stored) as ChartParams;
+            if (saved.period !== 'monthly' || saved.account) loadChart(saved);
+        } catch {
+            /* abaikan nilai tersimpan yang rusak */
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    const donutOptions: ApexCharts.ApexOptions = {
-        chart: { type: 'donut', background: 'transparent' },
-        labels: expensesByCategory.map((d) => d.name),
-        colors: expensesByCategory.map((d) => d.color),
-        dataLabels: { enabled: false },
-        legend: {
-            position: 'bottom',
-            labels: { colors: chartTextColor },
-            fontSize: '12px',
-        },
-        tooltip: {
-            theme: isDark ? 'dark' : 'light',
-            y: { formatter: (v) => formatCurrency(v) },
-        },
-        plotOptions: {
-            pie: { donut: { size: '65%', labels: { show: false } } },
-        },
-    };
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-    const donutSeries = expensesByCategory.map((d) => d.value);
-
+    const categories = categoryTab === 'expense' ? expensesByCategory : incomeByCategory;
+    const categoryTotal = categories.reduce((s, c) => s + c.value, 0);
+    const biggest = categories[0];
     const net = stats.net_this_month;
-    const netPositive = net >= 0;
+    /* Satu sumber periode yang aktif: pil periode ATAU kalender rentang, tidak keduanya. */
+    const rangeActive = chart.period === 'range';
+    /* Arus bersih untuk periode yang sedang tampil di grafik (pil atau rentang kalender). */
+    const chartNet = cashFlowChart.income.reduce((sum, v) => sum + v, 0) - cashFlowChart.expenses.reduce((sum, v) => sum + v, 0);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <PageHeader title="Dashboard" description="Ringkasan keuangan bisnis" />
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 shrink-0 self-start sm:self-auto">
-                    <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                        Total Saldo: {formatCurrency(financialOverview.total_balance)}
-                    </span>
+        <div className="flex flex-col gap-[22px] pt-2">
+            {/* Header halaman */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-0.5">
+                    <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Ringkasan</h1>
+                    <p className="text-[13px] text-ob-ink-2">
+                        {todayLabel} · data per {generatedAt}
+                    </p>
                 </div>
+                {can('create invoices') && (
+                    <Link
+                        href="/invoices/create"
+                        className="inline-flex h-11 items-center gap-2 self-start rounded-full bg-ob-act-fill px-[18px] text-[13px] font-semibold text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page sm:self-auto"
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                        Buat Invoice
+                    </Link>
+                )}
             </div>
 
-            {/* Financial Overview — 2 featured + 3 compact */}
-            <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FeaturedMetricCard
-                        label="Total Pemasukan"
-                        sublabel="Akumulasi semua pembayaran diterima"
-                        value={financialOverview.total_income}
-                        icon={<TrendingUp className="w-6 h-6" />}
-                        accent="bg-green-500"
-                        iconBg="bg-green-50 dark:bg-green-900/20"
-                        iconColor="text-green-600 dark:text-green-400"
-                    />
-                    <FeaturedMetricCard
-                        label="Total Profit"
-                        sublabel="Setelah dikurangi HPP / billing klien"
-                        value={financialOverview.total_profit}
-                        icon={<CircleDollarSign className="w-6 h-6" />}
-                        accent={financialOverview.total_profit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}
-                        iconBg={financialOverview.total_profit >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-red-50 dark:bg-red-900/20'}
-                        iconColor={financialOverview.total_profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
-                    />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <CompactMetricCard
-                        label="Sisa Outstanding"
-                        value={financialOverview.total_outstanding}
-                        icon={<ReceiptText className="w-5 h-5" />}
-                        iconBg="bg-red-50 dark:bg-red-900/20"
-                        iconColor="text-red-600 dark:text-red-400"
-                        valueColor="text-red-600 dark:text-red-400"
-                    />
-                    <CompactMetricCard
-                        label="Total HPP / Billing Klien"
-                        value={financialOverview.total_hpp}
-                        icon={<Banknote className="w-5 h-5" />}
-                        iconBg="bg-purple-50 dark:bg-purple-900/20"
-                        iconColor="text-purple-600 dark:text-purple-400"
-                    />
-                    <CompactMetricCard
-                        label="Total PP 0,5%"
-                        value={financialOverview.total_pp}
-                        icon={<BadgeDollarSign className="w-5 h-5" />}
-                        iconBg="bg-orange-50 dark:bg-orange-900/20"
-                        iconColor="text-orange-600 dark:text-orange-400"
-                    />
-                </div>
-            </div>
-
-            {/* Monthly stats + net */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary-50 dark:bg-dark-600/40 border border-secondary-100 dark:border-dark-600/60">
-                    <div className="h-9 w-9 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
-                        <ArrowUpRight className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-dark-500 dark:text-dark-400">Pemasukan Bln Ini</p>
-                        <p className="text-sm font-semibold text-dark-900 dark:text-dark-50">
-                            {formatCurrency(stats.income_this_month)}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary-50 dark:bg-dark-600/40 border border-secondary-100 dark:border-dark-600/60">
-                    <div className="h-9 w-9 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center shrink-0">
-                        <ArrowDownRight className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-dark-500 dark:text-dark-400">Pengeluaran Bln Ini</p>
-                        <p className="text-sm font-semibold text-dark-900 dark:text-dark-50">
-                            {formatCurrency(stats.expenses_this_month)}
-                        </p>
-                    </div>
-                </div>
-                <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                    netPositive
-                        ? 'bg-green-50/50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30'
-                        : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
-                }`}>
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        netPositive ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'
-                    }`}>
-                        {netPositive
-                            ? <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            : <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
-                        }
-                    </div>
-                    <div>
-                        <p className="text-xs text-dark-500 dark:text-dark-400">Net Bln Ini</p>
-                        <p className={`text-sm font-semibold ${
-                            netPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                        }`}>
-                            {netPositive ? '+' : '-'}{formatCurrency(Math.abs(net))}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <Card className="xl:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-base font-semibold">Arus Kas — 6 Bulan Terakhir</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {cashFlowChart.length > 0 ? (
-                            <ReactApexChart
-                                type="bar"
-                                options={cashFlowOptions}
-                                series={cashFlowSeries}
-                                height={240}
-                            />
-                        ) : (
-                            <div className="h-60 flex items-center justify-center text-sm text-dark-400 dark:text-dark-500">
-                                Belum ada data transaksi
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base font-semibold">Pengeluaran per Kategori</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {donutSeries.length > 0 ? (
-                            <ReactApexChart
-                                type="donut"
-                                options={donutOptions}
-                                series={donutSeries}
-                                height={240}
-                            />
-                        ) : (
-                            <div className="h-60 flex items-center justify-center text-sm text-dark-400 dark:text-dark-500">
-                                Belum ada data pengeluaran
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* 4-column quick lists */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {/* Bank Accounts */}
-                <Card>
-                    <CardHeader>
-                        <SectionHeader title="Rekening Bank" />
-                    </CardHeader>
-                    <CardContent className="space-y-2.5">
-                        {bankAccounts.length === 0 && (
-                            <p className="text-sm text-dark-400 dark:text-dark-500 text-center py-4">Belum ada rekening</p>
-                        )}
-                        {bankAccounts.map((acc) => (
-                            <div key={acc.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-secondary-50 dark:bg-dark-600/40">
-                                <div className="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                                    <Landmark className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-dark-900 dark:text-dark-50 truncate">{acc.name}</p>
-                                    <p className="text-[10px] text-dark-500 dark:text-dark-400">{acc.bank}</p>
-                                </div>
-                                <p className="text-xs font-semibold text-dark-900 dark:text-dark-50 shrink-0">
-                                    {formatCurrency(acc.balance)}
-                                </p>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-
-                {/* Recent Reimbursements */}
-                <Card>
-                    <CardHeader>
-                        <SectionHeader title="Reimburse Terbaru" href="/reimbursements" />
-                    </CardHeader>
-                    <CardContent className="space-y-2.5">
-                        {recentReimbursements.length === 0 && (
-                            <p className="text-sm text-dark-400 dark:text-dark-500 text-center py-4">Belum ada pengajuan</p>
-                        )}
-                        {recentReimbursements.map((r) => (
-                            <div key={r.id} className="space-y-1 p-2.5 rounded-xl bg-secondary-50 dark:bg-dark-600/40">
-                                <div className="flex items-start justify-between gap-1">
-                                    <p className="text-xs font-medium text-dark-900 dark:text-dark-50 truncate leading-snug flex-1">
-                                        {r.title}
-                                    </p>
-                                    <ReimbStatusBadge status={r.status} />
-                                </div>
-                                <div className="flex items-center justify-between gap-1">
-                                    <p className="text-[10px] text-dark-500 dark:text-dark-400 truncate">{r.user} · {r.date}</p>
-                                    <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 shrink-0">
-                                        {formatCurrency(r.amount)}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-
-                {/* Recent Fund Requests */}
-                <Card>
-                    <CardHeader>
-                        <SectionHeader title="Pengajuan Dana" href="/fund-requests" />
-                    </CardHeader>
-                    <CardContent className="space-y-2.5">
-                        {recentFundRequests.length === 0 && (
-                            <p className="text-sm text-dark-400 dark:text-dark-500 text-center py-4">Belum ada pengajuan</p>
-                        )}
-                        {recentFundRequests.map((r) => (
-                            <div key={r.id} className="space-y-1 p-2.5 rounded-xl bg-secondary-50 dark:bg-dark-600/40">
-                                <div className="flex items-start justify-between gap-1">
-                                    <p className="text-xs font-medium text-dark-900 dark:text-dark-50 truncate leading-snug flex-1">
-                                        {r.title}
-                                    </p>
-                                    <FundStatusBadge status={r.status} />
-                                </div>
-                                <div className="flex items-center justify-between gap-1">
-                                    <PriorityBadge priority={r.priority} />
-                                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 shrink-0">
-                                        {formatCurrency(r.amount)}
-                                    </p>
-                                </div>
-                                <p className="text-[10px] text-dark-500 dark:text-dark-400 truncate">{r.user} · {r.date}</p>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-
-                {/* Pending Invoices */}
-                <Card>
-                    <CardHeader>
-                        <SectionHeader title="Invoice Tertunda" href="/invoices" />
-                    </CardHeader>
-                    <CardContent className="space-y-2.5">
-                        {pendingInvoices.length === 0 && (
-                            <p className="text-sm text-dark-400 dark:text-dark-500 text-center py-4">Tidak ada invoice tertunda</p>
-                        )}
-                        {pendingInvoices.map((inv) => (
-                            <div key={inv.id} className="space-y-1 p-2.5 rounded-xl bg-secondary-50 dark:bg-dark-600/40">
-                                <div className="flex items-center justify-between gap-1">
-                                    <p className="text-xs font-medium text-dark-900 dark:text-dark-50 truncate">
-                                        {inv.invoice_number}
-                                    </p>
-                                    <InvoiceStatusBadge status={inv.status} />
-                                </div>
-                                <div className="flex items-center justify-between gap-1">
-                                    <p className="text-[10px] text-dark-500 dark:text-dark-400 truncate">{inv.client}</p>
-                                    <p className="text-xs font-semibold text-dark-700 dark:text-dark-300 shrink-0">
-                                        {formatCurrency(inv.amount)}
-                                    </p>
-                                </div>
-                                {inv.days_until_due < 0 && (
-                                    <p className="text-[10px] text-red-500 dark:text-red-400">
-                                        Terlambat {Math.abs(inv.days_until_due)} hari
-                                    </p>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">
+                {/* ═══ Arus Kas ═══ */}
+                <Widget
+                    title="Arus Kas"
+                    height={470}
+                    className="md:col-span-2 xl:col-span-8"
+                    bodyClassName="gap-4"
+                    action={
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <div
+                                role="group"
+                                aria-label={rangeActive ? 'Periode grafik (tidak dipakai, grafik memakai rentang dari kalender)' : 'Periode grafik'}
+                                title={rangeActive ? 'Grafik memakai rentang dari kalender. Pilih salah satu untuk kembali.' : undefined}
+                                className={cn(
+                                    'flex items-center gap-0.5 rounded-full border bg-ob-rail p-[3px] transition-opacity duration-200',
+                                    rangeActive ? 'border-dashed border-ob-line-strong opacity-55 hover:opacity-100' : 'border-ob-line',
                                 )}
-                                {inv.days_until_due >= 0 && inv.days_until_due <= 7 && (
-                                    <p className="text-[10px] text-yellow-600 dark:text-yellow-400">
-                                        Jatuh tempo {inv.days_until_due} hari lagi
-                                    </p>
-                                )}
+                            >
+                                {PERIODS.map((p) => {
+                                    const on = chart.period === p.value;
+                                    return (
+                                        <button
+                                            key={p.value}
+                                            type="button"
+                                            aria-pressed={on}
+                                            onClick={() => !on && loadChart({ ...chart, period: p.value, from: null, to: null })}
+                                            className={cn(PILL_BTN, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            </div>
+                            <Combobox
+                                options={[{ value: 0, label: 'Semua rekening' }, ...accountOptions.map((a) => ({ value: a.id, label: a.label }))]}
+                                value={chart.account ?? 0}
+                                onChange={(v) => loadChart({ ...chart, account: v ? Number(v) : null })}
+                                placeholder="Semua rekening"
+                                clearable={false}
+                                className="w-56"
+                            />
+                        </div>
+                    }
+                >
+                    {/* Hero: stok (saldo) lalu arus bulan ini */}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <p className="text-[40px] font-semibold leading-none tracking-[-0.01em] text-ob-ink">{formatCurrency(stats.total_balance)}</p>
+                            <p className="text-[13px] text-ob-ink-2">
+                                Total saldo · {bankAccounts.length} rekening
+                                {cashFlowChart.account && <span className="text-ob-ink-3"> · grafik: {cashFlowChart.account.label}</span>}
+                            </p>
+                        </div>
+                        <dl className="flex flex-wrap items-end gap-x-8 gap-y-2">
+                            <div className="flex flex-col gap-1">
+                                <dt className="inline-flex items-center gap-1.5 text-xs text-ob-ink-2">
+                                    <span aria-hidden="true" className="h-2.5 w-3.5 rounded-[3px]" style={{ background: 'var(--ob-bar-now)' }} />
+                                    Pemasukan {period.label.split(' ').slice(0, 2).join(' ')}
+                                </dt>
+                                <dd className="text-[15px] font-semibold text-ob-ink">{formatCurrency(stats.income_this_month)}</dd>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <dt className="inline-flex items-center gap-1.5 text-xs text-ob-ink-2">
+                                    <span aria-hidden="true" className="ob-hatch h-2.5 w-3.5 rounded-[3px]" />
+                                    Pengeluaran {period.label.split(' ').slice(0, 2).join(' ')}
+                                </dt>
+                                <dd className="text-[15px] font-semibold text-ob-ink">{formatCurrency(stats.expenses_this_month)}</dd>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <dt className="text-xs text-ob-ink-2">Arus bersih</dt>
+                                <dd className={cn('text-[15px] font-semibold', net >= 0 ? 'text-ob-pos' : 'text-ob-neg')}>
+                                    <span className="sr-only">{net >= 0 ? 'naik ' : 'turun '}</span>
+                                    {net >= 0 ? '+' : '−'}
+                                    {formatCurrency(Math.abs(net))}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
 
-            {/* Recent Transactions */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base font-semibold">Transaksi Terbaru</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {recentTransactions.length === 0 && (
-                        <p className="text-sm text-dark-400 dark:text-dark-500 text-center py-6">Belum ada transaksi</p>
+                    <div className="flex items-center gap-4 text-xs text-ob-ink-2">
+                        <span className="inline-flex items-center gap-2">
+                            <span aria-hidden="true" className="h-2.5 w-3.5 rounded-[3px]" style={{ background: 'var(--ob-bar-now)' }} />
+                            Pemasukan
+                        </span>
+                        <span className="inline-flex items-center gap-2">
+                            <span aria-hidden="true" className="ob-hatch h-2.5 w-3.5 rounded-[3px]" />
+                            Pengeluaran
+                        </span>
+                        <span className="ml-auto text-ob-ink-3">
+                            {shortDate(cashFlowChart.range.from)} – {shortDate(cashFlowChart.range.to)}
+                        </span>
+                    </div>
+
+                    {chartError ? (
+                        <WidgetError
+                            title="Grafik tidak dapat dimuat"
+                            description="Angka lain di halaman ini tetap benar."
+                            onRetry={() => loadChart(chart)}
+                        />
+                    ) : chartLoading ? (
+                        <CashFlowChartSkeleton />
+                    ) : (
+                        <CashFlowChart labels={cashFlowChart.labels} income={cashFlowChart.income} expenses={cashFlowChart.expenses} />
                     )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                        {recentTransactions.map((tx, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary-50 dark:bg-dark-600/40">
-                                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                    tx.type === 'income' ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
-                                }`}>
-                                    {tx.type === 'income'
-                                        ? <ArrowUpRight className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                        : <ArrowDownRight className="w-4 h-4 text-red-600 dark:text-red-400" />
-                                    }
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-dark-800 dark:text-dark-200 truncate">{tx.description}</p>
-                                    <p className="text-[10px] text-dark-400 dark:text-dark-500">{tx.date} · {tx.account}</p>
-                                </div>
-                                <p className={`text-xs font-semibold shrink-0 ${
-                                    tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                                }`}>
-                                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-                                </p>
+                </Widget>
+
+                {/* ═══ Periode Arus Kas (kalender rentang) ═══ */}
+                <Widget
+                    title="Periode Arus Kas"
+                    height={470}
+                    className="xl:col-span-4"
+                    bodyClassName="gap-3"
+                    action={
+                        rangeActive ? (
+                            <StatusPill tone="act">Dipakai grafik</StatusPill>
+                        ) : (
+                            <span className="inline-flex h-[22px] items-center rounded-full border border-dashed border-ob-line-strong px-2 text-xs font-medium text-ob-ink-3">
+                                Tidak dipakai
+                            </span>
+                        )
+                    }
+                >
+                    <RangeCalendar
+                        from={rangeActive ? chart.from : null}
+                        to={rangeActive ? chart.to : null}
+                        inactive={!rangeActive}
+                        onApply={(from, to) => loadChart({ ...chart, period: 'range', from, to })}
+                        summary={
+                            <span className={cn(chartNet >= 0 ? 'text-ob-ink' : 'text-ob-neg')}>
+                                <span className="sr-only">Arus bersih periode grafik </span>
+                                {chartNet >= 0 ? '+' : '−'}Rp {compactRupiah(Math.abs(chartNet))}
+                            </span>
+                        }
+                        summaryAction={
+                            rangeActive && (
+                                <button
+                                    type="button"
+                                    onClick={() => loadChart({ ...chart, period: 'monthly', from: null, to: null })}
+                                    className="shrink-0 rounded-full border border-ob-line px-3 py-1.5 text-xs font-semibold text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
+                                >
+                                    Kembali ke Bulanan
+                                </button>
+                            )
+                        }
+                    />
+                </Widget>
+
+                {/* ═══ Pengeluaran | Pemasukan per kategori ═══ */}
+                <Widget
+                    title={
+                        <span role="group" aria-label="Rincian per kategori" className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                            {(
+                                [
+                                    ['expense', 'Pengeluaran'],
+                                    ['income', 'Pemasukan'],
+                                ] as const
+                            ).map(([key, label]) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    aria-pressed={categoryTab === key}
+                                    onClick={() => setCategoryTab(key)}
+                                    className={cn(PILL_BTN, 'text-[13px]', categoryTab === key ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </span>
+                    }
+                    height={320}
+                    className="xl:col-span-4"
+                    bodyClassName="gap-3.5"
+                    action={<span className="text-xs text-ob-ink-3">{period.label}</span>}
+                >
+                    {categories.length === 0 ? (
+                        categoryTab === 'expense' ? (
+                            <WidgetEmpty title="Belum ada pengeluaran" description="Pengeluaran bulan ini akan dipecah per kategori begitu ada transaksi debit." />
+                        ) : (
+                            <WidgetEmpty title="Belum ada pemasukan" description="Pembayaran invoice dan transaksi kredit bulan ini akan dipecah per kategori di sini." />
+                        )
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-[18px]">
+                                <DonutChart slices={categories} centerLabel={compactRupiah(categoryTotal)} centerSub={`${categories.length} kategori`} />
+                                <ul className="m-0 flex min-w-0 flex-1 list-none flex-col gap-1.5 p-0 text-[13px]">
+                                    {categories.map((c, i) => (
+                                        <li key={c.name} className="grid h-[26px] grid-cols-[8px_minmax(0,1fr)_44px] items-center gap-2.5">
+                                            <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: ramp[Math.min(i, ramp.length - 1)] }} />
+                                            <span className="truncate text-ob-ink-2">{c.name}</span>
+                                            <span className="text-right font-semibold text-ob-ink">{categoryTotal ? Math.round((c.value / categoryTotal) * 100) : 0}%</span>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                        ))}
+                            {biggest && (
+                                <p className="mt-auto text-xs leading-relaxed text-ob-ink-3">
+                                    Terbesar: {biggest.name.toLowerCase()}, {formatCurrency(biggest.value)}.{' '}
+                                    {categoryTab === 'expense'
+                                        ? can('view expense') && (
+                                              <Link href="/cash-flow/expenses" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
+                                                  Lihat pengeluaran →
+                                              </Link>
+                                          )
+                                        : can('view income') && (
+                                              <Link href="/cash-flow/income" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
+                                                  Lihat pemasukan →
+                                              </Link>
+                                          )}
+                                </p>
+                            )}
+                        </>
+                    )}
+                </Widget>
+
+                {/* ═══ Invoice Belum Dibayar ═══ */}
+                <Widget
+                    title="Invoice Belum Dibayar"
+                    count={stats.pending_invoices_count > 0 ? `${stats.pending_invoices_count} invoice · ${formatCurrency(stats.pending_invoices_amount)}` : undefined}
+                    height={320}
+                    className="md:col-span-2 xl:col-span-8"
+                    action={
+                        can('view invoices') && (
+                            <WidgetLink href="/invoices">
+                                {pendingInvoices.length} dari {stats.pending_invoices_count} · Lihat semua <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                            </WidgetLink>
+                        )
+                    }
+                >
+                    {pendingInvoices.length === 0 ? (
+                        <WidgetEmpty title="Semua invoice sudah dibayar" description="Invoice yang terkirim dan belum lunas akan muncul di sini, yang lewat tempo paling atas." />
+                    ) : (
+                        <ul className="m-0 flex list-none flex-col p-0">
+                            {pendingInvoices.map((inv, i) => {
+                                const due = dueText(inv.days_until_due);
+                                return (
+                                    <li key={inv.id} className={cn(i < pendingInvoices.length - 1 && 'border-b border-ob-line-soft')}>
+                                        <a
+                                            href={resourceHref('invoice', inv.id)}
+                                            className="grid h-[46px] grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 text-[13px] text-ob-ink hover:bg-ob-inner/60 lg:grid-cols-[88px_112px_minmax(0,1fr)_minmax(0,190px)_140px] rounded-lg -mx-1 px-1"
+                                        >
+                                            <span className="flex flex-col leading-[1.3]">
+                                                <span className={cn('font-semibold', inv.status === 'overdue' && 'text-ob-late')}>{shortDate(inv.due_date)}</span>
+                                                <span className={cn('text-xs', due.tone)}>{due.text}</span>
+                                            </span>
+                                            <span className="hidden lg:block">
+                                                <InvoiceStatus status={inv.status} />
+                                            </span>
+                                            <span className="flex min-w-0 items-center gap-2">
+                                                <span className="truncate font-semibold">{inv.client}</span>
+                                                <span className="lg:hidden">
+                                                    <InvoiceStatus status={inv.status} />
+                                                </span>
+                                            </span>
+                                            <span className="hidden truncate font-mono text-xs text-ob-ink-2 lg:block">{inv.invoice_number ?? '—'}</span>
+                                            <span className="flex flex-col items-end leading-[1.3]">
+                                                <span className="font-semibold">{formatCurrency(inv.remaining)}</span>
+                                                {inv.paid > 0 && <span className="text-xs text-ob-ink-3">sisa dari {formatCurrency(inv.total_amount)}</span>}
+                                            </span>
+                                        </a>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </Widget>
+
+                {/* ═══ Rekening ═══ */}
+                <Widget
+                    title="Rekening"
+                    count={bankAccounts.length > 3 ? `3 dari ${bankAccounts.length}` : undefined}
+                    height={300}
+                    className="xl:col-span-5"
+                    bodyClassName="gap-2"
+                    action={can('view bank-accounts') && <WidgetLink href="/bank-accounts">Semua rekening →</WidgetLink>}
+                >
+                    {bankAccounts.length === 0 ? (
+                        <WidgetEmpty
+                            title="Belum ada rekening"
+                            description="Saldo kas dihitung dari rekening. Tambahkan rekening pertama untuk mulai mencatat transaksi."
+                            action={
+                                can('create bank-accounts') && (
+                                    <Link href="/bank-accounts" className="mt-1 inline-flex h-8 items-center rounded-xl border border-ob-line bg-ob-inner px-3.5 text-xs font-semibold text-ob-ink hover:bg-ob-hover">
+                                        + Tambah rekening
+                                    </Link>
+                                )
+                            }
+                        />
+                    ) : (
+                        <ScrollList label={`Daftar rekening, ${bankAccounts.length} item, dapat digulir`} height={210} className="gap-3">
+                            {bankAccounts.map((acc) => (
+                                <li key={acc.id} className="shrink-0">
+                                    <Link
+                                        href="/bank-accounts"
+                                        className="flex h-[62px] items-center gap-3 rounded-2xl border border-ob-line-soft bg-ob-inner px-3.5 text-ob-ink transition-colors hover:bg-ob-hover"
+                                    >
+                                        <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-ob-chip text-xs font-bold text-ob-ink-2">
+                                            {bankAbbrev(acc.bank)}
+                                        </span>
+                                        <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
+                                            <span className="truncate text-[13px] font-semibold">{acc.name}</span>
+                                            <span className="truncate text-xs text-ob-ink-3">{acc.bank} · {acc.account_number}</span>
+                                        </span>
+                                        <span className={cn('shrink-0 text-sm font-semibold', acc.balance <= 0 && 'text-ob-ink-2')}>{formatCurrency(acc.balance)}</span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ScrollList>
+                    )}
+                </Widget>
+
+                {/* ═══ Transaksi Terbaru ═══ */}
+                <Widget
+                    title="Transaksi Terbaru"
+                    count={recentTransactions.length > 4 ? `4 dari ${recentTransactions.length}` : undefined}
+                    height={300}
+                    className="xl:col-span-7"
+                    bodyClassName="gap-2"
+                    action={can('view income') && <WidgetLink href="/cash-flow/income">Lihat arus kas →</WidgetLink>}
+                >
+                    {recentTransactions.length === 0 ? (
+                        <WidgetEmpty title="Belum ada transaksi" description="Pemasukan, pengeluaran, dan pembayaran invoice terbaru akan tampil di sini." />
+                    ) : (
+                        <ScrollList label={`Transaksi terbaru, ${recentTransactions.length} item, dapat digulir`} height={216}>
+                            {recentTransactions.map((tx, i) => {
+                                const inc = tx.type === 'income';
+                                return (
+                                    <li
+                                        key={i}
+                                        className={cn(
+                                            'grid h-[54px] shrink-0 grid-cols-[26px_52px_minmax(0,1fr)_auto] items-center gap-3',
+                                            i < recentTransactions.length - 1 && 'border-b border-ob-line-soft',
+                                        )}
+                                    >
+                                        <span aria-hidden="true" className={cn('flex h-[26px] w-[26px] items-center justify-center rounded-lg', inc ? 'bg-ob-pos/15 text-ob-pos' : 'bg-ob-neg/15 text-ob-neg')}>
+                                            {inc ? <ArrowUpRight className="h-3 w-3" strokeWidth={3} /> : <ArrowDownLeft className="h-3 w-3" strokeWidth={3} />}
+                                        </span>
+                                        <span className="text-xs text-ob-ink-3">{shortDate(tx.date)}</span>
+                                        <span className="flex min-w-0 flex-col leading-[1.3]">
+                                            <span className="truncate text-[13px] text-ob-ink">{tx.description}</span>
+                                            <span className="truncate text-xs text-ob-ink-3">{tx.account}</span>
+                                        </span>
+                                        <span className={cn('text-right text-[13px] font-semibold', inc ? 'text-ob-pos' : 'text-ob-neg')}>
+                                            <span className="sr-only">{inc ? 'masuk ' : 'keluar '}</span>
+                                            {inc ? '+' : '−'}
+                                            {formatCurrency(tx.amount)}
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ScrollList>
+                    )}
+                </Widget>
+            </div>
+
+            {/* Sepanjang waktu */}
+            <section aria-labelledby="h-all" className="flex flex-wrap items-center gap-x-7 gap-y-2 rounded-3xl border border-ob-line-soft bg-ob-card px-[22px] py-4 xl:h-[60px] xl:flex-nowrap xl:py-0">
+                <h2 id="h-all" className="whitespace-nowrap text-[13px] font-semibold text-ob-ink-2">
+                    Sepanjang waktu
+                </h2>
+                <dl className="m-0 flex flex-1 flex-wrap items-center gap-x-7 gap-y-2 text-[13px]">
+                    <div className="flex items-baseline gap-2">
+                        <dt className="text-ob-ink-3">Pendapatan</dt>
+                        <dd className="m-0 font-semibold text-ob-ink">{formatCurrency(financialOverview.total_income)}</dd>
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="flex items-baseline gap-2">
+                        <dt className="text-ob-ink-3">HPP</dt>
+                        <dd className="m-0 font-semibold text-ob-ink">{formatCurrency(financialOverview.total_hpp)}</dd>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <dt className="text-ob-ink-3">Laba kotor</dt>
+                        <dd className={cn('m-0 font-semibold', financialOverview.total_profit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>
+                            {financialOverview.total_profit < 0 && '−'}
+                            {formatCurrency(Math.abs(financialOverview.total_profit))}
+                        </dd>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                        <dt className="text-ob-ink-3">Est. PPh final 0,5%</dt>
+                        <dd className="m-0 font-semibold text-ob-ink">{formatCurrency(financialOverview.total_pp)}</dd>
+                    </div>
+                </dl>
+                {can('view profit-loss') && (
+                    <WidgetLink href="/reports/profit-loss" className="whitespace-nowrap">
+                        Laporan Laba Rugi <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                    </WidgetLink>
+                )}
+            </section>
         </div>
     );
 }

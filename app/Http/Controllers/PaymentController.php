@@ -19,6 +19,10 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Invoice tidak dapat menerima pembayaran.'], 422);
         }
 
+        if ($error = $this->exceedsRemaining($invoice, (int) $validated['amount'])) {
+            return $error;
+        }
+
         $attachmentPath = null;
         $attachmentName = null;
 
@@ -47,6 +51,10 @@ class PaymentController extends Controller
     public function update(UpdatePaymentRequest $request, Payment $payment): JsonResponse
     {
         $validated = $request->validated();
+
+        if ($error = $this->exceedsRemaining($payment->invoice, (int) $validated['amount'], $payment->amount)) {
+            return $error;
+        }
 
         $attachmentPath = $payment->attachment_path;
         $attachmentName = $payment->attachment_name;
@@ -87,6 +95,22 @@ class PaymentController extends Controller
         $invoice->updateStatus();
 
         return response()->json(['message' => 'Pembayaran berhasil dihapus.']);
+    }
+
+    /**
+     * Pembayaran tidak boleh melebihi sisa tagihan; kelebihan dicatat sebagai transaksi bank terpisah.
+     * $replacing = nominal pembayaran lama yang sedang diedit (ikut dihitung sebagai sisa).
+     */
+    private function exceedsRemaining(Invoice $invoice, int $amount, int $replacing = 0): ?JsonResponse
+    {
+        $remaining = $invoice->amount_remaining + $replacing;
+        if ($amount <= $remaining) {
+            return null;
+        }
+
+        $message = 'Melebihi sisa tagihan Rp '.number_format($remaining, 0, ',', '.').'. Catat kelebihan sebagai transaksi terpisah.';
+
+        return response()->json(['message' => $message, 'errors' => ['amount' => [$message]]], 422);
     }
 
     private function formatPayment(Payment $payment): array

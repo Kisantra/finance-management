@@ -22,6 +22,7 @@ use App\Http\Controllers\ReimbursementController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\CompanyController;
 use App\Http\Controllers\Settings\CustomFontController;
+use App\Http\Controllers\Settings\InvoiceSettingsController;
 use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -136,7 +137,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/export/excel', [InvoiceController::class, 'exportExcel'])->name('export.excel');
         Route::get('/export/pdf', [InvoiceController::class, 'exportPdf'])->name('export.pdf');
         Route::post('/', [InvoiceController::class, 'store'])->middleware('can:create invoices')->name('store');
-        Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::post('/preview', [InvoiceController::class, 'preview'])->name('preview');
+        Route::get('/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('show');
+        Route::get('/{invoice}/data', [InvoiceController::class, 'data'])->name('data');
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');
         Route::put('/{invoice}', [InvoiceController::class, 'update'])->middleware('can:edit invoices')->name('update');
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->middleware('can:delete invoices')->name('destroy');
@@ -522,7 +525,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // SETTINGS
     // ------------------------------------------------------------------------
     Route::prefix('settings')->name('settings.')->group(function () {
-        Route::redirect('/', '/settings/profile');
+        Route::inertia('/', 'settings/index')->name('index');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -534,6 +537,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/company', [CompanyController::class, 'edit'])->name('company');
         Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
         Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+
+        Route::middleware('can:manage invoice settings')->group(function () {
+            Route::get('/invoice-numbering', [InvoiceSettingsController::class, 'edit'])->name('invoice-numbering');
+            Route::put('/invoice-numbering', [InvoiceSettingsController::class, 'update'])->name('invoice-numbering.update');
+        });
 
         // PDF Template Builder — gated by permission
         Route::prefix('pdf-templates')->name('pdf-templates.')->middleware('can:manage pdf templates')->group(function () {

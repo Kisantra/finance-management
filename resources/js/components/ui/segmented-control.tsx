@@ -20,6 +20,8 @@ interface SegmentedControlProps<T extends string = string> {
     columns?: 2 | 3 | 4 | 5 | 6;
     /** "stack" places icon above label (taller cards); "inline" is a single compact row. */
     layout?: 'stack' | 'inline';
+    /** "pill" = trek Obsidian (latar rel, pil aktif terbalik); default "card" untuk halaman lama. */
+    variant?: 'card' | 'pill';
     disabled?: boolean;
     className?: string;
 }
@@ -47,10 +49,12 @@ export function SegmentedControl<T extends string = string>({
     hint,
     columns,
     layout = 'inline',
+    variant = 'card',
     disabled,
     className,
 }: SegmentedControlProps<T>) {
     const cols = columns ?? (options.length as 2 | 3 | 4 | 5 | 6);
+    const pill = variant === 'pill';
 
     return (
         <div className={cn('w-full', className)}>
@@ -60,7 +64,15 @@ export function SegmentedControl<T extends string = string>({
                 </label>
             )}
 
-            <div role="radiogroup" className={cn('grid gap-2', COLS[cols] ?? 'grid-cols-3')}>
+            <div
+                role="radiogroup"
+                aria-label={label}
+                className={cn(
+                    'grid',
+                    COLS[cols] ?? 'grid-cols-3',
+                    pill ? 'gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]' : 'gap-2',
+                )}
+            >
                 {options.map((opt) => {
                     const active = opt.value === value;
                     return (
@@ -72,11 +84,19 @@ export function SegmentedControl<T extends string = string>({
                             disabled={disabled}
                             onClick={() => onChange(opt.value)}
                             className={cn(
-                                'border rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                                layout === 'stack'
-                                    ? 'flex flex-col items-center gap-1.5 p-3'
-                                    : 'flex items-center justify-center gap-2 h-9 px-3 text-xs',
-                                active ? opt.activeClassName ?? DEFAULT_ACTIVE : INACTIVE,
+                                'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                pill
+                                    ? 'flex h-9 items-center justify-center gap-2 rounded-full px-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill'
+                                    : layout === 'stack'
+                                      ? 'flex flex-col items-center gap-1.5 rounded-xl border p-3'
+                                      : 'flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-xs',
+                                pill
+                                    ? active
+                                        ? opt.activeClassName ?? 'bg-ob-invert font-semibold text-ob-invert-ink'
+                                        : 'text-ob-ink-2 hover:text-ob-ink'
+                                    : active
+                                      ? opt.activeClassName ?? DEFAULT_ACTIVE
+                                      : INACTIVE,
                             )}
                         >
                             {opt.icon && <span className="shrink-0">{opt.icon}</span>}

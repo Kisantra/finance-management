@@ -1,75 +1,21 @@
-import { Head, router, useForm } from '@inertiajs/react';
-import {
-    AlertCircle,
-    ArrowUpDown,
-    CheckCircle2,
-    Download,
-    Eye,
-    FileSpreadsheet,
-    FileText,
-    MoreHorizontal,
-    Pencil,
-    Plus,
-    Printer,
-    RotateCcw,
-    Search,
-    Send,
-    TrendingUp,
-    Trash2,
-    Wallet,
-    X,
-} from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowDown, ArrowUp, Clock, Eye, FileSpreadsheet, FileText, MoreHorizontal, Pencil, Plus, Printer, Search, Trash2, Upload } from 'lucide-react';
 import * as React from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    Sheet,
-    SheetBody,
-    SheetContent,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
-} from '@/components/ui/sheet';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Tabs } from '@/components/ui/tabs';
-import type { TabItem } from '@/components/ui/tabs';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
-import { PrintInvoiceDialog } from './components/print-invoice-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { CurrencyInput } from '@/components/shared/currency-input';
-import { EmptyState } from '@/components/shared/empty-state';
-import { FileUpload } from '@/components/shared/file-upload';
-import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
-import { format as formatDateFns } from 'date-fns';
-import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
+import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
+import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
+import { Avatar, BTN, CARD, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, STATUS_LABEL, type InvoiceStatus } from './components/ob';
+import { PrintInvoiceDialog, type CustomTemplate } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -83,12 +29,12 @@ interface InvoiceRow {
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
-    status: 'draft' | 'sent' | 'partially_paid' | 'paid';
+    status: InvoiceStatus;
     faktur: string | null;
 }
 
-interface PaginatedInvoices {
-    data: InvoiceRow[];
+interface Paginated<T> {
+    data: T[];
     current_page: number;
     last_page: number;
     per_page: number;
@@ -100,8 +46,6 @@ interface PaginatedInvoices {
 interface Stats {
     invoice_count: number;
     total_revenue: number;
-    total_cogs: number;
-    gross_profit: number;
     total_paid: number;
     total_outstanding: number;
     outstanding_count: number;
@@ -109,11 +53,8 @@ interface Stats {
     sent_count: number;
     partially_paid_count: number;
     paid_count: number;
-}
-
-interface ClientOption {
-    label: string;
-    value: number;
+    overdue_count: number;
+    overdue_amount: number;
 }
 
 interface Filters {
@@ -128,959 +69,50 @@ interface Filters {
     direction?: string;
 }
 
-interface InvoiceDetail {
-    id: number;
-    invoice_number: string | null;
-    next_invoice_number?: string | null;
-    status: string;
-    issue_date: string;
-    due_date: string;
-    subtotal: number;
-    discount_amount: number;
-    discount_type: string;
-    discount_value: number;
-    discount_reason: string | null;
-    total_amount: number;
-    amount_paid: number;
-    amount_remaining: number;
-    faktur: string | null;
-    client: {
-        id: number;
-        name: string;
-        email: string | null;
-        NPWP: string | null;
-        address: string | null;
-    };
-    items: Array<{
-        id: number;
-        service_name: string;
-        quantity: number;
-        unit: string;
-        unit_price: number;
-        amount: number;
-        cogs_amount: number;
-        is_tax_deposit: boolean;
-    }>;
-    payments: Array<{
-        id: number;
-        amount: number;
-        payment_date: string;
-        payment_method: 'cash' | 'bank_transfer';
-        bank_account_id: number | null;
-        bank_account_name: string | null;
-        reference_number: string | null;
-        attachment_name: string | null;
-        attachment_url: string | null;
-    }>;
-}
-
-interface CustomTemplate {
-    id: number;
-    name: string;
-    isDefault: boolean;
-}
-
 interface Props extends SharedProps {
-    invoices: PaginatedInvoices;
+    invoices: Paginated<InvoiceRow>;
     stats: Stats;
-    clients: ClientOption[];
-    rollbackableIds: number[];
+    clients: { label: string; value: number }[];
     customTemplates: CustomTemplate[];
+    selectedInvoiceId: number | null;
     filters: Filters;
 }
 
-/* ─────────────────────────────────── helpers ─── */
-
-const STATUS_VARIANT: Record<string, 'zinc' | 'blue' | 'yellow' | 'green'> = {
-    draft: 'zinc',
-    sent: 'blue',
-    partially_paid: 'yellow',
-    paid: 'green',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-    draft: 'Draft',
-    sent: 'Terkirim',
-    partially_paid: 'Sebagian',
-    paid: 'Lunas',
-};
-
-function getInitials(name: string): string {
-    return name
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w[0] ?? '')
-        .join('')
-        .toUpperCase();
-}
-
-function getCsrfToken(): string {
-    return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '';
-}
-
-function daysDiff(dateStr: string): number {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(dateStr);
-    target.setHours(0, 0, 0, 0);
-    return Math.round((today.getTime() - target.getTime()) / 86400000);
-}
-
-function relativeIssueDate(dateStr: string): string {
-    const diff = daysDiff(dateStr);
-    if (diff === 0) return 'Hari ini';
-    if (diff === 1) return 'Kemarin';
-    return `${diff} hari lalu`;
-}
-
-function relativeDueDate(dateStr: string): { label: string; overdue: boolean } {
-    const diff = daysDiff(dateStr);
-    if (diff < 0) return { label: `${Math.abs(diff)} hari lagi`, overdue: false };
-    if (diff === 0) return { label: 'Hari ini', overdue: false };
-    return { label: `${diff} hari lewat`, overdue: true };
-}
-
-/* ─────────────────────────────────── slide-over ─── */
-
-interface PaymentFormState {
-    amount: number;
-    payment_date: string;
-    payment_method: 'cash' | 'bank_transfer';
-    bank_account_id: number | null;
-    reference_number: string;
-    attachment: File | null;
-    remove_attachment: boolean;
-}
-
-const EMPTY_PAYMENT_FORM: PaymentFormState = {
-    amount: 0,
-    payment_date: toLocalIso(new Date()),
-    payment_method: 'bank_transfer',
-    bank_account_id: null,
-    reference_number: '',
-    attachment: null,
-    remove_attachment: false,
-};
-
-function InvoiceDrawer({
-    open,
-    onClose,
-    invoiceId,
-    rollbackableIds,
-    customTemplates,
-}: {
-    open: boolean;
-    onClose: () => void;
-    invoiceId: number | null;
-    rollbackableIds: number[];
-    customTemplates: CustomTemplate[];
-}) {
-    const [detail, setDetail] = React.useState<InvoiceDetail | null>(null);
-    const [loading, setLoading] = React.useState(false);
-    const [sendOpen, setSendOpen] = React.useState(false);
-    const [deleteOpen, setDeleteOpen] = React.useState(false);
-    const [deleteLoading, setDeleteLoading] = React.useState(false);
-
-    /* payment state */
-    const [bankAccounts, setBankAccounts] = React.useState<{ label: string; value: number }[]>([]);
-    const [paymentFormOpen, setPaymentFormOpen] = React.useState(false);
-    const [editPayment, setEditPayment] = React.useState<InvoiceDetail['payments'][number] | null>(null);
-    const [deletePaymentTarget, setDeletePaymentTarget] = React.useState<InvoiceDetail['payments'][number] | null>(null);
-    const [paymentForm, setPaymentForm] = React.useState<PaymentFormState>(EMPTY_PAYMENT_FORM);
-    const [paymentErrors, setPaymentErrors] = React.useState<Record<string, string>>({});
-    const [paymentLoading, setPaymentLoading] = React.useState(false);
-    const [deletePaymentLoading, setDeletePaymentLoading] = React.useState(false);
-
-    const sendForm = useForm({ invoice_number: '' });
-
-    const [printOpen, setPrintOpen] = React.useState(false);
-
-    const fetchDetail = React.useCallback((id: number) => {
-        setLoading(true);
-        fetch(`/invoices/${id}`, {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                setDetail(data);
-                if (data.status === 'draft') {
-                    sendForm.setData('invoice_number', data.invoice_number ?? data.next_invoice_number ?? '');
-                }
-            })
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, []);
-
-    React.useEffect(() => {
-        if (!open || !invoiceId) {
-            setDetail(null);
-            return;
-        }
-        fetchDetail(invoiceId);
-    }, [open, invoiceId]);
-
-    React.useEffect(() => {
-        if (!open) return;
-        fetch('/api/bank-accounts', {
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        })
-            .then((r) => r.json())
-            .then(setBankAccounts)
-            .catch(console.error);
-    }, [open]);
-
-    const handleSend = () => {
-        if (!detail) return;
-        sendForm.post(`/invoices/${detail.id}/send`, {
-            onSuccess: () => {
-                setSendOpen(false);
-                onClose();
-            },
-        });
-    };
-
-    const handleRollback = () => {
-        if (!detail) return;
-        router.post(`/invoices/${detail.id}/rollback`, {}, { onSuccess: () => onClose() });
-    };
-
-    const handleDelete = () => {
-        if (!detail) return;
-        setDeleteLoading(true);
-        router.delete(`/invoices/${detail.id}`, {
-            onSuccess: () => {
-                setDeleteOpen(false);
-                onClose();
-            },
-            onFinish: () => setDeleteLoading(false),
-        });
-    };
-
-    /* ── payment CRUD ── */
-
-    const openCreatePayment = () => {
-        const remaining = detail ? detail.amount_remaining : 0;
-        setPaymentForm({ ...EMPTY_PAYMENT_FORM, amount: remaining > 0 ? remaining : 0 });
-        setPaymentErrors({});
-        setEditPayment(null);
-        setPaymentFormOpen(true);
-    };
-
-    const openEditPayment = (p: InvoiceDetail['payments'][number]) => {
-        setPaymentForm({
-            amount: p.amount,
-            payment_date: p.payment_date,
-            payment_method: p.payment_method,
-            bank_account_id: p.bank_account_id,
-            reference_number: p.reference_number ?? '',
-            attachment: null,
-            remove_attachment: false,
-        });
-        setPaymentErrors({});
-        setEditPayment(p);
-        setPaymentFormOpen(true);
-    };
-
-    const handlePaymentSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!detail) return;
-
-        setPaymentLoading(true);
-        setPaymentErrors({});
-
-        const fd = new FormData();
-        fd.append('amount', String(paymentForm.amount));
-        fd.append('payment_date', paymentForm.payment_date);
-        fd.append('payment_method', paymentForm.payment_method);
-        if (paymentForm.bank_account_id != null) {
-            fd.append('bank_account_id', String(paymentForm.bank_account_id));
-        }
-        if (paymentForm.reference_number) {
-            fd.append('reference_number', paymentForm.reference_number);
-        }
-        if (paymentForm.attachment) {
-            fd.append('attachment', paymentForm.attachment);
-        }
-        if (editPayment && paymentForm.remove_attachment) {
-            fd.append('remove_attachment', '1');
-        }
-
-        const url = editPayment
-            ? `/payments/${editPayment.id}`
-            : `/invoices/${detail.id}/payments`;
-
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: fd,
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                if (data.errors) {
-                    setPaymentErrors(data.errors);
-                } else {
-                    setPaymentErrors({ _: data.message ?? 'Terjadi kesalahan.' });
-                    console.error('[PaymentSubmit]', res.status, data);
-                }
-                return;
-            }
-
-            setPaymentFormOpen(false);
-            setEditPayment(null);
-            fetchDetail(detail.id);
-            router.reload({ only: ['invoices', 'stats'] });
-        } catch (err) {
-            setPaymentErrors({ _: err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.' });
-            console.error('[PaymentSubmit] network error', err);
-        } finally {
-            setPaymentLoading(false);
-        }
-    };
-
-    const handleDeletePayment = async () => {
-        if (!deletePaymentTarget || !detail) return;
-        setDeletePaymentLoading(true);
-        try {
-            const res = await fetch(`/payments/${deletePaymentTarget.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-            if (res.ok) {
-                setDeletePaymentTarget(null);
-                fetchDetail(detail.id);
-                router.reload({ only: ['invoices', 'stats'] });
-            } else {
-                const data = await res.json().catch(() => ({}));
-                console.error('[DeletePayment]', res.status, data);
-            }
-        } catch (err) {
-            console.error('[DeletePayment] network error', err);
-        } finally {
-            setDeletePaymentLoading(false);
-        }
-    };
-
-    const isRollbackable = detail ? rollbackableIds.includes(detail.id) : false;
-    const canAddPayment = detail && (detail.status === 'sent' || detail.status === 'partially_paid');
-
-    const netRevenue = detail
-        ? detail.items.filter((i) => !i.is_tax_deposit).reduce((s, i) => s + i.amount, 0)
-        : 0;
-    const totalCogs = detail
-        ? detail.items.filter((i) => !i.is_tax_deposit).reduce((s, i) => s + i.cogs_amount, 0)
-        : 0;
-    const totalTaxDeposits = detail
-        ? detail.items.filter((i) => i.is_tax_deposit).reduce((s, i) => s + i.amount, 0)
-        : 0;
-    const grossProfit = detail ? detail.total_amount - totalTaxDeposits - totalCogs : 0;
-
-    return (
-        <>
-            <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-                <SheetContent size="3xl">
-                    <SheetHeader>
-                        <div className="flex items-center gap-3 pr-6">
-                            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div className="min-w-0">
-                                <SheetTitle className="text-lg font-bold pr-0">
-                                    {detail?.invoice_number ?? (loading ? '...' : 'Invoice Draft')}
-                                </SheetTitle>
-                                {detail && (
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <Badge variant={STATUS_VARIANT[detail.status] ?? 'zinc'}>
-                                            {STATUS_LABEL[detail.status] ?? detail.status}
-                                        </Badge>
-                                        <span className="text-xs text-dark-500 dark:text-dark-400">
-                                            {detail.client.name}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </SheetHeader>
-
-                    <SheetBody className="space-y-6">
-                    {loading && (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="h-8 w-8 rounded-full border-2 border-primary-600 border-t-transparent animate-spin" />
-                        </div>
-                    )}
-
-                    {!loading && detail && (
-                        <>
-                            {/* Summary metrics */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800">
-                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">Total Invoice</p>
-                                    <p className="text-lg font-bold text-dark-900 dark:text-dark-50">
-                                        {formatCurrency(detail.total_amount)}
-                                    </p>
-                                </div>
-                                <div className="p-3 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800">
-                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">Sudah Dibayar</p>
-                                    <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                                        {formatCurrency(detail.amount_paid)}
-                                    </p>
-                                </div>
-                                <div className="p-3 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800">
-                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">Sisa Tagihan</p>
-                                    <p className={cn(
-                                        'text-lg font-bold',
-                                        detail.amount_remaining > 0
-                                            ? 'text-red-600 dark:text-red-400'
-                                            : 'text-dark-900 dark:text-dark-50',
-                                    )}>
-                                        {formatCurrency(detail.amount_remaining)}
-                                    </p>
-                                </div>
-                                <div className="p-3 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800">
-                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">Laba Kotor</p>
-                                    <p className={cn(
-                                        'text-lg font-bold',
-                                        grossProfit >= 0
-                                            ? 'text-emerald-600 dark:text-emerald-400'
-                                            : 'text-red-600 dark:text-red-400',
-                                    )}>
-                                        {formatCurrency(grossProfit)}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Client & Dates */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 border-b border-secondary-200 dark:border-dark-600 pb-2">
-                                    Info Invoice
-                                </h3>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                    <div>
-                                        <span className="text-dark-500 dark:text-dark-400">Klien</span>
-                                        <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{detail.client.name}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-dark-500 dark:text-dark-400">NPWP</span>
-                                        <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{detail.client.NPWP ?? '—'}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-dark-500 dark:text-dark-400">Tgl Invoice</span>
-                                        <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{formatDate(detail.issue_date)}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-dark-500 dark:text-dark-400">Jatuh Tempo</span>
-                                        <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{formatDate(detail.due_date)}</p>
-                                    </div>
-                                    {detail.client.email && (
-                                        <div className="col-span-2">
-                                            <span className="text-dark-500 dark:text-dark-400">Email</span>
-                                            <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{detail.client.email}</p>
-                                        </div>
-                                    )}
-                                    {detail.client.address && (
-                                        <div className="col-span-2">
-                                            <span className="text-dark-500 dark:text-dark-400">Alamat</span>
-                                            <p className="font-medium text-dark-900 dark:text-dark-50 mt-0.5">{detail.client.address}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Items */}
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 border-b border-secondary-200 dark:border-dark-600 pb-2">
-                                    Item Invoice
-                                </h3>
-                                <div className="rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="bg-secondary-50 dark:bg-dark-800 border-b border-secondary-200 dark:border-dark-600">
-                                                <th className="text-left px-3 py-2 text-xs font-semibold text-dark-600 dark:text-dark-400">Layanan</th>
-                                                <th className="text-right px-3 py-2 text-xs font-semibold text-dark-600 dark:text-dark-400">Qty</th>
-                                                <th className="text-right px-3 py-2 text-xs font-semibold text-dark-600 dark:text-dark-400">Harga</th>
-                                                <th className="text-right px-3 py-2 text-xs font-semibold text-dark-600 dark:text-dark-400">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {detail.items.map((item) => (
-                                                <tr
-                                                    key={item.id}
-                                                    className={cn(
-                                                        'border-b border-secondary-200 dark:border-dark-600 last:border-0',
-                                                        item.is_tax_deposit && 'bg-yellow-50/50 dark:bg-yellow-900/10',
-                                                    )}
-                                                >
-                                                    <td className="px-3 py-2.5">
-                                                        <div className="font-medium text-dark-900 dark:text-dark-50">{item.service_name}</div>
-                                                        {item.is_tax_deposit && (
-                                                            <span className="text-xs text-yellow-600 dark:text-yellow-400">Titipan Pajak Klien</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-right text-dark-600 dark:text-dark-400">
-                                                        {item.quantity} {item.unit}
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-right text-dark-600 dark:text-dark-400">
-                                                        {formatCurrency(item.unit_price)}
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-right font-semibold text-dark-900 dark:text-dark-50">
-                                                        {formatCurrency(item.amount)}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot className="bg-secondary-50 dark:bg-dark-800">
-                                            {detail.discount_amount > 0 && (
-                                                <>
-                                                    <tr className="border-t border-secondary-200 dark:border-dark-600">
-                                                        <td colSpan={3} className="px-3 py-2 text-sm text-dark-600 dark:text-dark-400">Subtotal</td>
-                                                        <td className="px-3 py-2 text-right text-sm text-dark-900 dark:text-dark-50">{formatCurrency(detail.subtotal)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td colSpan={3} className="px-3 py-1.5 text-sm text-dark-600 dark:text-dark-400">
-                                                            Diskon
-                                                            {detail.discount_reason && (
-                                                                <span className="text-xs text-dark-400 ml-1">({detail.discount_reason})</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-1.5 text-right text-sm text-red-600 dark:text-red-400">
-                                                            -{formatCurrency(detail.discount_amount)}
-                                                        </td>
-                                                    </tr>
-                                                </>
-                                            )}
-                                            <tr className="border-t border-secondary-200 dark:border-dark-600">
-                                                <td colSpan={3} className="px-3 py-2.5 font-bold text-dark-900 dark:text-dark-50">Total</td>
-                                                <td className="px-3 py-2.5 text-right font-bold text-dark-900 dark:text-dark-50">{formatCurrency(detail.total_amount)}</td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* Payments */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between border-b border-secondary-200 dark:border-dark-600 pb-2">
-                                    <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">
-                                        Riwayat Pembayaran
-                                    </h3>
-                                    {canAddPayment && (
-                                        <Button
-                                            size="sm"
-                                            variant="primary"
-                                            icon={<Plus className="w-3.5 h-3.5" />}
-                                            onClick={openCreatePayment}
-                                        >
-                                            Catat Pembayaran
-                                        </Button>
-                                    )}
-                                </div>
-
-                                {detail.payments.length === 0 ? (
-                                    <p className="text-sm text-dark-500 dark:text-dark-400 py-2">
-                                        Belum ada pembayaran tercatat.
-                                    </p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {detail.payments.map((p) => (
-                                            <div
-                                                key={p.id}
-                                                className="flex items-start justify-between p-3 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800"
-                                            >
-                                                <div className="flex items-start gap-3 min-w-0">
-                                                    <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-blue-50 dark:bg-blue-900/20">
-                                                        <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-medium text-dark-900 dark:text-dark-50">
-                                                            {formatDate(p.payment_date)}
-                                                        </p>
-                                                        {p.bank_account_name && (
-                                                            <p className="text-xs text-dark-500 dark:text-dark-400 truncate">{p.bank_account_name}</p>
-                                                        )}
-                                                        {p.reference_number && (
-                                                            <p className="text-xs text-dark-400 dark:text-dark-500">Ref: {p.reference_number}</p>
-                                                        )}
-                                                        {p.attachment_name && p.attachment_url && (
-                                                            <AttachmentPreviewButton
-                                                                url={p.attachment_url}
-                                                                name={p.attachment_name}
-                                                                label={p.attachment_name}
-                                                                className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5"
-                                                            />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1 shrink-0 ml-3">
-                                                    <p className="font-bold text-green-600 dark:text-green-400 text-sm mr-1">
-                                                        +{formatCurrency(p.amount)}
-                                                    </p>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        icon={<Pencil className="w-3.5 h-3.5" />}
-                                                        onClick={() => openEditPayment(p)}
-                                                    />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                        icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                                                        onClick={() => setDeletePaymentTarget(p)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* HPP breakdown */}
-                            {(netRevenue > 0 || totalCogs > 0) && (
-                                <div className="space-y-3">
-                                    <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 border-b border-secondary-200 dark:border-dark-600 pb-2">
-                                        Analisis Laba
-                                    </h3>
-                                    <div className="space-y-2 text-sm">
-                                        {[
-                                            { label: 'Pendapatan Bersih', value: netRevenue, cls: '' },
-                                            { label: 'HPP / COGS', value: totalCogs, cls: 'text-red-600 dark:text-red-400' },
-                                            { label: 'Titipan Pajak', value: totalTaxDeposits, cls: 'text-yellow-600 dark:text-yellow-400' },
-                                            {
-                                                label: 'Laba Kotor',
-                                                value: grossProfit,
-                                                cls: grossProfit >= 0
-                                                    ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                                                    : 'text-red-600 dark:text-red-400 font-bold',
-                                            },
-                                        ].map(({ label, value, cls }) => (
-                                            <div key={label} className="flex justify-between">
-                                                <span className="text-dark-600 dark:text-dark-400">{label}</span>
-                                                <span className={cn('font-medium text-dark-900 dark:text-dark-50', cls)}>
-                                                    {formatCurrency(value)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                    </SheetBody>
-
-                    {detail && (
-                        <SheetFooter className="flex-wrap">
-                            {detail.status === 'draft' && (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    icon={<Send className="w-3.5 h-3.5" />}
-                                    onClick={() => setSendOpen(true)}
-                                >
-                                    Kirim Invoice
-                                </Button>
-                            )}
-                            {isRollbackable && (
-                                <Button
-                                    size="sm"
-                                    variant="yellow"
-                                    icon={<RotateCcw className="w-3.5 h-3.5" />}
-                                    onClick={handleRollback}
-                                >
-                                    Rollback ke Draft
-                                </Button>
-                            )}
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                icon={<Pencil className="w-3.5 h-3.5" />}
-                                onClick={() => router.get(`/invoices/${detail.id}/edit`)}
-                            >
-                                Edit
-                            </Button>
-                            {detail.invoice_number && (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    icon={<Printer className="w-3.5 h-3.5" />}
-                                    onClick={() => setPrintOpen(true)}
-                                >
-                                    Cetak
-                                </Button>
-                            )}
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ml-auto"
-                                icon={<Trash2 className="w-3.5 h-3.5" />}
-                                onClick={() => setDeleteOpen(true)}
-                            >
-                                Hapus
-                            </Button>
-                        </SheetFooter>
-                    )}
-                </SheetContent>
-            </Sheet>
-
-            {/* Print options modal */}
-            {detail && (
-                <PrintInvoiceDialog
-                    open={printOpen}
-                    onOpenChange={setPrintOpen}
-                    invoiceId={detail.id}
-                    invoiceNumber={detail.invoice_number}
-                    totalAmount={detail.total_amount}
-                    amountPaid={detail.amount_paid}
-                    customTemplates={customTemplates}
-                />
-            )}
-
-            {/* Send modal */}
-            <Dialog open={sendOpen} onOpenChange={setSendOpen}>
-                <DialogContent size="md">
-                    <DialogHeader>
-                        <div className="flex items-center gap-4 py-2">
-                            <div className="h-12 w-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                <Send className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                                <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                    Kirim Invoice
-                                </DialogTitle>
-                                <p className="text-sm text-dark-600 dark:text-dark-400">
-                                    Konfirmasi nomor invoice sebelum mengirim
-                                </p>
-                            </div>
-                        </div>
-                    </DialogHeader>
-                    <div className="px-6 py-4 space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-dark-900 dark:text-dark-300 mb-1.5">
-                                Nomor Invoice
-                            </label>
-                            <Input
-                                value={sendForm.data.invoice_number}
-                                onChange={(e) => sendForm.setData('invoice_number', e.target.value)}
-                                placeholder="001/INV/KSN-XXX/I/2026"
-                                error={sendForm.errors.invoice_number}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="zinc" onClick={() => setSendOpen(false)} className="w-full sm:w-auto order-2 sm:order-1">
-                            Batal
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={handleSend}
-                            loading={sendForm.processing}
-                            className="w-full sm:w-auto order-1 sm:order-2"
-                        >
-                            Konfirmasi & Kirim
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Payment form modal */}
-            <Dialog open={paymentFormOpen} onOpenChange={(o) => { if (!o) { setPaymentFormOpen(false); setEditPayment(null); } }}>
-                <DialogContent size="md">
-                    <form onSubmit={handlePaymentSubmit}>
-                        <DialogHeader>
-                            <div className="flex items-center gap-4 py-2">
-                                <div className="h-12 w-12 rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-                                    <Wallet className="w-6 h-6 text-green-600 dark:text-green-400" />
-                                </div>
-                                <div>
-                                    <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                        {editPayment ? 'Edit Pembayaran' : 'Catat Pembayaran'}
-                                    </DialogTitle>
-                                    <p className="text-sm text-dark-600 dark:text-dark-400">
-                                        {detail?.invoice_number ?? 'Invoice'}
-                                    </p>
-                                </div>
-                            </div>
-                        </DialogHeader>
-
-                        <div className="px-6 py-4 space-y-4">
-                            {paymentErrors._ && (
-                                <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2">
-                                    {paymentErrors._}
-                                </div>
-                            )}
-
-                            <CurrencyInput
-                                label="Jumlah Pembayaran *"
-                                value={paymentForm.amount}
-                                onChange={(v) => setPaymentForm((f) => ({ ...f, amount: v }))}
-                                error={paymentErrors.amount}
-                            />
-
-                            <DatePicker
-                                label="Tanggal Pembayaran *"
-                                value={paymentForm.payment_date ? new Date(paymentForm.payment_date + 'T00:00:00') : null}
-                                onChange={(v) => setPaymentForm((f) => ({ ...f, payment_date: v ? formatDateFns(v, 'yyyy-MM-dd') : '' }))}
-                                error={paymentErrors.payment_date}
-                            />
-
-                            <Combobox
-                                label="Rekening Tujuan *"
-                                options={bankAccounts}
-                                value={paymentForm.bank_account_id}
-                                onChange={(v) => setPaymentForm((f) => ({ ...f, bank_account_id: v != null ? Number(v) : null }))}
-                                placeholder="Pilih rekening..."
-                                hint="Untuk pembayaran tunai, pilih rekening kas."
-                                error={paymentErrors.bank_account_id}
-                            />
-
-                            <Input
-                                label="Nomor Referensi"
-                                value={paymentForm.reference_number}
-                                onChange={(e) => setPaymentForm((f) => ({ ...f, reference_number: e.target.value }))}
-                                placeholder="No. transfer / cek / kwitansi"
-                                error={paymentErrors.reference_number}
-                            />
-
-                            {/* Attachment */}
-                            <FileUpload
-                                label="Lampiran"
-                                value={paymentForm.attachment}
-                                onChange={(file) => setPaymentForm((f) => ({ ...f, attachment: file, remove_attachment: false }))}
-                                existingFileName={!paymentForm.remove_attachment ? (editPayment?.attachment_name ?? null) : null}
-                                existingFileUrl={!paymentForm.remove_attachment ? (editPayment?.attachment_url ?? null) : null}
-                                onRemoveExisting={() => setPaymentForm((f) => ({ ...f, remove_attachment: true, attachment: null }))}
-                                error={paymentErrors.attachment}
-                            />
-                        </div>
-
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="zinc"
-                                onClick={() => { setPaymentFormOpen(false); setEditPayment(null); }}
-                                disabled={paymentLoading}
-                                className="w-full sm:w-auto order-2 sm:order-1"
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                loading={paymentLoading}
-                                className="w-full sm:w-auto order-1 sm:order-2"
-                            >
-                                {editPayment ? 'Simpan Perubahan' : 'Simpan Pembayaran'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete invoice confirm */}
-            <ConfirmDialog
-                open={deleteOpen}
-                onOpenChange={setDeleteOpen}
-                title="Hapus Invoice"
-                description={`Invoice ${detail?.invoice_number ?? 'ini'} akan dihapus permanen beserta semua item-nya.`}
-                confirmLabel="Hapus Invoice"
-                loading={deleteLoading}
-                onConfirm={handleDelete}
-            />
-
-            {/* Delete payment confirm */}
-            <ConfirmDialog
-                open={!!deletePaymentTarget}
-                onOpenChange={(o) => { if (!o) setDeletePaymentTarget(null); }}
-                title="Hapus Pembayaran"
-                description={deletePaymentTarget
-                    ? `Pembayaran sebesar ${formatCurrency(deletePaymentTarget.amount)} pada ${formatDate(deletePaymentTarget.payment_date)} akan dihapus permanen.`
-                    : ''}
-                confirmLabel="Hapus Pembayaran"
-                loading={deletePaymentLoading}
-                onConfirm={handleDeletePayment}
-            />
-        </>
-    );
-}
-
-/* ─────────────────────────────────── main page ─── */
+/* ─────────────────────────────────── konstanta ─── */
 
 const DEFAULT_MONTH = toLocalIso(new Date()).slice(0, 7);
 
-
-/* Colored accent config for stats cards */
-const STATS_CONFIG = [
-    {
-        key: 'revenue',
-        label: 'Total Pendapatan',
-        accent: 'bg-blue-500',
-        iconCn: 'text-blue-500 dark:text-blue-400',
-        icon: <Wallet className="w-5 h-5" />,
-    },
-    {
-        key: 'profit',
-        label: 'Laba Kotor',
-        accent: 'bg-emerald-500',
-        accentNeg: 'bg-red-500',
-        iconCn: 'text-emerald-500 dark:text-emerald-400',
-        iconCnNeg: 'text-red-500 dark:text-red-400',
-        icon: <TrendingUp className="w-5 h-5" />,
-    },
-    {
-        key: 'paid',
-        label: 'Terbayar',
-        accent: 'bg-green-500',
-        iconCn: 'text-green-500 dark:text-green-400',
-        icon: <CheckCircle2 className="w-5 h-5" />,
-    },
-    {
-        key: 'outstanding',
-        label: 'Outstanding',
-        accent: 'bg-amber-500',
-        iconCn: 'text-amber-500 dark:text-amber-400',
-        icon: <AlertCircle className="w-5 h-5" />,
-    },
-] as const;
-
-/* Pipeline segments for status distribution */
-const PIPELINE_SEGMENTS = [
-    { key: 'draft', label: 'Draft', bar: 'bg-zinc-300 dark:bg-zinc-600', dot: 'bg-zinc-400 dark:bg-zinc-500' },
-    { key: 'sent', label: 'Terkirim', bar: 'bg-blue-400 dark:bg-blue-500', dot: 'bg-blue-400 dark:bg-blue-500' },
-    { key: 'partially_paid', label: 'Sebagian', bar: 'bg-amber-400 dark:bg-amber-500', dot: 'bg-amber-400 dark:bg-amber-500' },
-    { key: 'paid', label: 'Lunas', bar: 'bg-emerald-400 dark:bg-emerald-500', dot: 'bg-emerald-400 dark:bg-emerald-500' },
-] as const;
-
-const TABLE_COLS: { key: string; label: string; align?: 'right'; sortable?: false }[] = [
-    { key: 'invoice_number', label: 'No. Invoice' },
-    { key: 'client_name', label: 'Klien' },
-    { key: 'issue_date', label: 'Tgl Invoice' },
-    { key: 'due_date', label: 'Jatuh Tempo' },
-    { key: 'total_amount', label: 'Jumlah', align: 'right' },
-    { key: 'status', label: 'Status', sortable: false },
-    { key: 'actions', label: '', sortable: false },
+const STATUS_TABS: { value: string; label: string; countKey?: keyof Stats }[] = [
+    { value: '', label: 'Semua' },
+    { value: 'draft', label: 'Draft', countKey: 'draft_count' },
+    { value: 'sent', label: 'Terkirim', countKey: 'sent_count' },
+    { value: 'partially_paid', label: 'Sebagian', countKey: 'partially_paid_count' },
+    { value: 'paid', label: 'Lunas', countKey: 'paid_count' },
 ];
 
-function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplates, filters }: Props) {
-    const [drawerOpen, setDrawerOpen] = React.useState(false);
-    const [selectedId, setSelectedId] = React.useState<number | null>(null);
+/* Satu makna per hue: abu = draft, biru = terkirim, amber = sebagian, hijau = lunas. */
+const SEGMENTS = [
+    { key: 'draft', label: 'Draft', countKey: 'draft_count', bar: 'bg-ob-ink-3/50', dot: 'bg-ob-ink-3' },
+    { key: 'sent', label: 'Terkirim', countKey: 'sent_count', bar: 'bg-ob-act', dot: 'bg-ob-act' },
+    { key: 'partially_paid', label: 'Sebagian', countKey: 'partially_paid_count', bar: 'bg-ob-wait', dot: 'bg-ob-wait' },
+    { key: 'paid', label: 'Lunas', countKey: 'paid_count', bar: 'bg-ob-pos', dot: 'bg-ob-pos' },
+] as const;
 
-    /* delete from table row */
-    const [deleteId, setDeleteId] = React.useState<number | null>(null);
-    const [deleteOpen, setDeleteOpen] = React.useState(false);
-    const [deleteLoading, setDeleteLoading] = React.useState(false);
+/** Label footer per kolom urut: [nama, arah turun, arah naik]. */
+const SORT_LABEL: Record<string, [string, string, string]> = {
+    issue_date: ['tanggal invoice', 'terbaru', 'terlama'],
+    due_date: ['jatuh tempo', 'terjauh', 'terdekat'],
+    total_amount: ['jumlah', 'terbesar', 'terkecil'],
+    client_name: ['nama klien', 'Z–A', 'A–Z'],
+};
 
-    const [printRow, setPrintRow] = React.useState<InvoiceRow | null>(null);
-    const [printOpen, setPrintOpen] = React.useState(false);
+const PILL =
+    'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
 
-    const currentFilters = {
+/* ─────────────────────────────────── halaman ─── */
+
+function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoiceId, filters }: Props) {
+    const f = {
         search: filters.search ?? '',
         status: filters.status ?? '',
         client_ids: filters.client_ids ?? [],
@@ -1091,650 +123,301 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
         direction: filters.direction ?? 'desc',
         per_page: filters.per_page ?? 25,
     };
+    const hasRange = !!f.date_from || !!f.date_to;
+    const overdueTab = f.status === 'overdue';
 
-    /* A date range, when set, overrides the month filter (both fields stay visible). */
-    const hasRange = !!currentFilters.date_from || !!currentFilters.date_to;
-    const dateRange = {
-        from: currentFilters.date_from ? new Date(currentFilters.date_from) : null,
-        to: currentFilters.date_to ? new Date(currentFilters.date_to) : null,
-    };
+    const [search, setSearch] = React.useState(f.search);
+    const [printRow, setPrintRow] = React.useState<InvoiceRow | null>(null);
+    const [deleteRow, setDeleteRow] = React.useState<InvoiceRow | null>(null);
+    const [deleting, setDeleting] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
 
-    const [search, setSearch] = React.useState(currentFilters.search);
+    React.useEffect(() => {
+        // Muat ulang di balik modal (setelah bayar/terbit) tidak perlu kerangka memuat.
+        const offStart = router.on('start', (e) => {
+            if (e.detail.visit.only.length === 0 && !parseResource(e.detail.visit.url.hash)) setLoading(true);
+        });
+        const offFinish = router.on('finish', () => setLoading(false));
+        return () => {
+            offStart();
+            offFinish();
+        };
+    }, []);
+
+    // /invoices/{id} (tautan lama, redirect setelah simpan) → modal berbasis hash di daftar yang sama.
+    React.useEffect(() => {
+        if (selectedInvoiceId == null) return;
+        showResource('invoice', selectedInvoiceId);
+    }, [selectedInvoiceId]);
+
+    const openInvoiceId = useResource()?.id ?? null;
 
     const navigate = (params: Record<string, unknown>) => {
-        router.get('/invoices', { ...currentFilters, ...params, page: 1 }, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        });
+        router.get('/invoices', { ...f, ...params, page: 1 }, { preserveState: true, preserveScroll: true, replace: true });
     };
 
-    /* Build an export URL carrying the active filters so the recap matches the listing. */
-    const buildExportUrl = (format: 'excel' | 'pdf'): string => {
+    const exportUrl = (format: 'excel' | 'pdf') => {
         const params = new URLSearchParams();
-        if (currentFilters.search) params.set('search', currentFilters.search);
-        if (currentFilters.status) params.set('status', currentFilters.status);
-        // Always send month (even empty = "Semua") + the range. The backend lets
-        // the range override the month, matching the on-screen listing exactly.
-        params.set('month', currentFilters.month ?? '');
-        if (currentFilters.date_from) params.set('date_from', currentFilters.date_from);
-        if (currentFilters.date_to) params.set('date_to', currentFilters.date_to);
-        (currentFilters.client_ids ?? []).forEach((id) => params.append('client_ids[]', String(id)));
-        if (currentFilters.sort) params.set('sort', currentFilters.sort);
-        if (currentFilters.direction) params.set('direction', currentFilters.direction);
-        const qs = params.toString();
-        return `/invoices/export/${format}${qs ? `?${qs}` : ''}`;
+        if (f.search) params.set('search', f.search);
+        if (f.status) params.set('status', f.status);
+        params.set('month', f.month ?? '');
+        if (f.date_from) params.set('date_from', f.date_from);
+        if (f.date_to) params.set('date_to', f.date_to);
+        f.client_ids.forEach((id) => params.append('client_ids[]', String(id)));
+        params.set('sort', f.sort);
+        params.set('direction', f.direction);
+        return `/invoices/export/${format}?${params}`;
     };
 
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        navigate({ search });
+    const sortBy = (key: string) => {
+        const direction = f.sort === key && f.direction === 'desc' ? 'asc' : 'desc';
+        navigate({ sort: key, direction });
     };
 
-    const handlePageChange = (page: number) => {
-        router.get('/invoices', { ...currentFilters, page }, {
-            preserveState: true,
+    const deleteInvoice = () => {
+        if (!deleteRow) return;
+        setDeleting(true);
+        router.delete(`/invoices/${deleteRow.id}`, {
             preserveScroll: true,
+            preserveState: true,
+            onSuccess: (page) => {
+                if (!(page.props.flash as { error?: string } | undefined)?.error) toast.success('Invoice dihapus.');
+                setDeleteRow(null);
+            },
+            onError: (errs) => toastErrors(errs, 'DeleteInvoice'),
+            onFinish: () => setDeleting(false),
         });
     };
 
-    const handleDateRangeChange = (range: { from: Date | null; to: Date | null }) => {
-        // Month and range are mutually exclusive on screen: picking a range
-        // clears the month label, clearing the range restores the default month.
-        navigate({
-            month: range.from || range.to ? '' : DEFAULT_MONTH,
-            date_from: range.from ? toLocalIso(range.from) : '',
-            date_to: range.to ? toLocalIso(range.to) : '',
-        });
-    };
-
-    const handleResetFilters = () => {
+    const hasFilters = !!f.search || f.client_ids.length > 0 || !!f.status || hasRange || f.month !== DEFAULT_MONTH;
+    const resetFilters = () => {
         setSearch('');
         navigate({ search: '', status: '', client_ids: [], month: DEFAULT_MONTH, date_from: '', date_to: '' });
     };
 
-    const handleDeleteFromTable = () => {
-        if (!deleteId) return;
-        setDeleteLoading(true);
-        router.delete(`/invoices/${deleteId}`, {
-            onSuccess: () => {
-                setDeleteOpen(false);
-                setDeleteId(null);
-            },
-            onFinish: () => setDeleteLoading(false),
-        });
-    };
+    const periodLabel = overdueTab
+        ? 'Perlu ditagih · semua bulan'
+        : hasRange
+          ? `${f.date_from ? longDate(f.date_from) : '…'} – ${f.date_to ? longDate(f.date_to) : '…'}`
+          : f.month
+            ? monthLabel(f.month)
+            : 'Semua periode';
 
-    const openDrawer = (id: number) => {
-        setSelectedId(id);
-        setDrawerOpen(true);
-    };
-
-    const activeFiltersCount = [
-        !!currentFilters.status,
-        currentFilters.client_ids.length > 0,
-        !!currentFilters.search,
-        hasRange || (currentFilters.month && currentFilters.month !== DEFAULT_MONTH),
-    ].filter(Boolean).length;
-
-    const tabItems: TabItem[] = [
-        { value: '', label: 'Semua' },
-        { value: 'draft', label: 'Draft', badge: stats.draft_count || undefined },
-        { value: 'sent', label: 'Terkirim', badge: stats.sent_count || undefined },
-        { value: 'partially_paid', label: 'Sebagian', badge: stats.partially_paid_count || undefined },
-        { value: 'paid', label: 'Lunas', badge: stats.paid_count || undefined },
-    ];
+    const segmentTotal = SEGMENTS.reduce((s, seg) => s + (stats[seg.countKey] as number), 0);
+    const paidPct = stats.total_revenue > 0 ? Math.round((stats.total_paid / stats.total_revenue) * 100) : 0;
 
     return (
         <>
             <Head title="Invoice" />
-
-            <div className="space-y-6">
-                {/* Header */}
-                <PageHeader
-                    title="Invoice"
-                    description="Kelola semua invoice dan pembayaran klien"
-                    action={
-                        <div className="flex items-center gap-2">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="md" icon={<Download className="w-4 h-4" />}>
-                                        Export
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem asChild>
-                                        <a href={buildExportUrl('excel')}>
-                                            <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                            Export Excel
-                                        </a>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem asChild>
-                                        <a href={buildExportUrl('pdf')}>
-                                            <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
-                                            Export PDF
-                                        </a>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            <Button
-                                variant="primary"
-                                size="md"
-                                icon={<Plus className="w-4 h-4" />}
-                                onClick={() => router.get('/invoices/create')}
-                            >
-                                Buat Invoice
-                            </Button>
-                        </div>
-                    }
-                />
-
-                {/* ── Stats cards ── */}
-                <TooltipProvider delayDuration={300}>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-                        {/* Total Pendapatan */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Card className="hover:shadow-md transition-all duration-200 overflow-hidden cursor-default">
-                                    <div className={STATS_CONFIG[0].accent + ' h-1'} />
-                                    <CardContent className="p-5">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                                                {STATS_CONFIG[0].label}
-                                            </p>
-                                            <span className={STATS_CONFIG[0].iconCn + ' shrink-0'}>{STATS_CONFIG[0].icon}</span>
-                                        </div>
-                                        <p className="text-xl font-bold text-dark-900 dark:text-dark-50 leading-none">
-                                            {formatCurrency(stats.total_revenue)}
-                                        </p>
-                                        <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            Tanpa draft & dibatalkan
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-56 text-center">
-                                Total nilai semua invoice yang diterbitkan pada periode yang dipilih, mencakup semua status kecuali yang dihapus
-                            </TooltipContent>
-                        </Tooltip>
-
-                        {/* Laba Kotor */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Card className="hover:shadow-md transition-all duration-200 overflow-hidden cursor-default">
-                                    <div className={cn('h-1', stats.gross_profit < 0 ? 'bg-red-500' : 'bg-emerald-500')} />
-                                    <CardContent className="p-5">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                                                {STATS_CONFIG[1].label}
-                                            </p>
-                                            <span className={cn('shrink-0', stats.gross_profit < 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-500 dark:text-emerald-400')}>
-                                                {STATS_CONFIG[1].icon}
-                                            </span>
-                                        </div>
-                                        <p className={cn('text-xl font-bold leading-none', stats.gross_profit < 0 ? 'text-red-600 dark:text-red-400' : 'text-dark-900 dark:text-dark-50')}>
-                                            {formatCurrency(stats.gross_profit)}
-                                        </p>
-                                        <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            Pendapatan − HPP
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-56 text-center">
-                                Dihitung dari pendapatan bersih dikurangi HPP dan titipan pajak. Nilai merah berarti total biaya melebihi pendapatan.
-                            </TooltipContent>
-                        </Tooltip>
-
-                        {/* Terbayar */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Card className="hover:shadow-md transition-all duration-200 overflow-hidden cursor-default">
-                                    <div className={STATS_CONFIG[2].accent + ' h-1'} />
-                                    <CardContent className="p-5">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                                                {STATS_CONFIG[2].label}
-                                            </p>
-                                            <span className={STATS_CONFIG[2].iconCn + ' shrink-0'}>{STATS_CONFIG[2].icon}</span>
-                                        </div>
-                                        <p className="text-xl font-bold text-dark-900 dark:text-dark-50 leading-none">
-                                            {formatCurrency(stats.total_paid)}
-                                        </p>
-                                        <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            Pembayaran pada invoice periode ini
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-56 text-center">
-                                Total pembayaran yang masuk pada invoice yang sesuai filter aktif (periode/klien/pencarian), tidak termasuk draft &amp; cancelled
-                            </TooltipContent>
-                        </Tooltip>
-
-                        {/* Outstanding */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Card className="hover:shadow-md transition-all duration-200 overflow-hidden cursor-default">
-                                    <div className={STATS_CONFIG[3].accent + ' h-1'} />
-                                    <CardContent className="p-5">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                                                {STATS_CONFIG[3].label}
-                                            </p>
-                                            <span className={STATS_CONFIG[3].iconCn + ' shrink-0'}>{STATS_CONFIG[3].icon}</span>
-                                        </div>
-                                        <p className="text-xl font-bold text-dark-900 dark:text-dark-50 leading-none">
-                                            {formatCurrency(stats.total_outstanding)}
-                                        </p>
-                                        <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                                            {stats.outstanding_count} invoice belum lunas
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-56 text-center">
-                                Total tagihan yang belum dibayar — sisa dari invoice berstatus Terkirim &amp; Sebagian. Inilah uang yang masih harus ditagih.
-                            </TooltipContent>
-                        </Tooltip>
-
+            <div className="flex flex-col gap-6 pt-1">
+                {/* ── judul ── */}
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Invoice</h1>
+                        <p className="text-[13px] text-ob-ink-2">
+                            {periodLabel} · {invoices.total} invoice
+                        </p>
                     </div>
-                </TooltipProvider>
-
-                {/* ── Status pipeline bar ── */}
-                {stats.invoice_count > 0 && (
-                    <div className="space-y-2.5">
-                        <div className="flex h-2 rounded-full overflow-hidden gap-px">
-                            {PIPELINE_SEGMENTS.map((seg) => {
-                                const count = stats[`${seg.key}_count` as keyof Stats] as number;
-                                if (count === 0) return null;
-                                return (
-                                    <button
-                                        key={seg.key}
-                                        type="button"
-                                        className={cn('h-full rounded-full transition-opacity hover:opacity-75', seg.bar)}
-                                        style={{ width: `${(count / stats.invoice_count) * 100}%` }}
-                                        onClick={() => navigate({ status: seg.key })}
-                                        title={`${seg.label}: ${count}`}
-                                    />
-                                );
-                            })}
-                        </div>
-                        <div className="flex items-center flex-wrap gap-x-5 gap-y-1">
-                            {PIPELINE_SEGMENTS.map((seg) => {
-                                const count = stats[`${seg.key}_count` as keyof Stats] as number;
-                                if (count === 0) return null;
-                                return (
-                                    <button
-                                        key={seg.key}
-                                        type="button"
-                                        onClick={() => navigate({ status: seg.key })}
-                                        className="flex items-center gap-1.5 text-xs text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 transition-colors"
-                                    >
-                                        <span className={cn('h-2 w-2 rounded-full inline-block shrink-0', seg.dot)} />
-                                        {seg.label} ({count})
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className={BTN.secondary} icon={<Upload className="h-4 w-4" />}>
+                                    Ekspor
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem asChild>
+                                    <a href={exportUrl('excel')}>
+                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={exportUrl('pdf')}>
+                                        <FileText className="h-4 w-4" /> Rekap PDF
+                                    </a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button asChild className={BTN.primary}>
+                            <Link href="/invoices/create">
+                                <Plus className="h-4 w-4" /> Buat Invoice
+                            </Link>
+                        </Button>
                     </div>
-                )}
+                </div>
 
-                {/* ── Status tabs ── */}
-                <Tabs
-                    items={tabItems}
-                    value={currentFilters.status}
-                    onChange={(v) => navigate({ status: v })}
-                    variant="underline"
-                />
-
-                {/* ── Table card ── */}
-                <Card className="overflow-hidden">
-                    {/* Filter toolbar */}
-                    <div className="flex flex-col lg:flex-row lg:items-end gap-3 p-4 border-b border-secondary-200 dark:border-dark-600">
-
-                        {/* Klien */}
-                        <div className="w-full lg:w-64 shrink-0">
-                            <Combobox
-                                multiple
-                                options={clients}
-                                value={currentFilters.client_ids}
-                                onChange={(v) => navigate({ client_ids: v })}
-                                placeholder="Semua Klien"
-                                label="Klien"
-                            />
-                        </div>
-
-                        {/* Periode — Bulan + Rentang Tanggal berdampingan (rentang meng-override bulan) */}
-                        <div className="flex flex-col sm:flex-row sm:items-start gap-3 w-full lg:w-auto shrink-0">
-                            <div className="w-full sm:w-40 shrink-0">
-                                {hasRange ? (
-                                    <TooltipProvider delayDuration={150}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                {/* wrapper receives hover even though the inner field is disabled */}
-                                                <div>
-                                                    <DatePicker
-                                                        mode="month"
-                                                        label="Bulan"
-                                                        value={currentFilters.month || null}
-                                                        onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })}
-                                                        placeholder="Pilih bulan..."
-                                                        disabled
-                                                    />
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Diabaikan — rentang tanggal sedang aktif</TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                ) : (
-                                    <DatePicker
-                                        mode="month"
-                                        label="Bulan"
-                                        value={currentFilters.month || null}
-                                        onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })}
-                                        placeholder="Pilih bulan..."
-                                    />
-                                )}
+                {/* ── ringkasan ── */}
+                <section aria-label="Ringkasan invoice" className={cn(CARD, 'flex flex-col gap-5')}>
+                    <div className="grid grid-cols-2 gap-y-5 lg:grid-cols-4 lg:divide-x lg:divide-ob-line">
+                        <StatBlock label="Total ditagih" value={rp(stats.total_revenue)} sub={`${stats.invoice_count} invoice terbit · tanpa draft`} />
+                        <StatBlock label="Sudah dibayar" value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={`${paidPct}% dari total`} />
+                        <StatBlock label="Belum dibayar" value={rp(stats.total_outstanding)} sub={`${stats.outstanding_count} invoice`} />
+                        <StatBlock
+                            label="Perlu ditagih"
+                            value={rp(stats.overdue_amount)}
+                            valueClass={stats.overdue_count > 0 ? 'text-ob-late' : undefined}
+                            sub={stats.overdue_count > 0 ? `${stats.overdue_count} invoice lewat jatuh tempo` : 'Tidak ada yang lewat jatuh tempo'}
+                            onClick={stats.overdue_count > 0 ? () => navigate({ status: 'overdue' }) : undefined}
+                        />
+                    </div>
+                    {segmentTotal > 0 && (
+                        <div className="flex flex-col gap-2.5 border-t border-ob-line pt-4">
+                            <div className="flex h-2 gap-1" aria-hidden="true">
+                                {SEGMENTS.map((seg) => {
+                                    const n = stats[seg.countKey] as number;
+                                    return n > 0 ? <span key={seg.key} className={cn('h-full rounded-full', seg.bar)} style={{ width: `${(n / segmentTotal) * 100}%` }} /> : null;
+                                })}
                             </div>
-                            <div className="w-full sm:w-60 shrink-0">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                    {SEGMENTS.map((seg) => (
+                                        <button
+                                            key={seg.key}
+                                            type="button"
+                                            onClick={() => navigate({ status: seg.key })}
+                                            className="inline-flex items-center gap-1.5 rounded-full text-[13px] text-ob-ink-2 hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
+                                        >
+                                            <span className={cn('h-2 w-2 rounded-full', seg.dot)} />
+                                            {seg.label} <b className="font-semibold text-ob-ink">{stats[seg.countKey] as number}</b>
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className="text-xs text-ob-ink-3">berdasarkan jumlah invoice</span>
+                            </div>
+                        </div>
+                    )}
+                </section>
+
+                {/* ── daftar ── */}
+                <section aria-label="Daftar invoice" className={cn(CARD, 'flex flex-col gap-4')}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div role="group" aria-label="Filter status" className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                                {STATUS_TABS.map((t) => {
+                                    const on = f.status === t.value;
+                                    const count = t.countKey ? (stats[t.countKey] as number) : segmentTotal;
+                                    return (
+                                        <button
+                                            key={t.value}
+                                            type="button"
+                                            aria-pressed={on}
+                                            onClick={() => !on && navigate({ status: t.value })}
+                                            className={cn(PILL, 'h-8 px-3', on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
+                                        >
+                                            {t.label}
+                                            <span className={cn('text-xs', on ? 'opacity-70' : 'text-ob-ink-3')}>{count}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                type="button"
+                                aria-pressed={overdueTab}
+                                onClick={() => navigate({ status: overdueTab ? '' : 'overdue' })}
+                                className={cn(
+                                    PILL,
+                                    'border font-semibold',
+                                    overdueTab ? 'border-transparent bg-ob-late text-white' : 'border-ob-late/35 bg-ob-late/10 text-ob-late hover:bg-ob-late/15',
+                                )}
+                            >
+                                <Clock className="h-4 w-4" /> Perlu ditagih <span className="text-xs opacity-80">{stats.overdue_count}</span>
+                            </button>
+                        </div>
+                        <div className={cn(FIELD, 'flex flex-wrap items-center gap-2 [&_input]:h-10 [&_button]:h-10')}>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    navigate({ search });
+                                }}
+                                className="w-full sm:w-56"
+                            >
+                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nomor atau klien…" icon={<Search className="h-4 w-4" />} aria-label="Cari invoice" />
+                            </form>
+                            <div className="w-full sm:w-48">
+                                <Combobox multiple options={clients} value={f.client_ids} onChange={(v) => navigate({ client_ids: v })} placeholder="Semua klien" searchPlaceholder="Cari klien..." />
+                            </div>
+                            <div className={cn('w-44', overdueTab && 'pointer-events-none opacity-50')} title={overdueTab ? 'Perlu ditagih mencakup semua bulan' : undefined}>
+                                <DatePicker mode="month" value={hasRange ? null : f.month || null} onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })} placeholder={hasRange ? 'Rentang aktif' : 'Semua bulan'} clearable />
+                            </div>
+                            <div className={cn('w-56', overdueTab && 'pointer-events-none opacity-50')}>
                                 <DatePicker
                                     mode="range"
-                                    label="Rentang Tanggal"
-                                    value={dateRange}
-                                    onChange={handleDateRangeChange}
-                                    placeholder="Tanggal mulai..."
-                                    placeholderTo="Tanggal akhir..."
+                                    value={{ from: f.date_from ? new Date(f.date_from + 'T00:00:00') : null, to: f.date_to ? new Date(f.date_to + 'T00:00:00') : null }}
+                                    onChange={(r) => navigate({ month: r.from || r.to ? '' : DEFAULT_MONTH, date_from: r.from ? toLocalIso(r.from) : '', date_to: r.to ? toLocalIso(r.to) : '' })}
+                                    placeholder="Rentang tanggal"
+                                    placeholderTo="…"
                                     clearable
                                 />
                             </div>
                         </div>
-
-                        {/* Search + controls */}
-                        <div className="flex-1 flex items-end gap-2 min-w-0">
-                            <form onSubmit={handleSearchSubmit} className="flex-1 min-w-0 max-w-xs">
-                                <Input
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari invoice atau klien..."
-                                    icon={<Search className="w-4 h-4" />}
-                                />
-                            </form>
-                            {activeFiltersCount > 0 && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleResetFilters}
-                                    className="shrink-0 gap-1 text-dark-500 dark:text-dark-400"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                    Reset
-                                    <Badge variant="blue" size="sm">{activeFiltersCount}</Badge>
-                                </Button>
-                            )}
-                        </div>
-
-                        {/* Result count */}
-                        <p className="text-sm text-dark-500 dark:text-dark-400 shrink-0 self-end pb-0.5 hidden lg:block">
-                            {invoices.from ?? 0}–{invoices.to ?? 0} dari {invoices.total}
-                        </p>
                     </div>
 
-                    {/* Table */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                    <div className="-mx-2 overflow-x-auto px-2">
+                        <table className="w-full min-w-[980px] text-sm">
                             <thead>
-                                <tr className="bg-zinc-50 dark:bg-dark-800 border-b border-secondary-200 dark:border-dark-600">
-                                    {TABLE_COLS.map((col) => (
-                                        <th
-                                            key={col.key}
-                                            className={cn(
-                                                'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 whitespace-nowrap select-none',
-                                                col.align === 'right' ? 'text-right' : 'text-left',
-                                                col.key === 'actions' && 'w-10',
-                                                col.sortable !== false && 'cursor-pointer hover:text-dark-900 dark:hover:text-dark-50',
-                                            )}
-                                            onClick={() => {
-                                                if (col.sortable === false) return;
-                                                const dir = currentFilters.sort === col.key && currentFilters.direction === 'asc' ? 'desc' : 'asc';
-                                                navigate({ sort: col.key, direction: dir });
-                                            }}
-                                        >
-                                            <span className="inline-flex items-center gap-1">
-                                                {col.label}
-                                                {col.sortable !== false && col.label && (
-                                                    <ArrowUpDown className={cn(
-                                                        'w-3 h-3 transition-opacity',
-                                                        currentFilters.sort === col.key ? 'opacity-80' : 'opacity-30',
-                                                    )} />
-                                                )}
-                                            </span>
-                                        </th>
-                                    ))}
+                                <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
+                                    <SortTh label="Klien" sortKey="client_name" f={f} onSort={sortBy} className="pl-3" />
+                                    <th className="py-2.5 font-medium">No. invoice</th>
+                                    <SortTh label="Tgl invoice" sortKey="issue_date" f={f} onSort={sortBy} />
+                                    <SortTh label="Jatuh tempo" sortKey="due_date" f={f} onSort={sortBy} />
+                                    <SortTh label="Jumlah" sortKey="total_amount" f={f} onSort={sortBy} align="right" />
+                                    <th className="py-2.5 pl-6 font-medium">Status</th>
+                                    <th className="w-12 py-2.5">
+                                        <span className="sr-only">Aksi</span>
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-secondary-200 dark:divide-dark-600">
-                                {invoices.data.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={TABLE_COLS.length}>
-                                            <EmptyState
-                                                icon={<FileText className="w-8 h-8" />}
-                                                title="Tidak ada invoice ditemukan"
-                                                description="Coba ubah filter atau buat invoice baru"
-                                            />
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    invoices.data.map((inv) => {
-                                        const isOverdue =
-                                            inv.status !== 'paid' &&
-                                            inv.status !== 'draft' &&
-                                            new Date(inv.due_date) < new Date();
-                                        const paymentPct = inv.total_amount > 0
-                                            ? Math.min(100, Math.round((inv.amount_paid / inv.total_amount) * 100))
-                                            : 0;
-
-                                        return (
-                                            <tr
-                                                key={inv.id}
-                                                onClick={() => openDrawer(inv.id)}
-                                                className={cn(
-                                                    'transition-colors cursor-pointer',
-                                                    isOverdue
-                                                        ? 'bg-red-50/40 dark:bg-red-900/10 hover:bg-red-50/70 dark:hover:bg-red-900/15'
-                                                        : 'hover:bg-zinc-50 dark:hover:bg-dark-800/60',
-                                                )}
-                                            >
-                                                {/* No. Invoice */}
-                                                <td className="px-4 py-3.5">
-                                                    <span className="font-mono text-xs font-medium text-dark-900 dark:text-dark-50">
-                                                        {inv.invoice_number ?? (
-                                                            <span className="text-dark-400 dark:text-dark-500 not-italic">—</span>
-                                                        )}
-                                                    </span>
-                                                </td>
-
-                                                {/* Klien — with avatar */}
-                                                <td className="px-4 py-3.5">
-                                                    <div className="flex items-center gap-2.5">
-                                                        <Avatar className="h-8 w-8 shrink-0">
-                                                            <AvatarFallback className="text-xs font-semibold">
-                                                                {getInitials(inv.client_name)}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="min-w-0">
-                                                            <div className="font-medium text-dark-900 dark:text-dark-50 truncate">
-                                                                {inv.client_name}
-                                                            </div>
-                                                            <div className="text-xs text-dark-500 dark:text-dark-400 capitalize">
-                                                                {inv.client_type}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* Tgl Invoice */}
-                                                <td className="px-4 py-3.5 whitespace-nowrap">
-                                                    <div className="text-sm text-dark-600 dark:text-dark-400">
-                                                        {formatDate(inv.issue_date)}
-                                                    </div>
-                                                    <div className="text-xs text-dark-400 dark:text-dark-500 mt-0.5">
-                                                        {relativeIssueDate(inv.issue_date)}
-                                                    </div>
-                                                </td>
-
-                                                {/* Jatuh Tempo */}
-                                                <td className="px-4 py-3.5 whitespace-nowrap">
-                                                    {(() => {
-                                                        const due = relativeDueDate(inv.due_date);
-                                                        const showRelative = inv.status !== 'paid' && inv.status !== 'draft';
-                                                        return (
-                                                            <>
-                                                                <div className={cn(
-                                                                    'text-sm',
-                                                                    isOverdue
-                                                                        ? 'text-red-600 dark:text-red-400 font-semibold'
-                                                                        : 'text-dark-600 dark:text-dark-400',
-                                                                )}>
-                                                                    {formatDate(inv.due_date)}
-                                                                </div>
-                                                                {showRelative && (
-                                                                    <div className={cn(
-                                                                        'text-xs mt-0.5',
-                                                                        due.overdue
-                                                                            ? 'text-red-500 dark:text-red-400'
-                                                                            : 'text-dark-400 dark:text-dark-500',
-                                                                    )}>
-                                                                        {due.label}
-                                                                    </div>
-                                                                )}
-                                                                {(inv.status === 'paid' || inv.status === 'draft') && (
-                                                                    <div className="text-xs mt-0.5 text-dark-400 dark:text-dark-500 opacity-0 select-none">—</div>
-                                                                )}
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </td>
-
-                                                {/* Jumlah + progress bar */}
-                                                <td className="px-4 py-3.5 text-right">
-                                                    <div className="font-semibold text-dark-900 dark:text-dark-50 tabular-nums whitespace-nowrap">
-                                                        {formatCurrency(inv.total_amount)}
-                                                    </div>
-                                                    <div className="mt-1.5 min-w-[5rem]">
-                                                        <div className="h-1.5 w-full bg-secondary-200 dark:bg-dark-600 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={cn(
-                                                                    'h-full rounded-full transition-all',
-                                                                    inv.status === 'paid'
-                                                                        ? 'bg-emerald-500 dark:bg-emerald-400'
-                                                                        : 'bg-emerald-500 dark:bg-emerald-400',
-                                                                )}
-                                                                style={{ width: `${paymentPct}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* Status */}
-                                                <td className="px-4 py-3.5">
-                                                    <Badge variant={STATUS_VARIANT[inv.status] ?? 'zinc'}>
-                                                        {STATUS_LABEL[inv.status] ?? inv.status}
-                                                    </Badge>
-                                                </td>
-
-                                                {/* Aksi — dropdown menu */}
-                                                <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon-sm"
-                                                                className="h-8 w-8 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50"
-                                                            >
-                                                                <MoreHorizontal className="w-4 h-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-44">
-                                                            <DropdownMenuItem onClick={() => openDrawer(inv.id)}>
-                                                                <Eye className="w-4 h-4" />
-                                                                Lihat Detail
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => router.get(`/invoices/${inv.id}/edit`)}>
-                                                                <Pencil className="w-4 h-4" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            {inv.invoice_number && (
-                                                                <DropdownMenuItem
-                                                                    onClick={() => {
-                                                                        setPrintRow(inv);
-                                                                        setPrintOpen(true);
-                                                                    }}
-                                                                >
-                                                                    <Printer className="w-4 h-4" />
-                                                                    Cetak PDF
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-900/20"
-                                                                onClick={() => {
-                                                                    setDeleteId(inv.id);
-                                                                    setDeleteOpen(true);
-                                                                }}
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
+                            <tbody aria-busy={loading}>
+                                {loading
+                                    ? Array.from({ length: 6 }, (_, i) => (
+                                          <tr key={i} className="border-b border-ob-line-soft">
+                                              <td colSpan={7} className="py-3">
+                                                  <Skeleton className="h-9 rounded-xl bg-ob-inner dark:bg-ob-inner" />
+                                              </td>
+                                          </tr>
+                                      ))
+                                    : invoices.data.map((inv) => (
+                                          <InvoiceTableRow
+                                              key={inv.id}
+                                              inv={inv}
+                                              selected={inv.id === openInvoiceId}
+                                              onOpen={() => openResource('invoice', inv.id)}
+                                              onPrint={() => setPrintRow(inv)}
+                                              onDelete={() => setDeleteRow(inv)}
+                                          />
+                                      ))}
                             </tbody>
                         </table>
+                        {!loading && invoices.data.length === 0 && (
+                            <EmptyList
+                                statusLabel={overdueTab ? 'yang perlu ditagih' : f.status ? STATUS_LABEL[f.status as InvoiceStatus]?.toLowerCase() : null}
+                                hasFilters={hasFilters}
+                                onReset={resetFilters}
+                            />
+                        )}
                     </div>
 
-                    {/* Pagination footer */}
-                    {invoices.last_page > 1 && (
-                        <div className="px-4 py-3 border-t border-secondary-200 dark:border-dark-600">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
+                        <span>
+                            {invoices.total} invoice · urut {(SORT_LABEL[f.sort] ?? SORT_LABEL.issue_date)[0]}{' '}
+                            {(SORT_LABEL[f.sort] ?? SORT_LABEL.issue_date)[f.direction === 'desc' ? 1 : 2]}
+                        </span>
+                        {invoices.last_page > 1 ? (
                             <Pagination
-                                meta={{
-                                    current_page: invoices.current_page,
-                                    last_page: invoices.last_page,
-                                    per_page: invoices.per_page,
-                                    total: invoices.total,
-                                    from: invoices.from,
-                                    to: invoices.to,
-                                }}
-                                onPageChange={handlePageChange}
+                                meta={{ current_page: invoices.current_page, last_page: invoices.last_page, per_page: invoices.per_page, total: invoices.total, from: invoices.from, to: invoices.to }}
+                                onPageChange={(page) => router.get('/invoices', { ...f, page }, { preserveState: true, preserveScroll: true })}
                             />
-                        </div>
-                    )}
-                </Card>
+                        ) : (
+                            <span>{f.per_page} per halaman</span>
+                        )}
+                    </div>
+                </section>
             </div>
 
-            {/* Slide-over drawer */}
-            <InvoiceDrawer
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                invoiceId={selectedId}
-                rollbackableIds={rollbackableIds}
-                customTemplates={customTemplates}
-            />
-
-            {/* Print options modal (table row) */}
             {printRow && (
                 <PrintInvoiceDialog
-                    open={printOpen}
-                    onOpenChange={(o) => {
-                        setPrintOpen(o);
-                        if (!o) setPrintRow(null);
-                    }}
+                    open
+                    onOpenChange={(o) => !o && setPrintRow(null)}
                     invoiceId={printRow.id}
                     invoiceNumber={printRow.invoice_number}
                     totalAmount={printRow.total_amount}
@@ -1743,20 +426,172 @@ function InvoicesPage({ invoices, stats, clients, rollbackableIds, customTemplat
                 />
             )}
 
-            {/* Delete confirm (table row) */}
             <ConfirmDialog
-                open={deleteOpen}
-                onOpenChange={(o) => {
-                    setDeleteOpen(o);
-                    if (!o) setDeleteId(null);
-                }}
-                title="Hapus Invoice"
-                description="Invoice ini akan dihapus permanen beserta semua item dan data terkaitnya."
-                confirmLabel="Hapus Invoice"
-                loading={deleteLoading}
-                onConfirm={handleDeleteFromTable}
+                open={!!deleteRow}
+                onOpenChange={(o) => !o && setDeleteRow(null)}
+                title="Hapus invoice"
+                description={deleteRow ? `Invoice ${deleteRow.invoice_number ?? 'draft'} untuk ${deleteRow.client_name} akan dihapus permanen beserta semua itemnya.` : ''}
+                confirmLabel="Hapus invoice"
+                loading={deleting}
+                onConfirm={deleteInvoice}
             />
         </>
+    );
+}
+
+/* ─────────────────────────────────── bagian ─── */
+
+function StatBlock({ label, value, sub, valueClass, onClick }: { label: string; value: string; sub: string; valueClass?: string; onClick?: () => void }) {
+    const body = (
+        <>
+            <span className="text-[13px] text-ob-ink-2">{label}</span>
+            <span className={cn('text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink', valueClass)}>{value}</span>
+            <span className="text-xs text-ob-ink-2">{sub}</span>
+        </>
+    );
+    const cls = 'flex min-w-0 flex-col gap-1 px-0 text-left lg:px-6 lg:first:pl-0';
+    return onClick ? (
+        <button type="button" onClick={onClick} className={cn(cls, 'rounded-xl hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill')}>
+            {body}
+        </button>
+    ) : (
+        <div className={cls}>{body}</div>
+    );
+}
+
+function SortTh({
+    label,
+    sortKey,
+    f,
+    onSort,
+    align,
+    className,
+}: {
+    label: string;
+    sortKey: string;
+    f: { sort: string; direction: string };
+    onSort: (k: string) => void;
+    align?: 'right';
+    className?: string;
+}) {
+    const active = f.sort === sortKey;
+    return (
+        <th className={cn('py-2.5 font-medium', align === 'right' && 'text-right', className)} aria-sort={active ? (f.direction === 'asc' ? 'ascending' : 'descending') : undefined}>
+            <button type="button" onClick={() => onSort(sortKey)} className={cn('inline-flex items-center gap-1 rounded hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill', active && 'font-semibold text-ob-ink')}>
+                {label}
+                {active && (f.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+            </button>
+        </th>
+    );
+}
+
+function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: InvoiceRow; selected: boolean; onOpen: () => void; onPrint: () => void; onDelete: () => void }) {
+    const due = dueInfo(inv.status, inv.due_date);
+    const paidPct = inv.total_amount > 0 ? Math.min(100, Math.round((inv.amount_paid / inv.total_amount) * 100)) : 0;
+
+    return (
+        <tr
+            onClick={onOpen}
+            className={cn(
+                'cursor-pointer border-b border-ob-line-soft transition-colors hover:bg-ob-hover',
+                due.overdue && 'bg-ob-late/[0.05]',
+                selected && 'bg-ob-hover',
+            )}
+        >
+            <td className="py-3 pl-3">
+                <div className="flex items-center gap-3">
+                    <Avatar name={inv.client_name} />
+                    <div className="min-w-0">
+                        <a
+                            href={resourceHref('invoice', inv.id)}
+                            onClick={(e) => {
+                                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                            className="block max-w-[260px] truncate font-semibold text-ob-ink focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
+                        >
+                            {inv.client_name}
+                        </a>
+                        <span className="text-xs text-ob-ink-2">{inv.client_type === 'individual' ? 'Perorangan' : 'Perusahaan'}</span>
+                    </div>
+                </div>
+            </td>
+            <td className="py-3 font-mono text-xs text-ob-ink-2">{inv.invoice_number ?? <span className="text-ob-ink-3">belum bernomor</span>}</td>
+            <td className="py-3">
+                <span className="block text-ob-ink">{shortDate(inv.issue_date)}</span>
+                <span className="text-xs text-ob-ink-2">{issuedAgo(inv.issue_date)}</span>
+            </td>
+            <td className="py-3">
+                <span className={cn('block', due.overdue ? 'font-semibold text-ob-late' : 'text-ob-ink')}>{shortDate(inv.due_date)}</span>
+                {due.overdue && due.label ? (
+                    <OverdueChip label={due.label} />
+                ) : (
+                    due.label && <span className={cn('text-xs', due.tone === 'soon' ? 'text-ob-neg' : 'text-ob-ink-2')}>{due.label}</span>
+                )}
+            </td>
+            <td className="py-3 text-right">
+                <span className="block font-semibold text-ob-ink">{rp(inv.total_amount)}</span>
+                {inv.status === 'partially_paid' && (
+                    <>
+                        <span className="text-xs text-ob-ink-2">sisa {rp(inv.amount_remaining)}</span>
+                        <span className="ml-auto mt-1 block h-1 w-40 overflow-hidden rounded-full bg-ob-chip" aria-hidden="true">
+                            <span className="block h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
+                        </span>
+                    </>
+                )}
+            </td>
+            <td className="py-3 pl-6">
+                <InvoiceStatusPill status={inv.status} />
+            </td>
+            <td className="py-3 pr-2 text-right" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-chip hover:text-ob-ink dark:hover:bg-ob-chip" aria-label={`Aksi untuk invoice ${inv.client_name}`}>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={onOpen}>
+                            <Eye className="h-4 w-4" /> Lihat detail
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.visit(`/invoices/${inv.id}/edit`)}>
+                            <Pencil className="h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        {inv.invoice_number && (
+                            <DropdownMenuItem onClick={onPrint}>
+                                <Printer className="h-4 w-4" /> Cetak PDF
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-ob-late focus:text-ob-late" onClick={onDelete}>
+                            <Trash2 className="h-4 w-4" /> Hapus
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </td>
+        </tr>
+    );
+}
+
+function EmptyList({ statusLabel, hasFilters, onReset }: { statusLabel: string | null; hasFilters: boolean; onReset: () => void }) {
+    return (
+        <div className="my-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-4 py-10 text-center">
+            <span className="text-sm font-semibold text-ob-ink">{statusLabel ? `Tidak ada invoice ${statusLabel}` : hasFilters ? 'Tidak ada invoice yang cocok' : 'Belum ada invoice'}</span>
+            <span className="max-w-[320px] text-[13px] text-ob-ink-2">
+                {hasFilters ? 'Coba bulan lain atau hapus filter.' : 'Invoice pertama bisa disimpan sebagai draft dulu, lalu diterbitkan saat siap.'}
+            </span>
+            {hasFilters ? (
+                <Button variant="outline" className={BTN.small} onClick={onReset}>
+                    Hapus filter
+                </Button>
+            ) : (
+                <Button asChild className={cn(BTN.primary, 'h-9 px-4 text-[13px]')}>
+                    <Link href="/invoices/create">
+                        <Plus className="h-4 w-4" /> Buat Invoice
+                    </Link>
+                </Button>
+            )}
+        </div>
     );
 }
 

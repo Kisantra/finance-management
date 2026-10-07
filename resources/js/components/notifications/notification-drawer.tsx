@@ -20,6 +20,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { openResource } from '@/lib/resource-modal';
 import { cn } from '@/lib/utils';
 import type { NotificationItem } from '@/types';
 
@@ -124,7 +125,10 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                 preserveScroll: true,
                 onSuccess: () => {
                     onOpenChange(false);
-                    if (url) router.visit(url);
+                    // Tautan detail invoice (#invoice/13 atau /invoices/13 lama) dibuka sebagai modal di halaman ini.
+                    const invoice = url?.match(/(?:#invoice|\/invoices)\/(\d+)$/);
+                    if (invoice) openResource('invoice', Number(invoice[1]));
+                    else if (url) router.visit(url);
                 },
             },
         );

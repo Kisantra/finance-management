@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
-import { CurrencyCell, ServiceLookup, ColDef, useColumnResize, ResizableTh, parseQty } from '@/pages/invoices/create';
+import { CurrencyCell, ServiceLookup, ColDef, useColumnResize, ResizableTh, parseQty } from '@/pages/invoices/components/item-table-helpers';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { SharedProps } from '@/types';
 

@@ -171,7 +171,7 @@ Apply these patterns: slide-overs and modals enter with `transform transition-al
 
 **CSS custom properties (verified naming):** `--color-primary-{50–800}` (blue scale, hex), `--color-dark-{50–950}` (gray scale, hex), `--font-heading` (`"Plus Jakarta Sans", …`), `--font-sans` (`"Inter", …`), `--radius-{sm|md|lg|xl}` (4 / 6 / 8 / 12px).
 
-**Stack:** Laravel 12 + Inertia.js + React 18 + shadcn/ui + Tailwind CSS v4. Blade is used only for PDF templates (`resources/views/pdf/`), which do not use these tokens.
+**Stack:** Laravel 12 + Inertia.js + React 18 + shadcn/ui + Tailwind CSS v4. Sejak 25 Sep 2026 halaman baru mengikuti bagian **Obsidian** di bawah; bagian di atasnya menjelaskan halaman lama yang belum dimigrasi. Blade is used only for PDF templates (`resources/views/pdf/`), which do not use these tokens.
 
 **Dark mode** uses the `class` strategy on `<html>`, toggled by the header moon button and persisted to `localStorage`.
 
@@ -304,3 +304,43 @@ const TYPE_OPTIONS: SegmentedOption<FeedbackType>[] = [
 ```
 
 **When the catalog has no equivalent:** do not silently write custom inline UI. Tell the user ("There is no catalog component for X — should I create a reusable `ComponentName` in `@/components/ui/` first?"), and if they agree, build a properly styled, reusable component and add it to the CLAUDE.md catalog before using it anywhere. This keeps one-off UI from accumulating across the codebase.
+
+
+---
+
+## Obsidian (redesign 25 Sep 2026) — berlaku untuk halaman & komponen baru
+
+Gaya "dark soft-surface": permukaan berlapis, tepi 1 px tembus, satu aksen biru, tanpa bayangan dan tanpa gradient. Mockup final ada di kanvas desain "Kisantra Dashboard Redesign" (artboard Layout, Dashboard, Komponen, Navigasi, Grafik, Terang). Halaman pertama yang memakainya: Ringkasan (`resources/js/pages/dashboard.tsx`), rel navigasi (`layouts/sidebar.tsx`), header (`layouts/header.tsx`). Halaman lain dimigrasi bertahap; jangan mencampur dua gaya dalam satu halaman.
+
+### Token (satu set variabel, dua nilai per tema)
+
+Didefinisikan di `resources/css/app.css` sebagai `--ob-*` pada `:root` (terang) dan `.dark` (gelap), lalu dipetakan ke kelas Tailwind lewat `@theme inline`. **Selalu pakai kelasnya, jangan hex.**
+
+| Kelas | Peran | Terang | Gelap |
+|-------|-------|--------|-------|
+| `bg-ob-page` | latar halaman | #F6F6F8 | #0B0B0D |
+| `bg-ob-rail` | rel navigasi, kontrol header | #EFEFF2 | #0F0F12 |
+| `bg-ob-card` | kartu | #FFFFFF | #151518 |
+| `bg-ob-inner` | kartu-dalam (baris, input) | #F1F1F4 | #1C1C21 |
+| `bg-ob-chip` | chip / tile ikon | #E4E4E9 | #26262C |
+| `bg-ob-hover` | hover baris | #E9E9EE | #22222A |
+| `text-ob-ink` / `-ink-2` / `-ink-3` | teks utama / sekunder / paling redup (≥ 5:1) | #141416 / #52525C / #66666F | #F2F2F3 / #A3A3AB / #8B8B95 |
+| `border-ob-line` / `-line-soft` / `-line-strong` | tepi 8% / 6% / 14% | hitam | putih |
+| `bg-ob-invert` + `text-ob-invert-ink` | pil aktif (rel, pil bersegmen) | hitam / putih | putih / hitam |
+| `text-ob-pos` · `-neg` · `-wait` · `-late` · `-act` | masuk/lunas · keluar/jatuh tempo dekat · menunggu · lewat tempo · aktif/terkirim | #047857 · #C2410C · #854D0E · #B91C1C · #1D4ED8 | #34D399 · #FB923C · #FBBF24 · #F87171 · #60A5FA |
+| `bg-ob-act-fill` | tombol primer, hari ini | #2563EB | #2563EB |
+| `bg-ob-badge` + `text-ob-badge-ink` | badge hitungan menunggu | #F59E0B | #FBBF24 |
+
+Chip status = latar `bg-ob-<tone>/12` + teks `text-ob-<tone>` + titik (status final: ikon centang/silang). **Tiap hue satu makna**; ungu tidak dipakai; kategori (donat) memakai ramp netral satu hue, bukan warna semantik.
+
+### Aturan bentuk
+
+- **Radius**: kartu `rounded-3xl` (24), kartu-dalam `rounded-2xl` (16), kontrol `rounded-xl` (12), tile ikon `rounded-lg` (8), pil `rounded-full`. Tidak ada nilai lain.
+- **Kartu**: padding 22 px, header 32 px (judul 16/600 + hitungan 13/500 `text-ob-ink-2`) agar baseline sejajar antar kartu; komponen `Widget` di `components/dashboard/widget.tsx`.
+- **Tinggi tetap di xl**; di bawah xl kartu mengikuti isi. Daftar dinamis menggulir di dalam kartu (`ScrollList`: viewport kelipatan baris persis, `tabindex=0`, `aria-label "N item, dapat digulir"`, fade 12 px hanya saat masih ada sisa). Hitungan "3 dari N" di header.
+- **Tipografi**: satu keluarga, Plus Jakarta Sans (400–800), `font-variant-numeric: tabular-nums` global. Judul halaman 26/600 tanpa gradient; angka pahlawan 40/600; teks minimum 12 px. `PageHeader` bergradient hanya untuk halaman lama.
+- **Tepi**, bukan bayangan; tepi putus-putus hanya untuk placeholder/state kosong; tekstur garis miring (`.ob-hatch`) = pengeluaran / di luar rentang.
+- **Navigasi**: rel 76 px (ikon grup + badge) ↔ 260 px (ikon + panel label, pil jembatan untuk grup aktif, satu grup terbuka, kartu ruang kerja dengan pengalih tema); pintasan `[`. Header: breadcrumb kiri, kontrol pil `bg-ob-rail` kanan, tanpa garis bawah.
+- **Gerak**: 150–220 ms ease-out; `ob-fade-in` untuk flyout/sub-menu; semua dimatikan pada `prefers-reduced-motion` (`.ob-motion`).
+- **State wajib** per widget: kosong (`WidgetEmpty`: judul, satu kalimat, satu aksi), gagal (`WidgetError` + "Coba lagi", per widget bukan per halaman), memuat (skeleton berbentuk baris, bukan spinner).
+- **Aksesibilitas**: ikon-saja wajib `aria-label`; grafik menyertakan tabel `sr-only`; arah uang lewat tanda `+`/`−` dan ikon, warna hanya redundansi; fokus = cincin 2 px `ob-act-fill`.

@@ -48,3 +48,4 @@ python .claude/skills/qa-evidence/scripts/check_links.py    docs/qa
 | Modul | Test case | Laporan |
 |---|---|---|
 | Invoice & Pembayaran | [`test-cases/invoices.md`](test-cases/invoices.md) | [`report/Laporan-QA-Invoices.pdf`](report/Laporan-QA-Invoices.pdf) |
+| Invoice — redesign Obsidian & pratinjau PDF langsung | [`test-cases/invoices-redesign.md`](test-cases/invoices-redesign.md) | [`report/Laporan-QA-Invoices-Redesign.pdf`](report/Laporan-QA-Invoices-Redesign.pdf) |

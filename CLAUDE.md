@@ -171,13 +171,13 @@ Loading skeleton                  → Skeleton
 | Loans | `/loans` | Index, Create, Update, Delete, PayLoan |
 | Receivables | `/receivables` | Index, Create, Update, Submit, Approve, Pay |
 | Feedbacks | `/feedbacks` | All/My, Create, Show, Respond |
-| Settings | `/settings/*` | Profile, Password, Company, PDF Templates |
+| Settings | `/settings/*` | Hub, Profile, Password, Company, Penomoran Invoice, PDF Templates |
 | Users | `/admin/users` | Index, Create, Edit, Delete |
 | Permissions/Roles | `/permissions` | Permissions + Roles CRUD |
 
 ### Key Business Logic
 
-**Invoice:** `001/INV/KSN-XXX/I/2026` (seq/INV/{abbrev perusahaan}-{inisial klien}/{bulan romawi}/{tahun}) — nomor baru diisi saat `send`, sebelum itu `null`; status: `draft → sent → partially_paid → paid`
+**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual
