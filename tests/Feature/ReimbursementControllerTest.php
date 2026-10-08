@@ -75,9 +75,105 @@ class ReimbursementControllerTest extends TestCase
         $this->actingAs($this->admin)->get('/reimbursements')->assertOk();
     }
 
-    public function test_create_page_renders(): void
+    /** Redesign 8 Okt 2026: form buat ada di sheet halaman daftar; route lama mengarah ke sana. */
+    public function test_create_route_opens_the_form_on_the_list(): void
     {
-        $this->actingAs($this->staff)->get('/reimbursements/create')->assertOk();
+        $this->actingAs($this->staff)->get('/reimbursements/create')->assertRedirect('/reimbursements?create=1');
+    }
+
+    public function test_edit_route_opens_the_detail_drawer(): void
+    {
+        $this->staff->givePermissionTo('edit reimbursements');
+        $reimbursement = $this->makeReimbursement($this->staff);
+
+        $this->actingAs($this->staff)
+            ->get("/reimbursements/{$reimbursement->id}/edit")
+            ->assertRedirect('/reimbursements#reimbursement/'.$reimbursement->id);
+    }
+
+    public function test_detail_data_is_available_to_owner_and_reviewers_only(): void
+    {
+        $reimbursement = $this->makeReimbursement($this->staff, ['status' => 'pending']);
+        $stranger = User::factory()->create();
+        $stranger->givePermissionTo('view reimbursements');
+
+        $this->actingAs($this->staff)->getJson("/reimbursements/{$reimbursement->id}/data")
+            ->assertOk()
+            ->assertJsonPath('title', 'Transport ke Klien')
+            ->assertJsonPath('category_label', 'Transportasi')
+            ->assertJsonPath('can_review', false)
+            ->assertJsonPath('review_category_options', []);
+
+        $this->actingAs($this->admin)->getJson("/reimbursements/{$reimbursement->id}/data")
+            ->assertOk()
+            ->assertJsonPath('can_review', true);
+
+        $this->actingAs($stranger)->getJson("/reimbursements/{$reimbursement->id}/data")->assertNotFound();
+    }
+
+    public function test_detail_data_lists_payments_with_bank_and_payer(): void
+    {
+        $category = TransactionCategory::create(['type' => 'expense', 'label' => 'Operasional']);
+        $bank = BankAccount::factory()->create(['account_name' => 'BCA Operasional']);
+        $reimbursement = $this->makeReimbursement($this->staff, ['status' => 'approved', 'amount' => 185000, 'category_id' => $category->id]);
+
+        $this->actingAs($this->admin)->postJson("/reimbursements/{$reimbursement->id}/pay", [
+            'bank_account_id' => $bank->id,
+            'payment_date' => now()->toDateString(),
+            'payment_amount' => 100000,
+            'reference_notes' => 'TRF-001',
+        ])->assertOk()->assertJsonPath('message', 'Pembayaran berhasil diproses');
+
+        $this->actingAs($this->admin)->getJson("/reimbursements/{$reimbursement->id}/data")
+            ->assertJsonPath('amount_remaining', 85000)
+            ->assertJsonPath('transaction_category', 'Operasional')
+            ->assertJsonPath('payments.0.amount', 100000)
+            ->assertJsonPath('payments.0.bank_account_name', 'BCA Operasional')
+            ->assertJsonPath('payments.0.payer_name', $this->admin->name)
+            ->assertJsonPath('can_pay', true);
+    }
+
+    /** Aksi dari drawer memakai fetch JSON agar halaman di belakang modal tidak berganti. */
+    public function test_drawer_actions_answer_json(): void
+    {
+        $reimbursement = $this->makeReimbursement($this->staff);
+
+        $this->actingAs($this->staff)->postJson("/reimbursements/{$reimbursement->id}/submit")
+            ->assertOk()
+            ->assertJsonPath('message', 'Reimbursement berhasil diajukan untuk persetujuan');
+
+        $this->actingAs($this->admin)->postJson("/reimbursements/{$reimbursement->id}/review", ['action' => 'reject', 'review_notes' => 'Kurang struk'])
+            ->assertOk();
+
+        $this->actingAs($this->admin)->postJson("/reimbursements/{$reimbursement->id}/review", ['action' => 'reject'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Reimbursement tidak dapat ditinjau');
+    }
+
+    public function test_store_json_returns_new_id(): void
+    {
+        $this->actingAs($this->staff)->postJson('/reimbursements', [
+            'title' => 'Parkir',
+            'amount' => 25000,
+            'expense_date' => '2026-10-08',
+            'category' => 'transport',
+            'action' => 'submit',
+        ])->assertOk()->assertJsonStructure(['message', 'id']);
+    }
+
+    public function test_index_sends_status_counts_for_the_current_scope(): void
+    {
+        $this->makeReimbursement($this->staff, ['status' => 'pending', 'amount' => 100000]);
+        $this->makeReimbursement($this->staff, ['status' => 'pending', 'amount' => 50000]);
+        $this->makeReimbursement($this->staff, ['status' => 'approved', 'amount' => 300000, 'amount_paid' => 100000, 'payment_status' => 'partial']);
+
+        $this->actingAs($this->admin)->get('/reimbursements?status=pending')
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('rows', 2)
+                ->where('statusCounts.pending', 2)
+                ->where('statusCounts.approved', 1)
+                ->where('stats.pending_amount', 150000)
+                ->where('stats.approved_remaining', 200000));
     }
 
     public function test_store_creates_draft_reimbursement(): void

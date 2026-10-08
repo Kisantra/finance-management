@@ -217,6 +217,15 @@ h1, h2, h3, h4, h5, h6,
    Obsidian helpers
    ========================================================================= */
 
+/* Baris pil yang bisa digeser di layar sempit tanpa scrollbar terlihat. Sengaja di luar @layer:
+   aturan scrollbar global `*` di atas juga di luar layer dan akan mengalahkan utility Tailwind. */
+.ob-no-scrollbar {
+    scrollbar-width: none;
+}
+.ob-no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
 /* Daftar yang menggulir di dalam kartu: scrollbar tipis, tanpa scroll chaining. */
 .ob-scroll {
     overflow-y: auto;

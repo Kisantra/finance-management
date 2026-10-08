@@ -126,6 +126,7 @@ export function Avatar({ name, className }: { name: string; className?: string }
 export const FIELD = cn(
     '[&_label]:mb-1.5 [&_label]:text-[13px] [&_label]:font-medium [&_label]:text-ob-ink-2',
     '[&_input]:h-[42px] [&_input]:border-ob-line [&_input]:bg-ob-inner [&_input]:text-ob-ink [&_input]:placeholder:text-ob-ink-3 [&_input]:focus:ring-ob-act-fill',
+    '[&_textarea]:rounded-xl [&_textarea]:border-ob-line [&_textarea]:bg-ob-inner [&_textarea]:text-ob-ink [&_textarea]:placeholder:text-ob-ink-3 [&_textarea]:focus:ring-ob-act-fill',
     '[&_button]:h-[42px] [&_button]:border-ob-line [&_button]:bg-ob-inner [&_button]:text-ob-ink',
     '[&_.rounded-l-xl]:border-ob-line [&_.rounded-l-xl]:bg-ob-chip [&_.rounded-l-xl]:text-ob-ink-2',
 );

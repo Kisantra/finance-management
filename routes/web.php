@@ -350,6 +350,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reimbursements', [ReimbursementController::class, 'index'])->name('reimbursements.index');
         Route::get('/reimbursements/create', [ReimbursementController::class, 'create'])->middleware('can:create reimbursements')->name('reimbursements.create');
         Route::post('/reimbursements', [ReimbursementController::class, 'store'])->middleware('can:create reimbursements')->name('reimbursements.store');
+        Route::get('/reimbursements/{reimbursement}/data', [ReimbursementController::class, 'data'])->whereNumber('reimbursement')->name('reimbursements.data');
         Route::get('/reimbursements/{reimbursement}/edit', [ReimbursementController::class, 'edit'])->middleware('can:edit reimbursements')->name('reimbursements.edit');
         Route::put('/reimbursements/{reimbursement}', [ReimbursementController::class, 'update'])->middleware('can:edit reimbursements')->name('reimbursements.update');
         Route::delete('/reimbursements/{reimbursement}', [ReimbursementController::class, 'destroy'])->middleware('can:delete reimbursements')->name('reimbursements.destroy');

@@ -9,9 +9,13 @@ use App\Http\Requests\UpdateReimbursementRequest;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Reimbursement;
+use App\Models\ReimbursementPayment;
 use App\Models\TransactionCategory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -25,7 +29,7 @@ class ReimbursementController extends Controller
         $canPay = auth()->user()->can('pay reimbursements');
         // Tab "Semua" (pengajuan seluruh pengguna) hanya untuk reviewer/pembayar; pengguna lain
         // selalu dibatasi ke miliknya sendiri walau mengirim ?tab=all lewat URL.
-        $canSeeAll = $canApprove || $canPay;
+        $canSeeAll = $this->canSeeAll();
         $tab = $canSeeAll ? $request->input('tab', 'all') : 'my';
 
         $search = $request->input('search');
@@ -36,78 +40,48 @@ class ReimbursementController extends Controller
         $perPage = (int) $request->input('per_page', 15);
         $page = (int) $request->input('page', 1);
 
-        $query = Reimbursement::with(['user', 'reviewer'])
-            ->withSum('payments', 'amount');
+        // Cakupan tab + filter selain status: dasar daftar dan hitungan per pil status.
+        $scoped = fn (): Builder => Reimbursement::query()
+            ->when($tab === 'my', fn (Builder $q) => $q->where('user_id', auth()->id()))
+            ->when($search, fn (Builder $q) => $q->whereAny(['title', 'description', 'category_input'], 'like', "%{$search}%"))
+            ->when($category, fn (Builder $q) => $q->where('category_input', $category))
+            ->when($dateFrom && $dateTo, fn (Builder $q) => $q->whereBetween('expense_date', [$dateFrom, $dateTo]));
 
-        if ($tab === 'my') {
-            $query->where('user_id', auth()->id());
-        }
-
-        if ($search) {
-            $query->whereAny(['title', 'description', 'category_input'], 'like', "%{$search}%");
-        }
-        if ($status) {
-            $query->where('status', $status);
-        }
-        if ($category) {
-            $query->where('category_input', $category);
-        }
-        if ($dateFrom && $dateTo) {
-            $query->whereBetween('expense_date', [$dateFrom, $dateTo]);
-        }
-
-        $paginator = $query->orderBy('created_at', 'desc')
+        $paginator = $scoped()
+            ->with(['user:id,name'])
+            ->when($status, fn (Builder $q) => $q->where('status', $status))
+            ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $statsQuery = Reimbursement::query();
-        if ($tab === 'my') {
-            $statsQuery->where('user_id', auth()->id());
-        }
-        $statsRow = $statsQuery->selectRaw("
-            COUNT(*) as total,
-            SUM(amount) as total_amount,
-            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
-            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count,
-            SUM(amount_paid) as total_paid
-        ")->first();
+        $statusCounts = $scoped()->selectRaw('status, COUNT(*) as n')->groupBy('status')->pluck('n', 'status');
+
+        $statsRow = Reimbursement::query()
+            ->when($tab === 'my', fn (Builder $q) => $q->where('user_id', auth()->id()))
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(amount) as total_amount,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending_amount,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count,
+                SUM(CASE WHEN status = 'approved' THEN amount - amount_paid ELSE 0 END) as approved_remaining,
+                SUM(amount_paid) as total_paid
+            ")->first();
 
         $rows = $paginator->map(fn (Reimbursement $r) => [
             'id' => $r->id,
             'title' => $r->title,
-            'description' => $r->description,
             'amount' => $r->amount,
             'amount_paid' => $r->amount_paid,
             'amount_remaining' => $r->amount_remaining,
             'expense_date' => $r->expense_date?->format('Y-m-d'),
             'category_input' => $r->category_input,
-            'category_label' => $r->category_label,
-            'category_id' => $r->category_id,
+            'category_label' => Reimbursement::categoryLabel($r->category_input),
             'status' => $r->status,
-            'payment_status' => $r->payment_status,
             'user_name' => $r->user?->name,
             'user_id' => $r->user_id,
-            'reviewed_by_name' => $r->reviewer?->name,
-            'reviewed_at' => $r->reviewed_at?->format('Y-m-d'),
-            'review_notes' => $r->review_notes,
-            'attachment_url' => $r->attachment_url,
-            'attachment_name' => $r->attachment_name,
-            'can_edit' => $r->canEdit() && $r->user_id === auth()->id(),
-            'can_delete' => $r->canDelete(),
-            'can_submit' => $r->canSubmit() && $r->user_id === auth()->id(),
-            'can_review' => $r->canReview(),
-            'can_pay' => $r->canPay(),
+            'has_attachment' => $r->hasAttachment(),
             'created_at' => $r->created_at?->format('Y-m-d'),
         ]);
-
-        $bankAccountOptions = BankAccount::with(['payments', 'transactions'])
-            ->orderBy('account_name')
-            ->get()
-            ->map(fn ($b) => [
-                'value' => $b->id,
-                'label' => $b->account_name.' — '.$b->bank_name.' ('.$b->formatted_balance.')',
-            ]);
-
-        $categoryOptions = TransactionCategory::selectOptions('expense');
 
         return Inertia::render('reimbursements/index', [
             'rows' => $rows,
@@ -123,9 +97,13 @@ class ReimbursementController extends Controller
                 'total' => (int) ($statsRow->total ?? 0),
                 'total_amount' => (int) ($statsRow->total_amount ?? 0),
                 'pending_count' => (int) ($statsRow->pending_count ?? 0),
+                'pending_amount' => (int) ($statsRow->pending_amount ?? 0),
                 'approved_count' => (int) ($statsRow->approved_count ?? 0),
+                'approved_remaining' => (int) ($statsRow->approved_remaining ?? 0),
                 'total_paid' => (int) ($statsRow->total_paid ?? 0),
             ],
+            'statusCounts' => collect(['draft', 'pending', 'approved', 'rejected', 'paid'])
+                ->mapWithKeys(fn (string $s) => [$s => (int) ($statusCounts[$s] ?? 0)]),
             'filters' => [
                 'tab' => $tab,
                 'search' => $search,
@@ -136,20 +114,81 @@ class ReimbursementController extends Controller
                 'per_page' => $perPage,
                 'page' => $page,
             ],
-            'bankAccountOptions' => $bankAccountOptions,
-            'categoryOptions' => $categoryOptions,
+            'categoryOptions' => Reimbursement::categories(),
             'canApprove' => $canApprove,
             'canPay' => $canPay,
             'canSeeAll' => $canSeeAll,
         ]);
     }
 
-    public function create(): Response
+    /**
+     * Detail mandiri untuk drawer `#reimbursement/{id}` — bisa dibuka di atas halaman mana pun,
+     * jadi opsi dialog review/bayar ikut dikirim hanya bila aksinya tersedia untuk pengguna ini.
+     */
+    public function data(Reimbursement $reimbursement): JsonResponse
     {
-        return Inertia::render('reimbursements/create');
+        $user = auth()->user();
+        abort_unless($reimbursement->user_id === $user->id || $this->canSeeAll(), 404);
+
+        $reimbursement->load([
+            'user:id,name',
+            'reviewer:id,name',
+            'category:id,label',
+            'payments' => fn ($q) => $q->orderBy('payment_date')->orderBy('id'),
+            'payments.payer:id,name',
+            'payments.bankTransaction.bankAccount:id,account_name,bank_name',
+        ]);
+
+        $isOwner = $reimbursement->user_id === $user->id;
+        $canReview = $reimbursement->canReview() && $user->can('approve reimbursements');
+        $canPay = $reimbursement->canPay() && $user->can('pay reimbursements');
+
+        return response()->json([
+            'id' => $reimbursement->id,
+            'title' => $reimbursement->title,
+            'description' => $reimbursement->description,
+            'amount' => $reimbursement->amount,
+            'amount_paid' => $reimbursement->amount_paid,
+            'amount_remaining' => max(0, $reimbursement->amount_remaining),
+            'expense_date' => $reimbursement->expense_date?->format('Y-m-d'),
+            'category_input' => $reimbursement->category_input,
+            'category_label' => Reimbursement::categoryLabel($reimbursement->category_input),
+            'transaction_category' => $reimbursement->category?->label,
+            'status' => $reimbursement->status,
+            'user' => ['id' => $reimbursement->user_id, 'name' => $reimbursement->user?->name],
+            'reviewer_name' => $reimbursement->reviewer?->name,
+            'reviewed_at' => $reimbursement->reviewed_at?->toIso8601String(),
+            'review_notes' => $reimbursement->review_notes,
+            'attachment_url' => $reimbursement->attachment_url,
+            'attachment_name' => $reimbursement->attachment_name,
+            'attachment_is_image' => $reimbursement->isImageAttachment(),
+            'created_at' => $reimbursement->created_at?->toIso8601String(),
+            'payments' => $reimbursement->payments->map(fn (ReimbursementPayment $p) => [
+                'id' => $p->id,
+                'amount' => $p->amount,
+                'payment_date' => $p->payment_date?->format('Y-m-d'),
+                'notes' => $p->notes,
+                'payer_name' => $p->payer?->name,
+                'bank_account_name' => $p->bankTransaction?->bankAccount?->account_name,
+                'created_at' => $p->created_at?->toIso8601String(),
+            ]),
+            'can_edit' => $reimbursement->canEdit() && $isOwner && $user->can('edit reimbursements'),
+            'can_delete' => $reimbursement->canDelete($user) && $user->can('delete reimbursements'),
+            'can_submit' => $reimbursement->canSubmit() && $isOwner,
+            'can_review' => $canReview,
+            'can_pay' => $canPay,
+            'review_category_options' => $canReview ? TransactionCategory::selectOptions('expense') : [],
+            'bank_account_options' => $canPay ? $this->bankAccountOptions() : [],
+        ]);
     }
 
-    public function store(StoreReimbursementRequest $request): RedirectResponse
+    /** Form buat ada di sheet halaman daftar; route lama diarahkan ke sana. */
+    public function create(): RedirectResponse
+    {
+        return redirect()->route('reimbursements.index', ['create' => 1]);
+    }
+
+    public function store(StoreReimbursementRequest $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validated();
 
@@ -161,7 +200,7 @@ class ReimbursementController extends Controller
             $attachmentName = $request->file('attachment')->getClientOriginalName();
         }
 
-        DB::transaction(function () use ($validated, $attachmentPath, $attachmentName) {
+        $reimbursement = DB::transaction(function () use ($validated, $attachmentPath, $attachmentName) {
             $reimbursement = Reimbursement::create([
                 'user_id' => auth()->id(),
                 'title' => $validated['title'],
@@ -178,16 +217,23 @@ class ReimbursementController extends Controller
             if ($validated['action'] === 'submit') {
                 $reimbursement->submit();
             }
+
+            return $reimbursement;
         });
 
         $msg = $validated['action'] === 'submit'
             ? 'Reimbursement berhasil diajukan untuk persetujuan'
             : 'Reimbursement berhasil disimpan sebagai draft';
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $msg, 'id' => $reimbursement->id]);
+        }
+
         return redirect()->route('reimbursements.index')->with('success', $msg);
     }
 
-    public function edit(Reimbursement $reimbursement): Response|RedirectResponse
+    /** Edit dilakukan dari drawer detail; route lama membuka drawer itu. */
+    public function edit(Reimbursement $reimbursement): RedirectResponse
     {
         if ($reimbursement->user_id !== auth()->id()) {
             abort(403);
@@ -198,29 +244,17 @@ class ReimbursementController extends Controller
                 ->with('error', 'Reimbursement tidak dapat diedit');
         }
 
-        return Inertia::render('reimbursements/edit', [
-            'reimbursement' => [
-                'id' => $reimbursement->id,
-                'title' => $reimbursement->title,
-                'description' => $reimbursement->description,
-                'amount' => $reimbursement->amount,
-                'expense_date' => $reimbursement->expense_date?->format('Y-m-d'),
-                'category' => $reimbursement->category_input,
-                'attachment_url' => $reimbursement->attachment_url,
-                'attachment_name' => $reimbursement->attachment_name,
-                'status' => $reimbursement->status,
-            ],
-        ]);
+        return redirect()->to(route('reimbursements.index').'#reimbursement/'.$reimbursement->id);
     }
 
-    public function update(UpdateReimbursementRequest $request, Reimbursement $reimbursement): RedirectResponse
+    public function update(UpdateReimbursementRequest $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         if ($reimbursement->user_id !== auth()->id()) {
             abort(403);
         }
 
         if (! $reimbursement->canEdit()) {
-            return back()->with('error', 'Reimbursement tidak dapat diedit');
+            return $this->actionResult($request, false, 'Reimbursement tidak dapat diedit');
         }
 
         $validated = $request->validated();
@@ -258,51 +292,57 @@ class ReimbursementController extends Controller
             }
         });
 
+        if ($validated['action'] === 'submit' && $reimbursement->status !== 'pending') {
+            return $this->actionResult($request, false, 'Reimbursement disimpan, tetapi belum dapat diajukan');
+        }
+
         $msg = $validated['action'] === 'submit'
-            ? ($reimbursement->status === 'pending'
-                ? 'Reimbursement berhasil diajukan untuk persetujuan'
-                : 'Reimbursement disimpan, tetapi belum dapat diajukan')
+            ? 'Reimbursement berhasil diajukan untuk persetujuan'
             : 'Reimbursement berhasil diperbarui';
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $msg, 'id' => $reimbursement->id]);
+        }
 
         return redirect()->route('reimbursements.index')->with('success', $msg);
     }
 
-    public function destroy(Reimbursement $reimbursement): RedirectResponse
+    public function destroy(Request $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         if ($reimbursement->amount_paid > 0) {
-            return back()->with('error', 'Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.');
+            return $this->actionResult($request, false, 'Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.');
         }
 
         if (! $reimbursement->canDelete()) {
-            return back()->with('error', 'Reimbursement tidak dapat dihapus');
+            return $this->actionResult($request, false, 'Reimbursement tidak dapat dihapus');
         }
 
         $reimbursement->delete();
 
-        return back()->with('success', 'Reimbursement berhasil dihapus');
+        return $this->actionResult($request, true, 'Reimbursement berhasil dihapus');
     }
 
-    public function submit(Reimbursement $reimbursement): RedirectResponse
+    public function submit(Request $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         if ($reimbursement->user_id !== auth()->id()) {
             abort(403);
         }
 
         if (! $reimbursement->canSubmit()) {
-            return back()->with('error', 'Reimbursement tidak dapat diajukan');
+            return $this->actionResult($request, false, 'Reimbursement tidak dapat diajukan');
         }
 
         $reimbursement->submit();
 
-        return back()->with('success', 'Reimbursement berhasil diajukan untuk persetujuan');
+        return $this->actionResult($request, true, 'Reimbursement berhasil diajukan untuk persetujuan');
     }
 
-    public function review(ReviewReimbursementRequest $request, Reimbursement $reimbursement): RedirectResponse
+    public function review(ReviewReimbursementRequest $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         abort_if(! auth()->user()->can('approve reimbursements'), 403);
 
         if (! $reimbursement->canReview()) {
-            return back()->with('error', 'Reimbursement tidak dapat ditinjau');
+            return $this->actionResult($request, false, 'Reimbursement tidak dapat ditinjau');
         }
 
         $validated = $request->validated();
@@ -311,20 +351,20 @@ class ReimbursementController extends Controller
             $reimbursement->update(['category_id' => $validated['category_id']]);
             $reimbursement->approve(auth()->id(), $validated['review_notes'] ?? null);
 
-            return back()->with('success', 'Reimbursement berhasil disetujui');
+            return $this->actionResult($request, true, 'Reimbursement berhasil disetujui');
         }
 
         $reimbursement->reject(auth()->id(), $validated['review_notes'] ?? null);
 
-        return back()->with('success', 'Reimbursement ditolak');
+        return $this->actionResult($request, true, 'Reimbursement ditolak');
     }
 
-    public function pay(PayReimbursementRequest $request, Reimbursement $reimbursement): RedirectResponse
+    public function pay(PayReimbursementRequest $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         abort_if(! auth()->user()->can('pay reimbursements'), 403);
 
         if (! $reimbursement->canPay()) {
-            return back()->with('error', 'Reimbursement tidak dapat dibayar');
+            return $this->actionResult($request, false, 'Reimbursement tidak dapat dibayar');
         }
 
         $validated = $request->validated();
@@ -352,6 +392,38 @@ class ReimbursementController extends Controller
             );
         });
 
-        return back()->with('success', 'Pembayaran berhasil diproses');
+        return $this->actionResult($request, true, 'Pembayaran berhasil diproses');
+    }
+
+    private function canSeeAll(): bool
+    {
+        return auth()->user()->can('approve reimbursements') || auth()->user()->can('pay reimbursements');
+    }
+
+    /**
+     * @return Collection<int, array{value: int, label: string}>
+     */
+    private function bankAccountOptions(): Collection
+    {
+        return BankAccount::with(['payments', 'transactions'])
+            ->orderBy('account_name')
+            ->get()
+            ->map(fn ($b) => [
+                'value' => $b->id,
+                'label' => $b->account_name.' — '.$b->bank_name.' ('.$b->formatted_balance.')',
+            ]);
+    }
+
+    /**
+     * Drawer detail memanggil aksi lewat fetch (JSON) agar halaman di belakang modal tidak berganti;
+     * kunjungan biasa tetap mendapat redirect back + flash.
+     */
+    private function actionResult(Request $request, bool $ok, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], $ok ? 200 : 422);
+        }
+
+        return back()->with($ok ? 'success' : 'error', $message);
     }
 }

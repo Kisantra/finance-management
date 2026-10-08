@@ -151,7 +151,10 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
                 })}
             </div>
 
-            <table className="sr-only">
+            {/* Tabel tidak bisa dipaksa selebar 1 px oleh .sr-only (melebar sesuai isi dan menggeser
+                halaman di ponsel), jadi dibungkus div.sr-only. */}
+            <div className="sr-only">
+            <table>
                 <caption>Pemasukan dan pengeluaran per periode, dalam rupiah</caption>
                 <thead>
                     <tr>
@@ -170,6 +173,7 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
                     ))}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 }

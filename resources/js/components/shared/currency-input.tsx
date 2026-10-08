@@ -77,7 +77,7 @@ export function CurrencyInput({
                     placeholder={placeholder}
                     disabled={disabled}
                     className={cn(
-                        'flex-1 h-10 rounded-r-xl border text-sm transition-colors',
+                        'h-10 min-w-0 flex-1 rounded-r-xl border text-sm transition-colors',
                         'bg-white dark:bg-dark-800',
                         'text-dark-900 dark:text-dark-300',
                         'placeholder:text-dark-400 dark:placeholder:text-dark-400',

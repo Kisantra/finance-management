@@ -365,10 +365,10 @@ class Reimbursement extends Model
     {
         return match ($this->status) {
             'draft' => 'Draft',
-            'pending' => 'Pending Review',
-            'approved' => 'Approved',
-            'rejected' => 'Rejected',
-            'paid' => 'Paid',
+            'pending' => 'Menunggu review',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak',
+            'paid' => 'Lunas',
             default => ucfirst($this->status),
         };
     }
@@ -390,16 +390,19 @@ class Reimbursement extends Model
             return $this->category->label;
         }
 
-        return match ($this->category_input) {
-            'transport' => 'Transport',
-            'meals' => 'Meals & Entertainment',
-            'office_supplies' => 'Office Supplies',
-            'communication' => 'Communication',
-            'accommodation' => 'Accommodation',
-            'medical' => 'Medical',
-            'other' => 'Other',
-            default => ucfirst($this->category_input ?? 'Other'),
-        };
+        return static::categoryLabel($this->category_input);
+    }
+
+    /** Label kategori pilihan pemohon (bahasa Indonesia, sesuai UI). */
+    public static function categoryLabel(?string $value): string
+    {
+        foreach (static::categories() as $category) {
+            if ($category['value'] === $value) {
+                return $category['label'];
+            }
+        }
+
+        return $value ? ucfirst($value) : 'Lainnya';
     }
 
     // =====================================
@@ -414,13 +417,13 @@ class Reimbursement extends Model
     public static function categories(): array
     {
         return [
-            ['label' => 'Transport', 'value' => 'transport'],
-            ['label' => 'Meals & Entertainment', 'value' => 'meals'],
-            ['label' => 'Office Supplies', 'value' => 'office_supplies'],
-            ['label' => 'Communication', 'value' => 'communication'],
-            ['label' => 'Accommodation', 'value' => 'accommodation'],
-            ['label' => 'Medical', 'value' => 'medical'],
-            ['label' => 'Other', 'value' => 'other'],
+            ['label' => 'Transportasi', 'value' => 'transport'],
+            ['label' => 'Makan & jamuan', 'value' => 'meals'],
+            ['label' => 'Perlengkapan kantor', 'value' => 'office_supplies'],
+            ['label' => 'Komunikasi', 'value' => 'communication'],
+            ['label' => 'Akomodasi', 'value' => 'accommodation'],
+            ['label' => 'Kesehatan', 'value' => 'medical'],
+            ['label' => 'Lainnya', 'value' => 'other'],
         ];
     }
 
@@ -428,10 +431,10 @@ class Reimbursement extends Model
     {
         return [
             ['label' => 'Draft', 'value' => 'draft'],
-            ['label' => 'Pending Review', 'value' => 'pending'],
-            ['label' => 'Approved', 'value' => 'approved'],
-            ['label' => 'Rejected', 'value' => 'rejected'],
-            ['label' => 'Paid', 'value' => 'paid'],
+            ['label' => 'Menunggu review', 'value' => 'pending'],
+            ['label' => 'Disetujui', 'value' => 'approved'],
+            ['label' => 'Ditolak', 'value' => 'rejected'],
+            ['label' => 'Lunas', 'value' => 'paid'],
         ];
     }
 

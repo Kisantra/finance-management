@@ -107,7 +107,7 @@ const SORT_LABEL: Record<string, [string, string, string]> = {
 };
 
 const PILL =
-    'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
+    'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
 
 /* ─────────────────────────────────── halaman ─── */
 
@@ -291,8 +291,8 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                 {/* ── daftar ── */}
                 <section aria-label="Daftar invoice" className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div role="group" aria-label="Filter status" className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                            <div role="group" aria-label="Filter status" className="ob-no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
                                 {STATUS_TABS.map((t) => {
                                     const on = f.status === t.value;
                                     const count = t.countKey ? (stats[t.countKey] as number) : segmentTotal;
@@ -352,7 +352,8 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                         </div>
                     </div>
 
-                    <div className="-mx-2 overflow-x-auto px-2">
+                    {/* relative: teks sr-only (absolut) di dalam tabel tetap terpotong wadah ini, tidak melebarkan halaman. */}
+                    <div className="relative -mx-2 overflow-x-auto px-2">
                         <table className="w-full min-w-[980px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">

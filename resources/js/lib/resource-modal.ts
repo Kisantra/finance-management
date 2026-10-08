@@ -16,14 +16,14 @@ import { currentUrl, setCurrentUrl } from './navigation';
  * state & posisi gulir.
  */
 
-export type ResourceType = 'invoice';
+export type ResourceType = 'invoice' | 'reimbursement';
 
 export interface ResourceRef {
     type: ResourceType;
     id: number;
 }
 
-const HASH = /#(invoice)\/(\d+)$/;
+const HASH = /#(invoice|reimbursement)\/(\d+)$/;
 const CHANGE_EVENT = 'resource-modal-change';
 
 export function parseResource(url: string): ResourceRef | null {

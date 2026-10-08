@@ -310,7 +310,7 @@ const TYPE_OPTIONS: SegmentedOption<FeedbackType>[] = [
 
 ## Obsidian (redesign 25 Sep 2026) — berlaku untuk halaman & komponen baru
 
-Gaya "dark soft-surface": permukaan berlapis, tepi 1 px tembus, satu aksen biru, tanpa bayangan dan tanpa gradient. Mockup final ada di kanvas desain "Kisantra Dashboard Redesign" (artboard Layout, Dashboard, Komponen, Navigasi, Grafik, Terang). Halaman pertama yang memakainya: Ringkasan (`resources/js/pages/dashboard.tsx`), rel navigasi (`layouts/sidebar.tsx`), header (`layouts/header.tsx`). Halaman lain dimigrasi bertahap; jangan mencampur dua gaya dalam satu halaman.
+Gaya "dark soft-surface": permukaan berlapis, tepi 1 px tembus, satu aksen biru, tanpa bayangan dan tanpa gradient. Mockup final ada di kanvas desain "Kisantra Dashboard Redesign" (artboard Layout, Dashboard, Komponen, Navigasi, Grafik, Terang). Halaman yang memakainya: Ringkasan (`resources/js/pages/dashboard.tsx`), rel navigasi (`layouts/sidebar.tsx`), header (`layouts/header.tsx`), Invoice, Pengaturan, dan Reimbursement (daftar + drawer `#reimbursement/{id}`). Halaman lain dimigrasi bertahap; jangan mencampur dua gaya dalam satu halaman.
 
 ### Token (satu set variabel, dua nilai per tema)
 
@@ -344,3 +344,9 @@ Chip status = latar `bg-ob-<tone>/12` + teks `text-ob-<tone>` + titik (status fi
 - **Gerak**: 150–220 ms ease-out; `ob-fade-in` untuk flyout/sub-menu; semua dimatikan pada `prefers-reduced-motion` (`.ob-motion`).
 - **State wajib** per widget: kosong (`WidgetEmpty`: judul, satu kalimat, satu aksi), gagal (`WidgetError` + "Coba lagi", per widget bukan per halaman), memuat (skeleton berbentuk baris, bukan spinner).
 - **Aksesibilitas**: ikon-saja wajib `aria-label`; grafik menyertakan tabel `sr-only`; arah uang lewat tanda `+`/`−` dan ikon, warna hanya redundansi; fokus = cincin 2 px `ob-act-fill`.
+- **Ponsel (≥ 360 px) tanpa geser samping** (perbaikan 8 Okt 2026):
+  - wadah gulir tabel wajib `relative` — teks `sr-only` di `<th>` berposisi absolut dan, tanpa itu, lolos dari pemotongan lalu melebarkan `<main>`;
+  - tabel `sr-only` (mis. data grafik) dibungkus `<div className="sr-only">` karena tabel tidak bisa dipaksa selebar 1 px;
+  - grup pil status = satu baris yang bisa digeser: `ob-no-scrollbar flex max-w-full overflow-x-auto` + pil `shrink-0 whitespace-nowrap`, induk flex-nya `min-w-0 max-w-full`;
+  - kepala `Widget` memakai `min-h-8 flex-wrap` agar aksi boleh turun baris;
+  - daftar data di bawah `md` memakai daftar bertumpuk (judul + nominal / meta + status), tabel mulai `md` (contoh: Reimbursement).

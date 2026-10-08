@@ -32,12 +32,13 @@ export function Widget({ title, count, action, height, className, bodyClassName,
                 className,
             )}
         >
-            <div className="flex h-8 shrink-0 items-center justify-between gap-3">
+            {/* min-h (bukan h) agar aksi di kepala kartu boleh turun baris di layar sempit; di desktop tetap 32 px. */}
+            <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-3">
                 <h2 id={id} className="flex min-w-0 items-baseline gap-2 truncate text-base font-semibold text-ob-ink">
                     <span className="truncate">{title}</span>
                     {count && <span className="shrink-0 text-[13px] font-medium text-ob-ink-2">{count}</span>}
                 </h2>
-                {action && <div className="shrink-0">{action}</div>}
+                {action && <div className="max-w-full shrink-0">{action}</div>}
             </div>
             <div className={cn('flex min-h-0 flex-1 flex-col', bodyClassName)}>{children}</div>
         </section>
