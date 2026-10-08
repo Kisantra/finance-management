@@ -20,6 +20,7 @@ Stack frontend **sepenuhnya React/Inertia** — migrasi dari Livewire + TallStac
 
 ```bash
 composer dev                           # Start all servers (artisan + queue + vite)
+./deploy.sh                            # Deploy di server (VPS) — lihat docs/guides/DEPLOY.md
 php artisan migrate:fresh --seed       # Fresh migration + seeders
 php artisan test                       # Run tests
 ./vendor/bin/pint                      # Format code
@@ -220,6 +221,8 @@ Route::middleware('can:view invoices')->name('invoices.index')
 ```
 
 Reset cache: `php artisan permission:cache-reset`
+
+**Permission baru WAJIB lewat migrasi** (`Permission::firstOrCreate` + `givePermissionTo` ke role yang perlu) **dan** didaftarkan di `MasterPermissionSeeder` untuk instalasi baru. Jangan mengandalkan seeder saat deploy — `syncPermissions()` di seeder menyetel ulang izin role yang diatur lewat UI. Lihat `docs/guides/DEPLOY.md`.
 
 ---
 

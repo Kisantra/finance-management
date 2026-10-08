@@ -5,6 +5,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/backups
 /vendor
 .env
 .env.backup
@@ -22,7 +23,6 @@ yarn-error.log
 /.vscode
 /.zed
 public/run-migration.php
-composer.lock
 /resources/js/ziggy.js
 
 # Wayfinder generated route/action helpers — regenerated on every
