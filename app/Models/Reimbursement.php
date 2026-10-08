@@ -105,9 +105,10 @@ class Reimbursement extends Model
         return $query->whereBetween('expense_date', [$startDate, $endDate]);
     }
 
-    public function scopeMonth($query, int $month, int $year = null)
+    public function scopeMonth($query, int $month, ?int $year = null)
     {
         $year = $year ?: now()->year;
+
         return $query->whereYear('expense_date', $year)
             ->whereMonth('expense_date', $month);
     }
@@ -174,19 +175,26 @@ class Reimbursement extends Model
     {
         $user = $user ?? auth()->user();
 
-        // Admin can delete any reimbursement
+        // Sudah ada pembayaran: transaksi bank debitnya tetap memotong saldo, jadi
+        // pengajuannya tidak boleh hilang — bahkan oleh admin.
+        if ($this->amount_paid > 0) {
+            return false;
+        }
+
         if ($user && $user->hasRole('admin')) {
             return true;
         }
 
-        // Owner can only delete if draft or rejected (not yet approved/paid)
-        // Cannot delete pending (being reviewed), approved, or paid
-        return in_array($this->status, ['draft', 'rejected']);
+        // Selain admin: hanya pemilik, dan hanya selama belum diproses (draft/ditolak).
+        return $user !== null
+            && $this->user_id === $user->id
+            && in_array($this->status, ['draft', 'rejected']);
     }
 
+    /** Draft, atau ditolak lalu diperbaiki pemohon (pengajuan ulang). */
     public function canSubmit(): bool
     {
-        return $this->status === 'draft';
+        return in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canReview(): bool
@@ -198,7 +206,7 @@ class Reimbursement extends Model
     {
         // Can pay if approved, has category assigned, and not fully paid yet
         return $this->status === 'approved'
-            && !$this->isFullyPaid();
+            && ! $this->isFullyPaid();
     }
 
     // =====================================
@@ -207,16 +215,22 @@ class Reimbursement extends Model
 
     public function submit(): bool
     {
-        if (!$this->canSubmit()) {
+        if (! $this->canSubmit()) {
             return false;
         }
 
-        return $this->update(['status' => 'pending']);
+        // Pengajuan ulang setelah ditolak masuk antrean sebagai review baru.
+        return $this->update([
+            'status' => 'pending',
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'review_notes' => null,
+        ]);
     }
 
     public function approve(int $reviewerId, ?string $notes = null): bool
     {
-        if (!$this->canReview()) {
+        if (! $this->canReview()) {
             return false;
         }
 
@@ -230,7 +244,7 @@ class Reimbursement extends Model
 
     public function reject(int $reviewerId, ?string $notes = null): bool
     {
-        if (!$this->canReview()) {
+        if (! $this->canReview()) {
             return false;
         }
 
@@ -244,7 +258,7 @@ class Reimbursement extends Model
 
     public function recordPayment(int $amount, int $bankTransactionId, int $payerId, string $paymentDate, ?string $notes = null): bool
     {
-        if (!$this->canPay()) {
+        if (! $this->canPay()) {
             return false;
         }
 
@@ -277,7 +291,7 @@ class Reimbursement extends Model
 
     public function hasAttachment(): bool
     {
-        return !empty($this->attachment_path);
+        return ! empty($this->attachment_path);
     }
 
     public function getAttachmentUrlAttribute(): ?string
@@ -287,11 +301,12 @@ class Reimbursement extends Model
 
     public function getAttachmentTypeAttribute(): ?string
     {
-        if (!$this->hasAttachment()) {
+        if (! $this->hasAttachment()) {
             return null;
         }
 
         $extension = pathinfo($this->attachment_name, PATHINFO_EXTENSION);
+
         return strtolower($extension);
     }
 
@@ -311,17 +326,17 @@ class Reimbursement extends Model
 
     public function getFormattedAmountAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount, 0, ',', '.');
+        return 'Rp '.number_format($this->amount, 0, ',', '.');
     }
 
     public function getFormattedAmountPaidAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount_paid, 0, ',', '.');
+        return 'Rp '.number_format($this->amount_paid, 0, ',', '.');
     }
 
     public function getFormattedAmountRemainingAttribute(): string
     {
-        return 'Rp ' . number_format($this->amount_remaining, 0, ',', '.');
+        return 'Rp '.number_format($this->amount_remaining, 0, ',', '.');
     }
 
     public function getStatusBadgeColorAttribute(): string
@@ -430,8 +445,9 @@ class Reimbursement extends Model
 
         // Delete attachment when model is deleted
         static::deleting(function ($reimbursement) {
-            if ($reimbursement->attachment_path && Storage::exists($reimbursement->attachment_path)) {
-                Storage::delete($reimbursement->attachment_path);
+            // Lampiran disimpan di disk "public" (lihat controller store/update), bukan disk default.
+            if ($reimbursement->attachment_path && Storage::disk('public')->exists($reimbursement->attachment_path)) {
+                Storage::disk('public')->delete($reimbursement->attachment_path);
             }
         });
     }

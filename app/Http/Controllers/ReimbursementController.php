@@ -23,7 +23,10 @@ class ReimbursementController extends Controller
     {
         $canApprove = auth()->user()->can('approve reimbursements');
         $canPay = auth()->user()->can('pay reimbursements');
-        $tab = $request->input('tab', $canApprove ? 'all' : 'my');
+        // Tab "Semua" (pengajuan seluruh pengguna) hanya untuk reviewer/pembayar; pengguna lain
+        // selalu dibatasi ke miliknya sendiri walau mengirim ?tab=all lewat URL.
+        $canSeeAll = $canApprove || $canPay;
+        $tab = $canSeeAll ? $request->input('tab', 'all') : 'my';
 
         $search = $request->input('search');
         $status = $request->input('status');
@@ -137,6 +140,7 @@ class ReimbursementController extends Controller
             'categoryOptions' => $categoryOptions,
             'canApprove' => $canApprove,
             'canPay' => $canPay,
+            'canSeeAll' => $canSeeAll,
         ]);
     }
 
@@ -161,7 +165,7 @@ class ReimbursementController extends Controller
             $reimbursement = Reimbursement::create([
                 'user_id' => auth()->id(),
                 'title' => $validated['title'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'amount' => $validated['amount'],
                 'expense_date' => $validated['expense_date'],
                 'category_input' => $validated['category'],
@@ -241,7 +245,7 @@ class ReimbursementController extends Controller
 
             $reimbursement->update([
                 'title' => $validated['title'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'amount' => $validated['amount'],
                 'expense_date' => $validated['expense_date'],
                 'category_input' => $validated['category'],
@@ -255,7 +259,9 @@ class ReimbursementController extends Controller
         });
 
         $msg = $validated['action'] === 'submit'
-            ? 'Reimbursement berhasil diajukan untuk persetujuan'
+            ? ($reimbursement->status === 'pending'
+                ? 'Reimbursement berhasil diajukan untuk persetujuan'
+                : 'Reimbursement disimpan, tetapi belum dapat diajukan')
             : 'Reimbursement berhasil diperbarui';
 
         return redirect()->route('reimbursements.index')->with('success', $msg);
@@ -263,6 +269,10 @@ class ReimbursementController extends Controller
 
     public function destroy(Reimbursement $reimbursement): RedirectResponse
     {
+        if ($reimbursement->amount_paid > 0) {
+            return back()->with('error', 'Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.');
+        }
+
         if (! $reimbursement->canDelete()) {
             return back()->with('error', 'Reimbursement tidak dapat dihapus');
         }

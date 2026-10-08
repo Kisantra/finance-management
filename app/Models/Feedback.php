@@ -149,7 +149,7 @@ class Feedback extends Model
 
     public function hasAttachment(): bool
     {
-        return !empty($this->attachment_path);
+        return ! empty($this->attachment_path);
     }
 
     public function getAttachmentUrlAttribute(): ?string
@@ -159,10 +159,11 @@ class Feedback extends Model
 
     public function getAttachmentTypeAttribute(): ?string
     {
-        if (!$this->hasAttachment()) {
+        if (! $this->hasAttachment()) {
             return null;
         }
         $extension = pathinfo($this->attachment_name, PATHINFO_EXTENSION);
+
         return strtolower($extension);
     }
 
@@ -317,8 +318,8 @@ class Feedback extends Model
         parent::boot();
 
         static::deleting(function ($feedback) {
-            if ($feedback->attachment_path && Storage::exists($feedback->attachment_path)) {
-                Storage::delete($feedback->attachment_path);
+            if ($feedback->attachment_path && Storage::disk('public')->exists($feedback->attachment_path)) {
+                Storage::disk('public')->delete($feedback->attachment_path);
             }
         });
     }

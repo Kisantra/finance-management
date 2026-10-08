@@ -45,7 +45,8 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
-import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, toastErrors, toLocalIso } from '@/lib/utils';
+import type { SharedProps } from '@/types';
 import * as reimbursementRoutes from '@/routes/reimbursements';
 import type {
     FilterOption,
@@ -64,6 +65,8 @@ interface Props {
     categoryOptions: FilterOption[];
     canApprove: boolean;
     canPay: boolean;
+    /** Server mengizinkan tab "Semua" (reviewer atau pembayar). */
+    canSeeAll: boolean;
 }
 
 function isoOrNull(d: Date | null): string | null {
@@ -100,6 +103,7 @@ export default function ReimbursementsIndex({
     categoryOptions,
     canApprove,
     canPay,
+    canSeeAll,
 }: Props) {
     const [selected, setSelected] = React.useState<number[]>([]);
     const [search, setSearch] = React.useState(filters.search ?? '');
@@ -173,16 +177,19 @@ export default function ReimbursementsIndex({
     const toggleOne = (id: number) =>
         setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
+    const rejectedByServer = (page: { props: unknown }) => !!(page.props as SharedProps).flash?.error;
+
     const handleDelete = (row: ReimbursementRow) => {
         setDeleteProcessing(true);
         router.delete(reimbursementRoutes.destroy.url({ reimbursement: row.id }), {
             preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Reimbursement berhasil dihapus');
+            onSuccess: (page) => {
                 setDeleteRow(null);
+                if (rejectedByServer(page)) return;
+                toast.success('Reimbursement berhasil dihapus');
                 setDetailRow(null);
             },
-            onError: () => toast.error('Gagal menghapus'),
+            onError: (errors) => toastErrors(errors, 'Hapus reimbursement'),
             onFinish: () => setDeleteProcessing(false),
         });
     };
@@ -194,12 +201,13 @@ export default function ReimbursementsIndex({
             {},
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    toast.success('Reimbursement berhasil diajukan');
+                onSuccess: (page) => {
                     setSubmitRow(null);
+                    if (rejectedByServer(page)) return;
+                    toast.success('Reimbursement berhasil diajukan');
                     setDetailRow(null);
                 },
-                onError: () => toast.error('Gagal mengajukan'),
+                onError: (errors) => toastErrors(errors, 'Ajukan reimbursement'),
                 onFinish: () => setSubmitProcessing(false),
             },
         );
@@ -217,14 +225,15 @@ export default function ReimbursementsIndex({
             },
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    if (rejectedByServer(page)) return;
                     toast.success(reviewAction === 'approve' ? 'Reimbursement disetujui' : 'Reimbursement ditolak');
                     setReviewRow(null);
                     setDetailRow(null);
                     setReviewNotes('');
                     setReviewCategoryId(null);
                 },
-                onError: () => toast.error('Gagal memproses'),
+                onError: (errors) => toastErrors(errors, 'Review reimbursement'),
                 onFinish: () => setReviewProcessing(false),
             },
         );
@@ -243,7 +252,8 @@ export default function ReimbursementsIndex({
             },
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    if (rejectedByServer(page)) return;
                     toast.success('Pembayaran berhasil diproses');
                     setPayRow(null);
                     setDetailRow(null);
@@ -251,11 +261,13 @@ export default function ReimbursementsIndex({
                     setPayAmount(0);
                     setPayNotes('');
                 },
-                onError: () => toast.error('Gagal memproses pembayaran'),
+                onError: (errors) => toastErrors(errors, 'Pembayaran reimbursement'),
                 onFinish: () => setPayProcessing(false),
             },
         );
     };
+
+    const payOverRemaining = !!payRow && payAmount > payRow.amount_remaining;
 
     const openPayDialog = (row: ReimbursementRow) => {
         setPayRow(row);
@@ -286,7 +298,7 @@ export default function ReimbursementsIndex({
     const allSelected = rows.length > 0 && selected.length === rows.length;
 
     const tabItems = [
-        ...(canApprove ? [{ value: 'all', label: 'Semua Pengajuan' }] : []),
+        ...(canSeeAll ? [{ value: 'all', label: 'Semua Pengajuan' }] : []),
         { value: 'my', label: 'Pengajuan Saya' },
     ];
 
@@ -720,6 +732,8 @@ export default function ReimbursementsIndex({
                             label="Jumlah Pembayaran *"
                             value={payAmount}
                             onChange={setPayAmount}
+                            error={payOverRemaining ? `Melebihi sisa ${formatCurrency(payRow?.amount_remaining ?? 0)}.` : undefined}
+                            hint="Boleh kurang dari sisa (cicilan), tidak boleh lebih."
                         />
                         <Input
                             label="Catatan Referensi"
@@ -734,7 +748,7 @@ export default function ReimbursementsIndex({
                             variant="green"
                             size="sm"
                             onClick={handlePay}
-                            disabled={payProcessing || !payBankAccountId || payAmount <= 0 || !payDate}
+                            disabled={payProcessing || !payBankAccountId || payAmount <= 0 || payOverRemaining || !payDate}
                         >
                             Proses Pembayaran
                         </Button>
@@ -808,22 +822,23 @@ function ReimbursementForm({ mode, row, onClose }: ReimbursementFormProps) {
             post(reimbursementRoutes.update.url({ reimbursement: row.id }), {
                 forceFormData: true,
                 preserveScroll: true,
-                onSuccess: () => {
-                    toast.success('Reimbursement berhasil diperbarui');
+                onSuccess: (page) => {
+                    if ((page.props as unknown as SharedProps).flash?.error) return;
+                    toast.success(action === 'submit' ? 'Reimbursement berhasil diajukan' : 'Reimbursement berhasil diperbarui');
                     onClose();
                 },
-                onError: () => toast.error('Gagal menyimpan'),
+                onError: (errors) => toastErrors(errors, 'Simpan reimbursement'),
             });
         } else {
             post(reimbursementRoutes.store.url(), {
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Reimbursement berhasil dibuat');
+                    toast.success(action === 'submit' ? 'Reimbursement berhasil diajukan' : 'Reimbursement disimpan sebagai draft');
                     reset();
                     onClose();
                 },
-                onError: () => toast.error('Gagal menyimpan'),
+                onError: (errors) => toastErrors(errors, 'Simpan reimbursement'),
             });
         }
     };
@@ -922,7 +937,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div>
             <p className="text-xs text-dark-500 dark:text-dark-400 mb-0.5">{label}</p>
-            <p className="text-sm font-medium text-dark-900 dark:text-dark-50">{value}</p>
+            <div className="text-sm font-medium text-dark-900 dark:text-dark-50">{value}</div>
         </div>
     );
 }
