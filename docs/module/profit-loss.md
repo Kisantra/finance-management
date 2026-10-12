@@ -119,6 +119,13 @@ return $pdf->download($filename);
 ```
 4. Template Blade `resources/views/pdf/profit-loss.blade.php` (Blade hanya dipakai untuk PDF di project ini).
 
+### Panduan & video tutorial (tombol **Tutorial** di header laporan)
+
+1. `<TutorialButton slug="profit-loss" />` di samping **Unduh PDF** membuka video per role: **Finance manager** (`ProfitLossFinanceManager`: membaca laporan, mengklasifikasi kategori dari panel, periode & PDF) dan **Admin** (`ProfitLossAdmin`: cara laporan terbentuk, asal tiap baris, jejak ke Arus Kas › Pemasukan & Kategori Transaksi, peringatan). Staff tidak punya `view profit-loss`.
+2. Sumber: `video/profit-loss/guide.ts` (teks `/panduan` + adegan), `steps.ts`, `shots.ts`, `tutorial.tsx`, `screens/`.
+3. Ambil ulang screenshot: server QC port 8014, jalankan `video/capture/cash-flow.js` lebih dulu (butuh pemasukan berkategori "Sewa Ruang Rapat" yang belum diklasifikasi), lalu `video/capture/profit-loss.js` lewat Playwright MCP (skrip ini mengubah grup L/R kategori contoh tersebut menjadi Pendapatan Lain), kemudian `python video/capture/to-webp.py profit-loss` dan salin koordinatnya ke `shots.ts`.
+4. **Perubahan struktur laporan/klasifikasi harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
+
 ## Keterkaitan Antar Modul
 
 - **Invoices & Payments** — sumber baris Pendapatan Usaha (invoice) dan HPP invoice; bergantung pada `invoice_items.cogs_amount` dan flag `is_tax_deposit`. Pendapatan diakui saat pembayaran masuk (basis kas), bukan saat invoice terbit.

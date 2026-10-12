@@ -15,6 +15,7 @@ import { CurrencyInput } from '@/components/shared/currency-input';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { resourceHref } from '@/lib/resource-modal';
 import { cn, formatCurrency, toastError, toastErrors, toLocalIso } from '@/lib/utils';
@@ -1168,6 +1169,7 @@ export default function RecurringInvoicesIndex({
                     description="Kelola template dan generate invoice otomatis berulang"
                     action={
                         <div className="flex items-center gap-2">
+                            <TutorialButton slug="recurring-invoices" />
                             {activeTab === 'templates' && (
                                 <Button variant="primary" size="sm" onClick={() => router.get('/recurring-invoices/templates/create')}>
                                     <Plus className="w-4 h-4 mr-1.5" /> Buat Template

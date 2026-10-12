@@ -36,6 +36,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { FileUpload } from '@/components/shared/file-upload';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import * as fundRequestRoutes from '@/routes/fund-requests';
@@ -315,10 +316,13 @@ export default function FundRequestsIndex({
                     title="Permintaan Dana"
                     description="Kelola pengajuan pencairan dana operasional."
                     action={
-                        <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
-                            <Plus className="w-4 h-4" />
-                            Buat Permintaan
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="fund-requests" />
+                            <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
+                                <Plus className="w-4 h-4" />
+                                Buat Permintaan
+                            </Button>
+                        </div>
                     }
                 />
 

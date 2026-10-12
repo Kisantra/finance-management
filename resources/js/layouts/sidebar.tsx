@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    BookOpen,
     ChevronLeft,
     ChevronRight,
     ClipboardList,
@@ -137,6 +138,14 @@ const NAV: NavGroup[] = [
             { label: 'Izin & Peran', href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
             { label: 'Feedback', href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
         ],
+    },
+    {
+        key: 'panduan',
+        label: 'Panduan',
+        icon: <BookOpen className={ICON} />,
+        href: '/panduan',
+        matchPrefix: '/panduan',
+        items: [],
     },
 ];
 

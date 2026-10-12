@@ -47,6 +47,7 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import * as receivableRoutes from '@/routes/receivables';
@@ -206,10 +207,13 @@ export default function ReceivablesIndex({
                     title="Piutang"
                     description="Kelola piutang karyawan dan perusahaan"
                     action={
-                        <Button onClick={() => setCreateOpen(true)} size="sm">
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Tambah Piutang
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="receivables" />
+                            <Button onClick={() => setCreateOpen(true)} size="sm">
+                                <Plus className="mr-1.5 h-4 w-4" />
+                                Tambah Piutang
+                            </Button>
+                        </div>
                     }
                 />
 

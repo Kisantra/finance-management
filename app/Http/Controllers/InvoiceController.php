@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\InvoiceRecapExport;
+use App\Exports\InvoiceRecapJsmExport;
 use App\Http\Requests\InvoicePreviewRequest;
 use App\Http\Requests\SendInvoiceRequest;
 use App\Http\Requests\StoreInvoiceRequest;
@@ -14,6 +15,7 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PdfTemplate;
 use App\Models\Service;
+use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -245,7 +247,7 @@ class InvoiceController extends Controller
      * Build the recap dataset (filtered invoice rows + summary) shared by the
      * Excel and PDF exports. Honours the same filters as the index listing.
      *
-     * @return array{rows: Collection<int, array<string, mixed>>, summary: array<string, mixed>, period: string}
+     * @return array{rows: Collection<int, array<string, mixed>>, summary: array<string, mixed>, period: string, client_ids: array<int, mixed>}
      */
     private function buildRecapData(Request $request): array
     {
@@ -294,7 +296,18 @@ class InvoiceController extends Controller
             default => $query->orderBy("invoices.{$sort}", $direction),
         };
 
-        $rows = $query->get()->map(function ($invoice) {
+        $invoices = $query->get();
+        $ids = $invoices->pluck('id');
+        // Untuk template JSM: nama layanan per invoice & tanggal bayar terakhir (2 query, bukan per baris).
+        $itemNames = InvoiceItem::whereIn('invoice_id', $ids)->where('is_tax_deposit', false)->orderBy('id')->get(['invoice_id', 'service_name'])
+            ->groupBy('invoice_id')
+            ->map(fn ($items) => $items->pluck('service_name')->filter()->unique()->implode(', '));
+        $lastPayments = Payment::whereIn('invoice_id', $ids)
+            ->selectRaw('invoice_id, MAX(payment_date) as last_payment_date')
+            ->groupBy('invoice_id')
+            ->pluck('last_payment_date', 'invoice_id');
+
+        $rows = $invoices->map(function ($invoice) use ($itemNames, $lastPayments) {
             $omzet = (int) $invoice->total_amount;
             $hpp = (int) $invoice->total_cogs;
 
@@ -310,6 +323,9 @@ class InvoiceController extends Controller
                 'amount_paid' => (int) $invoice->amount_paid,
                 'amount_remaining' => $omzet - (int) $invoice->amount_paid,
                 'status' => $invoice->status,
+                'invoice_sequence' => $invoice->invoice_sequence,
+                'items_description' => $itemNames[$invoice->id] ?? '',
+                'last_payment_date' => $lastPayments[$invoice->id] ?? null,
             ];
         });
 
@@ -335,15 +351,55 @@ class InvoiceController extends Controller
                 : 'Semua Periode';
         }
 
-        return ['rows' => $rows, 'summary' => $summary, 'period' => $period];
+        return ['rows' => $rows, 'summary' => $summary, 'period' => $period, 'client_ids' => $clientIds];
     }
 
     public function exportExcel(Request $request): BinaryFileResponse
     {
         $data = $this->buildRecapData($request);
-        $filename = 'rekap-invoice-'.now()->format('Ymd-His').'.xlsx';
 
-        return Excel::download(new InvoiceRecapExport($data['rows'], $data['summary'], $data['period']), $filename);
+        if ($request->input('template') === 'jsm') {
+            return Excel::download(
+                new InvoiceRecapJsmExport($data['rows'], $this->jsmRecapTitle($data['client_ids']), $this->jsmRecapPeriod($request, $data['period']), (float) (CompanyProfile::current()?->ppn_rate ?? 11)),
+                'rekap-invoice-jsm-'.now()->format('Ymd-His').'.xlsx',
+            );
+        }
+
+        return Excel::download(new InvoiceRecapExport($data['rows'], $data['summary'], $data['period']), 'rekap-invoice-'.now()->format('Ymd-His').'.xlsx');
+    }
+
+    /**
+     * Judul rekap JSM: "Recap Invoice - {inisial perusahaan}", dengan nama klien bila diekspor untuk satu klien.
+     *
+     * @param  array<int, mixed>  $clientIds
+     */
+    private function jsmRecapTitle(array $clientIds): string
+    {
+        $initials = app(InvoiceNumberService::class)->companyInitials();
+        $client = count($clientIds) === 1 ? Client::find(reset($clientIds))?->name : null;
+
+        return $client ? "Recap Invoice {$client} - {$initials}" : "Recap Invoice - {$initials}";
+    }
+
+    /** Periode rekap JSM seperti file aslinya: "2026" (setahun penuh), "Oktober 2026", atau "1 Januari 2026 – 31 Maret 2026". */
+    private function jsmRecapPeriod(Request $request, string $fallback): string
+    {
+        $from = $request->input('date_from');
+        $to = $request->input('date_to');
+        if ($request->input('status') === 'overdue' || (blank($from) && blank($to))) {
+            return $fallback;
+        }
+        if (filled($from) && filled($to)) {
+            $start = Carbon::parse($from)->locale('id');
+            $end = Carbon::parse($to)->locale('id');
+            if ($start->isSameDay($start->copy()->startOfYear()) && $end->isSameDay($start->copy()->endOfYear())) {
+                return $start->format('Y');
+            }
+
+            return $start->isoFormat('D MMMM Y').' – '.$end->isoFormat('D MMMM Y');
+        }
+
+        return filled($from) ? 'sejak '.Carbon::parse($from)->locale('id')->isoFormat('D MMMM Y') : 's/d '.Carbon::parse($to)->locale('id')->isoFormat('D MMMM Y');
     }
 
     public function exportPdf(Request $request): HttpResponse

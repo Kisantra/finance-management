@@ -6,6 +6,7 @@ import { CashFlowChart, CashFlowChartSkeleton, compactRupiah } from '@/component
 import { DonutChart, useDonutRamp } from '@/components/dashboard/donut-chart';
 import { RangeCalendar } from '@/components/dashboard/range-calendar';
 import { ScrollList, StatusPill, Widget, WidgetEmpty, WidgetError, WidgetLink } from '@/components/dashboard/widget';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { Combobox } from '@/components/ui/combobox';
 import { useCan } from '@/hooks/use-can';
 import { resourceHref } from '@/lib/resource-modal';
@@ -227,15 +228,18 @@ export default function Dashboard() {
                         {todayLabel} · data per {generatedAt}
                     </p>
                 </div>
-                {can('create invoices') && (
-                    <Link
-                        href="/invoices/create"
-                        className="inline-flex h-11 items-center gap-2 self-start rounded-full bg-ob-act-fill px-[18px] text-[13px] font-semibold text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page sm:self-auto"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Buat Invoice
-                    </Link>
-                )}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <TutorialButton slug="dashboard" />
+                    {can('create invoices') && (
+                        <Link
+                            href="/invoices/create"
+                            className="inline-flex h-11 items-center gap-2 rounded-full bg-ob-act-fill px-[18px] text-[13px] font-semibold text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page"
+                        >
+                            <Plus className="h-4 w-4" strokeWidth={2.5} />
+                            Buat Invoice
+                        </Link>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-12">

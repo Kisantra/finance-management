@@ -60,6 +60,13 @@ public function delete()
 ```
 Model meng-override `delete()` untuk cascade manual: **menghapus klien ikut menghapus seluruh invoice dan invoice item-nya** — destruktif dan tidak bisa dibatalkan; UI wajib memakai `ConfirmDialog`. Pembayaran (`payments`) pada invoice tersebut tidak dihapus eksplisit di sini.
 
+### Panduan & video tutorial
+
+- Tombol **Tutorial** di header (`<TutorialButton slug="clients" />`) membuka video per role; teks yang sama tampil di halaman `/panduan`.
+- `video/clients/guide.ts` — naskah panduan (peran, langkah, dampak menghapus klien, peringatan, matriks hak akses). Perbarui bila aturan modul berubah.
+- `video/clients/tutorial.tsx` — komposisi `ClientsStaff` (juga ditonton Finance manager; hak aksesnya sama) dan `ClientsAdmin`; `steps.ts`, `shots.ts`, `screens/*.webp` (screenshot asli dari DB QC).
+- Ambil ulang screenshot bila UI berubah: server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8015`), lalu lewat Playwright MCP `video/capture/clients.js` (membuat klien contoh "PT Sinar Mitra Logistik"; halaman invoice & arus kas hanya dibaca), kemudian `python video/capture/to-webp.py clients` dan sesuaikan `shots.ts`. Hapus dulu klien contoh itu sebelum menjalankan ulang.
+
 ## Keterkaitan Antar Modul
 - **Invoices:** `invoices.billed_to_id` → klien tertagih; `invoice_items.client_id` → item bisa atas nama klien lain dalam satu invoice; nama & `NPWP` klien tampil di invoice PDF; inisial nama klien dipakai token `{KLIEN}` di format nomor invoice (default `{NO}/INV/{PT}-{KLIEN}/...`, bisa diatur di Pengaturan › Penomoran invoice).
 - **Recurring Invoices:** template & draft terikat `client_id`; hanya klien aktif yang muncul di opsi form.
@@ -69,6 +76,9 @@ Model meng-override `delete()` untuk cascade manual: **menghapus klien ikut meng
 
 ## Invarian & Jebakan
 - **Hapus klien = hapus semua invoice + item-nya** (override `delete()`); tidak ada soft delete.
+- **Cascade hapus lebih luas dari yang terlihat** — `invoices()->delete()` adalah delete query builder; FK `payments.invoice_id` (cascade) ikut menghapus pembayaran sehingga saldo rekening, Arus Kas › Pemasukan, dan Laba Rugi periode lalu berubah; FK `recurring_templates/recurring_invoices.client_id` (cascade) menghapus template & draft berulang. `invoiceItems()->delete()` juga menghapus item atas nama klien ini di invoice **klien lain** tanpa menghitung ulang `total_amount` invoice itu. Piutang (`receivables` morph) tidak ikut terhapus.
+- **Tombol edit/hapus tampil untuk semua role** — `index.tsx` tidak memeriksa izin; staff/finance manager yang menekan hapus mendapat layar 403 dari middleware `can:delete clients`.
+- Kolom **outstanding** = `total_invoice_amount - paid_invoice_amount` (invoice berstatus `paid` saja), jadi invoice draft dan dibayar sebagian dihitung penuh.
 - Inkonsistensi kapitalisasi status: form/validasi memakai `Active`/`Inactive` dan `InvoiceController::create` memfilter `where('status', 'Active')`, tetapi `RecurringInvoiceController` memfilter `where('status', 'active')` (lowercase) — berfungsi hanya bila collation DB case-insensitive; jangan "merapikan" salah satu sisi tanpa menyamakan keduanya.
 - Relasi self-referential owners/companies **tidak ada** di kode saat ini meskipun terdokumentasi di CLAUDE.md; `company_name` juga bukan kolom nyata (legacy di kalkulasi inisial).
 - `email` unique tapi nullable — banyak klien tanpa email tidak masalah.

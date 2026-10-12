@@ -45,6 +45,7 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
     '/feedbacks': [{ label: 'Administrasi' }, { label: 'Feedback' }],
     '/admin/permissions': [{ label: 'Administrasi' }, { label: 'Izin & Peran' }],
     '/admin/users': [{ label: 'Administrasi' }, { label: 'Pengguna' }],
+    '/panduan': [{ label: 'Panduan' }],
     '/settings': [{ label: 'Pengaturan' }],
     '/settings/profile': [{ label: 'Pengaturan' }, { label: 'Profil' }],
     '/settings/password': [{ label: 'Pengaturan' }, { label: 'Kata Sandi' }],

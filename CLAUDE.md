@@ -16,6 +16,14 @@ Stack frontend **sepenuhnya React/Inertia** — migrasi dari Livewire + TallStac
 
 **Aturan pemeliharaan:** perubahan yang mengubah perilaku modul (alur, status, endpoint, aturan bisnis) WAJIB memperbarui dokumen modulnya di commit yang sama.
 
+## Panduan Pengguna & Video Tutorial (`/panduan`)
+
+Panduan untuk pengguna (bukan dokumentasi teknis) ada di `video/<slug>/` — satu folder per modul, ditemukan otomatis oleh halaman `/panduan`, tombol `<TutorialButton slug>` di header modul, dan Remotion Studio:
+- `guide.ts` — isi panduan (`ModuleGuide`, skema di `video/guide.ts`): peran, alur, langkah per tugas, **dampak ke modul lain / data otomatis / perhatian** (khusus admin). Sumber yang sama dipakai teks halaman dan adegan video.
+- `shots.ts` + `screens/*.webp` (screenshot QC, diambil `video/capture/<slug>.js` lalu `python video/capture/to-webp.py <slug>`), `steps.ts` (walkthrough), `tutorial.tsx` (`TUTORIALS` per role).
+
+**Aturan pemeliharaan:** perubahan perilaku/label/hak akses modul WAJIB juga memperbarui `video/<slug>/guide.ts` (dan screenshot/steps bila tampilan berubah) — kalau tidak, panduan & video mengajarkan hal yang salah. Folder bernama `video/` (bukan `remotion/`) agar tidak bentrok dengan paket npm `remotion`.
+
 ## Common Commands
 
 ```bash
@@ -26,7 +34,7 @@ php artisan test                       # Run tests
 ./vendor/bin/pint                      # Format code
 php artisan pail                       # View logs real-time
 npm run build                          # Build for production
-npm run video                          # Remotion Studio (video tutorial, folder remotion/)
+npm run video                          # Remotion Studio (video tutorial, folder video/)
 npm run video:render -- <Id> out/x.mp4 # Render video, mis. ReimbursementStaff
 ```
 

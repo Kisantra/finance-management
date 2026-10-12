@@ -25,12 +25,18 @@ export default defineConfig(({ mode }) => {
             wayfinder(),
             tailwindcss(),
         ],
+        // Remotion dimuat lazy (tutorial); prebundle sejak awal agar Vite dev tidak re-optimize di tengah
+        // sesi dan memuat React dua kali ("Invalid hook call").
+        optimizeDeps: {
+            include: ['remotion', '@remotion/player', '@remotion/google-fonts/PlusJakartaSans'],
+        },
         build: {
             chunkSizeWarningLimit: 1500,
         },
         resolve: {
             alias: {
                 '@': path.resolve(__dirname, './resources/js'),
+                '@video': path.resolve(__dirname, './video'),
             },
         },
     };

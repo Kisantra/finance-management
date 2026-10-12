@@ -154,9 +154,9 @@ return $this->save();
 ### Video tutorial per role (tombol **Tutorial** di header daftar)
 
 1. Tombol **Tutorial** (ikon `?`) di samping **Buat pengajuan** membuka `components/tutorial-dialog.tsx` — dimuat `React.lazy`, jadi kode Remotion (±115 KB gzip) baru diunduh saat diklik.
-2. Dialog berisi tab **Staff / Finance manager / Admin** (tab awal mengikuti `auth.roles` pengguna). Tiap tab memutar komposisi Remotion `remotion/reimbursements/tutorial.tsx` (`STAFF_TUTORIAL`, `FM_TUTORIAL`, `ADMIN_TUTORIAL`) lewat `@remotion/player` — bukan file MP4 — plus pil bab untuk melompat (`seekTo`).
-3. Isi video: screenshot asli (`remotion/reimbursements/screens/`, diambil dari DB QC oleh `remotion/capture/reimbursements.js`) dianimasikan mesin `remotion/components/walkthrough.tsx` (kamera, spotlight, kursor, efek ketik) dengan efek suara + musik latar tenang dari `remotion/sfx/` (klik & whoosh rekaman CC0 dari `@remotion/sfx`, sisanya sintesis `generate.py`). Video dibungkus `.ob-light` agar tetap terang saat mode gelap.
-4. Video **Admin** juga menjelaskan dampak persetujuan & pembayaran (transaksi bank debit, saldo, Arus Kas › Pengeluaran, Laba Rugi per `pl_group`) beserta peringatan: jangan hapus/ubah transaksi pembayaran di Arus Kas/Rekening (lihat invarian `amount_paid`), dan hapus rekening = cascade. Screenshot dampaknya diambil oleh `remotion/capture/reimbursements-admin.js`; kalau perilaku pembayaran berubah, perbarui `scenes.tsx` (`Impact`, `Anatomy`, `Warnings`).
+2. Dialog berisi tab **Staff / Finance manager / Admin** (tab awal mengikuti `auth.roles` pengguna). Tiap tab memutar komposisi Remotion `video/reimbursements/tutorial.tsx` (`STAFF_TUTORIAL`, `FM_TUTORIAL`, `ADMIN_TUTORIAL`) lewat `@remotion/player` — bukan file MP4 — plus pil bab untuk melompat (`seekTo`).
+3. Isi video: screenshot asli (`video/reimbursements/screens/`, diambil dari DB QC oleh `video/capture/reimbursements.js`) dianimasikan mesin `video/components/walkthrough.tsx` (kamera, spotlight, kursor, efek ketik) dengan efek suara + musik latar tenang dari `video/sfx/` (klik & whoosh rekaman CC0 dari `@remotion/sfx`, sisanya sintesis `generate.py`). Video dibungkus `.ob-light` agar tetap terang saat mode gelap.
+4. Video **Admin** juga menjelaskan dampak persetujuan & pembayaran (transaksi bank debit, saldo, Arus Kas › Pengeluaran, Laba Rugi per `pl_group`) beserta peringatan: jangan hapus/ubah transaksi pembayaran di Arus Kas/Rekening (lihat invarian `amount_paid`), dan hapus rekening = cascade. Screenshot dampaknya diambil oleh `video/capture/reimbursements-admin.js`; kalau perilaku pembayaran berubah, perbarui `scenes.tsx` (`Impact`, `Anatomy`, `Warnings`).
 5. **Perubahan UI/alur modul ini harus diikuti ambil ulang screenshot + perbarui `shots.ts`/`steps.ts`** — kalau tidak, tutorial menunjukkan tampilan lama. Pratinjau: `npm run video`.
 
 ## Keterkaitan Antar Modul
@@ -188,7 +188,7 @@ return $this->save();
 - `app/Models/Reimbursement.php` — state machine, `recordPayment()`, accessor `amount_remaining`, `category_label`
 - `app/Models/ReimbursementPayment.php` — relasi `bankTransaction`, `payer`
 - `app/Http/Requests/StoreReimbursementRequest.php`, `UpdateReimbursementRequest.php`, `ReviewReimbursementRequest.php`, `PayReimbursementRequest.php`
-- Tutorial: `resources/js/pages/reimbursements/components/tutorial-dialog.tsx`, `remotion/reimbursements/` (naskah, screenshot, koordinat), `remotion/components/walkthrough.tsx`
+- Tutorial: `resources/js/pages/reimbursements/components/tutorial-dialog.tsx`, `video/reimbursements/` (naskah, screenshot, koordinat), `video/components/walkthrough.tsx`
 - `resources/js/pages/reimbursements/index.tsx` (daftar), `components/reimbursement-drawer.tsx` (detail + dialog review/bayar + riwayat), `components/reimbursement-form-sheet.tsx` (buat/edit), `components/rb.tsx` (status, `rbAction`), `types.ts`; `resources/js/lib/resource-modal.ts` + `components/resource-modal-host.tsx` (hash `#reimbursement/{id}`)
 - `tests/Feature/ReimbursementControllerTest.php` (termasuk regresi QA 8 Okt 2026), `tests/Feature/AttachmentCleanupTest.php`
 - QA dengan bukti: `docs/qa/test-cases/reimbursements.md`, laporan `docs/qa/report/Laporan-QA-Reimbursements.pdf`

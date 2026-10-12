@@ -13,11 +13,11 @@
         "resolveJsonModule": true,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
-        "baseUrl": ".",
         "paths": {
-            "@/*": ["./resources/js/*"]
+            "@/*": ["./resources/js/*"],
+            "@video/*": ["./video/*"]
         }
     },
-    "include": ["resources/js/**/*", "resources/js/**/*.d.ts", "remotion/**/*", "remotion.config.ts"],
+    "include": ["resources/js/**/*", "resources/js/**/*.d.ts", "video/**/*", "remotion.config.ts"],
     "exclude": ["node_modules", "vendor", "public"]
 }

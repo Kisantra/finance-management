@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Pagination } from '@/components/shared/pagination';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
@@ -156,8 +157,9 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
         router.get('/invoices', { ...f, ...params, page: 1 }, { preserveState: true, preserveScroll: true, replace: true });
     };
 
-    const exportUrl = (format: 'excel' | 'pdf') => {
+    const exportUrl = (format: 'excel' | 'pdf', template?: 'jsm') => {
         const params = new URLSearchParams();
+        if (template) params.set('template', template);
         if (f.search) params.set('search', f.search);
         if (f.status) params.set('status', f.status);
         params.set('month', f.month ?? '');
@@ -219,16 +221,22 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <TutorialButton slug="invoices" />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className={BTN.secondary} icon={<Upload className="h-4 w-4" />}>
                                     Ekspor
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuItem asChild>
                                     <a href={exportUrl('excel')}>
-                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel
+                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel · Default
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={exportUrl('excel', 'jsm')}>
+                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel · JSM
                                     </a>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>

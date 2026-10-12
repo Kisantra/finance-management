@@ -45,6 +45,7 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import * as loanRoutes from '@/routes/loans';
@@ -142,10 +143,13 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                     title="Pinjaman"
                     description="Kelola pinjaman dan cicilan pembayaran"
                     action={
-                        <Button onClick={() => setCreateOpen(true)} size="sm">
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Tambah Pinjaman
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="loans" />
+                            <Button onClick={() => setCreateOpen(true)} size="sm">
+                                <Plus className="mr-1.5 h-4 w-4" />
+                                Tambah Pinjaman
+                            </Button>
+                        </div>
                     }
                 />
 

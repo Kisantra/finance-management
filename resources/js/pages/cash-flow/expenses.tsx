@@ -24,6 +24,7 @@ import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
@@ -178,6 +179,7 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
                     description="Daftar semua pengeluaran (debit) dari rekening bank Anda."
                     action={
                         <div className="flex items-center gap-2">
+                            <TutorialButton slug="cash-flow" />
                             <Button variant="outline" size="md" onClick={exportPdf}>
                                 <Download className="w-4 h-4" />
                                 Export PDF
