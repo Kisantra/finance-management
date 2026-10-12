@@ -61,6 +61,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -428,12 +429,15 @@ export default function PermissionsIndex() {
                     title="Manajemen Peran & Permission"
                     description="Kelola peran sistem dan akses fitur untuk setiap peran"
                     action={
-                        canManagePermissions && (
-                            <Button variant="primary" onClick={() => setRoleCreateOpen(true)}>
-                                <Plus className="w-4 h-4" />
-                                Tambah Peran
-                            </Button>
-                        )
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="users-permissions" />
+                            {canManagePermissions && (
+                                <Button variant="primary" onClick={() => setRoleCreateOpen(true)}>
+                                    <Plus className="w-4 h-4" />
+                                    Tambah Peran
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
 

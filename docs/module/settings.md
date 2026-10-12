@@ -15,7 +15,7 @@
 
 ### Hub Pengaturan (`GET /settings`)
 
-`Route::inertia('/', 'settings/index')` — halaman `settings/index.tsx` (gaya Obsidian, referensi "General & Security Settings"): kartu baris berkelompok **Akun** (Profil, Kata sandi), **Perusahaan** (Profil perusahaan), **Invoice** (Penomoran invoice, Template PDF). Tiap baris = ikon, nama, keterangan, panah; baris bertanda permission disembunyikan dari user tanpa izin itu (`auth.permissions`). Halaman detail memakai `SettingsLayout` (tautan "‹ Pengaturan" + judul + satu kartu isi; prop `bare` untuk halaman yang menyusun kartunya sendiri) — tidak ada lagi menu samping antarpengaturan. Menu akun di header menautkan "Pengaturan" ke hub.
+`Route::inertia('/', 'settings/index')` — halaman `settings/index.tsx` (gaya Obsidian, referensi "General & Security Settings"): kartu baris berkelompok **Akun** (Profil, Kata sandi), **Perusahaan** (Profil perusahaan), **Invoice** (Penomoran invoice, Template PDF). Tiap baris = ikon, nama, keterangan, panah; baris bertanda permission disembunyikan dari user tanpa izin itu (`auth.permissions`). Halaman detail memakai `SettingsLayout` (tautan "‹ Pengaturan" + judul + satu kartu isi; prop `bare` untuk halaman yang menyusun kartunya sendiri) — tidak ada lagi menu samping antarpengaturan. Menu akun di header menautkan "Pengaturan" ke hub dan "Profil perusahaan" langsung ke `/settings/company` (untuk semua role). Header hub memuat `<TutorialButton slug="settings" />`.
 
 ### Penomoran Invoice (`GET/PUT /settings/invoice-numbering`, `can:manage invoice settings`)
 
@@ -34,7 +34,7 @@ Tanpa baris profil perusahaan, simpan ditolak ("Lengkapi Profil Perusahaan terle
 2. `ProfileController::edit()` merender `settings/profile` dengan data user + flag `must_verify_email`.
 3. User mengubah nama/email lalu submit `PATCH /settings/profile`.
 4. Validasi inline: `name` required; `email` required, lowercase, unique ignore diri sendiri.
-5. Jika email berubah (`$user->isDirty('email')`), `email_verified_at` di-null-kan (harus verifikasi ulang).
+5. Jika email berubah (`$user->isDirty('email')`), `email_verified_at` di-null-kan. Model `User` tidak mengimplementasikan `MustVerifyEmail`, jadi middleware `verified` tidak memblokir — email baru langsung dipakai untuk login.
 6. `$user->save()` → redirect back + flash "Profil berhasil diperbarui."
 
 **Penjelasan kode** (`app/Http/Controllers/Settings/ProfileController.php`):
@@ -73,6 +73,22 @@ Catatan: form update profil di controller saat ini hanya memvalidasi `name` dan 
 5. Untuk tiap file yang diunggah, `replaceFile()` menghapus file lama di disk `public` lalu `storeAs('images', "{nama}-{timestamp}.{ext}")`.
 6. `$company->save()` → flash "Profil perusahaan berhasil diperbarui."
 
+Route ini **tidak** digate permission (tidak ada `can:` di route, `UpdateCompanyRequest::authorize()` = `true`, `deleteAsset()` juga tanpa cek) — Staff pun bisa mengubah profil perusahaan dan menghapus asetnya. Checkbox PKP hanya menyembunyikan field NPWP/Tarif PPN di form; nilainya tetap terkirim & tersimpan. Kolom `bank_accounts` (rekening yang tercetak di invoice) dikirim ke halaman tetapi tidak bisa diedit di sini (tidak ada field maupun validasi).
+
+**Siapa membaca isian ini** (diverifikasi dari kode):
+
+| Isian | Dibaca oleh |
+|---|---|
+| `name` | Semua PDF invoice bawaan (`InvoicePrintService::getCompanyInfo()`), PDF arus kas, pengajuan dana, rekap invoice, laba rugi; token builder `company.name`; `{PT}` di `InvoiceNumberService::companyInitials()`; singkatan `FundRequest::generateRequestNumber()` (via `computed_abbreviation`, kolom `abbreviation` tidak bisa diisi dari UI) |
+| `address` / `email` / `phone` | Template invoice `semesta-invoice` (alamat, email) & `invoice` (Generik: alamat, telepon, email) — **bukan** `kisantra-invoice`; PDF arus kas & pengajuan dana; alamat juga di rekap invoice & laba rugi; token builder |
+| `finance_manager_name/position` | Area tanda tangan PDF invoice (kecuali AGSA), arus kas, pengajuan dana; token builder `company.finance_manager` |
+| `ppn_rate` | `semesta-invoice` (baris PPN, selalu bila > 0, mengabaikan `is_pkp`), kolom "PPN x%" rekap Excel JSM, `grand_total`/`terbilang` di `InvoicePrintService` |
+| `is_pkp` | Hanya `InvoicePrintService` cabang non-Semesta: `ppn_amount` → `grand_total` → `terbilang`. Template Kisantra/Generik tidak menampilkan baris PPN tetapi mencetak `terbilang`, sehingga saat PKP aktif teks terbilang ≠ angka TOTAL (lihat Invarian). `agsa-invoice` memakai rumus PPN tetapnya sendiri |
+| `npwp` | PDF rekap invoice & laba rugi (+ header halaman Laba Rugi), token builder `company.npwp` |
+| `letter_head_path` | Gambar kepala PDF invoice Kisantra/Semesta/AGSA (key `logo_base64` di `getCompanyInfo()` = kop surat, bukan logo); tanpa file → kotak "LETTERHEAD PLACEHOLDER" di Kisantra |
+| `signature_path` / `stamp_path` | PDF invoice bawaan; tanda tangan juga di PDF arus kas; PDF pengajuan dana lewat accessor base64 (lihat Invarian path) |
+| `logo_path` | PDF arus kas (header), PDF pengajuan dana (accessor), `php artisan favicon:generate`. Tidak dipakai kepala invoice maupun navigasi (sidebar memakai `/images/kisantra.png` statis) walau label di form berkata begitu |
+
 **Penjelasan kode** (`app/Http/Controllers/Settings/CompanyController.php`):
 
 ```php
@@ -99,7 +115,7 @@ private function replaceFile(CompanyProfile $company, string $column, $file, str
 **Penjelasan kode** (`app/Models/CompanyProfile.php`):
 
 - `CompanyProfile::current()` = `static::first()` — pola singleton; seluruh service PDF memanggil ini.
-- Accessor `logo_base64`, `signature_base64`, `letter_head_base64`, `stamp_base64` membaca file dari `public_path()` dan mengembalikan `data:image/png;base64,...` — dipakai template Blade PDF agar DomPDF tidak perlu HTTP fetch:
+- Accessor `logo_base64`, `signature_base64`, `letter_head_base64`, `stamp_base64` membaca file dari `public_path($path)` (yaitu `public/images/...`, **bukan** `public/storage/...`) dan mengembalikan `data:image/png;base64,...`. Saat ini hanya dipakai `resources/views/pdf/fund-requests.blade.php`; `InvoicePrintService` punya `getImageBase64()` sendiri yang membaca `public_path('storage/'.$path)`:
 
 ```php
 public function getLogoBase64Attribute(): string
@@ -123,7 +139,7 @@ return implode('', $initials) ?: 'CO';
 
 ### PDF Template Builder — Daftar Template (`GET /settings/pdf-templates`)
 
-Seluruh grup route ini bermiddleware `can:manage pdf templates` (`routes/web.php` baris 539).
+Seluruh grup route ini bermiddleware `can:manage pdf templates` (`routes/web.php` baris 555).
 
 **Alur step-by-step:**
 1. `PdfTemplateController::index()` memuat semua template diurutkan default dulu, lalu nama.
@@ -207,12 +223,20 @@ if (str_starts_with((string) $template, 'builder:')) {
 
 `GET /template-builder-test` sekarang **redirect** ke `settings.pdf-templates.index`. `POST /template-builder-test` dan `GET /template-builder-test/pdf` masih menunjuk `TemplateBuilderController` (sandbox lama: satu baris template "Sandbox", token dari konstanta `SAMPLE`, elemen `text|image` saja) — legacy, bukan jalur produksi.
 
+### Panduan & video tutorial
+
+- Tombol **Tutorial** di header hub `/settings` (`<TutorialButton slug="settings" />` di `resources/js/pages/settings/index.tsx`) dan halaman `/panduan` membaca `video/settings/guide.ts` (peran, tugas, dampak, catatan "Ke mana isi profil perusahaan mengalir", peringatan, matriks hak akses) dan `video/settings/tutorial.tsx` (komposisi Remotion `SettingsStaff`, `SettingsFinanceManager`, `SettingsAdmin`).
+- Isi video: **Staff** — profil, kata sandi, arti Hapus Akun; **Finance manager** — penomoran invoice (pola, digit, reset, pratinjau, kapan berlaku); **Admin** — peran, profil perusahaan, dampak & aliran data ke PDF, template PDF (buat, editor, simpan, default), jejak di dialog Cetak invoice, hapus template, peringatan.
+- File: `video/settings/{guide.ts, shots.ts, steps.ts, tutorial.tsx, screens/*.webp}`; capture `video/capture/settings.js`.
+- Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8018`), jalankan dulu `video/capture/users-permissions.js` (membuat staff "Budi Santoso"), lalu `video/capture/settings.js` lewat Playwright MCP (`browser_run_code_unsafe`), `python video/capture/to-webp.py settings`, dan salin koordinat hasilnya ke `shots.ts`. Skrip tidak menyimpan profil perusahaan maupun penomoran; nama staff diubah lalu dikembalikan, kata sandi disimpan dengan nilai yang sama, dan template contoh "Invoice Kisantra Modern" dibuat lalu dihapus lagi. `INVOICE_ID` di skrip harus invoice bernomor yang ada di DB QC (untuk adegan dialog Cetak). Pratinjau: `npm run video`.
+- **Perubahan perilaku/label/hak akses modul ini wajib diikuti pembaruan `guide.ts` (dan screenshot + `steps.ts` bila tampilan berubah).**
+
 ## Keterkaitan Antar Modul
 
-- **Invoice/PDF**: `InvoicePrintService` dan template Blade `resources/views/pdf/*.blade.php` memakai `CompanyProfile::current()` + accessor base64 (logo/letterhead/signature/stamp) dan `ppn_rate`/`is_pkp`/`npwp` untuk perhitungan & tampilan pajak.
+- **Invoice/PDF**: `InvoicePrintService::getCompanyInfo()` membaca `CompanyProfile::current()` dan meng-encode kop surat/tanda tangan/stempel sendiri dari `public/storage/...`; `ppn_rate`/`is_pkp` dipakai untuk PPN & terbilang (lihat tabel "Siapa membaca isian ini"). PDF arus kas (`CashFlowExportService`), pengajuan dana (`FundRequestExportService`), rekap invoice & laba rugi juga membaca profil ini.
 - **Fund Request**: nomor dokumen `001/KSN/I/2026` memakai `computed_abbreviation` (tidak ikut pengaturan penomoran invoice).
 - **Invoice**: `InvoiceNumberService` membaca pengaturan penomoran dari `company_profiles`.
-- **Invoice download/preview** menerima `template=builder:{id}` → `BuilderInvoicePrinter` (lihat `routes/web.php` baris 158–196).
+- **Invoice download/preview** menerima `template=builder:{id}` → `BuilderInvoicePrinter` (lihat `routes/web.php` baris 164–213).
 - **Permissions**: `manage pdf templates` didefinisikan di `MasterPermissionSeeder` (hanya admin); `manage invoice settings` (admin + finance manager) ditambahkan oleh migrasi `2026_10_08_005001_add_manage_invoice_settings_permission` dan seeder.
 - **Header React** (`resources/js/layouts/header.tsx`): switcher bahasa memanggil `POST /language` yang menyimpan `locale` ke session — dibaca `HandleInertiaRequests` sebagai prop `locale`.
 
@@ -220,18 +244,19 @@ if (str_starts_with((string) $template, 'builder:')) {
 
 - **CompanyProfile adalah singleton** — selalu `current()`/`first()`/`firstOrNew()`; jangan pernah membuat baris kedua.
 - **Hanya satu template `is_default`** — selalu ubah lewat `setAsDefault()`, jangan update kolom langsung.
-- Accessor base64 membaca dari `public_path($path)` sementara upload disimpan ke disk `public` (`storage/app/public/images/...`) — **symlink `php artisan storage:link` wajib ada**; tanpa itu PDF kehilangan logo/tanda tangan.
+- **Path gambar tidak konsisten.** Upload disimpan ke disk `public` (`storage/app/public/images/...`, kolom berisi `images/xxx.png`). `InvoicePrintService` & PDF arus kas membaca `public_path('storage/'.$path)` — **symlink `php artisan storage:link` wajib ada**. Accessor `*_base64` di model (dipakai PDF pengajuan dana) membaca `public_path($path)` = `public/images/xxx.png`, sehingga file hasil upload UI tidak ditemukan dan logo/tanda tangan/stempel kosong di PDF pengajuan dana (hanya file bawaan di `public/images/` yang terbaca). Sebaliknya data seed lama (`images/letter-head.png`) terbaca accessor tetapi tidak oleh `InvoicePrintService`.
+- **PKP & terbilang.** Di cabang non-Semesta `InvoicePrintService` menambah PPN ke `grand_total` bila `is_pkp`, tetapi `kisantra-invoice`/`invoice` mencetak angka `display_amount`/`total_amount` tanpa baris PPN dan `terbilang` dari `grand_total` — keduanya berbeda saat PKP aktif. `semesta-invoice` menghitung PPN dari `ppn_rate` tanpa melihat `is_pkp`.
 - Upload aset **menghapus file lama** — tidak ada versi/riwayat; nama file diberi timestamp agar URL berubah (cache-buster tambahan `?v=filemtime`).
 - Layout template punya **dua skema** (banded vs legacy flat-array) — semua kode yang membaca `layout` harus cabang pada keberadaan key `bands`.
 - Custom font **global** (dipakai semua template) — menghapus font yang masih direferensikan layout membuat teks jatuh ke font default DomPDF.
 - Validasi font double-layer: mimetypes longgar (`application/octet-stream` diterima) namun ekstensi wajib `.ttf` — jangan hapus salah satunya.
 - `ppn_rate` disimpan `decimal:2` (persen, 0–100), **bukan** nilai uang — jangan ikut aturan integer rupiah.
-- Hapus akun di profil = hard delete user beserta relasi permission via cascade Spatie — tidak ada soft delete.
+- Hapus akun di profil = hard delete user (tanpa soft delete; role/permission dilepas trait Spatie). FK `ON DELETE CASCADE` ikut menghapus `reimbursements` (→ `reimbursement_payments`), `fund_requests` (→ items), `feedbacks`, `app_notifications` milik user, **dan** `reimbursement_payments` yang `paid_by` user itu; transaksi bank hasil pembayaran/pencairan tetap ada. Kolom `reviewed_by`/`disbursed_by`/`approved_by`/`responded_by` → `SET NULL`. Tidak ada penjaga "admin terakhir".
 - Route `custom-fonts` berada **di dalam** prefix `pdf-templates` — URL penuhnya `/settings/pdf-templates/custom-fonts` dan ikut tergate `manage pdf templates`.
 
 ## File Kunci
 
-- `routes/web.php` (baris 521–556 — blok settings; 109–111 redirect sandbox; 155–196 download builder)
+- `routes/web.php` (baris 535–572 — blok settings; 117–119 redirect sandbox; 164–213 download/preview builder)
 - `app/Http/Controllers/Settings/ProfileController.php`
 - `app/Http/Controllers/Settings/PasswordController.php`
 - `app/Http/Controllers/Settings/CompanyController.php`

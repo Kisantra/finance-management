@@ -42,19 +42,19 @@ Konvensi nama permission = `aksi + spasi + modul`. Modul dan aksinya:
 | Role | Icon | Filosofi |
 |------|------|----------|
 | `admin` | `shield-exclamation` | Akses penuh — `syncPermissions(Permission::all())`. Termasuk `manage users`, `manage permissions`, `manage pdf templates`. |
-| `finance manager` | `banknotes` | Operasional keuangan penuh (invoice, payment, cash flow, approve/pay/disburse) **tanpa manajemen user & permission** — hanya `view permissions`, tidak dapat `manage users`, `manage permissions`, `manage pdf templates`. Juga tidak bisa `delete clients`/`delete services`. |
-| `staff` | `user` | View/create milik sendiri: lihat klien & invoice, buat invoice, kelola reimbursement/fund request/feedback miliknya, request receivable. Tanpa approve/pay, tanpa bank-accounts/cash-flow, tanpa laporan. |
+| `finance manager` | `banknotes` | 69 dari 75 permission: operasional keuangan (invoice, payment, cash flow, approve/pay/disburse) **tanpa manajemen user & permission** — hanya `view permissions`, tidak dapat `manage users`, `manage permissions`, `manage pdf templates`. Juga tidak bisa `delete clients`/`delete services`/`delete reimbursements`. |
+| `staff` | `user` | 21 permission: dashboard, lihat/buat/edit klien (tanpa hapus), lihat layanan, lihat & buat invoice, kelola reimbursement/fund request/feedback miliknya, lihat & ajukan receivable. Tanpa approve/pay, tanpa bank-accounts/cash-flow, tanpa laporan. |
 
 ## Fitur
 
 ### Daftar & Statistik User (`GET /admin/users`)
 
 **Alur step-by-step:**
-1. User membuka menu Administrasi → Pengguna; sidebar hanya menampilkan menu jika `useCan().can('manage users')`.
-2. Request `GET /admin/users` melewati middleware `can:manage users` (`routes/web.php` baris 509).
+1. User membuka menu Administrasi → Pengguna; sidebar (`resources/js/layouts/sidebar.tsx`) hanya menampilkan menu jika user punya `manage users` (menu **Izin & Peran** butuh `view permissions`).
+2. Request `GET /admin/users` melewati middleware `can:manage users` (`routes/web.php` ±baris 520).
 3. `UserController::index()` membangun query dengan filter `search` (whereAny name/email/phone_number), `role` (whereHas roles), `status`, sorting, dan paginasi (`per_page` default 10).
 4. Controller menghitung stats: total, active, inactive, jumlah admin, jumlah finance manager.
-5. Respons `Inertia::render('users/index', [...])` → halaman React `resources/js/pages/users/index.tsx` menampilkan DataTable + StatsCard.
+5. Respons `Inertia::render('users/index', [...])` → halaman React `resources/js/pages/users/index.tsx` menampilkan tabel (bukan `DataTable`) + 4 StatsCard (Total Pengguna, Pengguna Aktif, Administrator, Finance Manager); filter **Peran**, **Status**, dan kotak **Cari nama, email, atau telepon...**.
 
 **Penjelasan kode** (`app/Http/Controllers/Admin/UserController.php`):
 
@@ -113,10 +113,16 @@ $user->assignRole($validated['role']);
 3. Guard di controller: jika `$user->id === auth()->id()` → redirect back dengan flash `error` "Anda tidak dapat menghapus akun sendiri." — **tidak ada mutasi**.
 4. Selain itu `$user->delete()` (hard delete), lalu redirect back + success.
 
+**Efek FK saat user dihapus** (didefinisikan di migrasi, berlaku juga untuk bulk delete):
+- `onDelete('cascade')`: `reimbursements.user_id` (→ ikut `reimbursement_payments`), `fund_requests.user_id` (→ ikut `fund_request_items`), `feedbacks.user_id`, `app_notifications.user_id`, dan **`reimbursement_payments.paid_by`** — riwayat pembayaran reimbursement milik orang lain yang dicatat user ini ikut hilang (kolom `amount_paid` di reimbursement tidak berubah).
+- `nullOnDelete`: `reimbursements.reviewed_by`, `fund_requests.reviewed_by`/`disbursed_by`, `receivables.approved_by`, `feedbacks.responded_by`.
+- Tidak tersentuh: `bank_transactions` (saldo & laporan tetap), dan `receivables` dengan debtor user ini (morph tanpa FK → `debtor_name` menjadi `null`, tampil "—").
+- Cascade dilakukan DB, jadi event model (mis. `deleting`) milik reimbursement/fund request **tidak** berjalan.
+
 ### Bulk Delete User (`POST /admin/users/bulk-delete`)
 
 **Alur step-by-step:**
-1. Admin mencentang beberapa baris di DataTable lalu klik hapus massal.
+1. Admin mencentang beberapa baris di tabel (akun sendiri tidak bisa dicentang) lalu klik **Hapus** di bilah mengambang → konfirmasi **Hapus Semua**.
 2. `POST /admin/users/bulk-delete` dengan body `{ ids: number[] }` → validasi `BulkDestroyUserRequest` (`ids.*` integer, exists di `users`).
 3. Controller membuang id milik sendiri dari daftar: `array_diff($validated['ids'], [auth()->id()])`. Jika hasilnya kosong → flash error "Tidak ada pengguna yang dapat dihapus."
 4. `User::whereIn('id', $ids)->delete()` lalu flash `"Berhasil menghapus {$count} pengguna."`.
@@ -175,7 +181,7 @@ app(PermissionRegistrar::class)->forgetCachedPermissions();
 ### Sync per Modul (`POST /admin/permissions/sync-module`)
 
 **Alur step-by-step:**
-1. Admin klik "grant semua" / "revoke semua" pada header grup modul (mis. `Invoices`).
+1. Admin klik **Semua** / **None** pada header grup modul (mis. `Invoices`). Berlaku untuk seluruh permission modul itu, walau kotak **Cari permission...** sedang menyaring.
 2. Body: `{ role_id, module, action: 'grant'|'revoke' }` → gate `manage permissions`.
 3. Controller mencari permission yang bagian modulnya (setelah aksi) sama persis dengan `module` — query `LIKE` awal lalu difilter ulang dengan `explode` agar tepat (mis. `view invoices` cocok modul `Invoices`, `view recurring-invoices` tidak).
 4. Loop `givePermissionTo` / `revokePermissionTo` untuk setiap permission modul tersebut.
@@ -184,7 +190,7 @@ app(PermissionRegistrar::class)->forgetCachedPermissions();
 ### Sync Semua (`POST /admin/permissions/sync-all`)
 
 **Alur step-by-step:**
-1. Admin klik "Grant All" / "Revoke All" pada role terpilih.
+1. Admin klik **Beri Semua** / **Cabut Semua** pada role terpilih → `ConfirmDialog`.
 2. Body `{ role_id, action }` → gate `manage permissions`.
 3. `grant` → `$role->syncPermissions(Permission::all())`; `revoke` → `$role->syncPermissions([])` (mengosongkan `role_has_permissions` untuk role itu).
 4. Reset cache + redirect back.
@@ -257,7 +263,14 @@ export function useCan() {
 }
 ```
 
-Dipakai di sidebar, halaman users, cash-flow, bank-accounts, dll. untuk menyembunyikan menu/tombol. **Gating frontend hanya UX** — otorisasi sebenarnya tetap di middleware route + `authorize()`/`abort_unless()` backend.
+Dipakai di cash-flow, bank-accounts, dll. untuk menyembunyikan menu/tombol; sidebar (`layouts/sidebar.tsx`) dan halaman `users`/`permissions` membaca `auth.permissions` (atau prop `canManagePermissions`) langsung. **Gating frontend hanya UX** — otorisasi sebenarnya tetap di middleware route + `authorize()`/`abort_unless()` backend.
+
+### Panduan & video tutorial
+
+1. Tombol **Tutorial** ada di header **Manajemen Pengguna** (`resources/js/pages/users/index.tsx`, di samping **Tambah Pengguna**) dan **Manajemen Peran & Permission** (`resources/js/pages/permissions/index.tsx`, di samping **Tambah Peran**; Finance manager hanya melihat tombol Tutorial) — `<TutorialButton slug="users-permissions" />`. Teks panduan lengkap di `/panduan/users-permissions`.
+2. Isi panduan: `video/users-permissions/guide.ts` (peran Admin & Finance manager — Staff tidak punya akses; tugas tambah/edit/hapus pengguna, atur izin, tambah/hapus peran; dampak hapus pengguna (cascade FK), status Tidak Aktif yang tidak memblokir login, dan peringatan lockout). Video: `video/users-permissions/tutorial.tsx` (`UsersPermissionsFinanceManager`, `UsersPermissionsAdmin`), langkah di `steps.ts`, koordinat di `shots.ts`, screenshot di `screens/`.
+3. Ambil ulang screenshot: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8018`), jalankan `video/capture/users-permissions.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py users-permissions` dan salin koordinat hasilnya ke `shots.ts`. Skrip itu **menulis data QC**: membuat pengguna `budi.santoso@kisantra.test` (staff) bila belum ada, serta peran sementara `auditor` yang dihapus lagi di akhir; izin peran bawaan tidak diubah. Jangan jalankan di DB utama.
+4. Perubahan hak akses, label, cascade hapus, atau aturan berbasis nama role di modul ini harus diikuti pembaruan `guide.ts` (`roles`, `impacts`, `records`, `warnings`, `matrix`), ambil ulang screenshot, dan `shots.ts`/`steps.ts`.
 
 ## Keterkaitan Antar Modul
 
@@ -266,6 +279,9 @@ Dipakai di sidebar, halaman users, cash-flow, bank-accounts, dll. untuk menyembu
 - **Feedbacks**: `FeedbackController::notifyAdmins()` mengirim notifikasi ke semua user ber-role `admin`/`finance manager` (`User::role([...])`).
 - **Scheduler**: `invoices:notify-due-dates` juga menarget user ber-role admin/finance manager.
 - **Settings → PDF Templates** digate `manage pdf templates`; **Users** page menampilkan `role_icon` dari kolom `roles.icon`.
+- **Aturan khusus berbasis NAMA role `admin`** (bukan permission): `Reimbursement::canDelete()` (admin boleh menghapus reimbursement siapa pun selama `amount_paid = 0`), `FundRequest::canDelete()` (admin boleh menghapus fund request di status apa pun), `FundRequestController::edit/update` (admin boleh mengedit fund request orang lain yang `draft`/`rejected`), dan `ErrorReportService` (detail teknis error 500 hanya untuk admin). Mengganti nama role `admin` mematikan semuanya.
+- **Badge sidebar** (`actionCounts` di `HandleInertiaRequests`) mengikuti permission `approve`/`pay reimbursements` dan `approve`/`disburse fund requests` — mengubah izin role langsung mengubah angka badge penggunanya.
+- **Receivables**: pilihan karyawan (debtor `employee_loan`) hanya user `status = active` (`ReceivableController` `employeeOptions`).
 
 ## Invarian & Jebakan
 
@@ -276,12 +292,16 @@ Dipakai di sidebar, halaman users, cash-flow, bank-accounts, dll. untuk menyembu
 - Seeder **menghapus** permission usang cash-flow (`view transactions`, `manage cash-flow`, dll.) — jangan referensikan nama lama itu di kode.
 - `UserController::index` **tidak punya authorize() di method** — proteksinya hanya middleware route `can:manage users`; method mutasi punya dobel proteksi.
 - `manage users` adalah permission tunggal (tidak ada `view users`) — user tanpa itu tidak bisa melihat daftar user sama sekali.
-- Status `inactive` disimpan di `users.status`, tetapi penegakan login untuk user nonaktif bergantung pada logika auth (cek `User::isActive()` sebelum mengandalkannya).
+- Status `inactive` **tidak memblokir login**: `AuthenticatedSessionController::store` hanya `Auth::attempt()` tanpa cek `status`/`isActive()`. Satu-satunya efek `inactive` adalah tersaring dari pilihan karyawan di Piutang. Ganti password juga tidak memutus sesi aktif / cookie "Ingat saya" (tidak ada middleware `AuthenticateSession`).
 - `email_verified_at` diisi `now()` saat admin membuat user — tidak ada alur verifikasi email untuk user buatan admin.
+- **Tidak ada pengaman lockout**: admin bisa mencabut `manage users`/`manage permissions` dari role `admin`, menekan **Cabut Semua** pada role admin, atau mengganti role akun sendiri — semuanya tanpa guard. Pemulihan hanya lewat DB/seeder.
+- Hapus permission (`DELETE /admin/permissions/{id}`) tidak bisa dibatalkan dari UI — tidak ada endpoint untuk membuat permission; harus migrasi/seeder.
+- Bulk delete memakai query builder (`User::whereIn()->delete()`), jadi event Eloquent tidak berjalan dan baris `model_has_roles` user tersebut tertinggal (yatim). Hapus tunggal (`$user->delete()`) membersihkannya lewat trait `HasRoles`.
+- Ikon bawaan seeder (`shield-exclamation`, `banknotes`) bukan anggota `RoleController::AVAILABLE_ICONS` (hanya alias di `ICON_MAP` frontend), sehingga menyimpan dialog **Edit Peran** untuk role bawaan tanpa memilih ikon baru gagal validasi `icon`.
 
 ## File Kunci
 
-- `routes/web.php` (baris 477–519 — blok admin)
+- `routes/web.php` (±baris 487–531 — blok admin)
 - `app/Http/Controllers/Admin/UserController.php`
 - `app/Http/Controllers/Admin/PermissionController.php`
 - `app/Http/Controllers/Admin/RoleController.php`

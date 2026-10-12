@@ -103,6 +103,7 @@ $baseQuery = ($canManage && $tab === 'all')
 1. Middleware `can:delete feedbacks`.
 2. Guard: boleh dihapus oleh **pemilik** ATAU siapa pun dengan `manage feedbacks`; jika pemilik tetapi status bukan `open` → flash error "Feedback yang sudah diproses tidak dapat dihapus." (pengelola tetap boleh menghapus status apa pun).
 3. `$feedback->delete()` — hook `deleting` di model otomatis menghapus file lampiran dari storage.
+   Catatan UI: tombol **Hapus** di dialog detail hanya tampil bila `can_delete` (pemilik + `open`); hak pengelola menghapus feedback siapa pun hanya bisa dipakai lewat endpoint, tidak ada tombolnya di layar.
 4. Redirect back + flash success.
 
 **Penjelasan kode:**
@@ -122,7 +123,7 @@ if ($feedback->user_id === auth()->id() && ! $feedback->canDelete()) {
 2. Middleware `can:respond feedbacks` + guard ganda di controller: `can('respond feedbacks')` dan `$feedback->canRespond()` (hanya `open`/`in_progress` — feedback resolved/closed tidak bisa ditanggapi lagi).
 3. Validasi `RespondFeedbackRequest`: `response` max 5000, `status` in `in_progress,resolved,closed` (respond selalu memajukan status, tidak boleh kembali ke `open`).
 4. `$feedback->respond(auth()->id(), $response, $status)` mengisi `admin_response`, `responded_by`, `responded_at`, `status`.
-5. `AppNotification::notify($feedback->user_id, 'feedback_responded', ...)` — pemilik mendapat notifikasi bell.
+5. `AppNotification::notify($feedback->user_id, 'feedback_responded', ...)` — pemilik mendapat notifikasi bell. Hanya ada satu `admin_response`: menanggapi ulang (tombol berubah menjadi **Edit Tanggapan** di UI) menimpa tanggapan lama dan mengirim notifikasi lagi.
 6. Redirect back + flash "Tanggapan berhasil dikirim."
 
 **Penjelasan kode** (`app/Models/Feedback.php`):
@@ -145,10 +146,10 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 ### Ubah Status (`POST /feedbacks/{feedback}/status`)
 
 **Alur step-by-step:**
-1. Pengelola mengubah status langsung dari daftar/detail (tanpa menulis tanggapan).
+1. Pengelola mengubah status dari dropdown **Ubah Status** di dialog detail (tanpa menulis tanggapan). Dropdown disembunyikan bila status `closed`; endpoint sendiri tidak menolak `closed`.
 2. Middleware `can:manage feedbacks` + guard `abort_unless(...can('manage feedbacks'), 403)`.
 3. Validasi `ChangeStatusFeedbackRequest`: `status` in `open,in_progress,resolved,closed` — endpoint ini **boleh** mengembalikan ke `open` (berbeda dari respond).
-4. `$feedback->changeStatus($status)` → flash "Status feedback diperbarui."
+4. `$feedback->changeStatus($status)` → flash "Status feedback diperbarui." **Tidak** mengirim notifikasi ke pemilik.
 
 ## Permission Matrix (dari `MasterPermissionSeeder`)
 
@@ -159,7 +160,14 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 | `edit feedbacks` | ✓ | ✓ | ✓ | Edit milik sendiri saat masih `open` |
 | `delete feedbacks` | ✓ | ✓ | ✓ | Hapus (pemilik saat open / pengelola kapan pun) |
 | `respond feedbacks` | ✓ | ✓ | ✗ | Menulis `admin_response` |
-| `manage feedbacks` | ✓ | ✓ | ✗ | Tab All, ubah status, hapus feedback siapa pun |
+| `manage feedbacks` | ✓ | ✓ | ✗ | Tab All, ubah status, hapus feedback siapa pun (hanya via endpoint; UI tidak menampilkan tombolnya) |
+
+### Panduan & video tutorial
+
+1. Tombol **Tutorial** di header halaman Feedback (`<TutorialButton slug="feedbacks" />`, di samping **Kirim Feedback**) membuka video per role; teks lengkap di `/panduan/feedbacks`.
+2. Isi panduan: `video/feedbacks/guide.ts` (alur Terbuka → Diproses → Selesai → Ditutup, cara mengirim/menanggapi, dampak notifikasi, peringatan). Video: `video/feedbacks/tutorial.tsx` (`FeedbacksStaff`, `FeedbacksFinanceManager`, `FeedbacksAdmin`), langkah di `steps.ts`, koordinat di `shots.ts`.
+3. Ambil ulang screenshot: jalankan server QC di port 8017, lalu `video/capture/feedbacks.js` lewat Playwright MCP. Skrip itu membuat 2 feedback milik `staff@qc.test` (Fitur → Diproses, Bug → Selesai, lampiran `video/capture/fixtures/feedback-tangkapan-layar.png`) beserta notifikasinya; hapus dulu keduanya bila ingin mengulang. Lalu `python video/capture/to-webp.py feedbacks`.
+4. Perubahan alur status, tombol, atau notifikasi modul ini harus diikuti pembaruan `guide.ts`, ambil ulang screenshot, dan `shots.ts`/`steps.ts`.
 
 ## Keterkaitan Antar Modul
 
@@ -182,7 +190,7 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 
 ## File Kunci
 
-- `routes/web.php` (baris 417–436 — blok feedbacks)
+- `routes/web.php` (baris 428–446 — blok feedbacks)
 - `app/Http/Controllers/FeedbackController.php`
 - `app/Models/Feedback.php`
 - `app/Http/Requests/StoreFeedbackRequest.php`, `UpdateFeedbackRequest.php`, `RespondFeedbackRequest.php`, `ChangeStatusFeedbackRequest.php`

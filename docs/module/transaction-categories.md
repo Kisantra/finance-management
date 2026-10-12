@@ -47,7 +47,7 @@ $categories = TransactionCategory::with(['parent'])
 
 **Alur step-by-step:**
 
-1. User klik tambah → dialog form: SegmentedControl `type`, input `label`, Combobox `parent_id` (opsi `parentOptions` difilter bertipe sama), Combobox `pl_group` opsional.
+1. User klik **Tambah Kategori** → dialog form: grid tombol **Tipe** (5 tombol; mengklik salah satunya mengosongkan `parent_id` & `pl_group`), input **Nama Kategori**, Combobox **Grup Laba Rugi (opsional)** (hanya tampil untuk income/expense, opsi difilter sesuai tipe), Combobox **Parent Kategori (opsional)** (opsi `parentOptions` difilter bertipe sama; hanya tampil bila ada kandidat).
 2. `POST /transaction-categories` payload `{type, pl_group?, label, parent_id?}`.
 3. Middleware `can:manage categories`; validasi `StoreTransactionCategoryRequest`:
 
@@ -96,7 +96,7 @@ $transactionCategory->update(['pl_group' => $validated['pl_group'] ?? null]);
 
 **Alur step-by-step:**
 
-1. User klik hapus. UI menghitung `deleteUsageCount = transactions_count + fund_request_items_count + reimbursements_count`; jika > 0, ConfirmDialog menampilkan Combobox **kategori pengganti** (`reassignOptions` difilter: tipe sama & bukan dirinya sendiri — `index.tsx` baris ~280).
+1. User klik hapus (ikon dinonaktifkan + tooltip bila `children_count > 0`). UI menghitung `deleteUsageCount = transactions_count + fund_request_items_count + reimbursements_count`; jika 0 → `ConfirmDialog` biasa (tombol **Hapus**); jika > 0 → `Dialog` berisi rincian pemakaian + Combobox **Pindahkan ke Kategori** (`reassignOptions` difilter: tipe sama & bukan dirinya sendiri — `index.tsx` baris ~281; opsi juga memuat kategori utama) dan tombol **Pindahkan & Hapus**.
 2. `DELETE /transaction-categories/{id}` payload `{reassign_to_id?}` → middleware `can:manage categories`.
 3. Guard bertingkat di `destroy()`:
    - Punya sub-kategori (`children()->exists()`) → **ditolak**: "Kategori ini memiliki sub-kategori. Hapus sub-kategori terlebih dahulu." (reassign tidak berlaku untuk parent yang masih punya anak).
@@ -162,6 +162,14 @@ BankTransaction::create([..., 'category_id' => $category?->id]);
 
 **PERHATIAN (lihat Jebakan):** lookup ini masih memakai kolom `code`, padahal kolom tersebut sudah di-drop oleh migration 2026-02-05.
 
+### Panduan & video tutorial
+
+1. Tombol **Tutorial** (`<TutorialButton slug="transaction-categories" />`) di header halaman, di samping **Tambah Kategori**, membuka video per role; halaman `/panduan/transaction-categories` memuat panduan teks yang sama. Staff tidak punya akses modul ini, jadi hanya ada video **Finance manager** dan **Admin**.
+2. Isi panduan: `video/transaction-categories/guide.ts`. Video: `video/transaction-categories/tutorial.tsx` (komposisi `TransactionCategoriesFinanceManager`, `TransactionCategoriesAdmin`), `steps.ts`, `shots.ts`, `screens/*.webp`.
+3. Video Admin menjelaskan dampak: tipe → halaman Arus Kas, `pl_group` → baris Laba Rugi (berlaku mundur), Pindahkan & Hapus (memindahkan `bank_transactions`, `fund_request_items`, `reimbursements`), picker yang hanya menawarkan sub kategori, dan peringatan bahwa opsi reassign juga memuat kategori utama.
+4. `/panduan/transaction-categories` publik (tanpa login), jadi screenshot wajib dari DB QC. Ambil ulang screenshot: jalankan `video/capture/bank-accounts.js` lebih dulu (membuat "Langganan Software" & "Biaya Langganan (lama)" + transaksinya), lalu `video/capture/transaction-categories.js` lewat Playwright MCP, `python video/capture/to-webp.py transaction-categories`, dan salin koordinat ke `shots.ts`. Skrip hanya mengubah kategori buatannya sendiri.
+5. Perubahan UI/label/alur modul ini wajib diikuti pembaruan `guide.ts` dan, bila tampilan berubah, ambil ulang screenshot + `shots.ts`/`steps.ts`. Pratinjau: `npm run video`; render: `npm run video:render -- TransactionCategoriesAdmin out/x.mp4`.
+
 ## Keterkaitan Antar Modul
 
 - **Cash Flow** — `type` kategori menentukan halaman (income/expense/transfer) tempat transaksi muncul; picker income/expense/transfer memakai `selectOptions()`/`/api/transaction-categories`.
@@ -181,6 +189,9 @@ BankTransaction::create([..., 'category_id' => $category?->id]);
 - **`pl_group` NULL = belum masuk P&L.** Kategori income/expense tanpa `pl_group` tidak terklasifikasi di Laba Rugi; gunakan filter `unclassified` untuk audit.
 - **JEBAKAN AKTIF — kolom `code` sudah tidak ada.** Skema saat ini (pasca migration `2026_02_05_..._remove_code_add_parent_id`) tidak lagi punya kolom `code`, tetapi `LoanController` dan `ReceivableController` masih menjalankan `TransactionCategory::where('code', 'FIN-LOAN-IN')` dll. Query ke kolom yang tidak ada akan melempar `QueryException` saat fitur loan/receivable membuat transaksi otomatis. Perbaikan yang konsisten: identifikasi kategori sistem dengan mekanisme lain (mis. label/seeder id) atau kembalikan kolom `code` — jangan menulis kode baru yang bergantung pada `code`.
 - `store()` punya dua mode respons (redirect vs JSON 201 `wantsJson()`); jaga kompatibilitas keduanya saat mengubah method ini.
+- **Tidak ada guard parent = diri sendiri / parent bertingkat.** Form Edit menawarkan semua kategori utama setipe sebagai parent, termasuk kategori yang sedang diedit, dan `StoreTransactionCategoryRequest` hanya memeriksa `exists`. Memilihnya membuat `parent_id = id` sendiri (kategori lenyap dari picker `selectOptions()` beserta anaknya); memberi parent pada kategori utama yang punya anak membuat hierarki tiga level.
+- **Quick-add kategori dari form transaksi** (`components/shared/quick-add-category-dialog.tsx`) memakai opsi grup dari `/api/transaction-categories?type=credit|debit`, yang juga memuat kelompok `transfer`/`adjustment`; sub kategori baru (tipe income/expense) bisa tercipta di bawah kelompok bertipe lain. Tombol **+ Tambah** juga tidak digate `manage categories` di frontend (server tetap menolak 403).
+- **`/api/transaction-categories` (dan `/api/bank-accounts`, `/api/clients`) berada di luar grup `auth`** di `routes/web.php` — bisa dibaca tanpa login.
 
 ## File Kunci
 

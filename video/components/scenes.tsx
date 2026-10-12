@@ -71,7 +71,7 @@ export function RolesScene({ cards, title = 'Peran di modul ini' }: { cards: Gui
                 {title}
             </h2>
             <p style={useEnter(5)} className="mt-2 text-lg text-ob-ink-2">
-                Tombol yang muncul di layar menyesuaikan peran Anda.
+                Apa yang bisa dilakukan setiap peran di modul ini.
             </p>
             <div className="mt-10 grid gap-5" style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))` }}>
                 {cards.map((card, i) => {

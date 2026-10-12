@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Building2, ChevronRight, FileText, Hash, KeyRound, User, type LucideIcon } from 'lucide-react';
 import * as React from 'react';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
 
@@ -71,9 +72,12 @@ export default function SettingsIndex() {
             <Head title="Pengaturan" />
 
             <div className="mx-auto flex w-full max-w-180 flex-col gap-6">
-                <div>
-                    <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Pengaturan</h1>
-                    <p className="mt-1 text-sm text-ob-ink-2">Akun Anda, identitas perusahaan, dan aturan dokumen invoice.</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Pengaturan</h1>
+                        <p className="mt-1 text-sm text-ob-ink-2">Akun Anda, identitas perusahaan, dan aturan dokumen invoice.</p>
+                    </div>
+                    <TutorialButton slug="settings" className="self-start" />
                 </div>
 
                 {groups.map((group) => (

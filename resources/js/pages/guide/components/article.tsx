@@ -194,7 +194,7 @@ export function GuideArticle({ guide }: { guide: ModuleGuide }) {
                     </Section>
                 )}
 
-                <Section id="peran-modul" title="Siapa melakukan apa" lead="Tombol yang muncul di layar menyesuaikan peran akun.">
+                <Section id="peran-modul" title="Siapa melakukan apa" lead="Hak akses bawaan setiap peran. Admin dapat mengubahnya di Pengguna & Izin.">
                     <div
                         className={cn(
                             'grid overflow-hidden rounded-3xl border border-ob-line bg-ob-card',

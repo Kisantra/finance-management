@@ -1,6 +1,6 @@
 # Modul: Recurring Invoices
 
-> Otomasi penagihan berulang: user membuat **template** per klien (frekuensi monthly/quarterly/semi_annual/annual berisi snapshot item invoice dalam JSON), lalu tiap bulan men-generate **draft recurring invoice** dari template yang jatuh tempo, dan mem-**publish** draft menjadi Invoice sungguhan di tabel `invoices`. Route prefix: `/recurring-invoices`; permission: `view recurring-invoices`, `create recurring-invoices`, `edit recurring-invoices` (lihat `routes/web.php` baris ±208–254). Generate bersifat **manual** dari UI — tidak ada scheduled task.
+> Otomasi penagihan berulang: user membuat **template** per klien (frekuensi monthly/quarterly/semi_annual/annual berisi snapshot item invoice dalam JSON), lalu tiap bulan men-generate **draft recurring invoice** dari template yang jatuh tempo, dan mem-**publish** draft menjadi Invoice sungguhan di tabel `invoices`. Route prefix: `/recurring-invoices`; permission: `view recurring-invoices`, `create recurring-invoices`, `edit recurring-invoices` (lihat `routes/web.php` baris ±218–264). Seeder juga membuat `delete recurring-invoices` dan `publish recurring-invoices`, tetapi **tidak dipakai** route mana pun: hapus template/draft dan publish dijaga `can:edit recurring-invoices`. Default seeder: Admin & Finance manager punya kelimanya, Staff tidak punya akses. Generate bersifat **manual** dari UI — tidak ada scheduled task.
 
 ## Tabel Database
 
@@ -89,7 +89,7 @@ Siklus maju dari `start_date` per interval; bulan penagihan pertama adalah **sat
 5. Respons JSON `{generated, message}`.
 
 ### Monthly Draft — Store / Update / Destroy (manual per-draft)
-**Alur:** POST `/recurring-invoices/monthly` (`StoreMonthlyRequest`) membuat satu draft manual dari template terpilih — ditolak 422 bila sudah ada draft template+bulan yang sama; `invoice_data` disusun ulang via `buildInvoiceData` dari item yang diedit user. PUT `/monthly/{invoice}` (`UpdateMonthlyRequest`) mengubah `scheduled_date`/tanggal/`invoice_data` — **ditolak 422 jika status `published`**. DELETE `/monthly/{invoice}` juga menolak draft yang sudah published. Semua respons JSON.
+**Alur:** POST `/recurring-invoices/monthly` (`StoreMonthlyRequest`) membuat satu draft manual dari template terpilih — `template_id` **wajib** (padahal Combobox di modal berlabel "Template (opsional)"); ditolak 422 bila sudah ada baris template+bulan yang sama; tidak dicek terhadap siklus valid/masa berlaku template. `invoice_data` disusun ulang via `buildInvoiceData` dari item yang diedit user. PUT `/monthly/{invoice}` (`UpdateMonthlyRequest`) mengubah `scheduled_date`/tanggal/`invoice_data` — **ditolak 422 jika status `published`**; tidak ada cek duplikat bulan saat `scheduled_date` dipindah. Catatan: kedua request tidak punya rule `items.*.unit`, sehingga `validated()` membuang satuan dan `buildInvoiceData` mengisi `'pcs'` untuk semua item draft manual/yang diedit. DELETE `/monthly/{invoice}` juga menolak draft yang sudah published. Semua respons JSON.
 
 ### Publish (draft → Invoice sungguhan)
 **Alur step-by-step:**
@@ -108,34 +108,44 @@ $invoice = Invoice::create([
 foreach ($this->items as $itemData) { $invoice->items()->create([...]); }
 $this->update(['status' => 'published', 'published_invoice_id' => $invoice->id]);
 ```
-Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah published, mengembalikan `publishedInvoice` yang ada). Perhatikan dua hal: (1) sejak 2026-10-08 invoice hasil publish **tidak diberi nomor** — sama dengan invoice manual, nomor resmi diberikan saat "Kirim" lewat `InvoiceNumberService` (sebelumnya publish memberi nomor lewat generator salinan sendiri padahal statusnya `draft`, dan tidak ikut format yang diatur); (2) `is_tax_deposit` dan `unit` **tidak disalin** ke `invoice_items` (hanya service_name, quantity, unit_price, amount, cogs_amount). `due_date` fallback = issue/scheduled + 30 hari.
+Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah published, mengembalikan `publishedInvoice` yang ada). Perhatikan dua hal: (1) sejak 2026-10-08 invoice hasil publish **tidak diberi nomor** — sama dengan invoice manual, nomor resmi diberikan saat "Kirim" lewat `InvoiceNumberService` (sebelumnya publish memberi nomor lewat generator salinan sendiri padahal statusnya `draft`, dan tidak ikut format yang diatur); (2) `is_tax_deposit` dan `unit` **tidak disalin** ke `invoice_items` (hanya service_name, quantity, unit_price, amount, cogs_amount) — item titipan pajak menjadi item biasa padahal `subtotal`/`total_amount` yang disalin tidak memuat nilainya, dan satuan jatuh ke default `pcs`; (3) `client_id` tiap item diisi klien template, bukan klien per baris di `invoice_data`. `publish()` tidak dibungkus transaksi DB. `due_date` fallback = issue/scheduled + 30 hari.
 
 ### Bulk Publish & Bulk Destroy
-**Alur:** POST `/monthly/bulk-publish` (payload `ids[]`, `issue_date`, `due_date`) — loop publish semua draft terpilih; kegagalan per-item dicatat ke log tanpa menghentikan sisanya; respons `{published}`. POST `/monthly/bulk-destroy` (payload `ids[]`) — `whereIn(id)->where('status','draft')->delete()`; yang published otomatis kebal terhapus.
+**Alur:** POST `/monthly/bulk-publish` (payload `ids[]`, `issue_date`, `due_date`) — loop publish semua draft terpilih; kegagalan per-item dicatat ke log tanpa menghentikan sisanya; respons `{published}`. POST `/monthly/bulk-destroy` (payload `ids[]`) — `whereIn(id)->where('status','draft')->delete()`; yang published otomatis kebal terhapus. Di UI, tombol **Hapus** pada bilah aksi massal langsung memanggil endpoint ini **tanpa dialog konfirmasi** (hapus satuan memakai `ConfirmDialog`).
 
 ### Analytics
 **Alur:** Bagian dari index (query `analytics_year`, `analytics_period`). `buildAnalytics()` menghitung dari `invoice_data` (bukan tabel invoices!): total revenue tahun berjalan vs tahun lalu + growth rate, revenue per bulan/kuartal untuk chart, performa per template (revenue, success rate = published/total, profit margin dari `amount − cogs_amount` item), dan breakdown status draft vs published.
+
+### Panduan & video tutorial
+
+- Tombol **Tutorial** di header halaman (`<TutorialButton slug="recurring-invoices" />` di `resources/js/pages/recurring-invoices/index.tsx`, di samping **Buat Template** / **Generate Otomatis**) dan halaman `/panduan` membaca `video/recurring-invoices/guide.ts` (peran, alur, tugas, dampak, contoh invoice hasil publish, peringatan, matriks hak akses) dan `video/recurring-invoices/tutorial.tsx` (komposisi Remotion `RecurringInvoicesFinanceManager`, `RecurringInvoicesAdmin`; Staff tidak punya akses ke modul ini sehingga tidak punya video).
+- Isi video: Finance manager membuat template, generate draft Oktober 2026, menyesuaikan draft, publish satuan/massal, analitik; Admin melihat dampak publish di menu Invoice (invoice Draft tanpa nomor, satuan menjadi pcs, belum masuk **Total ditagih**), peringatan, lalu arsip vs hapus template.
+- File: `video/recurring-invoices/{guide.ts, shots.ts, steps.ts, tutorial.tsx, screens/*.webp}`; capture `video/capture/recurring-invoices.js` (login sebagai `fm@qc.test` lalu `admin@gmail.com`).
+- Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8012`), jalankan `video/capture/services.js` dulu (butuh layanan contoh), lalu `video/capture/recurring-invoices.js` lewat Playwright MCP (`browser_run_code_unsafe`). Skrip ini **menulis** ke DB QC (2 template, draft Oktober 2026, 1 publish = 1 invoice draft), jadi hapus data itu dulu sebelum mengulang. Lalu `python video/capture/to-webp.py recurring-invoices` dan salin koordinat ke `shots.ts`. Pratinjau: `npm run video`.
 
 ## Keterkaitan Antar Modul
 - **Invoices:** `publish()` menulis ke `invoices` + `invoice_items`; setelah itu invoice mengikuti alur normal (send, payment, PDF). `published_invoice_id` menautkan balik.
 - **Clients:** `client_id` di template & draft; inisial klien untuk nomor invoice dipakai saat invoice hasil publish dikirim.
 - **Services:** master pilihan item saat menyusun template/draft (snapshot, bukan FK).
-- **Dashboard/Sidebar:** jumlah draft recurring dipakai sebagai action count.
+- **Clients:** menghapus klien (`Client::delete()` + FK `onDelete('cascade')`) ikut menghapus template & semua baris `recurring_invoices` klien itu — termasuk yang published — serta invoice klien itu.
+- **Invoices (hapus):** FK `published_invoice_id` `onDelete('set null')` — bila invoice hasil publish dihapus, baris recurring tetap `published` tanpa tautan, tidak bisa dihapus, dan bulan itu tidak bisa di-generate ulang untuk template tersebut.
+- **Notifications:** invoice hasil publish berstatus `draft` sehingga ikut `invoices:notify-due-dates` (H-3 & H-0, pukul 08.00) ke Admin & Finance manager selama belum dikirim.
+- **Dashboard/Sidebar:** tidak ada action count atau widget yang membaca tabel recurring (hanya entri menu **Keuangan › Invoice Berulang**).
 
 ## Invarian & Jebakan
 - **Satu recurring invoice per template per bulan** — dicek di `generateMonthly` dan `storeMonthly`; generate aman diulang (idempoten).
 - Draft `published` **tidak bisa** diedit/dihapus; bulk-destroy diam-diam melewati yang published.
 - Semua angka finansial recurring hidup di JSON (`invoice_template`/`invoice_data`) — analytics & stats membacanya langsung; mengubah template **tidak** mengubah draft yang sudah tergenerate (data disalin saat generate).
 - Subtotal template mengecualikan item `is_tax_deposit` (beda dengan invoice manual); dan saat publish, flag `is_tax_deposit` + `unit` tidak ikut tersalin ke `invoice_items`.
-- Invoice hasil publish berstatus `draft` tetapi **sudah ber-nomor** — nomor mengambil sequence bulan `issue_date`, jadi pilih issue_date dengan sadar saat publish agar penomoran bulan benar.
+- Invoice hasil publish berstatus `draft` dan **belum ber-nomor** (`invoice_number` null) — nomor resmi baru diberikan saat "Kirim invoice" di modul Invoice (`InvoiceNumberService`).
 - Bulan penagihan pertama = start_date + 1 interval (bukan bulan start_date itu sendiri).
 - Template dengan invoice terpublish tidak pernah dihapus, hanya `archived` (destroyTemplate).
 - Nominal integer rupiah penuh di semua field JSON; `quantity` pada recurring divalidasi **integer** min 1.
 
 ## File Kunci
-- `routes/web.php` (baris ±208–254) — route templates/monthly/bulk
+- `routes/web.php` (baris ±218–264) — route templates/monthly/bulk
 - `app/Http/Controllers/RecurringInvoiceController.php`
 - `app/Http/Requests/StoreTemplateRequest.php`, `UpdateTemplateRequest.php`, `StoreMonthlyRequest.php`, `UpdateMonthlyRequest.php`
-- `app/Models/RecurringTemplate.php` (siklus interval), `app/Models/RecurringInvoice.php` (`publish()`, penomoran)
+- `app/Models/RecurringTemplate.php` (siklus interval), `app/Models/RecurringInvoice.php` (`publish()`)
 - `app/Models/Invoice.php`, `app/Models/InvoiceItem.php` (target publish)
 - `resources/js/pages/recurring-invoices/index.tsx`, `create-template.tsx`, `edit-template.tsx`

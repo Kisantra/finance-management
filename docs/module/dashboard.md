@@ -12,8 +12,6 @@ Dashboard **tidak punya tabel sendiri** — seluruhnya agregasi read-only dari t
 | `bank_transactions` | Pemasukan/pengeluaran bulan ini, grafik cash flow 6 bulan, pengeluaran per kategori, transaksi terbaru |
 | `payments` | Total pendapatan sepanjang waktu, pembayaran invoice tertunda, feed transaksi |
 | `invoices` + `invoice_items` | Invoice tertunda (`sent`, `partially_paid`, `overdue`), HPP (`cogs_amount`), basis PP (item non `is_tax_deposit`) |
-| `reimbursements` | 5 reimbursement terbaru |
-| `fund_requests` | 5 pengajuan dana terbaru |
 
 ## Fitur
 
@@ -23,7 +21,7 @@ Dashboard **tidak punya tabel sendiri** — seluruhnya agregasi read-only dari t
 1. User terautentikasi (grup middleware `auth`, `verified`) membuka `/dashboard` → `DashboardController::__invoke()`.
 2. Route **tidak** memakai middleware `can:` — cek permission dilakukan di dalam controller karena butuh fallback redirect, bukan 403.
 3. Bila user **tidak** punya permission `view dashboard`, controller me-redirect ke route `cash-flow.expenses` (halaman Pengeluaran) — fallback tetap (hardcoded), bukan pencarian dinamis "modul pertama yang boleh diakses".
-4. Bila punya permission, controller merender `Inertia::render('dashboard', [...])` dengan 9 blok props.
+4. Bila punya permission, controller merender `Inertia::render('dashboard', [...])` dengan props `generatedAt`, `period`, `financialOverview`, `stats`, `cashFlowChart` (lazy), `accountOptions`, `expensesByCategory`, `incomeByCategory`, `bankAccounts`, `pendingInvoices`, `recentTransactions`.
 
 **Penjelasan kode:**
 
@@ -152,17 +150,26 @@ if ($user->can('disburse fund requests')) {
 }
 ```
 
+### Panduan & video tutorial
+
+- Tombol **Tutorial** di header Ringkasan (`<TutorialButton slug="dashboard" />`, di samping **Buat Invoice**) dan halaman `/panduan/dashboard` membaca `video/dashboard/guide.ts` (peran, cara membaca tiap kartu, asal setiap angka, dampak, peringatan, matriks hak akses) dan `video/dashboard/tutorial.tsx` (komposisi Remotion `DashboardStaff`, `DashboardFinanceManager`, `DashboardAdmin`).
+- Isi video: Staff membaca saldo/arus bulan ini, mengatur grafik (periode, rekening, kalender rentang), donat kategori, invoice belum dibayar, rekening, transaksi terbaru, strip Sepanjang waktu; Finance manager memakai tautan lanjut (Lihat pengeluaran, Lihat semua, Semua rekening, Lihat arus kas → Pemasukan, Laporan Laba Rugi) + jebakan transfer antar rekening; Admin melihat asal angka (saldo computed = Ringkasan Total di Rekening Bank, transfer menggelembungkan pemasukan & pengeluaran, Sepanjang waktu) dan mengatur izin `view dashboard` (tanpa `view expense` → halaman **Akses ditolak**).
+- File: `video/dashboard/{guide.ts, shots.ts, steps.ts, tutorial.tsx, screens/*.webp}`; capture `video/capture/dashboard.js` (hanya membaca, tidak menulis data).
+- Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8017`), `video/capture/dashboard.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py dashboard` dan salin koordinat ke `shots.ts`. `staff-forbidden` harus diambil dengan `APP_DEBUG=false` (mis. `APP_DEBUG=false DB_DATABASE=finance_management_qc php artisan serve ...`) — dengan debug aktif Laravel menampilkan halaman 403 bawaan berbahasa Inggris, bukan halaman `error` **Akses ditolak** yang dilihat pengguna. Pratinjau: `npm run video`.
+- Bila rumus angka (saldo, pemasukan, pengeluaran, invoice tertunda, Sepanjang waktu), tautan lanjut, atau izin `view dashboard` berubah, perbarui `impacts`/`records`/`warnings`/`matrix` di `guide.ts` dan caption di `steps.ts`.
+
 ## Keterkaitan Antar Modul
 
 - **Cash Flow** — fallback redirect menuju `cash-flow.expenses`; grafik & stats bulanan bersumber dari `bank_transactions` yang dikelola modul Cash Flow / Bank Accounts.
 - **Bank Accounts** — semua angka saldo memakai accessor `balance` computed (`initial_balance + payments credit + tx credit - tx debit`); dashboard tidak pernah membaca saldo tersimpan.
 - **Invoices & Payments** — overview pendapatan, laba, outstanding, HPP, PP, invoice tertunda.
-- **Reimbursements & Fund Requests** — feed 5 terbaru; badge sidebar via shared prop `actionCounts`.
+- **Reimbursements & Fund Requests** — tidak dibaca `DashboardController` lagi; antreannya hanya tampil sebagai badge rel navigasi via shared prop `actionCounts`. Pembayaran reimbursement & pencairan dana tetap masuk angka Pengeluaran karena tercatat sebagai `bank_transactions` debit.
+- **Loans & Receivables** — penerimaan pinjaman / cicilan piutang (kredit) dan cicilan pinjaman / piutang yang diberikan (debit) adalah `bank_transactions`, jadi ikut angka Pemasukan/Pengeluaran bulan ini, grafik, dan donat.
 - **Permissions** — `view dashboard` adalah permission togglable per role (seed di `MasterPermissionSeeder`); mematikannya mengubah landing user menjadi halaman Pengeluaran.
 
 ## Invarian & Jebakan
 
-- **Fallback bukan dinamis** — implementasi nyata me-redirect tetap ke `cash-flow.expenses`, bukan mencari "modul pertama yang boleh diakses user". Jika role juga tidak punya `view cash flow`, user akan menabrak 403 di sana — pastikan role tanpa dashboard minimal punya akses cash flow.
+- **Fallback bukan dinamis** — implementasi nyata me-redirect tetap ke `cash-flow.expenses`, bukan mencari "modul pertama yang boleh diakses user". Jika role juga tidak punya `view expense`, user menabrak 403 di sana (halaman `error` **Akses ditolak**) tepat setelah login, dan tombol **Ke Dashboard** di halaman itu (`home_url` = `route('dashboard')`) membawanya kembali ke 403 yang sama — pastikan role tanpa dashboard minimal punya `view expense`. Staff bawaan tidak punya `view expense`.
 - **Berat secara query** — `getBankAccounts()`/`total_balance` memuat relasi payments+transactions per akun untuk saldo computed, `getByCategory()` dan `getCashFlowChart()` memuat koleksi lalu menjumlahkan di PHP. Tidak ada caching; hati-hati menambah blok baru.
 - **Definisi pemasukan harus sama di semua blok** — stats bulan ini dan seri grafik = kredit bank + Payment; `financialOverview.total_income` (sepanjang waktu) hanya Payment. Jangan menambah pemasukan Payment ke `bank_transactions` juga, karena saldo akan dihitung dua kali.
 - **Parameter grafik tidak pernah 422** — `DashboardChartRequest` menyaring dan memakai default; jangan mengganti dengan `validated()` tanpa fallback.
@@ -174,7 +181,7 @@ if ($user->can('disburse fund requests')) {
 ## File Kunci
 
 - `app/Http/Controllers/DashboardController.php` — invokable, seluruh agregasi
-- `routes/web.php` — `Route::get('/dashboard', DashboardController::class)->name('dashboard')` (baris ±106)
+- `routes/web.php` — `Route::get('/dashboard', DashboardController::class)->name('dashboard')` (baris ±114)
 - `app/Http/Requests/DashboardChartRequest.php` — parameter grafik (periode, rentang, rekening) dengan fallback
 - `resources/js/pages/dashboard.tsx` — halaman Ringkasan (grid Obsidian, partial reload grafik)
 - `resources/js/components/dashboard/` — `cash-flow-chart.tsx`, `donut-chart.tsx`, `widget.tsx` (kartu, daftar gulir, state kosong/gagal, pil status), `range-calendar.tsx` (kalender periode Arus Kas)
