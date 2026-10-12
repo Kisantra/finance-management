@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ChevronRight, Paperclip, Plus, Search } from 'lucide-react';
+import { ChevronRight, CircleHelp, Paperclip, Plus, Search } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
@@ -14,6 +14,8 @@ import { BTN, CARD, FIELD, longDate, rp } from '@/pages/invoices/components/ob';
 import { PersonAvatar, ReimbursementStatusPill, STATUS_LABEL, type ReimbursementStatus } from './components/rb';
 import { ReimbursementFormSheet, type CategoryOption } from './components/reimbursement-form-sheet';
 import type { PaginationMeta, ReimbursementFilters, ReimbursementRow, ReimbursementStats } from './types';
+
+const TutorialDialog = React.lazy(() => import('./components/tutorial-dialog'));
 
 /*
  * Daftar reimbursement (gaya Obsidian; pola referensi "Expense Approval Dashboard"): ringkasan
@@ -50,6 +52,8 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
     const [search, setSearch] = React.useState(filters.search ?? '');
     const [loading, setLoading] = React.useState(false);
     const [createOpen, setCreateOpen] = React.useState(false);
+    // null = belum pernah dibuka (Remotion belum diunduh); setelah itu tetap terpasang agar animasi tutup jalan.
+    const [tutorialOpen, setTutorialOpen] = React.useState<boolean | null>(null);
     const resource = useResource();
     const openId = resource?.type === 'reimbursement' ? resource.id : null;
 
@@ -139,6 +143,9 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                                 })}
                             </div>
                         )}
+                        <Button variant="outline" className={BTN.secondary} onClick={() => setTutorialOpen(true)} icon={<CircleHelp className="h-4 w-4" />}>
+                            Tutorial
+                        </Button>
                         <Button className={BTN.primary} onClick={() => setCreateOpen(true)} icon={<Plus className="h-4 w-4" />}>
                             Buat pengajuan
                         </Button>
@@ -328,6 +335,12 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                     </div>
                 </section>
             </div>
+
+            {tutorialOpen !== null && (
+                <React.Suspense fallback={null}>
+                    <TutorialDialog open={tutorialOpen} onOpenChange={setTutorialOpen} />
+                </React.Suspense>
+            )}
 
             <ReimbursementFormSheet
                 open={createOpen}

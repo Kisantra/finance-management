@@ -26,6 +26,8 @@ php artisan test                       # Run tests
 ./vendor/bin/pint                      # Format code
 php artisan pail                       # View logs real-time
 npm run build                          # Build for production
+npm run video                          # Remotion Studio (video tutorial, folder remotion/)
+npm run video:render -- <Id> out/x.mp4 # Render video, mis. ReimbursementStaff
 ```
 
 ---

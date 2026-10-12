@@ -18,6 +18,6 @@
             "@/*": ["./resources/js/*"]
         }
     },
-    "include": ["resources/js/**/*", "resources/js/**/*.d.ts"],
+    "include": ["resources/js/**/*", "resources/js/**/*.d.ts", "remotion/**/*", "remotion.config.ts"],
     "exclude": ["node_modules", "vendor", "public"]
 }

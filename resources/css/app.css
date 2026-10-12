@@ -13,9 +13,11 @@
    Sumber: .claude/design-systems/archipelago.md → "Obsidian".
    Kelas Tailwind: bg-ob-page, bg-ob-rail, bg-ob-card, bg-ob-inner, bg-ob-chip,
    bg-ob-hover, text-ob-ink, text-ob-ink-2, text-ob-ink-3, border-ob-line,
+   `.ob-light` memaksa token terang di dalam elemen (mis. pemutar video tutorial saat mode gelap).
    text-ob-pos / -neg / -wait / -late / -act (chip tinted: bg-ob-pos/15 dst.).
    ========================================================================= */
-:root {
+:root,
+.ob-light {
     --ob-page: #f6f6f8;
     --ob-rail: #efeff2;
     --ob-card: #ffffff;
