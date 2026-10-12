@@ -264,8 +264,17 @@ h1, h2, h3, h4, h5, h6,
     animation: ob-fade-in 150ms ease-out both;
 }
 
+/* Masuk halaman /panduan: naik 8 px + muncul, berjenjang lewat animation-delay di elemennya. */
+@keyframes ob-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+@utility ob-rise {
+    animation: ob-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .ob-fade-in { animation: none; }
+    .ob-fade-in, .ob-rise { animation: none; }
     .ob-motion, .ob-motion * {
         transition-duration: 0ms !important;
         animation-duration: 0ms !important;

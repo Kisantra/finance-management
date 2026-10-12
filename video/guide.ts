@@ -77,4 +77,6 @@ export interface ModuleGuide {
     matrixRoles?: Role[];
     /** Role Spatie yang melihat dampak/catatan/peringatan di halaman panduan. Default: ['admin']. */
     insightRoles?: string[];
+    /** Video "sekilas" (MP4 di public/, mis. video peluncuran) — tab pertama di panggung video /panduan. */
+    overview?: { src: string; poster: string; seconds: number };
 }

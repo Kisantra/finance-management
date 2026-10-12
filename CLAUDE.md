@@ -22,6 +22,8 @@ Panduan untuk pengguna (bukan dokumentasi teknis) ada di `video/<slug>/` — sat
 - `guide.ts` — isi panduan (`ModuleGuide`, skema di `video/guide.ts`): peran, alur, langkah per tugas, **dampak ke modul lain / data otomatis / perhatian** (khusus admin). Sumber yang sama dipakai teks halaman dan adegan video.
 - `shots.ts` + `screens/*.webp` (screenshot QC, diambil `video/capture/<slug>.js` lalu `python video/capture/to-webp.py <slug>`), `steps.ts` (walkthrough), `tutorial.tsx` (`TUTORIALS` per role).
 
+**Akses:** `/panduan` **selalu publik** (di luar grup `auth`) agar calon pengguna bisa belajar sebelum punya akun — **juga saat sudah login**: halaman ini tidak pernah memakai `AppLayout`, melainkan kerangkanya sendiri (`pages/guide/components/shell.tsx`), dan semua orang melihat semua modul, semua peran, dan semua bagian (bedanya hanya tombol kanan: "Masuk" / "Buka aplikasi"). Penyaringan per peran ada di lensa "Baca sebagai" (`?peran=staff|fm|admin`). Dialog Tutorial di dalam aplikasi tetap menyaring tab sesuai peran (`components/tutorial/access.ts`). Karena publik, screenshot & contoh di panduan WAJIB memakai data contoh (DB QC), jangan data perusahaan asli. Video "Sekilas" per modul = field `overview` di `guide.ts` (MP4 di `public/videos/panduan/`).
+
 **Aturan pemeliharaan:** perubahan perilaku/label/hak akses modul WAJIB juga memperbarui `video/<slug>/guide.ts` (dan screenshot/steps bila tampilan berubah) — kalau tidak, panduan & video mengajarkan hal yang salah. Folder bernama `video/` (bukan `remotion/`) agar tidak bentrok dengan paket npm `remotion`.
 
 ## Common Commands

@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { BTN, SURFACE } from '@/pages/invoices/components/ob';
+import type { TutorialVideosProps } from './tutorial-videos';
 
-type VideosProps = { autoPlay?: boolean; fitViewport?: boolean };
+type VideosProps = Omit<TutorialVideosProps, 'tutorials'>;
 
 const cache = new Map<string, React.LazyExoticComponent<React.ComponentType<VideosProps>>>();
 

@@ -46,6 +46,12 @@ use Inertia\Inertia;
 
 Route::redirect('/', '/login')->name('home');
 
+// Panduan (dokumentasi + video tutorial per modul; isi di video/<modul>/guide.ts) sengaja publik:
+// calon pengguna mempelajari sistem sebelum punya akun. Isinya data contoh, bukan data perusahaan.
+Route::get('/panduan/{slug?}', fn (?string $slug = null) => Inertia::render('guide/index', ['slug' => $slug]))
+    ->where('slug', '[a-z0-9-]+')
+    ->name('guide');
+
 // ============================================================================
 // AUTHENTICATED ROUTES
 // ============================================================================
@@ -106,13 +112,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // DASHBOARD
     // ------------------------------------------------------------------------
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
-
-    // ------------------------------------------------------------------------
-    // PANDUAN (dokumentasi + video tutorial per modul; isi di video/<modul>/guide.ts)
-    // ------------------------------------------------------------------------
-    Route::get('/panduan/{slug?}', fn (?string $slug = null) => Inertia::render('guide/index', ['slug' => $slug]))
-        ->where('slug', '[a-z0-9-]+')
-        ->name('guide');
 
     // ponytail: redirect sandbox GET to new module; keep save/pdf routes for test backward-compat.
     Route::get('/template-builder-test', fn () => redirect()->route('settings.pdf-templates.index'))->name('template-builder-test');

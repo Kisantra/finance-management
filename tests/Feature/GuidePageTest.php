@@ -11,9 +11,23 @@ class GuidePageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_is_redirected_to_login(): void
+    public function test_guest_can_open_guide_index_without_login(): void
     {
-        $this->get('/panduan')->assertRedirect('/login');
+        $this->get('/panduan')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('guide/index', false)->where('slug', null)->where('auth.user', null));
+    }
+
+    public function test_guest_can_open_module_guide_without_login(): void
+    {
+        $this->get('/panduan/bank-accounts')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('guide/index', false)->where('slug', 'bank-accounts')->where('auth.user', null));
+    }
+
+    public function test_guest_module_link_still_requires_login(): void
+    {
+        $this->get('/bank-accounts')->assertRedirect('/login');
     }
 
     public function test_guide_index_renders_without_slug(): void
@@ -34,8 +48,6 @@ class GuidePageTest extends TestCase
 
     public function test_invalid_slug_is_not_found(): void
     {
-        $this->actingAs(User::factory()->create())
-            ->get('/panduan/Bad_Slug')
-            ->assertNotFound();
+        $this->get('/panduan/Bad_Slug')->assertNotFound();
     }
 }

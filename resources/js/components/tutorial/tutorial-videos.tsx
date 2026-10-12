@@ -17,39 +17,64 @@ export function duration(frames: number): string {
  * Tab video per role + Player + bab. Komposisi Remotion diputar langsung lewat @remotion/player (tanpa MP4).
  * Modul ini berat (Remotion) — selalu dimuat lazy lewat TutorialVideosLazy.
  */
-export default function TutorialVideos({ tutorials, autoPlay = false, fitViewport = false }: { tutorials: Tutorials; autoPlay?: boolean; fitViewport?: boolean }) {
-    const roles = usePage<{ auth: { roles?: string[] } }>().props.auth.roles ?? [];
-    const keys = visibleRoleKeys(roles).filter((k) => tutorials[k]);
-    const fallback = keys.includes(primaryRoleKey(roles)) ? primaryRoleKey(roles) : keys.at(-1);
-    const [tab, setTab] = React.useState<RoleKey | undefined>(fallback);
+/** Tab tambahan di depan tab peran, mis. video "Sekilas" (MP4) di halaman panduan. */
+export type LeadingTab = { key: string; label: string; meta: string; render: () => React.ReactNode };
 
-    if (!tab || !tutorials[tab]) {
+export interface TutorialVideosProps {
+    tutorials: Tutorials;
+    autoPlay?: boolean;
+    fitViewport?: boolean;
+    /** Tab peran yang tampil. Default: sesuai peran pengguna yang login (dialog Tutorial di aplikasi). */
+    roleKeys?: RoleKey[];
+    /** Tab yang dibuka pertama (kunci peran atau `leading.key`). */
+    initial?: string;
+    leading?: LeadingTab;
+}
+
+export default function TutorialVideos({ tutorials, autoPlay = false, fitViewport = false, roleKeys, initial, leading }: TutorialVideosProps) {
+    const roles = usePage<{ auth: { roles?: string[] } }>().props.auth.roles ?? [];
+    const keys = (roleKeys ?? visibleRoleKeys(roles)).filter((k) => tutorials[k]);
+    const tabs: string[] = [...(leading ? [leading.key] : []), ...keys];
+    const fallback = leading?.key ?? (roleKeys ? keys[0] : keys.includes(primaryRoleKey(roles)) ? primaryRoleKey(roles) : keys.at(-1));
+    const [tab, setTab] = React.useState<string | undefined>(initial && tabs.includes(initial) ? initial : fallback);
+
+    // Di layar sempit daftar tab menggulir ke samping: geser agar tab aktif terlihat (tanpa menggulir halaman).
+    const tablist = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        const list = tablist.current;
+        const el = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+        if (list && el && list.scrollWidth > list.clientWidth) list.scrollLeft = el.offsetLeft - list.clientWidth / 2 + el.offsetWidth / 2;
+    }, [tab]);
+
+    if (!tab || (tab !== leading?.key && !tutorials[tab as RoleKey])) {
         return <p className="rounded-2xl bg-ob-inner p-5 text-[13px] text-ob-ink-2">Belum ada video tutorial untuk peran Anda di modul ini.</p>;
     }
 
+    const tabButton = (key: string, label: string, meta: string) => {
+        const on = tab === key;
+        return (
+            <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setTab(key)}
+                className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
+            >
+                {label} <span className={cn('tabular-nums', on ? 'opacity-70' : 'text-ob-ink-3')}>· {meta}</span>
+            </button>
+        );
+    };
+
     return (
         <div>
-            {keys.length > 1 && (
-                <div role="tablist" aria-label="Tutorial per peran" className="ob-no-scrollbar mb-4 flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
-                    {keys.map((key) => {
-                        const t = tutorials[key]!;
-                        const on = tab === key;
-                        return (
-                            <button
-                                key={key}
-                                type="button"
-                                role="tab"
-                                aria-selected={on}
-                                onClick={() => setTab(key)}
-                                className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
-                            >
-                                {t.role.label} <span className={cn('tabular-nums', on ? 'opacity-70' : 'text-ob-ink-3')}>· {duration(t.frames)}</span>
-                            </button>
-                        );
-                    })}
+            {tabs.length > 1 && (
+                <div ref={tablist} role="tablist" aria-label="Video per peran" className="ob-no-scrollbar relative mb-4 flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                    {leading && tabButton(leading.key, leading.label, leading.meta)}
+                    {keys.map((key) => tabButton(key, tutorials[key]!.role.label, duration(tutorials[key]!.frames)))}
                 </div>
             )}
-            <TutorialPlayer key={tab} tutorial={tutorials[tab]!} autoPlay={autoPlay} fitViewport={fitViewport} />
+            {leading && tab === leading.key ? leading.render() : <TutorialPlayer key={tab} tutorial={tutorials[tab as RoleKey]!} autoPlay={autoPlay} fitViewport={fitViewport} />}
         </div>
     );
 }
