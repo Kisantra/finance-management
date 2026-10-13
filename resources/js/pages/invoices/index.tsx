@@ -48,6 +48,7 @@ interface Stats {
     invoice_count: number;
     total_revenue: number;
     total_ppn: number;
+    ppn_invoice_count: number;
     total_paid: number;
     total_outstanding: number;
     outstanding_count: number;
@@ -78,6 +79,8 @@ interface Props extends SharedProps {
     customTemplates: CustomTemplate[];
     selectedInvoiceId: number | null;
     filters: Filters;
+    /** Perusahaan PKP (Pengaturan › Profil perusahaan). */
+    ppnEnabled: boolean;
 }
 
 /* ─────────────────────────────────── konstanta ─── */
@@ -113,7 +116,7 @@ const PILL =
 
 /* ─────────────────────────────────── halaman ─── */
 
-function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoiceId, filters }: Props) {
+function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoiceId, filters, ppnEnabled }: Props) {
     const f = {
         search: filters.search ?? '',
         status: filters.status ?? '',
@@ -207,6 +210,8 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
             : 'Semua periode';
 
     const segmentTotal = SEGMENTS.reduce((s, seg) => s + (stats[seg.countKey] as number), 0);
+    // Invoice ber-PPN tetap terlihat walau PKP sudah dimatikan.
+    const showPpn = ppnEnabled || stats.total_ppn > 0;
     const paidPct = stats.total_revenue > 0 ? Math.round((stats.total_paid / stats.total_revenue) * 100) : 0;
 
     return (
@@ -257,12 +262,15 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
 
                 {/* ── ringkasan ── */}
                 <section aria-label="Ringkasan invoice" className={cn(CARD, 'flex flex-col gap-5')}>
-                    <div className="grid grid-cols-2 gap-y-5 lg:grid-cols-4 lg:divide-x lg:divide-ob-line">
-                        <StatBlock
-                            label="Total ditagih"
-                            value={rp(stats.total_revenue)}
-                            sub={`${stats.invoice_count} invoice terbit · tanpa draft${stats.total_ppn > 0 ? ` · termasuk PPN ${rp(stats.total_ppn)}` : ''}`}
-                        />
+                    <div className={cn('@container grid grid-cols-2 gap-y-5 [--stat-cols:2] [--stat-pad:0px] lg:divide-x lg:[--stat-pad:40px] xl:[--stat-pad:48px] lg:divide-ob-line', showPpn ? 'lg:grid-cols-5 lg:[--stat-cols:5]' : 'lg:grid-cols-4 lg:[--stat-cols:4]')}>
+                        <StatBlock label="Total ditagih" value={rp(stats.total_revenue)} sub={`${stats.invoice_count} invoice terbit · tanpa draft`} />
+                        {showPpn && (
+                            <StatBlock
+                                label="PPN"
+                                value={rp(stats.total_ppn)}
+                                sub={stats.ppn_invoice_count > 0 ? `${stats.ppn_invoice_count} invoice ber-PPN · bagian dari total ditagih` : 'Belum ada invoice ber-PPN'}
+                            />
+                        )}
                         <StatBlock label="Sudah dibayar" value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={`${paidPct}% dari total`} />
                         <StatBlock label="Belum dibayar" value={rp(stats.total_outstanding)} sub={`${stats.outstanding_count} invoice`} />
                         <StatBlock
@@ -271,6 +279,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                             valueClass={stats.overdue_count > 0 ? 'text-ob-late' : undefined}
                             sub={stats.overdue_count > 0 ? `${stats.overdue_count} invoice lewat jatuh tempo` : 'Tidak ada yang lewat jatuh tempo'}
                             onClick={stats.overdue_count > 0 ? () => navigate({ status: 'overdue' }) : undefined}
+                            className={showPpn ? 'col-span-2 lg:col-span-1' : undefined}
                         />
                     </div>
                     {segmentTotal > 0 && (
@@ -455,15 +464,16 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
 
 /* ─────────────────────────────────── bagian ─── */
 
-function StatBlock({ label, value, sub, valueClass, onClick }: { label: string; value: string; sub: string; valueClass?: string; onClick?: () => void }) {
+function StatBlock({ label, value, sub, valueClass, onClick, className }: { label: string; value: string; sub: string; valueClass?: string; onClick?: () => void; className?: string }) {
     const body = (
         <>
             <span className="text-[13px] text-ob-ink-2">{label}</span>
-            <span className={cn('text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink', valueClass)}>{value}</span>
+            {/* Ukuran angka = (lebar baris ÷ --stat-cols − padding kolom) ÷ 7,6 (≈ lebar "Rp 100.000.000"), sama di semua kolom; nominal lebih panjang turun baris dengan wajar. */}
+            <span className={cn('text-[clamp(17px,calc((100cqi/var(--stat-cols)-var(--stat-pad))/7.6),26px)] font-semibold leading-tight tracking-[-0.01em] text-ob-ink', valueClass)}>{value}</span>
             <span className="text-xs text-ob-ink-2">{sub}</span>
         </>
     );
-    const cls = 'flex min-w-0 flex-col gap-1 px-0 text-left lg:px-6 lg:first:pl-0';
+    const cls = cn('flex min-w-0 flex-col gap-1 px-0 text-left lg:px-5 lg:first:pl-0 xl:px-6', className);
     return onClick ? (
         <button type="button" onClick={onClick} className={cn(cls, 'rounded-xl hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill')}>
             {body}

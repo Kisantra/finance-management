@@ -99,6 +99,11 @@ class InvoicePpnTest extends TestCase
 
         $this->assertSame(0, Invoice::sole()->ppn_amount);
         $this->assertSame(1_050_000, Invoice::sole()->total_amount);
+
+        // Kartu PPN di daftar hanya untuk PKP (atau bila sudah ada invoice ber-PPN).
+        $this->actingAs($this->admin)->get('/invoices')->assertInertia(fn ($page) => $page
+            ->where('ppnEnabled', false)
+            ->where('stats.total_ppn', 0));
     }
 
     public function test_existing_ppn_invoice_keeps_its_rate_after_settings_change(): void
@@ -135,7 +140,9 @@ class InvoicePpnTest extends TestCase
         $this->actingAs($this->admin)->get('/invoices?month=2026-10')->assertInertia(fn ($page) => $page
             ->where('stats.total_revenue', 1_160_000)
             ->where('stats.total_ppn', 110_000)
-            ->where('stats.gross_profit', 650_000));
+            ->where('stats.ppn_invoice_count', 1)
+            ->where('stats.gross_profit', 650_000)
+            ->where('ppnEnabled', true));
     }
 
     public function test_editor_receives_ppn_option_and_saved_ppn_state(): void

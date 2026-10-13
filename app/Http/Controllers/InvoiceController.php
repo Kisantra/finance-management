@@ -132,7 +132,7 @@ class InvoiceController extends Controller
 
         $basicStats = DB::table('invoices')
             ->whereIn('id', $statsIds)
-            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn')
+            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn, COALESCE(SUM(CASE WHEN ppn_amount > 0 THEN 1 ELSE 0 END), 0) as ppn_invoice_count')
             ->first();
 
         $itemStats = DB::table('invoice_items')
@@ -164,6 +164,7 @@ class InvoiceController extends Controller
             'total_revenue' => $totalRevenue,
             'total_cogs' => $totalCogs,
             'total_ppn' => (int) $basicStats->total_ppn,
+            'ppn_invoice_count' => (int) $basicStats->ppn_invoice_count,
             // PPN ikut ditagih (total_revenue) tetapi titipan negara, bukan laba.
             'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - $totalCogs,
             'total_paid' => $totalPaid,
@@ -194,6 +195,8 @@ class InvoiceController extends Controller
         return Inertia::render('invoices/index', [
             'invoices' => $invoices,
             'stats' => $stats,
+            // Kartu PPN tetap tampil selama PKP walau periode ini belum punya invoice ber-PPN.
+            'ppnEnabled' => (bool) CompanyProfile::current()?->is_pkp,
             'clients' => $clients,
             'customTemplates' => $customTemplates,
             'selectedInvoiceId' => $selectedInvoiceId,

@@ -51,7 +51,7 @@
 4. **"Perlu ditagih"** (`status=overdue`) bukan status tersimpan: `applyStatusFilter()` memilih `sent`/`partially_paid` dengan `due_date < today` dan **mengabaikan filter periode** (lintas bulan), tetap ikut klien/pencarian. `stats.overdue_count` & `stats.overdue_amount` (Σ sisa tagihan) selalu dihitung lintas bulan, tidak terpengaruh tab.
 5. Tanggal di baris daftar dikirim sebagai `Y-m-d` (bukan ISO UTC) — zona waktu app `Asia/Makassar` membuat ISO UTC mundur sehari di browser (QA 2026-09-26, BUG-02).
 6. Respons: `Inertia::render('invoices/index', ...)` dengan props `invoices` (paginated), `stats`, `clients`, `customTemplates` (daftar `PdfTemplate` builder), `selectedInvoiceId`, `filters`.
-7. UI (gaya Obsidian): kartu ringkasan (total ditagih, sudah dibayar, belum dibayar, perlu ditagih + bar sebaran status), pil status + pil "Perlu ditagih", tabel. Klik baris → drawer detail (lihat berikut).
+7. UI (gaya Obsidian): kartu ringkasan (total ditagih, **PPN** — hanya bila `ppnEnabled` (perusahaan PKP) atau `stats.total_ppn > 0`, berisi Σ `ppn_amount` + `stats.ppn_invoice_count` invoice terbit ber-PPN di filter aktif —, sudah dibayar, belum dibayar, perlu ditagih + bar sebaran status; 4 atau 5 kolom, ukuran angka mengikuti lebar baris lewat container query `--stat-cols`/`--stat-pad`), pil status + pil "Perlu ditagih", tabel. Klik baris → drawer detail (lihat berikut).
 
 Kelayakan rollback dihitung per invoice di `data()` (`rollbackable` = status `sent` dan `Invoice::isInvoiceLatestInMonth()`), sama dengan aturan yang ditegakkan `rollback()`.
 
@@ -98,7 +98,7 @@ Sejak 2026-10-13. PPN dipilih **per invoice**, hanya selama Pengaturan › Profi
 2. Payload membawa `apply_ppn` (boolean, opsional) + `faktur` — divalidasi `StoreInvoiceRequest`/`InvoicePreviewRequest`.
 3. `resolvePpnRate($validated, $existing)`: invoice yang sudah ber-PPN memakai **tarif tersimpannya** (tidak ikut bila tarif di Pengaturan diganti atau PKP dimatikan); invoice baru hanya bisa ber-PPN selama PKP; `apply_ppn` kosong = bawaan di atas; `apply_ppn=true` saat perusahaan tidak PKP diabaikan (PPN 0, bukan error). Invoice lama (`ppn_rate NULL`) yang diedit tanpa PPN tetap `NULL`.
 4. **DPP = subtotal layanan − titipan pajak − diskon** (`Invoice::dpp_amount`); `ppn_amount = round(DPP × rate / 100)` (`Invoice::ppnFor()`, satu-satunya rumus — dipakai juga publish invoice berulang). PPN masuk `total_amount`, sehingga sisa tagihan, status Lunas, dan pembayaran memakai total **termasuk PPN**.
-5. PPN **bukan pendapatan**: `gross_profit` model, laba kotor drawer/editor, statistik daftar (`gross_profit = total_revenue − total_ppn − HPP`; `stats.total_ppn` tampil di kartu "Total ditagih"), Ringkasan (`total_profit` dikurangi PPN yang sudah dibayar klien), rekap (omzet tanpa PPN), dan Laba Rugi (`ppn_output`, lihat `profit-loss.md`).
+5. PPN **bukan pendapatan**: `gross_profit` model, laba kotor drawer/editor, statistik daftar (`gross_profit = total_revenue − total_ppn − HPP`; `stats.total_ppn` & `stats.ppn_invoice_count` tampil di kartu **PPN** daftar invoice), Ringkasan (`total_profit` dikurangi PPN yang sudah dibayar klien), rekap (omzet tanpa PPN), dan Laba Rugi (`ppn_output`, lihat `profit-loss.md`).
 6. PDF: lihat "Download / Preview PDF Invoice".
 
 ### Hapus Invoice (Destroy)

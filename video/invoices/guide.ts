@@ -144,7 +144,7 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 '**Draft** tidak dihitung di **Total ditagih**, rekap, maupun laporan.',
-                'Terbit: nomor urut periode itu terpakai, invoice masuk **Total ditagih** dan **Belum dibayar**.',
+                'Terbit: nomor urut periode itu terpakai, invoice masuk **Total ditagih** dan **Belum dibayar**; bila ber-PPN, PPN-nya juga dijumlahkan di kartu **PPN** ringkasan (tampil selama perusahaan PKP).',
                 '**Belum ada uang masuk**: saldo, arus kas, dan laba rugi belum berubah.',
             ],
         },
