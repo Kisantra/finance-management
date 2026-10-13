@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
-import { type ClientOption, InvoiceEditor, type ServiceOption } from './create';
+import { type ClientOption, InvoiceEditor, type PpnOption, type ServiceOption } from './create';
 
 interface InvoiceData {
     id: number;
@@ -13,6 +13,8 @@ interface InvoiceData {
     discount_type: 'fixed' | 'percentage';
     discount_value: number;
     discount_reason: string | null;
+    ppn_rate: number | null;
+    faktur: string | null;
     items: Array<{
         client_id: number | null;
         service_name: string;
@@ -28,14 +30,16 @@ interface Props extends SharedProps {
     invoice: InvoiceData;
     clients: ClientOption[];
     services: ServiceOption[];
+    ppn: PpnOption;
 }
 
-function EditInvoicePage({ invoice, clients, services }: Props) {
+function EditInvoicePage({ invoice, clients, services, ppn }: Props) {
     return (
         <InvoiceEditor
             clients={clients}
             services={services}
-            invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status }}
+            ppn={ppn}
+            invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate }}
             initialData={{
                 client_id: invoice.client_id,
                 issue_date: invoice.issue_date,
@@ -43,6 +47,8 @@ function EditInvoicePage({ invoice, clients, services }: Props) {
                 discount_type: invoice.discount_type,
                 discount_value: invoice.discount_value,
                 discount_reason: invoice.discount_reason ?? '',
+                apply_ppn: invoice.ppn_rate !== null,
+                faktur: invoice.faktur ?? '',
                 items: invoice.items.map((item) => ({
                     // Klien baris = klien invoice disimpan eksplisit; null-kan agar sakelar "beberapa klien" tetap mati.
                     client_id: item.client_id === invoice.client_id ? null : item.client_id,

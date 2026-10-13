@@ -44,7 +44,7 @@ $end = isset($validated['end_date'])
 Urutan perhitungan (`app/Services/ProfitLossService.php:40-94`), persis mengikuti struktur di `laba-rugi.md`:
 
 ```
-PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu) + non-invoice (pl_group=revenue, credit)
+PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu: titipan pajak lalu PPN) + non-invoice (pl_group=revenue, credit)
 (−) HPP           = invoice (cost-recovery) + manual (pl_group=cogs, debit)
 = LABA KOTOR      (gross_profit)
 (−) BEBAN OPERASIONAL (pl_group=opex, debit, dirinci per kategori)
@@ -56,14 +56,17 @@ PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu) + non-invoice (pl_group=re
 = LABA BERSIH     (net_profit)
 
 + bucket 'unclassified' (income & expense) — TERPISAH, TIDAK masuk total mana pun
++ ppn_output (memo "PPN Keluaran diterima") — TERPISAH, TIDAK masuk total mana pun
 ```
 
 **Pendapatan & HPP invoice — "titipan dulu" + cost recovery** (`invoiceContributions()`, baris 117-157). Untuk setiap invoice yang menerima pembayaran dalam periode:
 
 ```php
 // app/Services/ProfitLossService.php:146-153
-$revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit);          // titipan-dulu
-$revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit);
+$totalPpn += min(max(0, $paidThroughEnd - $taxDeposit), $ppn)        // PPN Keluaran (memo)
+    - min(max(0, $paidThroughStartPrev - $taxDeposit), $ppn);
+$revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit - $ppn);   // titipan-dulu
+$revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit - $ppn);
 
 $totalRevenue += $revenueThroughEnd - $revenueThroughStartPrev;
 
@@ -71,7 +74,7 @@ if ($invoiceCogs > 0) {
     $totalCogs += min($revenueThroughEnd, $invoiceCogs) - min($revenueThroughStartPrev, $invoiceCogs);
 }
 ```
-- **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), sisanya baru diakui pendapatan.
+- **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), lalu `invoices.ppn_amount` (PPN Keluaran perusahaan PKP, sejak 2026-10-13), sisanya baru diakui pendapatan. PPN yang tertutup dalam periode dilaporkan sebagai `ppn_output` — memo "Catatan: PPN Keluaran diterima" di bawah Laba Bersih (halaman & PDF, hanya bila > 0), bukan pendapatan dan tidak masuk total mana pun. Setoran PPN ke negara dicatat sebagai transaksi berkategori `financing` agar tidak menjadi beban.
 - **Cost recovery ("tutup modal dulu")**: porsi pendapatan menutup `total_cogs` invoice dulu sampai penuh; HPP periode = selisih kumulatif `MIN(pendapatan_kumulatif, total_cogs)` di batas akhir vs batas awal periode. Invoice lunas sebelum periode otomatis berkontribusi 0 (delta kolaps).
 
 **Baris berbasis kategori** (`transactionsByGroup()`, baris 164-188): join `bank_transactions × transaction_categories`, filter `pl_group` + arah (`credit`/`debit`) + rentang `transaction_date`, group by kategori → `{by_category: [{category_id, category_label, amount}], total}`.
@@ -137,6 +140,7 @@ return $pdf->download($filename);
 ## Invarian & Jebakan
 
 - **Anti-dobel HPP adalah disiplin input, bukan constraint sistem** — jangan catat HPP manual (`pl_group=cogs`) untuk penjualan yang sudah lewat invoice; kalau dilanggar, modal terhitung 2× dan laba mengecil. Sistem tidak memblokir ini (didokumentasikan eksplisit di komentar service).
+- **PPN bukan pendapatan.** `ppn_output` hanya memo; jangan menjumlahkannya ke Total Pendapatan, dan jangan beri kategori setoran PPN `pl_group` beban (pakai `type=financing`).
 - **Bucket unclassified tidak masuk total** — laba bersih yang tampil bisa "belum final" selama masih ada transaksi belum terklasifikasi; panel peringatan sengaja mencolok agar diklasifikasi dulu.
 - **Klasifikasi inline butuh permission berbeda**: melihat laporan cukup `view profit-loss`, tetapi PATCH pl-group digate `manage categories` — user pelapor tanpa permission kategori akan mendapat 403 saat mencoba mengklasifikasi dari panel.
 - `pl_group` di-set per **kategori**, berlaku retroaktif ke seluruh transaksi historis kategori itu (laporan periode lama ikut berubah saat kategori direklasifikasi).

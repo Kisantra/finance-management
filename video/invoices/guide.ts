@@ -65,7 +65,8 @@ export const guide: ModuleGuide = {
                 'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty**, **Harga satuan**, dan **Satuan**.',
                 'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
-                'Periksa **Total**, **Laba kotor**, dan **Est. PPh** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**.',
+                'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
+                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**.',
                 'Staff tidak bisa mengedit invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
             ],
         },
@@ -99,7 +100,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Atur filter (status, klien, bulan, atau rentang tanggal), lalu klik **Ekspor** dan pilih **Rekap Excel · Default**, **Rekap Excel · JSM**, atau **Rekap PDF**.',
-                '**Default** & **PDF** memuat omzet, HPP, profit, PPh final 0,5%, terbayar, dan sisa. **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (rumus, bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
+                '**Default** & **PDF** memuat omzet (tanpa PPN), PPN, HPP, profit, PPh final 0,5%, terbayar, dan sisa (termasuk PPN). **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (nilai PPN invoice; invoice sebelum fitur PPN memakai rumus yang bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
                 'Semua rekap mengikuti filter aktif dan tidak memuat draft. Untuk rekap setahun, pakai rentang tanggal 1 Januari – 31 Desember.',
             ],
         },
@@ -191,6 +192,7 @@ export const guide: ModuleGuide = {
                 { label: 'Laba kotor', value: 'Rp 600.000', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Pelunasan nanti', value: 'Rp 2.700.000 pendapatan, HPP Rp 0', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Titipan pajak', value: 'Ditutup lebih dulu, tidak pernah jadi pendapatan', source: 'Sakelar baris', tone: 'neutral' },
+                { label: 'PPN (bila PKP)', value: 'Ditutup setelah titipan pajak, tercatat terpisah sebagai PPN Keluaran', source: 'Sakelar PPN', tone: 'neutral' },
             ],
             note: 'Laporan dihitung ulang dari item invoice **saat ini**: mengubah HPP atau titipan pajak juga mengubah laporan bulan lalu.',
         },
@@ -211,6 +213,10 @@ export const guide: ModuleGuide = {
         {
             title: 'Menghapus rekening menghapus pembayarannya',
             body: 'Pembayaran invoice ke rekening itu ikut terhapus (pemasukan & laba rugi turun), tetapi status invoice tidak dihitung ulang: tetap Lunas / Sebagian.',
+        },
+        {
+            title: 'Tarif PPN terkunci di invoice',
+            body: 'Invoice ber-PPN menyimpan tarifnya sendiri. Mengubah Tarif PPN atau mematikan PKP di Pengaturan hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tetap ditagih dengan PPN-nya.',
         },
         {
             title: 'Pengingat jatuh tempo terbatas',

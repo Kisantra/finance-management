@@ -47,7 +47,7 @@ Perusahaan ini konsultan pajak. Klien sering **menitipkan uang pajaknya lewat in
 - **Tidak masuk pendapatan** konsultan (net efek ke P&L = nol)
 - **Tidak masuk beban** konsultan saat disetor
 
-Alokasi pembayaran: **"titipan dulu"** — setiap uang masuk menutup titipan dulu sampai lunas, baru sisanya jadi pendapatan jasa. Setelah itu cost-recovery HPP berlaku seperti biasa pada porsi pendapatan jasa.
+Alokasi pembayaran: **"titipan dulu"** — setiap uang masuk menutup titipan dulu sampai lunas, baru sisanya jadi pendapatan jasa. Sejak 2026-10-13 PPN Keluaran invoice (`invoices.ppn_amount`, perusahaan PKP) diperlakukan sama: tertutup setelah titipan pajak, dilaporkan terpisah sebagai memo `ppn_output`, tidak pernah menjadi pendapatan. Setelah itu cost-recovery HPP berlaku seperti biasa pada porsi pendapatan jasa.
 
 Rumus per invoice:
 ```

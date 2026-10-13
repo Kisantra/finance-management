@@ -28,6 +28,8 @@ class StoreInvoiceRequest extends FormRequest
             'discount_type' => ['nullable', 'in:fixed,percentage'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'discount_reason' => ['nullable', 'string', 'max:255'],
+            'apply_ppn' => ['nullable', 'boolean'],
+            'faktur' => ['nullable', 'string', 'max:50'],
         ];
     }
 
@@ -50,6 +52,7 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.unit_price.required' => 'Harga satuan baris :position wajib diisi.',
             'items.*.unit_price.min' => 'Harga satuan baris :position tidak boleh negatif.',
             'discount_value.min' => 'Diskon tidak boleh negatif.',
+            'faktur.max' => 'Nomor faktur pajak maksimal 50 karakter.',
         ];
     }
 }

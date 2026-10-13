@@ -113,6 +113,7 @@ export const guide: ModuleGuide = {
             items: [
                 '**1 invoice berstatus Draft** dibuat di Keuangan › Invoice, tanpa nomor.',
                 'Nama layanan, qty, harga, HPP, dan diskon disalin; **satuan & tanda titipan pajak tidak ikut**.',
+                'Bila perusahaan **PKP** saat publish, invoice diberi **PPN** dari Tarif PPN dan Total invoice bertambah sebesar PPN (angka di kartu & tab Bulanan tetap tanpa PPN).',
                 'Baris bulanan menjadi Published dan terkunci: tidak bisa diedit atau dihapus.',
                 'Invoice draft belum dihitung di Total ditagih; nomor resmi diberikan saat **Kirim invoice**.',
                 'Selama masih Draft, invoice ini ikut pengingat jatuh tempo (notifikasi H-3 & hari-H) untuk Admin dan Finance manager.',

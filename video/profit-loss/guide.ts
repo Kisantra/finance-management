@@ -60,7 +60,8 @@ export const guide: ModuleGuide = {
             title: 'Dari mana angkanya',
             tone: 'act',
             items: [
-                '**Pendapatan dari Invoice**: pembayaran invoice yang diterima di periode, setelah dikurangi item titipan pajak.',
+                '**Pendapatan dari Invoice**: pembayaran invoice yang diterima di periode, setelah dikurangi item titipan pajak dan **PPN**.',
+                'PPN yang ikut dibayar klien tampil terpisah sebagai **Catatan: PPN Keluaran diterima** di bawah Laba Bersih — titipan untuk negara, bukan pendapatan.',
                 '**HPP Invoice**: HPP item invoice, diakui seiring pembayaran masuk (uang menutup modal dulu).',
                 'Baris lain: transaksi **Arus Kas** per grup Laba Rugi kategorinya, termasuk pembayaran reimbursement & pencairan permintaan dana.',
             ],

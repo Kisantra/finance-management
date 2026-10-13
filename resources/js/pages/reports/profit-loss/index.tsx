@@ -40,6 +40,7 @@ interface Report {
     pre_tax_profit: number;
     tax: GroupBlock;
     net_profit: number;
+    ppn_output: number;
     unclassified: { income: GroupBlock; expense: GroupBlock };
 }
 
@@ -243,6 +244,13 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
                 )}
 
                 <DocRow label="Laba Bersih" amount={report.net_profit} weight="bold" rule="top-double" />
+
+                {report.ppn_output > 0 && (
+                    <>
+                        <DocSectionTitle>Catatan</DocSectionTitle>
+                        <DocRow indent label="PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)" amount={report.ppn_output} />
+                    </>
+                )}
             </div>
 
             {/* Document footer */}

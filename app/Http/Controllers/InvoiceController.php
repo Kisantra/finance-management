@@ -132,7 +132,7 @@ class InvoiceController extends Controller
 
         $basicStats = DB::table('invoices')
             ->whereIn('id', $statsIds)
-            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue')
+            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn')
             ->first();
 
         $itemStats = DB::table('invoice_items')
@@ -163,7 +163,9 @@ class InvoiceController extends Controller
             'invoice_count' => (int) $basicStats->invoice_count,
             'total_revenue' => $totalRevenue,
             'total_cogs' => $totalCogs,
-            'gross_profit' => $totalRevenue - $totalCogs,
+            'total_ppn' => (int) $basicStats->total_ppn,
+            // PPN ikut ditagih (total_revenue) tetapi titipan negara, bukan laba.
+            'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - $totalCogs,
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
             'outstanding_count' => $outstandingIds->count(),
@@ -308,7 +310,8 @@ class InvoiceController extends Controller
             ->pluck('last_payment_date', 'invoice_id');
 
         $rows = $invoices->map(function ($invoice) use ($itemNames, $lastPayments) {
-            $omzet = (int) $invoice->total_amount;
+            $ppn = (int) $invoice->ppn_amount;
+            $omzet = (int) $invoice->total_amount - $ppn; // PPN titipan negara, bukan omzet
             $hpp = (int) $invoice->total_cogs;
 
             return [
@@ -317,11 +320,14 @@ class InvoiceController extends Controller
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'total_amount' => $omzet,
+                'ppn' => $ppn,
+                // null = invoice sebelum fitur PPN (tanpa data PPN); 0 = tanpa PPN.
+                'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
                 'hpp' => $hpp,
                 'profit' => $omzet - $hpp,            // gross profit = omzet − HPP
                 'pph_final' => (int) round($omzet * 0.005), // PP 55/2022 final: 0,5% × omzet
                 'amount_paid' => (int) $invoice->amount_paid,
-                'amount_remaining' => $omzet - (int) $invoice->amount_paid,
+                'amount_remaining' => (int) $invoice->total_amount - (int) $invoice->amount_paid,
                 'status' => $invoice->status,
                 'invoice_sequence' => $invoice->invoice_sequence,
                 'items_description' => $itemNames[$invoice->id] ?? '',
@@ -332,6 +338,7 @@ class InvoiceController extends Controller
         $summary = [
             'count' => $rows->count(),
             'total_amount' => $rows->sum('total_amount'),
+            'total_ppn' => $rows->sum('ppn'),
             'total_hpp' => $rows->sum('hpp'),
             'total_profit' => $rows->sum('profit'),
             'total_pph_final' => $rows->sum('pph_final'),
@@ -441,6 +448,9 @@ class InvoiceController extends Controller
             'discount_type' => $invoice->discount_type,
             'discount_value' => $invoice->discount_value,
             'discount_reason' => $invoice->discount_reason,
+            'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
+            'ppn_amount' => (int) $invoice->ppn_amount,
+            'dpp_amount' => $invoice->dpp_amount,
             'total_amount' => $invoice->total_amount,
             'amount_paid' => $invoice->amount_paid,
             'amount_remaining' => $invoice->amount_remaining,
@@ -495,11 +505,18 @@ class InvoiceController extends Controller
     /**
      * Pilihan klien & layanan untuk editor invoice.
      *
-     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>}
+     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}}
      */
     private function formOptions(?int $includeClientId = null): array
     {
+        $company = CompanyProfile::current();
+
         return [
+            // PPN hanya bisa dipilih untuk invoice baru selama perusahaan PKP (Pengaturan › Profil perusahaan).
+            'ppn' => [
+                'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
+                'rate' => (float) ($company?->ppn_rate ?? 0),
+            ],
             'clients' => Client::where('status', 'Active')
                 ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
                 ->orderBy('name')
@@ -541,9 +558,10 @@ class InvoiceController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array{attributes: array<string, mixed>, items: list<array<string, mixed>>}
      */
-    private function buildInvoiceData(array $validated): array
+    private function buildInvoiceData(array $validated, ?Invoice $existing = null): array
     {
         $subtotal = 0;
+        $taxDeposits = 0;
         $items = [];
 
         foreach ($validated['items'] ?? [] as $item) {
@@ -563,6 +581,9 @@ class InvoiceController extends Controller
             ];
 
             $subtotal += $amount;
+            if ($item['is_tax_deposit'] ?? false) {
+                $taxDeposits += $amount;
+            }
         }
 
         $discountType = $validated['discount_type'] ?? 'fixed';
@@ -570,6 +591,10 @@ class InvoiceController extends Controller
         $discountAmount = $discountType === 'percentage'
             ? (int) round($subtotal * $discountValue / 100)
             : $discountValue;
+
+        // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih.
+        $ppnRate = $this->resolvePpnRate($validated, $existing);
+        $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
 
         return [
             'attributes' => [
@@ -579,12 +604,40 @@ class InvoiceController extends Controller
                 'discount_type' => $discountType,
                 'discount_value' => $discountValue,
                 'discount_reason' => $validated['discount_reason'] ?? null,
-                'total_amount' => max(0, $subtotal - $discountAmount),
+                'ppn_rate' => $ppnRate,
+                'ppn_amount' => $ppnAmount,
+                'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
+                'faktur' => array_key_exists('faktur', $validated)
+                    ? (trim((string) $validated['faktur']) ?: null)
+                    : $existing?->faktur,
                 'issue_date' => $validated['issue_date'] ?? null,
                 'due_date' => $validated['due_date'] ?? null,
             ],
             'items' => $items,
         ];
+    }
+
+    /**
+     * Tarif PPN invoice (persen). Invoice yang sudah ber-PPN memakai tarif tersimpannya (tidak ikut
+     * berubah bila tarif di Pengaturan diganti); invoice baru hanya bisa ber-PPN selama perusahaan
+     * PKP. `apply_ppn` kosong = bawaan: invoice baru ikut status PKP, invoice lama tetap seperti apa adanya.
+     * Hasil null hanya untuk invoice lama sebelum fitur PPN (tetap "tanpa data PPN" bila tidak diberi PPN).
+     */
+    private function resolvePpnRate(array $validated, ?Invoice $existing): ?float
+    {
+        $company = CompanyProfile::current();
+        $companyRate = $company?->is_pkp && (float) $company->ppn_rate > 0 ? (float) $company->ppn_rate : null;
+        $existingRate = $existing && (float) $existing->ppn_rate > 0 ? (float) $existing->ppn_rate : null;
+
+        $apply = isset($validated['apply_ppn'])
+            ? (bool) $validated['apply_ppn']
+            : ($existing ? $existingRate !== null : $companyRate !== null);
+
+        if ($apply && ($existingRate ?? $companyRate)) {
+            return $existingRate ?? $companyRate;
+        }
+
+        return $existing && $existing->ppn_rate === null ? null : 0.0;
     }
 
     /** Beri nomor berikutnya & ubah draft menjadi terkirim (dipakai "Simpan & terbitkan"). */
@@ -604,14 +657,15 @@ class InvoiceController extends Controller
     public function preview(InvoicePreviewRequest $request): HttpResponse
     {
         $validated = $request->validated();
-        ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated);
+        $existing = isset($validated['invoice_id']) ? Invoice::find($validated['invoice_id']) : null;
+        ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated, $existing);
 
         $clients = Client::whereIn('id', array_filter([$attributes['billed_to_id'], ...array_column($items, 'client_id')]))
             ->get()
             ->keyBy('id');
         $billedTo = $clients->get($attributes['billed_to_id']) ?? new Client(['name' => '—']);
 
-        $number = isset($validated['invoice_id']) ? Invoice::find($validated['invoice_id'])?->invoice_number : null;
+        $number = $existing?->invoice_number;
         if (! $number && $attributes['billed_to_id'] && $attributes['issue_date']) {
             $number = Invoice::generateInvoiceNumber(Carbon::parse($attributes['issue_date']), $attributes['billed_to_id']);
         }
@@ -658,6 +712,8 @@ class InvoiceController extends Controller
                 'discount_type' => $invoice->discount_type ?? 'fixed',
                 'discount_value' => $invoice->discount_value ?? 0,
                 'discount_reason' => $invoice->discount_reason,
+                'ppn_rate' => (float) $invoice->ppn_rate > 0 ? (float) $invoice->ppn_rate : null,
+                'faktur' => $invoice->faktur,
                 'items' => $invoice->items->map(fn ($item) => [
                     'client_id' => $item->client_id,
                     'service_name' => $item->service_name,
@@ -677,7 +733,7 @@ class InvoiceController extends Controller
         $publish = $request->boolean('publish') && $invoice->status === 'draft';
 
         DB::transaction(function () use ($validated, $invoice, $publish) {
-            ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated);
+            ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated, $invoice);
 
             $invoice->update($attributes);
             $invoice->items()->delete();

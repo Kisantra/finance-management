@@ -47,6 +47,7 @@ interface Paginated<T> {
 interface Stats {
     invoice_count: number;
     total_revenue: number;
+    total_ppn: number;
     total_paid: number;
     total_outstanding: number;
     outstanding_count: number;
@@ -257,7 +258,11 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                 {/* ── ringkasan ── */}
                 <section aria-label="Ringkasan invoice" className={cn(CARD, 'flex flex-col gap-5')}>
                     <div className="grid grid-cols-2 gap-y-5 lg:grid-cols-4 lg:divide-x lg:divide-ob-line">
-                        <StatBlock label="Total ditagih" value={rp(stats.total_revenue)} sub={`${stats.invoice_count} invoice terbit · tanpa draft`} />
+                        <StatBlock
+                            label="Total ditagih"
+                            value={rp(stats.total_revenue)}
+                            sub={`${stats.invoice_count} invoice terbit · tanpa draft${stats.total_ppn > 0 ? ` · termasuk PPN ${rp(stats.total_ppn)}` : ''}`}
+                        />
                         <StatBlock label="Sudah dibayar" value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={`${paidPct}% dari total`} />
                         <StatBlock label="Belum dibayar" value={rp(stats.total_outstanding)} sub={`${stats.outstanding_count} invoice`} />
                         <StatBlock

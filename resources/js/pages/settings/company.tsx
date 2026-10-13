@@ -215,7 +215,10 @@ export default function CompanySettings() {
                     </FormSection>
 
                     {/* Section: PKP & Pajak */}
-                    <FormSection title="Status PKP & Pajak" description="Pengaturan untuk perhitungan PPN di invoice">
+                    <FormSection
+                        title="Status PKP & Pajak"
+                        description="Selama PKP aktif, invoice baru bisa ditagih PPN (sakelar di editor invoice). Mematikan PKP tidak mengubah invoice yang sudah ber-PPN; tarif tersimpan di tiap invoice."
+                    >
                         <label className="flex items-center gap-3 cursor-pointer">
                             <Checkbox
                                 checked={data.is_pkp}

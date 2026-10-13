@@ -67,15 +67,23 @@ class RecurringInvoice extends Model
             return $this->publishedInvoice;
         }
 
+        // PPN mengikuti status PKP saat publish (subtotal template sudah tanpa titipan pajak).
+        $company = CompanyProfile::current();
+        $ppnRate = $company?->is_pkp && (float) $company->ppn_rate > 0 ? (float) $company->ppn_rate : 0.0;
+        $discountAmount = (int) ($this->invoice_data['discount_amount'] ?? 0);
+        $ppnAmount = Invoice::ppnFor((int) $this->invoice_data['subtotal'] - $discountAmount, $ppnRate);
+
         // Draft tanpa nomor, sama seperti invoice biasa: nomor resmi diberikan saat "Kirim".
         $invoice = Invoice::create([
             'billed_to_id' => $this->client_id,
             'subtotal' => $this->invoice_data['subtotal'],
-            'discount_amount' => $this->invoice_data['discount_amount'] ?? 0,
+            'discount_amount' => $discountAmount,
             'discount_type' => $this->invoice_data['discount_type'] ?? 'fixed',
             'discount_value' => $this->invoice_data['discount_value'] ?? 0,
             'discount_reason' => $this->invoice_data['discount_reason'] ?? null,
-            'total_amount' => $this->total_amount,
+            'ppn_rate' => $ppnRate,
+            'ppn_amount' => $ppnAmount,
+            'total_amount' => $this->total_amount + $ppnAmount,
             'issue_date' => $this->issue_date ?? $this->scheduled_date,
             'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(30),
             'status' => 'draft',

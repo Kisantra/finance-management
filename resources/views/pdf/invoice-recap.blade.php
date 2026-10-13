@@ -127,6 +127,7 @@
     <div class="rule"></div>
 
     {{-- Summary strip --}}
+    @php $showPpn = ($summary['total_ppn'] ?? 0) > 0; @endphp
     <table class="summary">
         <tr>
             <td>
@@ -137,6 +138,12 @@
                 <div class="sum-label">Omzet</div>
                 <div class="sum-value">{{ $rp($summary['total_amount']) }}</div>
             </td>
+            @if ($showPpn)
+                <td>
+                    <div class="sum-label">PPN</div>
+                    <div class="sum-value">{{ $rp($summary['total_ppn']) }}</div>
+                </td>
+            @endif
             <td>
                 <div class="sum-label">HPP</div>
                 <div class="sum-value">{{ $rp($summary['total_hpp']) }}</div>
@@ -156,7 +163,7 @@
         </tr>
     </table>
 
-    <div style="font-size:7pt;color:#94a3b8;margin-bottom:6px;">Semua nilai dalam Rupiah. Profit = Omzet - HPP &middot; PPh Final = 0,5% x Omzet (PP 55/2022).</div>
+    <div style="font-size:7pt;color:#94a3b8;margin-bottom:6px;">Semua nilai dalam Rupiah. Omzet tanpa PPN &middot; Profit = Omzet - HPP &middot; PPh Final = 0,5% x Omzet (PP 55/2022).</div>
 
     {{-- Table --}}
     <table class="data">
@@ -169,6 +176,7 @@
                 <th class="c" style="width:8%;">Jatuh Tempo</th>
                 <th class="c" style="width:7%;">Status</th>
                 <th class="r">Omzet</th>
+                @if ($showPpn)<th class="r">PPN</th>@endif
                 <th class="r">HPP</th>
                 <th class="r">Profit</th>
                 <th class="r">PPh 0,5%</th>
@@ -189,6 +197,7 @@
                         <span class="badge" style="background:{{ $st['bg'] }};color:{{ $st['fg'] }};">{{ $st['label'] }}</span>
                     </td>
                     <td class="r">{{ $n($row['total_amount']) }}</td>
+                    @if ($showPpn)<td class="r">{{ $n($row['ppn']) }}</td>@endif
                     <td class="r">{{ $n($row['hpp']) }}</td>
                     <td class="r" style="color:#15803d;">{{ $n($row['profit']) }}</td>
                     <td class="r" style="color:#b45309;">{{ $n($row['pph_final']) }}</td>
@@ -196,13 +205,14 @@
                     <td class="r">{{ $n($row['amount_remaining']) }}</td>
                 </tr>
             @empty
-                <tr><td colspan="12" class="empty">Tidak ada invoice pada periode/filter ini.</td></tr>
+                <tr><td colspan="{{ $showPpn ? 13 : 12 }}" class="empty">Tidak ada invoice pada periode/filter ini.</td></tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="6" class="r">TOTAL ({{ $summary['count'] }} invoice)</td>
                 <td class="r">{{ $n($summary['total_amount']) }}</td>
+                @if ($showPpn)<td class="r">{{ $n($summary['total_ppn']) }}</td>@endif
                 <td class="r">{{ $n($summary['total_hpp']) }}</td>
                 <td class="r" style="color:#15803d;">{{ $n($summary['total_profit']) }}</td>
                 <td class="r" style="color:#b45309;">{{ $n($summary['total_pph_final']) }}</td>

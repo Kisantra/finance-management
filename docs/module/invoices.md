@@ -12,10 +12,12 @@
 | `billed_to_id` | FK → `clients.id` (relasi `client()` di model) |
 | `subtotal` | **integer rupiah penuh** — jumlah `amount` semua item |
 | `discount_amount` / `discount_type` / `discount_value` / `discount_reason` | diskon; `discount_type` = `fixed` \| `percentage`; `discount_amount` adalah hasil hitung (integer) |
-| `total_amount` | integer = `max(0, subtotal - discount_amount)` |
+| `ppn_rate` | decimal(5,2) nullable — tarif PPN (persen) yang **dibekukan** di invoice saat dibuat/diberi PPN. `NULL` = invoice sebelum fitur PPN (2026-10-13; tanpa data PPN, laporan lama tetap seperti dulu), `0` = tanpa PPN, `> 0` = ber-PPN. |
+| `ppn_amount` | unsigned integer, default 0 — `Invoice::ppnFor(DPP, ppn_rate)`; ikut di `total_amount` |
+| `total_amount` | integer = `max(0, subtotal - discount_amount) + ppn_amount` — yang ditagih ke klien |
 | `issue_date`, `due_date` | date (cast `date` di model) |
 | `status` | enum: `draft`, `sent`, `paid`, `partially_paid`, `overdue`, `cancelled` |
-| `faktur` | string nullable — nomor faktur pajak (konteks PKP/PPN). Saat ini hanya dibaca/ditampilkan (index & show); belum ada endpoint yang menulisnya. |
+| `faktur` | string nullable (maks. 50) — nomor faktur pajak. Diisi di editor (kolom muncul saat PPN aktif), di-`trim`, kosong → `null`; tercetak di header PDF Kisantra/Generik/Semesta dan token `{{invoice.faktur}}`. |
 
 ### `invoice_items`
 | Kolom | Tipe/Catatan |
@@ -69,10 +71,10 @@ Detail invoice adalah **modal yang menumpang di halaman mana pun**, seperti Sett
 ### Buat Invoice (Create + Store)
 **Alur step-by-step:**
 1. User klik "Buat Invoice" → GET `/invoices/create` (`can:create invoices`). Props dari `formOptions()`: klien `Active` (id, name, email, npwp, type) dan `services`. Editor (`InvoiceEditor` di `create.tsx`, dipakai juga `edit.tsx`): kiri isian, kanan **pratinjau PDF langsung**.
-2. User memilih klien, tanggal (jatuh tempo default +14 hari), menyusun item (nama layanan dengan saran katalog saat mengetik, atau tombol katalog 🔍 di setiap baris yang mengisi nama & harga baris itu saja, qty, harga, satuan, **HPP baris** = HPP seluruh baris, sakelar titipan pajak), opsional "Tagih ke beberapa klien" (klien per baris), dan diskon nominal/persen + alasan. Ctrl+Enter menambah baris.
+2. User memilih klien, tanggal (jatuh tempo default +14 hari), menyusun item (nama layanan dengan saran katalog saat mengetik, atau tombol katalog 🔍 di setiap baris yang mengisi nama & harga baris itu saja, qty, harga, satuan, **HPP baris** = HPP seluruh baris, sakelar titipan pajak), opsional "Tagih ke beberapa klien" (klien per baris), diskon nominal/persen + alasan, dan — bila perusahaan PKP — sakelar **Tagih PPN x%** (bawaan menyala) + nomor faktur pajak (lihat "PPN"). Ctrl+Enter menambah baris.
 3. **Pratinjau langsung:** setiap isian berubah (jeda 350 ms, permintaan lama dibatalkan) editor mengirim `POST /invoices/preview` (`InvoicePreviewRequest`, semua field boleh kosong) → `preview()` membangun `Invoice` + `InvoiceItem` **tanpa menyimpan** (relasi di-`setRelation`), lalu `InvoicePrintService::renderPdf()` — jalur yang sama dengan unduhan — dan membalas **PDF**; nomor (tersimpan atau perkiraan `generateInvoiceNumber`) di header `X-Invoice-Number`. Parameter `highlight` (indeks baris yang sedang diedit) menyuntikkan CSS latar biru pada baris itu — hanya di pratinjau. Browser menampilkan PDF dengan penampil bawaan (`#toolbar=0&view=FitH`).
 4. Submit → POST `/invoices`, divalidasi `StoreInvoiceRequest` (pesan Indonesia di `messages()`, mis. "Nama layanan baris 1 wajib diisi."). Tombol **Simpan draft** atau **Simpan & terbitkan** (`publish=1`).
-5. `store()` dalam `DB::transaction`: `buildInvoiceData()` (satu-satunya tempat hitungan: `amount = round(unit_price × quantity)`, `subtotal`, `discount_amount`, `total_amount = max(0, subtotal − discount)`) → insert `draft` tanpa nomor + items; bila `publish`, `publish()` memberi `generateInvoiceNumber()` dan status `sent` di transaksi yang sama.
+5. `store()` dalam `DB::transaction`: `buildInvoiceData()` (satu-satunya tempat hitungan: `amount = round(unit_price × quantity)`, `subtotal`, `discount_amount`, `ppn_rate`/`ppn_amount` lewat `resolvePpnRate()`, `total_amount = max(0, subtotal − discount) + ppn_amount`) → insert `draft` tanpa nomor + items; bila `publish`, `publish()` memberi `generateInvoiceNumber()` dan status `sent` di transaksi yang sama.
 6. Redirect ke **`invoices.show`** (drawer invoice baru terbuka) dengan flash `success`.
 
 **Penjelasan kode** (`app/Http/Controllers/InvoiceController.php::store`):
@@ -80,14 +82,24 @@ Detail invoice adalah **modal yang menumpang di halaman mana pun**, seperti Sett
 $discountAmount = $discountType === 'percentage'
     ? (int) round($subtotal * $discountValue / 100)
     : $discountValue;
-$totalAmount = max(0, $subtotal - $discountAmount);
-
-$invoice = Invoice::create([... 'status' => 'draft']);
+$ppnRate = $this->resolvePpnRate($validated, $existing);
+$ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
+'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
 ```
 Diskon persentase dikonversi ke nominal integer saat simpan (kedua bentuk disimpan: `discount_value` mentah + `discount_amount` hasil). Invoice selalu lahir sebagai `draft` tanpa nomor — nomor baru diberikan saat "send".
 
 ### Edit Invoice (Edit + Update)
-**Alur:** GET `/invoices/{invoice}/edit` (`can:edit invoices`) merender `invoices/edit` dengan data invoice + items; PUT `/invoices/{invoice}` divalidasi `UpdateInvoiceRequest` (identik dengan Store — `class UpdateInvoiceRequest extends StoreInvoiceRequest {}`). `update()` memakai `buildInvoiceData()` yang sama, lalu **menghapus semua item lama dan membuat ulang** dalam satu transaksi. Status dan `invoice_number` tidak diubah, kecuali `publish=1` pada invoice `draft` (Simpan & terbitkan). Redirect ke `invoices.show`.
+**Alur:** GET `/invoices/{invoice}/edit` (`can:edit invoices`) merender `invoices/edit` dengan data invoice + items; PUT `/invoices/{invoice}` divalidasi `UpdateInvoiceRequest` (identik dengan Store — `class UpdateInvoiceRequest extends StoreInvoiceRequest {}`). `update()` memakai `buildInvoiceData($validated, $invoice)` yang sama (invoice lama ikut dikirim agar tarif PPN tersimpannya dipakai), lalu **menghapus semua item lama dan membuat ulang** dalam satu transaksi. Status dan `invoice_number` tidak diubah, kecuali `publish=1` pada invoice `draft` (Simpan & terbitkan). Redirect ke `invoices.show`.
+
+### PPN (perusahaan PKP)
+Sejak 2026-10-13. PPN dipilih **per invoice**, hanya selama Pengaturan › Profil perusahaan berstatus PKP dengan `ppn_rate > 0` (`formOptions()['ppn'] = {enabled, rate}`).
+
+1. Editor menampilkan sakelar **Tagih PPN {rate}%** bila PKP aktif, atau bila invoice yang diedit sudah ber-PPN (tarif tersimpannya). Bawaan: invoice baru menyala bila PKP; invoice yang diedit mengikuti keadaannya (`apply_ppn = ppn_rate !== null`). Saat menyala muncul isian **No. faktur pajak (opsional)**; mematikan sakelar mengosongkan faktur.
+2. Payload membawa `apply_ppn` (boolean, opsional) + `faktur` — divalidasi `StoreInvoiceRequest`/`InvoicePreviewRequest`.
+3. `resolvePpnRate($validated, $existing)`: invoice yang sudah ber-PPN memakai **tarif tersimpannya** (tidak ikut bila tarif di Pengaturan diganti atau PKP dimatikan); invoice baru hanya bisa ber-PPN selama PKP; `apply_ppn` kosong = bawaan di atas; `apply_ppn=true` saat perusahaan tidak PKP diabaikan (PPN 0, bukan error). Invoice lama (`ppn_rate NULL`) yang diedit tanpa PPN tetap `NULL`.
+4. **DPP = subtotal layanan − titipan pajak − diskon** (`Invoice::dpp_amount`); `ppn_amount = round(DPP × rate / 100)` (`Invoice::ppnFor()`, satu-satunya rumus — dipakai juga publish invoice berulang). PPN masuk `total_amount`, sehingga sisa tagihan, status Lunas, dan pembayaran memakai total **termasuk PPN**.
+5. PPN **bukan pendapatan**: `gross_profit` model, laba kotor drawer/editor, statistik daftar (`gross_profit = total_revenue − total_ppn − HPP`; `stats.total_ppn` tampil di kartu "Total ditagih"), Ringkasan (`total_profit` dikurangi PPN yang sudah dibayar klien), rekap (omzet tanpa PPN), dan Laba Rugi (`ppn_output`, lihat `profit-loss.md`).
+6. PDF: lihat "Download / Preview PDF Invoice".
 
 ### Hapus Invoice (Destroy)
 **Alur:** DELETE `/invoices/{invoice}` (`can:delete invoices`) → **ditolak dengan flash `error`** bila invoice sudah punya pembayaran ("Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu."); jika tidak, transaksi: hapus `invoice_items` lalu invoice; redirect back. Guard ini mencegah FK cascade menghapus `payments` diam-diam (yang menurunkan saldo bank tanpa peringatan dan meninggalkan file lampiran yatim).
@@ -135,9 +147,9 @@ Status murni turunan dari `amount_paid` vs `total_amount`. Bila **semua** pembay
 **Alur:** POST `/payments/{payment}` dan DELETE `/payments/{payment}` digate `can:edit invoices`. `update()` (validasi `UpdatePaymentRequest` = Store + `remove_attachment` boolean) mengganti field, mengelola siklus lampiran (hapus file lama jika diganti/di-remove), lalu `$payment->invoice->updateStatus()`. `destroy()` menghapus payment (hook model ikut menghapus file lampiran) lalu `updateStatus()` pada invoice-nya. Keduanya merespons JSON.
 
 ### Export Rekap Excel & PDF
-**Alur:** GET `/invoices/export/excel` dan `/invoices/export/pdf` (dalam grup `can:view invoices`) menerima query filter yang sama dengan index (tombol Ekspor mengirim semua filter aktif, termasuk `status=overdue`). `buildRecapData()` memakai `applyStatusFilter()` yang sama dengan daftar — "Perlu ditagih" lintas bulan dengan label periode "Perlu ditagih (lewat jatuh tempo, semua periode)" (BUG-07 QA 29 Sep: sebelumnya rekap berisi seluruh bulan terpilih) — membangun baris per invoice — **mengecualikan `draft` & `cancelled`** — dengan kolom: omzet (`total_amount`), HPP (Σ `cogs_amount` per invoice), profit (omzet − HPP), `pph_final = round(omzet × 0.5%)` (PPh Final UMKM PP 55/2022), terbayar, sisa; plus baris summary dan label periode (range tanggal menimpa bulan). Excel via `App\Exports\InvoiceRecapExport` (Maatwebsite); PDF via DomPDF view `pdf.invoice-recap` A4 landscape + `CompanyProfile`. Perilaku ini dikunci oleh test `InvoiceControllerTest` (`test_export_excludes_draft_and_cancelled_from_omzet`, `test_export_includes_hpp_profit_and_pph_final`, `test_date_range_overrides_month_in_export`, dll.).
+**Alur:** GET `/invoices/export/excel` dan `/invoices/export/pdf` (dalam grup `can:view invoices`) menerima query filter yang sama dengan index (tombol Ekspor mengirim semua filter aktif, termasuk `status=overdue`). `buildRecapData()` memakai `applyStatusFilter()` yang sama dengan daftar — "Perlu ditagih" lintas bulan dengan label periode "Perlu ditagih (lewat jatuh tempo, semua periode)" (BUG-07 QA 29 Sep: sebelumnya rekap berisi seluruh bulan terpilih) — membangun baris per invoice — **mengecualikan `draft` & `cancelled`** — dengan kolom: omzet (`total_amount − ppn_amount`), **PPN** (`ppn_amount`; baris juga membawa `ppn_rate`, `null` untuk invoice lama), HPP (Σ `cogs_amount` per invoice), profit (omzet − HPP), `pph_final = round(omzet × 0.5%)` (PPh Final UMKM PP 55/2022), terbayar, sisa (`total_amount − terbayar`, termasuk PPN); summary `total_ppn`. Excel Default 12 kolom (A–L, PPN di G); PDF menampilkan kolom/kartu PPN hanya bila `total_ppn > 0`; plus baris summary dan label periode (range tanggal menimpa bulan). Excel via `App\Exports\InvoiceRecapExport` (Maatwebsite); PDF via DomPDF view `pdf.invoice-recap` A4 landscape + `CompanyProfile`. Perilaku ini dikunci oleh test `InvoiceControllerTest` (`test_export_excludes_draft_and_cancelled_from_omzet`, `test_export_includes_hpp_profit_and_pph_final`, `test_date_range_overrides_month_in_export`, dll.).
 
-**Template Excel (`?template=`):** tanpa parameter = **Default** (`InvoiceRecapExport`, di atas). `template=jsm` = **JSM** (`App\Exports\InvoiceRecapJsmExport`, meniru "Rekap Invoice JSM 2026 (Nisa).xlsx", 12 Okt 2026): judul `Recap Invoice[ {klien bila tepat satu klien difilter}] - {inisial perusahaan}` (`InvoiceNumberService::companyInitials()`), baris periode ramah (`jsmRecapPeriod()`: setahun penuh → "2026", satu bulan → "Oktober 2026", rentang → "1 Januari 2026 – 31 Maret 2026"), invoice dikelompokkan per bulan terbit (urut tanggal lalu `invoice_sequence`), kolom No. (berlanjut) · No. Invoice · Date Invoice · Company · Total Invoice (`total_amount`) · PPN {ppn_rate}% (**rumus** `=F×rate%` di semua baris — tidak ada data PPN per invoice; baris non-PPN dihapus manual di Excel) · Grand Total (rumus) · Payment (tanggal `payments.payment_date` terakhir) · Keterangan (nama layanan item non-titipan, dipisah koma); baris Total per bulan & Grand Total berupa rumus `SUM`. Data tambahan (`items_description`, `last_payment_date`, `invoice_sequence`) diisi `buildRecapData()` dengan dua query batch. Menu **Ekspor** di daftar: "Rekap Excel · Default", "Rekap Excel · JSM", "Rekap PDF". Dikunci `tests/Feature/InvoiceRecapJsmExportTest.php`.
+**Template Excel (`?template=`):** tanpa parameter = **Default** (`InvoiceRecapExport`, di atas). `template=jsm` = **JSM** (`App\Exports\InvoiceRecapJsmExport`, meniru "Rekap Invoice JSM 2026 (Nisa).xlsx", 12 Okt 2026): judul `Recap Invoice[ {klien bila tepat satu klien difilter}] - {inisial perusahaan}` (`InvoiceNumberService::companyInitials()`), baris periode ramah (`jsmRecapPeriod()`: setahun penuh → "2026", satu bulan → "Oktober 2026", rentang → "1 Januari 2026 – 31 Maret 2026"), invoice dikelompokkan per bulan terbit (urut tanggal lalu `invoice_sequence`), kolom No. (berlanjut) · No. Invoice · Date Invoice · Company · Total Invoice (omzet tanpa PPN) · PPN {ppn_rate}% (invoice sejak fitur PPN: nilai `ppn_amount` tersimpan — 0 bila tanpa PPN; invoice lama `ppn_rate NULL`: tetap **rumus** `=F×rate%` tarif perusahaan, baris non-PPN dihapus manual di Excel) · Grand Total (rumus) · Payment (tanggal `payments.payment_date` terakhir) · Keterangan (nama layanan item non-titipan, dipisah koma); baris Total per bulan & Grand Total berupa rumus `SUM`. Data tambahan (`items_description`, `last_payment_date`, `invoice_sequence`) diisi `buildRecapData()` dengan dua query batch. Menu **Ekspor** di daftar: "Rekap Excel · Default", "Rekap Excel · JSM", "Rekap PDF". Dikunci `tests/Feature/InvoiceRecapJsmExportTest.php`.
 
 ### Download / Preview PDF Invoice (per lembar)
 **Alur step-by-step:**
@@ -150,16 +162,18 @@ Status murni turunan dari `amount_paid` vs `total_amount`. Bila **semua** pembay
 
 **Penjelasan kode** (`app/Services/InvoicePrintService.php`):
 ```php
-if ($template === 'semesta-invoice') {
-    $ppnAmount = ($itemsTotal * $ppnRate / 100);          // PPN 11%
-    $pph22Amount = $itemsTotal * 1.5 / 100;                // PPh 22 1,5%
+if ($invoice->ppn_rate !== null) {          // invoice sejak fitur PPN
+    $ppnAmount = (int) $invoice->ppn_amount;  // sudah termasuk total_amount
+    $grandTotal = $displayAmount;             // terbilang = TOTAL tercetak
+} elseif ($template === 'semesta-invoice') { // invoice lama: rumus lama
+    $ppnAmount = ($itemsTotal * $ppnRate / 100);
     $grandTotal = $subtotalWithPpn - $pph22Amount - $discountAmount - (...);
-} else { // kisantra (default)
+} else {
     $ppnAmount = $company?->is_pkp ? ($displayAmount * $company->ppn_rate / 100) : 0;
     $grandTotal = $displayAmount + $ppnAmount;
 }
 ```
-Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_pkp` true (rate `ppn_rate`, default 11%); template `semesta-invoice` selalu menghitung PPN 11% + potongan PPh 22 1,5%. Service juga memisahkan `regular_items` vs `tax_deposit_items`, menghitung `terbilang` (angka → kata bahasa Indonesia via `numberToWords()`), dan menyematkan logo/ttd/stempel sebagai base64. `BuilderInvoicePrinter` (`app/Services/BuilderInvoicePrinter.php`) me-render layout JSON `PdfTemplate` (banded atau flat legacy) dengan `paymentContext` mode `full|dp|pelunasan` dan custom font.
+Konteks PKP/PPN: invoice ber-data PPN (`ppn_rate` tidak null) memakai PPN tersimpannya — Kisantra mengganti blok PP 55 (DPP − 0,5% / PP 55 / Grand total) dengan **DPP** (layanan − diskon) + **PPN x%** bila `ppn_amount > 0`; Generik menambah baris PPN; Semesta memakai PPN tersimpan + baris diskon dan TOTAL = `total_amount`; nomor faktur tercetak di header ketiganya. Invoice lama (`ppn_rate NULL`) tetap memakai rumus lama di atas (Kisantra/Generik: PPN hanya ke `terbilang` bila `is_pkp`; Semesta: PPN dari `ppn_rate` perusahaan + PPh 22 1,5%). `agsa-invoice` memakai rumus tetapnya sendiri (tidak tersentuh). Token template builder: `{{invoice.dpp}}`, `{{invoice.ppn_rate}}`, `{{invoice.ppn_amount}}`, `{{invoice.faktur}}` (`TemplateTokens`). Service juga memisahkan `regular_items` vs `tax_deposit_items`, menghitung `terbilang` (angka → kata bahasa Indonesia via `numberToWords()`), dan menyematkan logo/ttd/stempel sebagai base64. `BuilderInvoicePrinter` (`app/Services/BuilderInvoicePrinter.php`) me-render layout JSON `PdfTemplate` (banded atau flat legacy) dengan `paymentContext` mode `full|dp|pelunasan` dan custom font.
 
 ### Panduan & video tutorial
 
@@ -175,7 +189,8 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 | `amount_paid` | Σ `payments.amount` (pakai relasi yang sudah loaded bila ada) |
 | `amount_remaining` | `total_amount − amount_paid` |
 | `total_cogs` | Σ `items.cogs_amount` (catatan: **termasuk** item titipan pajak; stats index mengecualikannya via query terpisah) |
-| `gross_profit` | `total_amount − total_cogs` |
+| `gross_profit` | `total_amount − ppn_amount − total_cogs` (PPN bukan laba) |
+| `dpp_amount` | `max(0, subtotal − Σ item titipan pajak − discount_amount)` — dasar PPN |
 | `outstanding_profit` / `paid_profit` | porsi laba yang belum/sudah "tertutup" pembayaran (model tutup-modal-dulu: pembayaran dianggap menutup HPP lebih dulu) |
 
 ## Keterkaitan Antar Modul
@@ -202,7 +217,10 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 - Endpoint payment & `/invoices/{id}/data` merespons **JSON**; `send`/`rollback`/`destroy` menjawab JSON untuk permintaan `expectsJson()` dan redirect + flash untuk yang lain. Jangan ubah aksi drawer menjadi kunjungan Inertia (`router.post`): redirect back mengganti halaman di belakang modal dan membuang hash.
 - Modal detail ditentukan `location.hash` (`#invoice/{id}`), bukan path. Modul lain yang ingin detail ber-URL memakai `lib/resource-modal.ts` + `ResourceModalHost` yang sama.
 - **Pratinjau = ekspor.** Pratinjau editor, tab Pratinjau cetak, dan dialog cetak menampilkan PDF dari `InvoicePrintService::renderPdf()`, bukan HTML tiruan. Render HTML di browser **tidak** identik dengan DomPDF (DomPDF mengabaikan `display:flex`, tinggi baris tabel berbeda — terukur ±9,7% piksel beda, QA 2026-09-26). `test_preview_pdf_is_identical_to_the_downloaded_pdf` mengunci kesamaan byte (kecuali stempel waktu & `/ID` acak). Satu-satunya pengecualian yang disengaja: sorotan baris `highlight` di pratinjau editor.
-- `buildInvoiceData()` adalah satu-satunya tempat hitungan subtotal/diskon/total untuk store, update, dan pratinjau — jangan menduplikasi rumus.
+- `buildInvoiceData()` adalah satu-satunya tempat hitungan subtotal/diskon/total untuk store, update, dan pratinjau — jangan menduplikasi rumus. Rumus PPN hanya `Invoice::ppnFor()`.
+- **Tarif PPN dibekukan per invoice.** Mengubah tarif atau mematikan PKP di Pengaturan tidak mengubah invoice yang sudah ber-PPN; hanya invoice baru yang tidak lagi diberi PPN. Jangan menghitung ulang PPN invoice lama dari `CompanyProfile`.
+- `ppn_rate NULL` ≠ `0`: NULL = invoice sebelum fitur PPN (PDF/rekap JSM memakai perilaku lama), 0 = sengaja tanpa PPN. Jangan menormalkan NULL menjadi 0 lewat migrasi data.
+- PPN ikut `total_amount` tetapi **tidak pernah** dihitung sebagai omzet/pendapatan/laba — kurangi `ppn_amount` di setiap angka laba/omzet baru.
 
 ## File Kunci
 - `routes/web.php` (baris ±131–203) — definisi route invoices/payments/invoice PDF
@@ -213,4 +231,5 @@ Konteks PKP/PPN: template default hanya menambahkan PPN bila `CompanyProfile.is_
 - `resources/views/pdf/kisantra-invoice.blade.php` (+ `semesta-invoice`, `agsa-invoice`, `invoice`, `invoice-recap`)
 - `app/Http/Requests/InvoicePreviewRequest.php`, `resources/js/lib/resource-modal.ts` + `components/resource-modal-host.tsx` (modal global berbasis hash), `resources/js/lib/navigation.ts`
 - `resources/js/pages/invoices/index.tsx` (daftar), `create.tsx` (`InvoiceEditor`), `edit.tsx`, `components/invoice-drawer.tsx` (drawer + dialog kirim/bayar), `components/print-invoice-dialog.tsx`, `components/invoice-paper.tsx` (penampil PDF dua lapis), `components/ob.tsx` (status, format, kelas Obsidian), `components/item-table-helpers.tsx` (sel tabel lama, dipakai Invoice Berulang)
-- `tests/Feature/InvoiceControllerTest.php`, `tests/Feature/PaymentControllerTest.php`, `tests/Feature/InvoiceNumberAssignmentTest.php`
+- `tests/Feature/InvoiceControllerTest.php`, `tests/Feature/PaymentControllerTest.php`, `tests/Feature/InvoiceNumberAssignmentTest.php`, `tests/Feature/InvoicePpnTest.php` (PPN: simpan, snapshot tarif, invoice lama, status Lunas, faktur, PDF Kisantra, Laba Rugi, rekap, invoice berulang, Ringkasan)
+- `database/migrations/2026_10_13_135211_add_ppn_to_invoices_table.php`

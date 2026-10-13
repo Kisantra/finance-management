@@ -38,6 +38,8 @@ class InvoicePreviewRequest extends FormRequest
             'discount_type' => ['nullable', 'in:fixed,percentage'],
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'discount_reason' => ['nullable', 'string', 'max:255'],
+            'apply_ppn' => ['nullable', 'boolean'],
+            'faktur' => ['nullable', 'string', 'max:50'],
         ];
     }
 }

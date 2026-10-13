@@ -53,14 +53,24 @@ export interface InvoiceFormData {
     discount_type: 'fixed' | 'percentage';
     discount_value: number;
     discount_reason: string;
+    /** PPN hanya bila perusahaan PKP (atau invoice ini sudah ber-PPN). */
+    apply_ppn: boolean;
+    faktur: string;
     items: ItemRow[];
+}
+
+/** Status PKP perusahaan dari Pengaturan › Profil perusahaan (InvoiceController::formOptions). */
+export interface PpnOption {
+    enabled: boolean;
+    rate: number;
 }
 
 interface EditorProps {
     clients: ClientOption[];
     services: ServiceOption[];
-    /** Ada = mode edit. */
-    invoice?: { id: number; invoice_number: string | null; status: string };
+    ppn: PpnOption;
+    /** Ada = mode edit. `ppn_rate` = tarif tersimpan bila invoice sudah ber-PPN. */
+    invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null };
     initialData?: InvoiceFormData;
 }
 
@@ -190,7 +200,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -206,6 +216,8 @@ export function InvoiceEditor({ clients, services, invoice, initialData }: Edito
             discount_type: 'fixed',
             discount_value: 0,
             discount_reason: '',
+            apply_ppn: ppn.enabled,
+            faktur: '',
             items: [emptyItem()],
         },
     );
@@ -233,10 +245,13 @@ export function InvoiceEditor({ clients, services, invoice, initialData }: Edito
     const subtotal = amounts.reduce((a, b) => a + b, 0);
     const deposits = data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
     const discount = data.discount_type === 'percentage' ? Math.round((subtotal * (data.discount_value || 0)) / 100) : data.discount_value || 0;
-    const total = Math.max(0, subtotal - discount);
+    // Invoice yang sudah ber-PPN tetap memakai tarif tersimpannya walau PKP dimatikan.
+    const ppnRate = invoice?.ppn_rate ?? (ppn.enabled ? ppn.rate : 0);
+    const ppnAmount = data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
+    const total = Math.max(0, subtotal - discount) + ppnAmount;
     const cogs = data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
-    const grossProfit = total - deposits - cogs;
-    const pph = Math.round((total - deposits) * 0.005);
+    const grossProfit = total - ppnAmount - deposits - cogs;
+    const pph = Math.round((total - ppnAmount - deposits) * 0.005);
     const termDays = data.issue_date && data.due_date
         ? Math.round((toDate(data.due_date)!.getTime() - toDate(data.issue_date)!.getTime()) / 86_400_000)
         : null;
@@ -560,11 +575,35 @@ export function InvoiceEditor({ clients, services, invoice, initialData }: Edito
                                         <span className="text-[13px] leading-relaxed text-ob-ink-2">Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.</span>
                                     </button>
                                 )}
+                                {ppnRate > 0 && (
+                                    <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
+                                        <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
+                                            <Switch checked={data.apply_ppn} onCheckedChange={(on) => setData((d) => ({ ...d, apply_ppn: on, faktur: on ? d.faktur : '' }))} />
+                                            Tagih PPN {ppnRate.toLocaleString('id-ID')}%
+                                        </label>
+                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">
+                                            Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.
+                                        </span>
+                                        {data.apply_ppn && (
+                                            <div className={FIELD_SM}>
+                                                <Input
+                                                    value={data.faktur}
+                                                    onChange={(e) => setData('faktur', e.target.value)}
+                                                    placeholder="No. faktur pajak (opsional)"
+                                                    aria-label="Nomor faktur pajak"
+                                                    maxLength={50}
+                                                    error={errors.faktur}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1.5 sm:border-l sm:border-ob-line sm:pl-6">
                                 <SumRow label="Subtotal layanan" value={rp(subtotal - deposits)} />
                                 {deposits > 0 && <SumRow label="Titipan pajak" value={rp(deposits)} />}
                                 <SumRow label={data.discount_type === 'percentage' && data.discount_value ? `Diskon ${data.discount_value}%` : 'Diskon'} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
+                                {ppnAmount > 0 && <SumRow label={`PPN ${ppnRate.toLocaleString('id-ID')}%`} value={rp(ppnAmount)} />}
                                 <div className="my-1.5 border-t border-ob-line" />
                                 <SumRow label="Total" value={rp(total)} strong />
                                 <p className="text-[13px] text-ob-ink-2">
@@ -852,8 +891,8 @@ function PreviewPanel({
 
 /* ─────────────────────────────────── halaman ─── */
 
-function CreateInvoicePage({ clients, services }: SharedProps & { clients: ClientOption[]; services: ServiceOption[] }) {
-    return <InvoiceEditor clients={clients} services={services} />;
+function CreateInvoicePage({ clients, services, ppn }: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption }) {
+    return <InvoiceEditor clients={clients} services={services} ppn={ppn} />;
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

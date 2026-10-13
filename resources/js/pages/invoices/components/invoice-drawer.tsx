@@ -48,6 +48,9 @@ export interface InvoiceDetail {
     discount_type: string | null;
     discount_value: number | null;
     discount_reason: string | null;
+    /** null = invoice sebelum fitur PPN; 0 = tanpa PPN. */
+    ppn_rate: number | null;
+    ppn_amount: number;
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
@@ -356,7 +359,7 @@ function DrawerBody({
     const serviceTotal = services.reduce((s, i) => s + i.amount, 0);
     const deposits = detail.items.filter((i) => i.is_tax_deposit).reduce((s, i) => s + i.amount, 0);
     const cogs = services.reduce((s, i) => s + i.cogs_amount, 0);
-    const grossProfit = detail.total_amount - deposits - cogs;
+    const grossProfit = detail.total_amount - detail.ppn_amount - deposits - cogs;
     const paidPct = detail.total_amount > 0 ? Math.min(100, Math.round((detail.amount_paid / detail.total_amount) * 100)) : 0;
     const due = dueInfo(detail.status, detail.due_date);
     const multiClient = new Set(detail.items.map((i) => i.client_id ?? detail.client.id)).size > 1;
@@ -453,6 +456,7 @@ function DrawerBody({
                             {detail.discount_amount > 0 && (
                                 <SumRow label={detail.discount_reason ? `Diskon (${detail.discount_reason})` : 'Diskon'} value={`− ${rp(detail.discount_amount)}`} />
                             )}
+                            {detail.ppn_amount > 0 && <SumRow label={`PPN ${(detail.ppn_rate ?? 0).toLocaleString('id-ID')}%`} value={rp(detail.ppn_amount)} />}
                             <SumRow label="Total" value={rp(detail.total_amount)} strong className="mt-1 border-t border-ob-line pt-2" />
                         </div>
 

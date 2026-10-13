@@ -321,6 +321,9 @@
                     <div class="info-content">
                         <strong>{{ __('invoice.invoice_date') }}:</strong> {{ $invoice->issue_date->format('d M Y') }}<br>
                         <strong>{{ __('invoice.due_date') }}:</strong> {{ $invoice->due_date->format('d M Y') }}<br>
+                        @if ($invoice->faktur)
+                            <strong>{{ __('invoice.faktur') }}:</strong> {{ $invoice->faktur }}<br>
+                        @endif
                         @if ($invoice->status)
                             <strong>{{ __('common.status') }}:</strong> {{ ucfirst($invoice->status) }}
                         @endif
@@ -364,6 +367,13 @@
                 <div class="summary-row">
                     <div class="summary-label">{{ __('invoice.discount') }}:</div>
                     <div class="summary-value">-Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</div>
+                </div>
+            @endif
+
+            @if ($invoice->ppn_rate !== null && $invoice->ppn_amount > 0)
+                <div class="summary-row">
+                    <div class="summary-label">{{ __('invoice.ppn') }} {{ rtrim(rtrim(number_format($invoice->ppn_rate, 2, ',', '.'), '0'), ',') }}%:</div>
+                    <div class="summary-value">Rp {{ number_format($invoice->ppn_amount, 0, ',', '.') }}</div>
                 </div>
             @endif
 

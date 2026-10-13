@@ -47,7 +47,7 @@ Perilaku ini dites di `tests/Feature/DashboardAccessTest.php`:
 1. `getFinancialOverview()` dihitung sekali per render (semua data all-time, tanpa filter tanggal).
 2. `total_income` = `Payment::sum('amount')` (seluruh pembayaran invoice).
 3. `total_hpp` = sum `cogs_amount` item dari invoice berstatus `partially_paid`/`paid`.
-4. `total_profit` = `total_income - total_hpp`.
+4. `total_profit` = `total_income − PPN yang sudah dibayar − total_hpp`. PPN yang dibayar per invoice ber-PPN = `min(max(0, Σ pembayaran − Σ titipan pajak), ppn_amount)` (urutan "titipan dulu" sama dengan Laba Rugi) — PPN titipan negara, bukan laba (sejak 2026-10-13).
 5. `total_outstanding` = `max(0, total invoice tertunda - pembayaran atas invoice tertunda)` (status `sent`, `partially_paid`, `overdue`).
 6. `total_pp` = 0,5% dari sum amount item invoice terbayar/sebagian yang **bukan** titipan pajak (`is_tax_deposit = false`) — estimasi PPh final UMKM, bukan pajak tercatat.
 7. UI (`resources/js/pages/dashboard.tsx`): satu baris hening di bawah grid — Pendapatan, HPP, Laba kotor (hijau/merah mengikuti tanda), Est. PPh final 0,5%, tautan Laporan Laba Rugi (permission `view profit-loss`).

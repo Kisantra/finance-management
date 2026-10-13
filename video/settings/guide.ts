@@ -72,7 +72,7 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Pengaturan** › **Profil perusahaan**.',
                 'Isi **Identitas Perusahaan** (nama, alamat, email, telepon) dan **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan).',
-                'Centang **Pengusaha Kena Pajak (PKP)** bila perusahaan PKP; kolom **NPWP** dan **Tarif PPN (%)** baru muncul setelah dicentang.',
+                'Centang **Pengusaha Kena Pajak (PKP)** bila perusahaan PKP; kolom **NPWP** dan **Tarif PPN (%)** baru muncul setelah dicentang. Selama PKP aktif, invoice baru bisa ditagih PPN.',
                 'Unggah **Kop Surat**, **Tanda Tangan**, **Stempel**, dan **Logo** (gambar maks 2 MB), lalu klik **Simpan Perubahan**.',
             ],
         },
@@ -93,7 +93,8 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 'Nama perusahaan, **kop surat**, tanda tangan, stempel, serta nama & jabatan penanggung jawab tercetak di **PDF invoice**.',
-                '**Tarif PPN** & status PKP dibaca **saat PDF dicetak**, termasuk invoice lama yang dicetak ulang.',
+                'Selama **PKP** aktif, editor invoice menampilkan sakelar **Tagih PPN** (menyala untuk invoice baru) dan invoice berulang yang di-publish ikut diberi PPN. **Tarif PPN** disimpan di setiap invoice saat dibuat.',
+                'Mematikan PKP atau mengubah Tarif PPN hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tidak berubah.',
                 'Nama perusahaan menentukan inisial **{PT}** di nomor invoice berikutnya & singkatan nomor pengajuan dana baru.',
                 'Identitas & penanggung jawab juga ikut di PDF laporan arus kas & pengajuan dana; **NPWP** di PDF rekap invoice & laba rugi.',
             ],
@@ -126,7 +127,7 @@ export const guide: ModuleGuide = {
                 { label: 'Nama perusahaan', value: 'PDF invoice & laporan + inisial {PT} di nomor invoice', source: 'Identitas', tone: 'act' },
                 { label: 'Alamat, email, telepon', value: 'Kepala PDF arus kas & pengajuan dana; invoice Semesta & Generik', source: 'Identitas', tone: 'act' },
                 { label: 'Nama & jabatan', value: 'Tanda tangan PDF invoice, arus kas, pengajuan dana', source: 'Penanggung jawab', tone: 'pos' },
-                { label: 'Tarif PPN', value: 'Baris PPN invoice Semesta & kolom PPN rekap Excel JSM', source: 'Pajak', tone: 'wait' },
+                { label: 'PKP & Tarif PPN', value: 'Sakelar Tagih PPN di invoice baru; tarif disimpan per invoice', source: 'Pajak', tone: 'wait' },
                 { label: 'NPWP', value: 'PDF rekap invoice & laba rugi', source: 'Pajak', tone: 'wait' },
                 { label: 'Kop surat', value: 'Kepala PDF invoice (Kisantra, Semesta, AGSA)', source: 'Aset visual', tone: 'neutral' },
                 { label: 'Tanda tangan & stempel', value: 'PDF invoice; tanda tangan juga di arus kas', source: 'Aset visual', tone: 'neutral' },
@@ -141,12 +142,8 @@ export const guide: ModuleGuide = {
             body: 'Halaman **Profil perusahaan** (termasuk menghapus gambar) tidak dibatasi izin, juga untuk Staff. Periksa isinya secara berkala.',
         },
         {
-            title: 'Mengubah Tarif PPN mengubah invoice lama',
-            body: 'PPN tidak disimpan di invoice, tetapi dihitung dari **Tarif PPN** saat PDF dicetak. Invoice yang sudah dikirim ikut berubah bila dicetak ulang.',
-        },
-        {
-            title: 'PKP tidak berlaku sama di semua template',
-            body: '**Semesta** selalu menambah PPN dari Tarif PPN walau PKP tidak dicentang. **Kisantra** & **Generik** tanpa baris PPN, tetapi bila PKP dicentang teks Terbilang ikut menghitung PPN sehingga berbeda dari angka TOTAL.',
+            title: 'Invoice sebelum fitur PPN memakai aturan lama',
+            body: 'Invoice yang dibuat sebelum 13 Oktober 2026 tidak menyimpan PPN. Saat dicetak ulang: **Semesta** menambah PPN dari Tarif PPN walau PKP tidak dicentang; **Kisantra** & **Generik** tanpa baris PPN, tetapi bila PKP dicentang teks Terbilang ikut menghitung PPN sehingga berbeda dari angka TOTAL.',
         },
         {
             title: 'Ganti nama perusahaan = nomor dokumen berikutnya berubah',

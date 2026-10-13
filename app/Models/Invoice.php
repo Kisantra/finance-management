@@ -21,6 +21,8 @@ class Invoice extends Model
         'discount_type',
         'discount_value',
         'discount_reason',
+        'ppn_rate',
+        'ppn_amount',
         'total_amount',
         'issue_date',
         'due_date',
@@ -34,9 +36,20 @@ class Invoice extends Model
         'subtotal' => 'integer',
         'discount_amount' => 'integer',
         'discount_value' => 'integer',
+        'ppn_rate' => 'decimal:2',
+        'ppn_amount' => 'integer',
         'total_amount' => 'integer',
         'invoice_sequence' => 'integer',
     ];
+
+    /**
+     * PPN dari DPP (subtotal layanan − diskon, tanpa titipan pajak) dengan tarif persen.
+     * Satu-satunya rumus PPN — dipakai editor invoice, publish invoice berulang, dan pratinjau.
+     */
+    public static function ppnFor(int $dpp, float|string|null $rate): int
+    {
+        return $rate ? (int) round(max(0, $dpp) * (float) $rate / 100) : 0;
+    }
 
     public function client(): BelongsTo
     {
@@ -78,9 +91,20 @@ class Invoice extends Model
         return $this->items()->sum('cogs_amount');
     }
 
+    /** PPN adalah titipan untuk negara, bukan pendapatan — tidak ikut laba. */
     public function getGrossProfitAttribute(): int
     {
-        return $this->total_amount - $this->total_cogs;
+        return $this->total_amount - (int) $this->ppn_amount - $this->total_cogs;
+    }
+
+    /** Dasar Pengenaan Pajak: subtotal layanan (tanpa titipan pajak) − diskon. */
+    public function getDppAmountAttribute(): int
+    {
+        $deposits = $this->relationLoaded('items')
+            ? (int) $this->items->where('is_tax_deposit', true)->sum('amount')
+            : (int) $this->items()->where('is_tax_deposit', true)->sum('amount');
+
+        return max(0, (int) $this->subtotal - $deposits - (int) $this->discount_amount);
     }
 
     public function getOutstandingProfitAttribute(): int

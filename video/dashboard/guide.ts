@@ -141,7 +141,7 @@ export const guide: ModuleGuide = {
                 { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini)', source: 'Rekening Bank', tone: 'pos' },
                 { label: 'Invoice Belum Dibayar', value: 'Sisa tagihan invoice terkirim / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Pendapatan', value: 'Semua pembayaran invoice, sejak awal', source: 'Invoice', tone: 'wait' },
-                { label: 'Laba kotor', value: 'Pendapatan − HPP item invoice lunas / sebagian', source: 'Invoice', tone: 'wait' },
+                { label: 'Laba kotor', value: 'Pendapatan − PPN yang sudah dibayar − HPP item invoice lunas / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Est. PPh final 0,5%', value: '0,5% × item invoice lunas / sebagian, selain titipan pajak', source: 'Perkiraan', tone: 'neutral' },
             ],
             note: 'Est. PPh hanya **perkiraan** untuk PPh final UMKM, bukan pajak yang tercatat.',

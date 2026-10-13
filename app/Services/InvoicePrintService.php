@@ -65,7 +65,13 @@ class InvoicePrintService
         $discountAmount = $invoice->discount_amount ?? 0;
 
         // Template-specific calculations
-        if ($template === 'semesta-invoice') {
+        if ($invoice->ppn_rate !== null) {
+            // Invoice sejak fitur PPN: PPN sudah tersimpan & termasuk dalam total_amount.
+            $ppnAmount = (int) $invoice->ppn_amount;
+            $pph22Amount = 0;
+            $displayAmount = $isDownPayment ? $dpAmount : ($isPelunasan ? $pelunasanAmount : $invoice->total_amount);
+            $grandTotal = $displayAmount;
+        } elseif ($template === 'semesta-invoice') {
             // SEMESTA: PPN 11% + PPH 22 1.5%
             $ppnRate = $company?->ppn_rate ?? 11;
             $ppnAmount = ($itemsTotal * $ppnRate / 100);
