@@ -33,6 +33,20 @@ class SetCompanyUrlDefaults
             // ulang, jadi disk `public` masih belum terbentuk saat middleware ini
             // berjalan. Memanggil forgetDisk() lagi di sini justru membuang
             // Storage::fake() pada test.
+            // BATASNYA: ini middleware HTTP, jadi override URL hanya berlaku di
+            // dalam request web. FilesystemTenancyBootstrapper milik stancl v3
+            // menimpa `root` disk tetapi TIDAK PERNAH `url` (tidak ada url_override
+            // di paketnya), sehingga konteks tenant yang dimasuki di luar HTTP -
+            // queue job, perintah artisan, tenants:run - tetap memakai
+            // env('APP_URL').'/storage', yaitu symlink milik database pusat.
+            // Hari ini tidak ada satu pun job/mail/command yang memproduksi URL
+            // lampiran, jadi lubang ini laten, bukan aktif. Yang pertama
+            // melakukannya WAJIB menyetel ulang config ini sendiri - atau
+            // pindahkan override ini ke bootstrapper tenancy (plus revert()-nya,
+            // kalau tidak proses panjang seperti worker queue, Octane, dan loop
+            // lensa grup akan menyimpan URL perusahaan TERAKHIR).
+            // Dijaga StoragePerTenantTest::test_url_lampiran_yang_dikirim_ke_frontend_ber_prefix_perusahaan,
+            // yang terbukti gagal bila baris di bawah dihapus.
             config(['filesystems.disks.public.url' => url("/c/{$slug}/storage")]);
         }
 

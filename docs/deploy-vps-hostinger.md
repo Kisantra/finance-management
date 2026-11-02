@@ -270,29 +270,61 @@ lama & baru) — deploy buruk sekarang mengenai SEMUA perusahaan.
 
 ---
 
-## 10. Nanti: Memboyong Deployment Lama (cutover, runbook §G)
+## 10. Nanti: Memboyong Deployment Lama (cutover, runbook §G.2)
+
+> **Urutan lengkap, terukur, dan sudah dilatih ada di
+> [Runbook §G.2](multi-tenancy-runbook-eksekusi.md#g2-urutan-cutover-deployment-existing--sudah-dilatih-bukan-direncanakan).**
+> Ringkasan di bawah sengaja singkat; dua langkah yang dulu tidak tercantum di
+> sini — rekonsiliasi buku migration dan backfill urutan invoice — **wajib**, dan
+> tanpa keduanya cutover berhenti di tengah jalan atau menerbitkan nomor invoice
+> yang bertabrakan.
 
 Saat siap memindahkan data produksi lama ke server ini, per perusahaan:
 
 ```bash
-# 1. Di server lama: freeze + dump
-mysqldump -u ... -p DATABASE_LAMA > lama.sql
+# 1. Di server lama: freeze + dump + baseline
+php artisan down
+mysqldump -u ... -p --single-transaction --routines --triggers   --default-character-set=utf8mb4 DATABASE_LAMA > lama.sql
+mysql -u ... -p DATABASE_LAMA < docs/migrasi/verifikasi-baseline.sql > sebelum.txt
+tar czf storage-lama.tgz storage/app/public
 
 # 2. Di VPS ini: restore sebagai tenant_{slug}
 mysql -u root -p -e "CREATE DATABASE tenant_namaco CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
 mysql -u root -p tenant_namaco < lama.sql
 
-# 3. Daftarkan + samakan skema + tarik user ke central
-sudo -u kisantra-testing php artisan central:adopt-database namaco \
-  --organization=kisantra --name="Nama Perusahaan" --abbreviation=NCO
-# daftarkan koneksi DB lama di config/database.php sebagai 'legacy', lalu:
-sudo -u kisantra-testing php artisan central:import-users legacy \
-  --organization=kisantra --company=namaco
+# 3. Rekonsiliasi buku migration — SEBELUM adopt, kalau tidak adopt MATI
+#    (migration tenant yang diberi tanggal baru akan dijalankan ulang)
+bash docs/migrasi/cek-migrasi-redate.sh tenant_namaco
+#    bandingkan isi berkasnya, lalu jalankan INSERT yang dicetak perintah itu
+
+# 4. Daftarkan + samakan skema + tarik user ke central
+sudo -u kisantra-testing php artisan central:adopt-database namaco   --organization=kisantra --name="Nama Perusahaan" --abbreviation=NCO
+# daftarkan DB lama sebagai koneksi 'legacy' lewat LEGACY_DB_DATABASE di .env, lalu:
+sudo -u kisantra-testing php artisan central:import-users legacy   --organization=kisantra --company=namaco --dry-run
+sudo -u kisantra-testing php artisan central:import-users legacy   --organization=kisantra --company=namaco
+
+# 5. Berkas/lampiran — JANGAN pakai --pindahkan, dan jangan hapus yang asli
+#    (URL lampiran belum sadar tenant — runbook §G.2.8b)
+sudo -u kisantra-testing php artisan central:adopt-storage namaco
+sudo -u kisantra-testing php artisan storage:link
+
+# 6. Urutan nomor invoice — setel polanya dulu di Pengaturan > Penomoran invoice
+sudo -u kisantra-testing php artisan tenants:run invoice:backfill-sequence   --tenants=namaco --option="dry-run=1"
+sudo -u kisantra-testing php artisan tenants:run invoice:backfill-sequence --tenants=namaco
+
+# 7. Verifikasi sebelum membuka akses
+mysql -u root -p tenant_namaco < docs/migrasi/verifikasi-baseline.sql > sesudah.txt
+diff sebelum.txt sesudah.txt      # hanya blok urutan & pola invoice yang boleh beda
+sudo -u kisantra-testing php artisan central:tenants-status   # Migration pending WAJIB 0
+php artisan up
 ```
+
+Jalan mundur (satu-satunya): `DROP DATABASE tenant_namaco` → `CREATE` → restore
+`lama.sql`. Terbukti memulihkan keadaan persis pada latihan 2026-11-02.
 
 Prasyarat yang masih manual: **ukur version drift** tiap deployment lama
 (`git rev-parse HEAD` + `php artisan migrate:status`) sebelum restore — lihat
-runbook §0.3 dan §G.2.
+runbook §0.3 dan §G.2.0.
 
 ---
 

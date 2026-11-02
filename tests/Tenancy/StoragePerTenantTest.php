@@ -100,6 +100,58 @@ class StoragePerTenantTest extends TenancyTestCase
             ->assertNotFound();
     }
 
+    /**
+     * GERBANG. Seluruh lampiran aplikasi ini lewat satu jalur yang sama:
+     * Storage::disk('public')->url() - 19 titik di controller dan model, semuanya
+     * membaca config filesystems.disks.public.url.
+     *
+     * Kalau URL yang dikirim ke frontend TIDAK ber-prefix /c/{slug}, browser
+     * menembak /storage/... yang dilayani route `storage.local` BAWAAN Laravel 12:
+     * disk `local`, root storage/app/private, visibility private, 'serve' => true.
+     * Tanpa tanda tangan, ServeFile menjawab 403 (404 di produksi) - bukan 404
+     * "berkas tidak ada", melainkan penolakan tanda tangan. Gejalanya menipu:
+     * lampiran tetap tampil untuk perusahaan yang masih punya salinan lama di
+     * storage central (dilayani symlink public/storage), dan hanya hilang untuk
+     * perusahaan yang dibuat dari nol - yaitu perusahaan KEDUA dan seterusnya.
+     *
+     * Dua assertion, keduanya perlu: bentuk URL-nya benar, DAN URL itu benar-benar
+     * bisa diambil. Bentuk yang benar saja tidak membuktikan berkasnya terjangkau.
+     */
+    public function test_url_lampiran_yang_dikirim_ke_frontend_ber_prefix_perusahaan(): void
+    {
+        $path = $this->unggahLampiranKe(0);
+        $slug = $this->slug(0);
+
+        // Harus PEMILIKNYA. data() sengaja menjawab 404 untuk reimbursement milik
+        // orang lain (abort_unless user_id === auth id || canSeeAll) - memakai anggota
+        // lain membuat test ini gagal karena otorisasi, bukan karena URL lampiran.
+        $baris = $this->tenantConnection(0)->table('reimbursements')->first();
+        $pengguna = User::findOrFail($baris->user_id);
+
+        $url = $this->actingAs($pengguna)
+            ->getJson("/c/{$slug}/reimbursements/{$baris->id}/data")
+            ->assertOk()
+            ->json('attachment_url');
+
+        $this->assertNotNull($url, 'Endpoint tidak mengirim attachment_url sama sekali.');
+
+        $this->assertStringContainsString(
+            "/c/{$slug}/storage/",
+            (string) $url,
+            "attachment_url yang dikirim ke frontend adalah [{$url}] - tanpa prefix /c/{$slug}. "
+            .'Browser akan menembak route storage.local (disk private, butuh tanda tangan) '
+            .'dan menerima 403/404, bukan lampirannya. Yang menyetel URL ini adalah '
+            .'SetCompanyUrlDefaults lewat config filesystems.disks.public.url.'
+        );
+
+        // Tutup lingkarannya: URL yang diberikan ke browser harus benar-benar bisa diambil.
+        $this->actingAs($pengguna)
+            ->get((string) parse_url((string) $url, PHP_URL_PATH))
+            ->assertOk();
+
+        $this->assertStringEndsWith($path, (string) $url, 'URL tidak menunjuk ke attachment_path yang tersimpan.');
+    }
+
     /** Unggah lampiran lewat jalur HTTP sungguhan; mengembalikan attachment_path-nya. */
     private function unggahLampiranKe(int $i): string
     {
