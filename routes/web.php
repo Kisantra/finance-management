@@ -228,7 +228,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
                 $filename = $printer->filename($invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::TEMPLATE_SAH, true), 404, 'Template PDF tidak dikenal.');
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
@@ -255,7 +255,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $printer = new BuilderInvoicePrinter;
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::TEMPLATE_SAH, true), 404, 'Template PDF tidak dikenal.');
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
             }

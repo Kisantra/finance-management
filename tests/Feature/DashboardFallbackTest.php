@@ -97,9 +97,20 @@ class DashboardFallbackTest extends TestCase
             $this->assertIsInt($props['stats'][$key], "stats.{$key} harus integer");
         }
 
-        foreach ($props['cashFlowChart'] as $titik) {
-            $this->assertIsInt($titik['income']);
-            $this->assertIsInt($titik['expenses']);
+        // Bentuk cashFlowChart berubah saat redesign: dulu daftar titik
+        // [{label, income, expenses}], sekarang kolom paralel labels[]/income[]/expenses[]
+        // supaya granularitas dan rentangnya bisa diatur. Invariannya tetap sama —
+        // setiap agregat harus integer, bukan string hasil SUM().
+        $chart = $props['cashFlowChart'];
+
+        $this->assertSameSize($chart['labels'], $chart['income']);
+        $this->assertSameSize($chart['labels'], $chart['expenses']);
+
+        foreach ($chart['income'] as $nilai) {
+            $this->assertIsInt($nilai, 'cashFlowChart.income harus integer');
+        }
+        foreach ($chart['expenses'] as $nilai) {
+            $this->assertIsInt($nilai, 'cashFlowChart.expenses harus integer');
         }
     }
 }
