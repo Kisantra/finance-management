@@ -33,8 +33,17 @@ Bukan endpoint, tapi fondasi seluruh modul.
 **Alur step-by-step:**
 
 1. Kapan pun properti `balance` diakses (serialisasi Inertia, PDF, dsb.), accessor `getBalanceAttribute()` dipanggil.
-2. Jika relasi `payments` dan `transactions` sudah di-eager-load, sum dilakukan di memori (menghindari N+1); jika belum, sum via query DB.
+2. Accessor memilih jalur termurah yang tersedia, berurutan:
+   1. **Sudah dihitung di SQL** oleh scope `withBalance()` → kolom `payments_sum`/`credits_sum`/`debits_sum` dipakai langsung, **nol query tambahan**.
+   2. Relasi `payments` + `transactions` sudah di-eager-load → sum di memori.
+   3. Belum keduanya → **3 query agregat per rekening**. Inilah jalur yang harus dihindari untuk daftar.
 3. Rumus: `initial_balance + Σ payments.amount + Σ transaksi credit − Σ transaksi debit`.
+
+**`BankAccount::withBalance()`** menghitung ketiga agregat sebagai subquery skalar dalam SATU statement, berapa pun jumlah rekeningnya. Pakai ini untuk daftar dan total; `with(['transactions','payments'])` tetap tepat bila baris transaksinya memang dibutuhkan (mis. perhitungan tren di `index()`).
+
+> Dulu `DashboardController` memanggil `BankAccount::all()->sum(fn ($a) => $a->balance)` **tiga kali** — `3 × (1 + 3N)` query hanya untuk saldo; pada 5 rekening itu 48 query, pada 10 rekening 93. Sekarang satu memo `rekening()` memakai `withBalance()` → **1 query**. Dikunci `tests/Feature/BankAccountBalanceQueryTest.php` dan pagar regresi `DashboardTest::test_dashboard_tidak_menambah_query_seiring_jumlah_rekening()`.
+
+Kolom bantu `payments_sum`/`credits_sum`/`debits_sum` masuk `$hidden` — internal, tidak ikut terserialisasi ke frontend.
 
 **Penjelasan kode** (`app/Models/BankAccount.php`):
 
@@ -217,7 +226,7 @@ Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori)
 ## Invarian & Jebakan
 
 - **Saldo tidak pernah disimpan.** Jangan pernah menambah kolom `balance` atau meng-update saldo secara manual; semua fitur (export, stats, chart) mengandalkan formula yang sama. Saldo salah = periksa `transaction_type` transaksi, bukan tabel akun.
-- **Eager-load sebelum akses `balance` massal.** `$appends = ['balance']` berarti serialisasi setiap akun memicu 3 sum query bila relasi belum dimuat — selalu `with(['transactions', 'payments'])` seperti di `index()`.
+- **Jangan pernah mengakses `balance` massal tanpa salah satu jalur murah.** `$appends = ['balance']` membuat setiap serialisasi memicu 3 sum query bila relasi belum dimuat. Untuk daftar/total pakai `BankAccount::withBalance()` (1 query); pakai `with(['transactions','payments'])` hanya bila baris transaksinya memang diperlukan, seperti perhitungan tren di `index()`.
 - **Delete akun = cascade.** Menghapus rekening ikut menghapus seluruh `bank_transactions` dan `payments`-nya (berantai ke `reimbursement_payments`) tanpa konfirmasi tambahan di backend dan tanpa menghitung ulang status invoice/reimbursement/permintaan dana; sebaliknya gagal dengan error FK (500) bila ada `loan_payments`.
 - **Route `/bank-accounts/{bankAccount}` hanya PUT/DELETE.** Karena itu `GET /bank-accounts/transactions` & `/payments` tidak tertangkap binding; bila kelak ditambah `GET /bank-accounts/{bankAccount}`, daftarkan kedua route JSON itu lebih dulu.
 - **Trend hanya membandingkan credit transaksi bank** (tanpa payments), bulan ini vs bulan lalu — indikator kasar, bukan net cashflow.

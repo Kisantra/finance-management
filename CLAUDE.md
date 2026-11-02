@@ -194,7 +194,7 @@ Loading skeleton                  → Skeleton
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual
-**Bank Balance:** COMPUTED dynamically — `initial_balance + payments(credit) + tx(credit) - tx(debit)` — NOT stored
+**Bank Balance:** COMPUTED dynamically — `initial_balance + payments(credit) + tx(credit) - tx(debit)` — NOT stored. Untuk daftar/total WAJIB `BankAccount::withBalance()` (1 query); tanpa itu accessor menjalankan 3 query agregat **per rekening** dan `$appends` memanggilnya tiap serialisasi
 **Receivable Debtor:** Polymorphic — User OR Client
 
 **Notification events:** `Bell → dispatch('open-notification-drawer') → Drawer` / `Drawer → dispatch('notification-read') → Bell`

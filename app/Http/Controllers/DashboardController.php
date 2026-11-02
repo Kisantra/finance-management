@@ -10,12 +10,28 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    /**
+     * Saldo seluruh rekening, dihitung sekali per request. Dulu `BankAccount::all()`
+     * dipanggil tiga kali dan accessor `balance` menjalankan tiga query agregat per
+     * rekening — 3 x (1 + 3N) query hanya untuk saldo.
+     *
+     * @var Collection<int, BankAccount>|null
+     */
+    private ?Collection $rekening = null;
+
+    /** @return Collection<int, BankAccount> */
+    private function rekening(): Collection
+    {
+        return $this->rekening ??= BankAccount::withBalance()->get();
+    }
+
     private const PENDING = ['sent', 'partially_paid', 'overdue'];
 
     public function __invoke(DashboardChartRequest $request): Response|RedirectResponse
@@ -59,7 +75,7 @@ class DashboardController extends Controller
      */
     private function getStats(Carbon $start, Carbon $end): array
     {
-        $totalBalance = BankAccount::all()->sum(fn ($a) => $a->balance);
+        $totalBalance = $this->rekening()->sum(fn ($a) => $a->balance);
 
         $income = BankTransaction::where('transaction_type', 'credit')
             ->whereBetween('transaction_date', [$start, $end])
@@ -278,7 +294,7 @@ class DashboardController extends Controller
 
     private function getBankAccounts(): array
     {
-        return BankAccount::all()
+        return $this->rekening()
             ->map(fn ($a) => [
                 'id' => $a->id,
                 'name' => $a->account_name,
@@ -346,7 +362,7 @@ class DashboardController extends Controller
             'total_outstanding' => (int) max(0, $pendingTotal - $pendingPaid),
             'total_hpp' => (int) $totalHpp,
             'total_pp' => (int) round($ppBase * 0.005),
-            'total_balance' => BankAccount::all()->sum(fn ($a) => $a->balance),
+            'total_balance' => $this->rekening()->sum(fn ($a) => $a->balance),
         ];
     }
 

@@ -65,9 +65,16 @@ class InvoiceRecapJsmExport implements FromArray, WithColumnWidths, WithEvents, 
 
         $monthTotals = [];
         $number = 0;
+        // Tie-break terakhir WAJIB deterministik. Tanpa `invoice_number`, dua invoice dengan
+        // tanggal sama dan `invoice_sequence` sama — yang terjadi pada setiap nomor di luar
+        // pola aktif, karena `sequenceOf()` mengembalikan null lalu `?? 0` menyamakannya —
+        // urutannya jatuh ke urutan baris dari database. Urutan itu berubah begitu MySQL
+        // memilih indeks lain, sehingga laporan yang sama bisa keluar berbeda tanpa sebab
+        // yang terlihat. `invoice_number` unique di DB, jadi seri selalu terpecah.
         $sorted = $this->rows->sortBy([
             fn (array $a, array $b) => strcmp((string) $a['issue_date'], (string) $b['issue_date']),
             fn (array $a, array $b) => ($a['invoice_sequence'] ?? 0) <=> ($b['invoice_sequence'] ?? 0),
+            fn (array $a, array $b) => strcmp((string) $a['invoice_number'], (string) $b['invoice_number']),
         ]);
 
         foreach ($sorted->groupBy(fn (array $row) => substr((string) $row['issue_date'], 0, 7)) as $month => $rows) {
