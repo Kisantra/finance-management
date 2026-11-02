@@ -31,10 +31,10 @@ class InvoiceRecapExport implements FromArray, WithColumnWidths, WithEvents, Wit
     /** Accounting-style Rupiah format: right-aligned, negatives in parentheses, zero as dash. */
     private const RP_FORMAT = '_("Rp"* #,##0_);_("Rp"* \(#,##0\);_("Rp"* "-"_);_(@_)';
 
-    private const LAST_COL = 'K';
+    private const LAST_COL = 'L';
 
     /** Columns that hold money (accounting format + right aligned). */
-    private const MONEY_RANGE = 'F:K';
+    private const MONEY_RANGE = 'F:L';
 
     /** 1-based sheet row where the table header sits (after the title block). */
     private int $headerRow = 5;
@@ -63,13 +63,13 @@ class InvoiceRecapExport implements FromArray, WithColumnWidths, WithEvents, Wit
 
     public function array(): array
     {
-        $blank = array_fill(0, 11, '');
+        $blank = array_fill(0, 12, '');
         $grid = [];
         $grid[] = ['REKAP INVOICE'] + $blank;
         $grid[] = ['Periode: '.$this->period] + $blank;
         $grid[] = ['Dicetak: '.now()->isoFormat('D MMMM Y HH:mm').' WIB'] + $blank;
         $grid[] = $blank;
-        $grid[] = ['No. Invoice', 'Klien', 'Tgl Invoice', 'Jatuh Tempo', 'Status', 'Omzet', 'HPP', 'Profit', 'PPh Final 0,5%', 'Terbayar', 'Sisa'];
+        $grid[] = ['No. Invoice', 'Klien', 'Tgl Invoice', 'Jatuh Tempo', 'Status', 'Omzet', 'PPN', 'HPP', 'Profit', 'PPh Final 0,5%', 'Terbayar', 'Sisa'];
 
         $this->firstDataRow = count($grid) + 1;
 
@@ -81,6 +81,7 @@ class InvoiceRecapExport implements FromArray, WithColumnWidths, WithEvents, Wit
                 $row['due_date'],
                 self::STATUS_LABELS[$row['status']] ?? $row['status'],
                 (int) $row['total_amount'],
+                (int) $row['ppn'],
                 (int) $row['hpp'],
                 (int) $row['profit'],
                 (int) $row['pph_final'],
@@ -94,6 +95,7 @@ class InvoiceRecapExport implements FromArray, WithColumnWidths, WithEvents, Wit
         $grid[] = [
             'TOTAL ('.$this->summary['count'].' invoice)', '', '', '', '',
             (int) $this->summary['total_amount'],
+            (int) $this->summary['total_ppn'],
             (int) $this->summary['total_hpp'],
             (int) $this->summary['total_profit'],
             (int) $this->summary['total_pph_final'],
@@ -109,7 +111,7 @@ class InvoiceRecapExport implements FromArray, WithColumnWidths, WithEvents, Wit
     {
         return [
             'A' => 20, 'B' => 28, 'C' => 13, 'D' => 13, 'E' => 11, 'F' => 16,
-            'G' => 15, 'H' => 16, 'I' => 16, 'J' => 16, 'K' => 16,
+            'G' => 15, 'H' => 15, 'I' => 16, 'J' => 16, 'K' => 16, 'L' => 16,
         ];
     }
 

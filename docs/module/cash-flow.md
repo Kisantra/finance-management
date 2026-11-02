@@ -268,6 +268,13 @@ Keduanya menunjuk `CashFlowExportController` yang sama dan digate `can:view bank
 
 Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 
+### Panduan & video tutorial (tombol **Tutorial** di header Pemasukan / Pengeluaran / Transfer)
+
+1. `<TutorialButton slug="cash-flow" />` di ketiga halaman membuka dialog video per role: **Finance manager** (`CashFlowFinanceManager`: input pemasukan, pengeluaran, transfer, koreksi) dan **Admin** (`CashFlowAdmin`: peran, dampak ke saldo & Laba Rugi, isi dua transaksi transfer, jejak di Rekening Bank & Laba Rugi, peringatan, hapus massal). Staff tidak punya izin modul ini sehingga tidak ada video Staff.
+2. Teks panduan (halaman `/panduan` dan adegan video) bersumber dari `video/cash-flow/guide.ts`; langkah walkthrough di `video/cash-flow/steps.ts`, koordinat di `video/cash-flow/shots.ts`, komposisi di `video/cash-flow/tutorial.tsx`, screenshot di `video/cash-flow/screens/`.
+3. Ambil ulang screenshot: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8014`), jalankan `video/capture/cash-flow.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py cash-flow` dan salin koordinat hasilnya ke `shots.ts`. Skrip menambah 1 pemasukan, 1 pengeluaran, 1 transfer di DB QC dan butuh sub-kategori transfer (kategori transfer tanpa sub-kategori tidak bisa dipilih di form). Jalankan sebelum `video/capture/profit-loss.js`.
+4. **Perubahan UI/alur modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
+
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts** — setiap mutasi di sini langsung menggeser saldo dinamis rekening; endpoint mutasi juga dipakai tab transaksi halaman bank-accounts.

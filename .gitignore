@@ -5,6 +5,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/backups
 /vendor
 .env
 .env.backup
@@ -22,7 +23,6 @@ yarn-error.log
 /.vscode
 /.zed
 public/run-migration.php
-composer.lock
 /resources/js/ziggy.js
 
 # Wayfinder generated route/action helpers — regenerated on every
@@ -41,3 +41,10 @@ composer.lock
 
 # Evidence QA: hanya laporan PDF jadi yang masuk git
 /docs/qa/evidence/
+
+# Python bytecode from QA skill scripts
+__pycache__/
+*.pyc
+
+# Hasil render video Remotion (npm run video:render)
+/out/

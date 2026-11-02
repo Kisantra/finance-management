@@ -405,8 +405,8 @@ class RecurringInvoiceController extends Controller
 
             return response()->json([
                 'invoice' => $this->formatMonthlyInvoice($invoice->fresh(['client', 'template', 'publishedInvoice'])),
-                'invoice_number' => $published->invoice_number,
-                'message' => "Invoice dipublish sebagai #{$published->invoice_number}.",
+                'invoice_id' => $published->id,
+                'message' => 'Invoice draft dibuat. Kirim invoice untuk mendapat nomor resmi.',
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Gagal mempublish invoice: '.$e->getMessage()], 500);

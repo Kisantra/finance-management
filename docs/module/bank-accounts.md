@@ -121,7 +121,7 @@ $rules['account_number'] = ['required', 'string', 'max:255',
 1. User konfirmasi hapus via `ConfirmDialog`.
 2. `DELETE /bank-accounts/{bankAccount}` → middleware `can:delete bank-accounts`.
 3. `BankAccountController::destroy()` memanggil `$bankAccount->delete()` **tanpa guard tambahan**.
-4. Efek DB: `bank_transactions` dan `payments` milik akun ikut terhapus (FK cascade). Jika akun punya `loan_payments`, delete **gagal di level DB** (FK tanpa cascade).
+4. Efek DB: `bank_transactions` dan `payments` milik akun ikut terhapus (FK cascade), berantai ke `reimbursement_payments` (FK `bank_transaction_id` cascade); `fund_requests.bank_transaction_id` menjadi `null` (nullOnDelete). Karena terjadi di level DB, event Eloquent tidak jalan: status invoice, `amount_paid`/`payment_status` reimbursement, dan status permintaan dana **tidak dihitung ulang**, dan file lampiran tertinggal di storage. Jika akun punya `loan_payments`, delete **gagal di level DB** (FK tanpa cascade) dan tidak ditangkap controller (respons error 500).
 5. Redirect ke index + flash success.
 
 ### Tab Transaksi (JSON) — `GET /bank-accounts/transactions`
@@ -131,11 +131,11 @@ Endpoint JSON (bukan Inertia) untuk tab "Transaksi" pada detail akun, dipanggil 
 **Alur step-by-step:**
 
 1. User membuka tab Transaksi / mengganti filter (search, tipe, kategori, bulan, sort, per_page) → komponen React fetch `GET /bank-accounts/transactions?account={id}&search=&transaction_type=&category_id=&month=YYYY-MM&per_page=15&sort=transaction_date&direction=desc`.
-2. Route berada dalam grup `can:view bank-accounts` (route name `bank-accounts.transactions`, terdaftar **sebelum** route resource agar tidak tertangkap `{bankAccount}`).
+2. Route berada dalam grup `can:view bank-accounts` (route name `bank-accounts.transactions`). Tidak bentrok dengan `/bank-accounts/{bankAccount}` karena route ber-parameter itu hanya `PUT`/`DELETE`.
 3. `BankTransactionController::indexTransactions()` — tanpa `account` valid, balas paginator kosong.
 4. Query `BankTransaction::with(['category.parent'])` + filter `when(...)`, lalu `paginate($perPage)`.
 5. Respons JSON: `data[]` (id, description, transaction_type, transaction_date, amount, reference_number, category{label, parent_label}, attachment_url/name) + meta paginasi (`current_page`, `last_page`, `total`, `from`, `to`).
-6. UI merender `DataTable` + `Pagination`; setelah mutasi (hapus transaksi) komponen menaikkan counter refresh untuk re-fetch.
+6. UI merender tabel sendiri (checkbox, ikon tempat sampah per baris yang digate `delete income|expense|transfer` sesuai `featureOf()`) + `Pagination`. Hapus satu/massal memanggil `bank-transactions.destroy` / `bank-transactions.bulk-destroy` lewat axios lalu hanya mengambil ulang daftar tab ini — saldo sidebar & kartu statistik baru diperbarui setelah halaman dimuat ulang. Counter `refreshKey` dinaikkan halaman induk setelah dialog Pemasukan/Pengeluaran/Transfer ditutup (sekaligus `router.reload({ only: ['detail', 'accounts', 'overallSummary'] })`).
 
 **Penjelasan kode** (`app/Http/Controllers/BankTransactionController.php`):
 
@@ -174,33 +174,52 @@ $query = Payment::query()
 
 Pembayaran invoice **tidak bisa dibuat/dihapus dari modul ini** — dikelola modul Invoices; di sini hanya read-only.
 
+### Catat Pemasukan / Pengeluaran / Transfer dari halaman rekening
+
+Tombol di header rekening terpilih membuka dialog yang memanggil endpoint bersama modul Cash Flow (otorisasi per fitur, bukan `bank-accounts`):
+
+1. **Pengeluaran** / **Pemasukan** (tampil bila `can('create expense')` / `can('create income')`) → `transaction-form-dialog.tsx`; **Rekening** terisi rekening terpilih. Daftar **Kategori** dari `GET /api/transaction-categories?type=debit|credit` = kelompok (disabled) + sub-kategori bertipe expense/income **ditambah adjustment & transfer**. Link **+ Tambah** membuka `QuickAddCategoryDialog` (`POST /transaction-categories`, butuh `manage categories`; kategori baru bertipe income/expense tanpa `pl_group`). Submit `POST /bank-transactions` (`StoreBankTransactionRequest`: `create income|expense` sesuai `transaction_type`; deskripsi wajib, lampiran pdf/jpg/jpeg/png ≤ 5 MB). Sukses → form dikosongkan, dialog tetap terbuka; **Tutup** memicu reload `detail/accounts/overallSummary`.
+2. **Transfer** (`can('create transfer')`) → `transfer-dialog.tsx`; kategori dari `?type=transfer`, **Biaya Admin** default 2.500. Submit `POST /bank-transactions/transfer` (`TransferBankTransactionRequest`: `create transfer`) → dua `BankTransaction` dalam satu `DB::transaction` dengan `reference_number = 'TRF'.time()`: debit di sumber (`amount + admin_fee`, deskripsi `Transfer + Admin Fee - …`) dan credit di tujuan (`amount`, deskripsi `Transfer masuk - …`), kategori & lampiran sama.
+3. Hapus transaksi dari tab Transaksi: referensi berawalan `TRF` → semua transaksi dengan referensi itu ikut dihapus. Edit transaksi tidak tersedia di halaman ini (hanya di halaman Cash Flow).
+
+Detail aturan & efeknya ke Arus Kas / Laba Rugi ada di `docs/module/cash-flow.md`.
+
 ### Export PDF Laporan Kas — `GET /bank-account/export/pdf`
 
 **Alur step-by-step:**
 
-1. User klik Export PDF (bisa dari halaman bank accounts maupun cash flow) → browser membuka `GET /bank-account/export/pdf?bank_account_id={id}&month=&year=&start_date=&end_date=` (atau `/bank-account/export/pdf/preview` untuk stream inline).
+1. User klik **Export PDF** di menu `•••` rekening terpilih → `window.open('/bank-account/export/pdf?bank_account_id={id}')` — dari halaman ini **hanya** `bank_account_id` yang dikirim (filter bulan halaman tidak ikut), jadi laporannya selalu semua waktu. Endpoint juga menerima `month`, `year`, `start_date`, `end_date` (dipakai halaman Cash Flow lewat `/cash-flow/export/pdf`); `/bank-account/export/pdf/preview` untuk stream inline.
 2. Middleware `can:view bank-accounts`.
 3. `CashFlowExportController::exportPdf()` menormalkan filter via `parseFilters()` (menerima `start_date`/`end_date` **atau** alias `date_from`/`date_to`, `bank_account_id` tunggal **atau** `bank_accounts` comma-separated).
 4. `CashFlowExportService::generatePdf()` membangun data (saldo awal per tanggal mulai, gabungan bank_transactions + payments terurut tanggal, saldo akhir) lalu render Blade `resources/views/pdf/cash-flow-report.blade.php` via DomPDF.
-5. Respons: `$pdf->download($filename)` — nama file mengikuti filter, mis. `cash-flow-2026-01-01-to-2026-01-31-account-2.pdf` atau `cash-flow-semua-waktu.pdf` tanpa filter.
+5. Respons: `$pdf->download($filename)` — nama file mengikuti filter, mis. `cash-flow-2026-01-01-to-2026-01-31-account-2.pdf`, `cash-flow-semua-waktu-account-2.pdf` (dari halaman Rekening Bank), atau `cash-flow-semua-waktu.pdf` tanpa filter.
 
 Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori) ada di `docs/module/cash-flow.md` karena controller & service-nya dibagi dengan modul Cash Flow.
+
+### Panduan & video tutorial
+
+1. Tombol **Tutorial** (`<TutorialButton slug="bank-accounts" />`) di header halaman, di samping **Tambah Rekening**, membuka video per role; halaman publik `/panduan/bank-accounts` memuat panduan teks yang sama. Staff tidak punya akses modul ini, jadi hanya ada video **Finance manager** dan **Admin**.
+2. Isi panduan: `video/bank-accounts/guide.ts` (peran, tugas, dampak lintas modul, isi transaksi transfer, peringatan, matriks akses). Video: `video/bank-accounts/tutorial.tsx` (komposisi `BankAccountsFinanceManager` — mengenal halaman, tambah rekening, pemasukan & pengeluaran, transfer, riwayat; `BankAccountsAdmin` — peran, dampak, isi transaksi transfer, jejak di Arus Kas & Laba Rugi, peringatan, edit & hapus rekening, ringkasan hak akses), langkah walkthrough `steps.ts`, koordinat `shots.ts`, screenshot `screens/*.webp`. Video "Sekilas" = field `overview` di `guide.ts` → `public/videos/panduan/rekening-bank.mp4` (+ poster), sumber `video/launch/bank-accounts.html`.
+3. Video Admin menjelaskan dampak: transaksi → saldo → Arus Kas (Pemasukan / Pengeluaran / Transfer & Penyesuaian) → Laba Rugi (per `pl_group`, panel Perlu Diklasifikasi), pasangan transaksi transfer `TRF…`, serta peringatan hapus rekening (cascade `bank_transactions` + `payments` + `reimbursement_payments`, status invoice/reimbursement/permintaan dana tidak ikut kembali) dan ubah saldo awal.
+4. Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8013`), jalankan `video/capture/bank-accounts.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py bank-accounts` dan salin koordinat hasilnya ke `shots.ts`. Skrip membuat rekening "BRI - Proyek Klien" & "Jago - Kas Kecil" beserta transaksinya di DB QC (langkah yang datanya sudah ada dilewati — pada jalankan ulang, `fm-account-new` sudah memperlihatkan saldo setelah transaksi, karena itu caption langkahnya menyebut "contoh ini sudah berisi transaksi"; ambil di DB QC segar agar layar sesuai alur). Jalankan sebelum `video/capture/transaction-categories.js`.
+5. **Perubahan UI/alur/hak akses modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.** Pratinjau: `npm run video`.
 
 ## Keterkaitan Antar Modul
 
 - **Invoices/Payments** — pembayaran invoice menambah saldo rekening (komponen `payments` pada rumus saldo) dan tampil di tab Pembayaran.
 - **Cash Flow** — semua transaksi income/expense/transfer dibuat lewat endpoint `bank-transactions.*` (lihat `docs/module/cash-flow.md`) dan langsung memengaruhi saldo.
-- **Loans & Receivables** — `LoanController`/`ReceivableController` membuat `BankTransaction` otomatis (pencairan, cicilan, bunga) pada rekening terpilih; `loan_payments` juga ber-FK ke `bank_accounts`.
+- **Loans & Receivables** — `LoanController`/`ReceivableController` membuat `BankTransaction` otomatis (pencairan, cicilan, bunga) pada rekening terpilih; `loan_payments` juga ber-FK ke `bank_accounts` (tanpa cascade → rekening yang pernah dipakai membayar pinjaman tidak bisa dihapus).
+- **Reimbursements & Fund Requests** — pembayaran reimbursement (`ReimbursementController::pay`) dan pencairan dana (`FundRequestController`, satu transaksi per item) membuat `BankTransaction` debit; ikut tampil di tab Transaksi dan bisa dihapus dari sana tanpa mengembalikan status di modul asal.
 - **Transaction Categories** — breakdown donut per kategori join ke `transaction_categories`.
 - **Company Profile** — header laporan PDF (`CompanyProfile::current()`).
-- Endpoint helper `GET /api/bank-accounts` (`routes/web.php`) menyediakan opsi `{label, value}` untuk Combobox lintas modul.
+- Endpoint helper `GET /api/bank-accounts` (`routes/web.php`) menyediakan opsi `{label, value}` untuk Combobox lintas modul. Catatan: route ini (beserta `/api/transaction-categories` & `/api/clients`) didefinisikan **di luar** grup `auth`, jadi bisa diakses tanpa login.
 
 ## Invarian & Jebakan
 
 - **Saldo tidak pernah disimpan.** Jangan pernah menambah kolom `balance` atau meng-update saldo secara manual; semua fitur (export, stats, chart) mengandalkan formula yang sama. Saldo salah = periksa `transaction_type` transaksi, bukan tabel akun.
 - **Eager-load sebelum akses `balance` massal.** `$appends = ['balance']` berarti serialisasi setiap akun memicu 3 sum query bila relasi belum dimuat — selalu `with(['transactions', 'payments'])` seperti di `index()`.
-- **Delete akun = cascade.** Menghapus rekening ikut menghapus seluruh `bank_transactions` dan `payments`-nya tanpa konfirmasi tambahan di backend; sebaliknya gagal dengan error FK bila ada `loan_payments`.
-- **Urutan route penting.** `/bank-accounts/transactions` dan `/bank-accounts/payments` harus terdaftar sebelum binding `{bankAccount}` — jika dipindah ke bawah, URL "transactions" akan dianggap ID akun (404).
+- **Delete akun = cascade.** Menghapus rekening ikut menghapus seluruh `bank_transactions` dan `payments`-nya (berantai ke `reimbursement_payments`) tanpa konfirmasi tambahan di backend dan tanpa menghitung ulang status invoice/reimbursement/permintaan dana; sebaliknya gagal dengan error FK (500) bila ada `loan_payments`.
+- **Route `/bank-accounts/{bankAccount}` hanya PUT/DELETE.** Karena itu `GET /bank-accounts/transactions` & `/payments` tidak tertangkap binding; bila kelak ditambah `GET /bank-accounts/{bankAccount}`, daftarkan kedua route JSON itu lebih dulu.
 - **Trend hanya membandingkan credit transaksi bank** (tanpa payments), bulan ini vs bulan lalu — indikator kasar, bukan net cashflow.
 - Semua nominal adalah **integer rupiah penuh**; gunakan `CurrencyInput` di React dan `parseAmount()` di backend.
 - Kedua endpoint tab mengembalikan **JSON murni**, bukan respons Inertia — jangan dipanggil dengan `router.visit`.
@@ -211,7 +230,7 @@ Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori)
 |------|-------|
 | `app/Models/BankAccount.php` | Accessor `balance` (rumus saldo dinamis), relasi transactions/payments/loanPayments |
 | `app/Http/Controllers/BankAccountController.php` | Index (stats, chart, breakdown), store, update, destroy |
-| `app/Http/Controllers/BankTransactionController.php` | Endpoint JSON `indexTransactions()` & `indexPayments()` untuk tab detail |
+| `app/Http/Controllers/BankTransactionController.php` | Endpoint JSON `indexTransactions()` & `indexPayments()` untuk tab detail; `store`/`transfer`/`destroy`/`bulkDestroy` dipakai dialog & tab di halaman ini (dibagi dengan Cash Flow) |
 | `app/Http/Requests/StoreBankAccountRequest.php` / `UpdateBankAccountRequest.php` | Validasi CRUD akun (unique account_number) |
 | `app/Http/Controllers/CashFlowExportController.php` + `app/Services/CashFlowExportService.php` | Export PDF laporan kas |
 | `resources/views/pdf/cash-flow-report.blade.php` | Template PDF laporan kas |

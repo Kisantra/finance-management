@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\InvoiceRecapExport;
+use App\Exports\InvoiceRecapJsmExport;
+use App\Http\Requests\InvoicePreviewRequest;
 use App\Http\Requests\SendInvoiceRequest;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
@@ -13,6 +15,8 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PdfTemplate;
 use App\Models\Service;
+use App\Services\InvoiceNumberService;
+use App\Services\InvoicePrintService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,7 +33,11 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
-    public function index(Request $request): Response
+    /**
+     * Daftar invoice. Dipakai juga oleh show() agar /invoices/{id} merender daftar yang sama
+     * dengan drawer detail langsung terbuka ($selectedInvoiceId).
+     */
+    public function index(Request $request, ?int $selectedInvoiceId = null): Response
     {
         $search = $request->input('search');
         $status = $request->input('status');
@@ -57,10 +65,12 @@ class InvoiceController extends Controller
                 $query->where('invoices.invoice_number', 'like', "%{$search}%")
                     ->orWhere('clients.name', 'like', "%{$search}%");
             }))
-            ->when($status, fn ($q) => $q->where('invoices.status', $status))
             ->when($clientIds, fn ($q) => $q->whereIn('invoices.billed_to_id', $clientIds));
 
-        $this->applyPeriodFilter($query, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+        $this->applyStatusFilter($query, $status);
+        if ($status !== 'overdue') {
+            $this->applyPeriodFilter($query, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+        }
 
         match ($sort) {
             'client_name' => $query->orderBy('clients.name', $direction),
@@ -73,8 +83,8 @@ class InvoiceController extends Controller
                 'invoice_number' => $invoice->invoice_number,
                 'client_name' => $invoice->client_name,
                 'client_type' => $invoice->client_type,
-                'issue_date' => $invoice->issue_date,
-                'due_date' => $invoice->due_date,
+                'issue_date' => $invoice->issue_date?->format('Y-m-d'),
+                'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'total_amount' => $invoice->total_amount,
                 'amount_paid' => (int) $invoice->amount_paid,
                 'amount_remaining' => $invoice->total_amount - (int) $invoice->amount_paid,
@@ -82,10 +92,11 @@ class InvoiceController extends Controller
                 'faktur' => $invoice->faktur,
             ]);
 
-        // All stat cards + tab counts share one filtered scope: the active
-        // period + client + search (NOT status — the tabs switch status). Each
-        // call returns a fresh query so the aggregates don't interfere.
-        $filtered = function () use ($search, $clientIds, $month, $dateFrom, $dateTo) {
+        // Stat cards follow every active filter, including the status tab, so
+        // the totals always describe the rows on screen. Tab counts are the one
+        // exception ($withStatus = false): they keep the period/client/search
+        // scope but ignore status, otherwise every other tab would read 0.
+        $filtered = function (bool $withStatus = true) use ($search, $status, $clientIds, $month, $dateFrom, $dateTo) {
             $q = Invoice::query()
                 ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
                 ->when($search, fn ($qq) => $qq->where(function ($w) use ($search) {
@@ -93,17 +104,35 @@ class InvoiceController extends Controller
                         ->orWhere('clients.name', 'like', "%{$search}%");
                 }))
                 ->when($clientIds, fn ($qq) => $qq->whereIn('invoices.billed_to_id', $clientIds));
-            $this->applyPeriodFilter($q, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+            if ($withStatus) {
+                $this->applyStatusFilter($q, $status);
+            }
+            if (! ($withStatus && $status === 'overdue')) {
+                $this->applyPeriodFilter($q, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+            }
 
             return $q;
         };
+
+        // "Perlu ditagih": lintas bulan (abaikan periode & tab status), tetap ikut klien/pencarian.
+        $overdueQuery = Invoice::query()
+            ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
+            ->when($search, fn ($qq) => $qq->where(function ($w) use ($search) {
+                $w->where('invoices.invoice_number', 'like', "%{$search}%")
+                    ->orWhere('clients.name', 'like', "%{$search}%");
+            }))
+            ->when($clientIds, fn ($qq) => $qq->whereIn('invoices.billed_to_id', $clientIds));
+        $this->applyStatusFilter($overdueQuery, 'overdue');
+        $overdueIds = $overdueQuery->pluck('invoices.id');
+        $overdueAmount = max(0, (int) Invoice::whereIn('id', $overdueIds)->sum('total_amount')
+            - (int) Payment::whereIn('invoice_id', $overdueIds)->sum('amount'));
 
         // Revenue/profit/count exclude drafts (match Listing.php behaviour).
         $statsIds = $filtered()->whereNotIn('invoices.status', ['draft', 'cancelled'])->pluck('invoices.id');
 
         $basicStats = DB::table('invoices')
             ->whereIn('id', $statsIds)
-            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue')
+            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn, COALESCE(SUM(CASE WHEN ppn_amount > 0 THEN 1 ELSE 0 END), 0) as ppn_invoice_count')
             ->first();
 
         $itemStats = DB::table('invoice_items')
@@ -124,8 +153,8 @@ class InvoiceController extends Controller
         $paidOnOutstanding = (int) Payment::whereIn('invoice_id', $outstandingIds)->sum('amount');
         $totalOutstanding = max(0, $billed - $paidOnOutstanding);
 
-        // Per-status tab counts within the same filtered scope.
-        $statusCounts = $filtered()
+        // Per-status tab counts within the same filtered scope (minus status).
+        $statusCounts = $filtered(false)
             ->selectRaw('invoices.status as status, COUNT(*) as c')
             ->groupBy('invoices.status')
             ->pluck('c', 'status');
@@ -134,29 +163,24 @@ class InvoiceController extends Controller
             'invoice_count' => (int) $basicStats->invoice_count,
             'total_revenue' => $totalRevenue,
             'total_cogs' => $totalCogs,
-            'gross_profit' => $totalRevenue - $totalCogs,
+            'total_ppn' => (int) $basicStats->total_ppn,
+            'ppn_invoice_count' => (int) $basicStats->ppn_invoice_count,
+            // PPN ikut ditagih (total_revenue) tetapi titipan negara, bukan laba.
+            'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - $totalCogs,
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
+            'outstanding_count' => $outstandingIds->count(),
             'draft_count' => (int) ($statusCounts['draft'] ?? 0),
             'sent_count' => (int) ($statusCounts['sent'] ?? 0),
             'partially_paid_count' => (int) ($statusCounts['partially_paid'] ?? 0),
             'paid_count' => (int) ($statusCounts['paid'] ?? 0),
+            'overdue_count' => $overdueIds->count(),
+            'overdue_amount' => $overdueAmount,
         ];
 
         $clients = Client::orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($c) => ['label' => $c->name, 'value' => $c->id]);
-
-        // Rollback-eligible invoice IDs: highest sequence per year-month among sent invoices
-        $rollbackableIds = Invoice::where('status', 'sent')
-            ->whereNotNull('invoice_number')
-            ->where('invoice_number', 'LIKE', '%/INV/%')
-            ->get(['id', 'invoice_number', 'issue_date'])
-            ->groupBy(fn ($inv) => date('Y-m', strtotime($inv->issue_date)))
-            ->map(fn ($group) => $group->sortByDesc(fn ($inv) => (int) explode('/INV/', $inv->invoice_number)[0])->first())
-            ->pluck('id')
-            ->values()
-            ->all();
 
         $customTemplates = PdfTemplate::query()
             ->orderByDesc('is_default')
@@ -171,9 +195,11 @@ class InvoiceController extends Controller
         return Inertia::render('invoices/index', [
             'invoices' => $invoices,
             'stats' => $stats,
+            // Kartu PPN tetap tampil selama PKP walau periode ini belum punya invoice ber-PPN.
+            'ppnEnabled' => (bool) CompanyProfile::current()?->is_pkp,
             'clients' => $clients,
-            'rollbackableIds' => $rollbackableIds,
             'customTemplates' => $customTemplates,
+            'selectedInvoiceId' => $selectedInvoiceId,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
@@ -186,6 +212,22 @@ class InvoiceController extends Controller
                 'direction' => $direction,
             ],
         ]);
+    }
+
+    /**
+     * Filter tab status. "overdue" = terkirim/sebagian yang jatuh temponya sudah lewat
+     * (penanda, bukan status tersimpan).
+     *
+     * @param  Builder<Invoice>  $query
+     */
+    private function applyStatusFilter($query, ?string $status): void
+    {
+        if ($status === 'overdue') {
+            $query->whereIn('invoices.status', ['sent', 'partially_paid'])
+                ->whereDate('invoices.due_date', '<', today());
+        } elseif (filled($status)) {
+            $query->where('invoices.status', $status);
+        }
     }
 
     /**
@@ -210,7 +252,7 @@ class InvoiceController extends Controller
      * Build the recap dataset (filtered invoice rows + summary) shared by the
      * Excel and PDF exports. Honours the same filters as the index listing.
      *
-     * @return array{rows: Collection<int, array<string, mixed>>, summary: array<string, mixed>, period: string}
+     * @return array{rows: Collection<int, array<string, mixed>>, summary: array<string, mixed>, period: string, client_ids: array<int, mixed>}
      */
     private function buildRecapData(Request $request): array
     {
@@ -243,21 +285,36 @@ class InvoiceController extends Controller
                 $query->where('invoices.invoice_number', 'like', "%{$search}%")
                     ->orWhere('clients.name', 'like', "%{$search}%");
             }))
-            ->when($status, fn ($q) => $q->where('invoices.status', $status))
             ->when($clientIds, fn ($q) => $q->whereIn('invoices.billed_to_id', $clientIds))
             // Draft & cancelled invoices are not realised revenue, so they never
             // count toward the recap's omzet / HPP / profit / PPh figures.
             ->whereNotIn('invoices.status', ['draft', 'cancelled']);
 
-        $this->applyPeriodFilter($query, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+        // Aturan filter sama persis dengan daftar: "Perlu ditagih" lintas bulan.
+        $this->applyStatusFilter($query, $status);
+        if ($status !== 'overdue') {
+            $this->applyPeriodFilter($query, $month, $dateFrom, $dateTo, 'invoices.issue_date');
+        }
 
         match ($sort) {
             'client_name' => $query->orderBy('clients.name', $direction),
             default => $query->orderBy("invoices.{$sort}", $direction),
         };
 
-        $rows = $query->get()->map(function ($invoice) {
-            $omzet = (int) $invoice->total_amount;
+        $invoices = $query->get();
+        $ids = $invoices->pluck('id');
+        // Untuk template JSM: nama layanan per invoice & tanggal bayar terakhir (2 query, bukan per baris).
+        $itemNames = InvoiceItem::whereIn('invoice_id', $ids)->where('is_tax_deposit', false)->orderBy('id')->get(['invoice_id', 'service_name'])
+            ->groupBy('invoice_id')
+            ->map(fn ($items) => $items->pluck('service_name')->filter()->unique()->implode(', '));
+        $lastPayments = Payment::whereIn('invoice_id', $ids)
+            ->selectRaw('invoice_id, MAX(payment_date) as last_payment_date')
+            ->groupBy('invoice_id')
+            ->pluck('last_payment_date', 'invoice_id');
+
+        $rows = $invoices->map(function ($invoice) use ($itemNames, $lastPayments) {
+            $ppn = (int) $invoice->ppn_amount;
+            $omzet = (int) $invoice->total_amount - $ppn; // PPN titipan negara, bukan omzet
             $hpp = (int) $invoice->total_cogs;
 
             return [
@@ -266,18 +323,25 @@ class InvoiceController extends Controller
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'total_amount' => $omzet,
+                'ppn' => $ppn,
+                // null = invoice sebelum fitur PPN (tanpa data PPN); 0 = tanpa PPN.
+                'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
                 'hpp' => $hpp,
                 'profit' => $omzet - $hpp,            // gross profit = omzet − HPP
                 'pph_final' => (int) round($omzet * 0.005), // PP 55/2022 final: 0,5% × omzet
                 'amount_paid' => (int) $invoice->amount_paid,
-                'amount_remaining' => $omzet - (int) $invoice->amount_paid,
+                'amount_remaining' => (int) $invoice->total_amount - (int) $invoice->amount_paid,
                 'status' => $invoice->status,
+                'invoice_sequence' => $invoice->invoice_sequence,
+                'items_description' => $itemNames[$invoice->id] ?? '',
+                'last_payment_date' => $lastPayments[$invoice->id] ?? null,
             ];
         });
 
         $summary = [
             'count' => $rows->count(),
             'total_amount' => $rows->sum('total_amount'),
+            'total_ppn' => $rows->sum('ppn'),
             'total_hpp' => $rows->sum('hpp'),
             'total_profit' => $rows->sum('profit'),
             'total_pph_final' => $rows->sum('pph_final'),
@@ -287,7 +351,9 @@ class InvoiceController extends Controller
 
         // Human-readable period label for the report header. A date range
         // overrides the month, matching the listing's filter precedence.
-        if (filled($dateFrom) || filled($dateTo)) {
+        if ($status === 'overdue') {
+            $period = 'Perlu ditagih (lewat jatuh tempo, semua periode)';
+        } elseif (filled($dateFrom) || filled($dateTo)) {
             $period = trim(($dateFrom ?: '…').' s/d '.($dateTo ?: '…'));
         } else {
             $period = $month
@@ -295,15 +361,55 @@ class InvoiceController extends Controller
                 : 'Semua Periode';
         }
 
-        return ['rows' => $rows, 'summary' => $summary, 'period' => $period];
+        return ['rows' => $rows, 'summary' => $summary, 'period' => $period, 'client_ids' => $clientIds];
     }
 
     public function exportExcel(Request $request): BinaryFileResponse
     {
         $data = $this->buildRecapData($request);
-        $filename = 'rekap-invoice-'.now()->format('Ymd-His').'.xlsx';
 
-        return Excel::download(new InvoiceRecapExport($data['rows'], $data['summary'], $data['period']), $filename);
+        if ($request->input('template') === 'jsm') {
+            return Excel::download(
+                new InvoiceRecapJsmExport($data['rows'], $this->jsmRecapTitle($data['client_ids']), $this->jsmRecapPeriod($request, $data['period']), (float) (CompanyProfile::current()?->ppn_rate ?? 11)),
+                'rekap-invoice-jsm-'.now()->format('Ymd-His').'.xlsx',
+            );
+        }
+
+        return Excel::download(new InvoiceRecapExport($data['rows'], $data['summary'], $data['period']), 'rekap-invoice-'.now()->format('Ymd-His').'.xlsx');
+    }
+
+    /**
+     * Judul rekap JSM: "Recap Invoice - {inisial perusahaan}", dengan nama klien bila diekspor untuk satu klien.
+     *
+     * @param  array<int, mixed>  $clientIds
+     */
+    private function jsmRecapTitle(array $clientIds): string
+    {
+        $initials = app(InvoiceNumberService::class)->companyInitials();
+        $client = count($clientIds) === 1 ? Client::find(reset($clientIds))?->name : null;
+
+        return $client ? "Recap Invoice {$client} - {$initials}" : "Recap Invoice - {$initials}";
+    }
+
+    /** Periode rekap JSM seperti file aslinya: "2026" (setahun penuh), "Oktober 2026", atau "1 Januari 2026 – 31 Maret 2026". */
+    private function jsmRecapPeriod(Request $request, string $fallback): string
+    {
+        $from = $request->input('date_from');
+        $to = $request->input('date_to');
+        if ($request->input('status') === 'overdue' || (blank($from) && blank($to))) {
+            return $fallback;
+        }
+        if (filled($from) && filled($to)) {
+            $start = Carbon::parse($from)->locale('id');
+            $end = Carbon::parse($to)->locale('id');
+            if ($start->isSameDay($start->copy()->startOfYear()) && $end->isSameDay($start->copy()->endOfYear())) {
+                return $start->format('Y');
+            }
+
+            return $start->isoFormat('D MMMM Y').' – '.$end->isoFormat('D MMMM Y');
+        }
+
+        return filled($from) ? 'sejak '.Carbon::parse($from)->locale('id')->isoFormat('D MMMM Y') : 's/d '.Carbon::parse($to)->locale('id')->isoFormat('D MMMM Y');
     }
 
     public function exportPdf(Request $request): HttpResponse
@@ -321,13 +427,22 @@ class InvoiceController extends Controller
         return $pdf->download('rekap-invoice-'.now()->format('Ymd-His').'.pdf');
     }
 
-    public function show(Invoice $invoice): JsonResponse
+    /** /invoices/{id}: daftar invoice dengan drawer detail terbuka (drawer mengambil datanya sendiri). */
+    public function show(Request $request, string $invoice): Response
     {
-        $invoice->load(['client', 'items', 'payments.bankAccount']);
+        return $this->index($request, (int) $invoice);
+    }
+
+    public function data(Invoice $invoice): JsonResponse
+    {
+        $invoice->load(['client', 'items.client', 'payments.bankAccount']);
 
         return response()->json([
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
+            'next_invoice_number' => $invoice->status === 'draft'
+                ? Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id)
+                : null,
             'status' => $invoice->status,
             'issue_date' => $invoice->issue_date?->format('Y-m-d'),
             'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -336,13 +451,22 @@ class InvoiceController extends Controller
             'discount_type' => $invoice->discount_type,
             'discount_value' => $invoice->discount_value,
             'discount_reason' => $invoice->discount_reason,
+            'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
+            'ppn_amount' => (int) $invoice->ppn_amount,
+            'dpp_amount' => $invoice->dpp_amount,
             'total_amount' => $invoice->total_amount,
             'amount_paid' => $invoice->amount_paid,
             'amount_remaining' => $invoice->amount_remaining,
             'faktur' => $invoice->faktur,
+            'rollbackable' => $invoice->status === 'sent' && Invoice::isLatestInNumberingPeriod($invoice),
+            'custom_templates' => PdfTemplate::query()->orderByDesc('is_default')->orderBy('name')->get()
+                ->map(fn (PdfTemplate $t) => ['id' => $t->id, 'name' => $t->name, 'isDefault' => (bool) $t->is_default]),
+            'created_at' => $invoice->created_at?->toIso8601String(),
+            'updated_at' => $invoice->updated_at?->toIso8601String(),
             'client' => [
                 'id' => $invoice->client->id,
                 'name' => $invoice->client->name,
+                'type' => $invoice->client->type,
                 'email' => $invoice->client->email,
                 'NPWP' => $invoice->client->NPWP,
                 'address' => $invoice->client->address,
@@ -350,6 +474,7 @@ class InvoiceController extends Controller
             'items' => $invoice->items->map(fn ($item) => [
                 'id' => $item->id,
                 'client_id' => $item->client_id,
+                'client_name' => $item->client?->name,
                 'service_name' => $item->service_name,
                 'quantity' => (float) $item->quantity,
                 'unit' => $item->unit,
@@ -370,114 +495,228 @@ class InvoiceController extends Controller
                 'reference_number' => $payment->reference_number,
                 'attachment_name' => $payment->attachment_name,
                 'attachment_url' => $payment->attachment_url,
+                'created_at' => $payment->created_at?->toIso8601String(),
             ]),
         ]);
     }
 
     public function create(): Response
     {
-        $clients = Client::where('status', 'Active')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email]);
+        return Inertia::render('invoices/create', $this->formOptions());
+    }
 
-        $services = Service::orderBy('name')
-            ->get(['id', 'name', 'price', 'type'])
-            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'price' => $s->price, 'type' => $s->type]);
+    /**
+     * Pilihan klien & layanan untuk editor invoice.
+     *
+     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}}
+     */
+    private function formOptions(?int $includeClientId = null): array
+    {
+        $company = CompanyProfile::current();
 
-        $nextSeq = Invoice::getMaxSequenceFromDb(now()) + 1;
-        $companyInitials = Invoice::extractCompanyInitials(
-            optional(CompanyProfile::first())->name ?? 'SPI'
-        ) ?: 'SPI';
-
-        return Inertia::render('invoices/create', [
-            'clients' => $clients,
-            'services' => $services,
-            'nextSeq' => $nextSeq,
-            'companyInitials' => $companyInitials,
-        ]);
+        return [
+            // PPN hanya bisa dipilih untuk invoice baru selama perusahaan PKP (Pengaturan › Profil perusahaan).
+            'ppn' => [
+                'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
+                'rate' => (float) ($company?->ppn_rate ?? 0),
+            ],
+            'clients' => Client::where('status', 'Active')
+                ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'NPWP', 'type'])
+                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email, 'npwp' => $c->NPWP, 'type' => $c->type]),
+            'services' => Service::orderBy('name')
+                ->get(['id', 'name', 'price', 'type'])
+                ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'price' => $s->price, 'type' => $s->type]),
+        ];
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $publish = $request->boolean('publish');
 
-        DB::transaction(function () use ($validated) {
-            $subtotal = 0;
-            $parsedItems = [];
+        $invoice = DB::transaction(function () use ($validated, $publish) {
+            ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated);
 
-            foreach ($validated['items'] as $item) {
-                $quantity = (float) $item['quantity'];
-                $unitPrice = (int) $item['unit_price'];
-                $amount = (int) round($unitPrice * $quantity);
-                $cogsAmount = (int) ($item['cogs_amount'] ?? 0);
+            $invoice = Invoice::create([...$attributes, 'status' => 'draft']);
+            $invoice->items()->createMany($items);
 
-                $parsedItems[] = [
-                    'client_id' => $item['client_id'] ?? $validated['client_id'],
-                    'service_name' => $item['service_name'],
-                    'quantity' => $quantity,
-                    'unit' => $item['unit'] ?? 'pcs',
-                    'unit_price' => $unitPrice,
-                    'amount' => $amount,
-                    'cogs_amount' => $cogsAmount,
-                    'is_tax_deposit' => (bool) ($item['is_tax_deposit'] ?? false),
-                ];
-
-                $subtotal += $amount;
+            if ($publish) {
+                $this->publish($invoice);
             }
 
-            $discountType = $validated['discount_type'] ?? 'fixed';
-            $discountValue = (int) ($validated['discount_value'] ?? 0);
-            $discountAmount = $discountType === 'percentage'
-                ? (int) round($subtotal * $discountValue / 100)
-                : $discountValue;
+            return $invoice;
+        });
 
-            $totalAmount = max(0, $subtotal - $discountAmount);
+        return redirect()->route('invoices.show', $invoice)->with('success', $publish
+            ? 'Invoice diterbitkan: '.$invoice->invoice_number
+            : 'Invoice disimpan sebagai draft.');
+    }
 
-            $invoice = Invoice::create([
-                'billed_to_id' => $validated['client_id'],
+    /**
+     * Hitung atribut invoice & baris item dari input editor. Dipakai store, update, dan pratinjau
+     * sehingga angka di pratinjau selalu sama dengan yang tersimpan.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{attributes: array<string, mixed>, items: list<array<string, mixed>>}
+     */
+    private function buildInvoiceData(array $validated, ?Invoice $existing = null): array
+    {
+        $subtotal = 0;
+        $taxDeposits = 0;
+        $items = [];
+
+        foreach ($validated['items'] ?? [] as $item) {
+            $quantity = (float) ($item['quantity'] ?? 0);
+            $unitPrice = (int) ($item['unit_price'] ?? 0);
+            $amount = (int) round($unitPrice * $quantity);
+
+            $items[] = [
+                'client_id' => $item['client_id'] ?? $validated['client_id'] ?? null,
+                'service_name' => $item['service_name'] ?? '',
+                'quantity' => $quantity,
+                'unit' => $item['unit'] ?? 'pcs',
+                'unit_price' => $unitPrice,
+                'amount' => $amount,
+                'cogs_amount' => (int) ($item['cogs_amount'] ?? 0),
+                'is_tax_deposit' => (bool) ($item['is_tax_deposit'] ?? false),
+            ];
+
+            $subtotal += $amount;
+            if ($item['is_tax_deposit'] ?? false) {
+                $taxDeposits += $amount;
+            }
+        }
+
+        $discountType = $validated['discount_type'] ?? 'fixed';
+        $discountValue = (int) ($validated['discount_value'] ?? 0);
+        $discountAmount = $discountType === 'percentage'
+            ? (int) round($subtotal * $discountValue / 100)
+            : $discountValue;
+
+        // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih.
+        $ppnRate = $this->resolvePpnRate($validated, $existing);
+        $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
+
+        return [
+            'attributes' => [
+                'billed_to_id' => $validated['client_id'] ?? null,
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'discount_type' => $discountType,
                 'discount_value' => $discountValue,
                 'discount_reason' => $validated['discount_reason'] ?? null,
-                'total_amount' => $totalAmount,
-                'issue_date' => $validated['issue_date'],
-                'due_date' => $validated['due_date'],
-                'status' => 'draft',
-            ]);
+                'ppn_rate' => $ppnRate,
+                'ppn_amount' => $ppnAmount,
+                'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
+                'faktur' => array_key_exists('faktur', $validated)
+                    ? (trim((string) $validated['faktur']) ?: null)
+                    : $existing?->faktur,
+                'issue_date' => $validated['issue_date'] ?? null,
+                'due_date' => $validated['due_date'] ?? null,
+            ],
+            'items' => $items,
+        ];
+    }
 
-            foreach ($parsedItems as $itemData) {
-                InvoiceItem::create(array_merge($itemData, ['invoice_id' => $invoice->id]));
-            }
-        });
+    /**
+     * Tarif PPN invoice (persen). Invoice yang sudah ber-PPN memakai tarif tersimpannya (tidak ikut
+     * berubah bila tarif di Pengaturan diganti); invoice baru hanya bisa ber-PPN selama perusahaan
+     * PKP. `apply_ppn` kosong = bawaan: invoice baru ikut status PKP, invoice lama tetap seperti apa adanya.
+     * Hasil null hanya untuk invoice lama sebelum fitur PPN (tetap "tanpa data PPN" bila tidak diberi PPN).
+     */
+    private function resolvePpnRate(array $validated, ?Invoice $existing): ?float
+    {
+        $company = CompanyProfile::current();
+        $companyRate = $company?->is_pkp && (float) $company->ppn_rate > 0 ? (float) $company->ppn_rate : null;
+        $existingRate = $existing && (float) $existing->ppn_rate > 0 ? (float) $existing->ppn_rate : null;
 
-        return redirect()->route('invoices.index')->with('success', 'Invoice berhasil dibuat.');
+        $apply = isset($validated['apply_ppn'])
+            ? (bool) $validated['apply_ppn']
+            : ($existing ? $existingRate !== null : $companyRate !== null);
+
+        if ($apply && ($existingRate ?? $companyRate)) {
+            return $existingRate ?? $companyRate;
+        }
+
+        return $existing && $existing->ppn_rate === null ? null : 0.0;
+    }
+
+    /** Beri nomor berikutnya & ubah draft menjadi terkirim (dipakai "Simpan & terbitkan"). */
+    private function publish(Invoice $invoice): void
+    {
+        $invoice->update([
+            'invoice_number' => Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id),
+            'status' => 'sent',
+        ]);
+    }
+
+    /**
+     * Pratinjau langsung editor: PDF dari data yang belum disimpan, lewat jalur render yang sama
+     * dengan unduhan (InvoicePrintService::renderPdf). Nomor (tersimpan atau perkiraan) dikirim
+     * lewat header X-Invoice-Number.
+     */
+    public function preview(InvoicePreviewRequest $request): HttpResponse
+    {
+        $validated = $request->validated();
+        $existing = isset($validated['invoice_id']) ? Invoice::find($validated['invoice_id']) : null;
+        ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated, $existing);
+
+        $clients = Client::whereIn('id', array_filter([$attributes['billed_to_id'], ...array_column($items, 'client_id')]))
+            ->get()
+            ->keyBy('id');
+        $billedTo = $clients->get($attributes['billed_to_id']) ?? new Client(['name' => '—']);
+
+        $number = $existing?->invoice_number;
+        if (! $number && $attributes['billed_to_id'] && $attributes['issue_date']) {
+            $number = Invoice::generateInvoiceNumber(Carbon::parse($attributes['issue_date']), $attributes['billed_to_id']);
+        }
+
+        $invoice = new Invoice([
+            ...$attributes,
+            'issue_date' => $attributes['issue_date'] ?? today(),
+            'due_date' => $attributes['due_date'] ?? today(),
+        ]);
+        $invoice->invoice_number = $number;
+        $invoice->setRelation('client', $billedTo);
+        $invoice->setRelation('payments', collect());
+        $invoice->setRelation('items', collect($items)->map(fn (array $item) => (new InvoiceItem($item))
+            ->setRelation('client', $clients->get($item['client_id']) ?? $billedTo)));
+
+        $pdf = (new InvoicePrintService)->renderPdf(
+            $invoice,
+            null,
+            null,
+            $validated['template'] ?? 'kisantra-invoice',
+            isset($validated['highlight']) ? (int) $validated['highlight'] : null,
+        );
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="pratinjau-invoice.pdf"',
+            'X-Invoice-Number' => $number ?? '',
+        ]);
     }
 
     public function edit(Invoice $invoice): Response
     {
         $invoice->load(['items']);
 
-        $clients = Client::where('status', 'Active')
-            ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email]);
-
-        $services = Service::orderBy('name')
-            ->get(['id', 'name', 'price', 'type'])
-            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'price' => $s->price, 'type' => $s->type]);
-
         return Inertia::render('invoices/edit', [
+            ...$this->formOptions($invoice->billed_to_id),
             'invoice' => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
+                'status' => $invoice->status,
                 'client_id' => $invoice->billed_to_id,
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'discount_type' => $invoice->discount_type ?? 'fixed',
                 'discount_value' => $invoice->discount_value ?? 0,
                 'discount_reason' => $invoice->discount_reason,
+                'ppn_rate' => (float) $invoice->ppn_rate > 0 ? (float) $invoice->ppn_rate : null,
+                'faktur' => $invoice->faktur,
                 'items' => $invoice->items->map(fn ($item) => [
                     'client_id' => $item->client_id,
                     'service_name' => $item->service_name,
@@ -488,84 +727,49 @@ class InvoiceController extends Controller
                     'is_tax_deposit' => $item->is_tax_deposit,
                 ]),
             ],
-            'clients' => $clients,
-            'services' => $services,
         ]);
     }
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
     {
         $validated = $request->validated();
+        $publish = $request->boolean('publish') && $invoice->status === 'draft';
 
-        DB::transaction(function () use ($validated, $invoice) {
-            $subtotal = 0;
-            $parsedItems = [];
+        DB::transaction(function () use ($validated, $invoice, $publish) {
+            ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated, $invoice);
 
-            foreach ($validated['items'] as $item) {
-                $quantity = (float) $item['quantity'];
-                $unitPrice = (int) $item['unit_price'];
-                $amount = (int) round($unitPrice * $quantity);
-                $cogsAmount = (int) ($item['cogs_amount'] ?? 0);
-
-                $parsedItems[] = [
-                    'invoice_id' => $invoice->id,
-                    'client_id' => $item['client_id'] ?? $validated['client_id'],
-                    'service_name' => $item['service_name'],
-                    'quantity' => $quantity,
-                    'unit' => $item['unit'] ?? 'pcs',
-                    'unit_price' => $unitPrice,
-                    'amount' => $amount,
-                    'cogs_amount' => $cogsAmount,
-                    'is_tax_deposit' => (bool) ($item['is_tax_deposit'] ?? false),
-                ];
-
-                $subtotal += $amount;
-            }
-
-            $discountType = $validated['discount_type'] ?? 'fixed';
-            $discountValue = (int) ($validated['discount_value'] ?? 0);
-            $discountAmount = $discountType === 'percentage'
-                ? (int) round($subtotal * $discountValue / 100)
-                : $discountValue;
-
-            $totalAmount = max(0, $subtotal - $discountAmount);
-
-            $invoice->update([
-                'billed_to_id' => $validated['client_id'],
-                'subtotal' => $subtotal,
-                'discount_amount' => $discountAmount,
-                'discount_type' => $discountType,
-                'discount_value' => $discountValue,
-                'discount_reason' => $validated['discount_reason'] ?? null,
-                'total_amount' => $totalAmount,
-                'issue_date' => $validated['issue_date'],
-                'due_date' => $validated['due_date'],
-            ]);
-
+            $invoice->update($attributes);
             $invoice->items()->delete();
-            foreach ($parsedItems as $itemData) {
-                InvoiceItem::create($itemData);
+            $invoice->items()->createMany($items);
+
+            if ($publish) {
+                $this->publish($invoice);
             }
         });
 
-        return redirect()->route('invoices.index')->with('success', 'Invoice berhasil diperbarui.');
+        return redirect()->route('invoices.show', $invoice)->with('success', $publish
+            ? 'Invoice diterbitkan: '.$invoice->invoice_number
+            : 'Invoice berhasil diperbarui.');
     }
 
-    public function destroy(Invoice $invoice): RedirectResponse
+    public function destroy(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
+        if ($invoice->payments()->exists()) {
+            return $this->actionResult($request, false, 'Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu.');
+        }
+
         DB::transaction(function () use ($invoice) {
             $invoice->items()->delete();
             $invoice->delete();
         });
 
-        return redirect()->back()->with('success', 'Invoice berhasil dihapus.');
+        return $this->actionResult($request, true, 'Invoice berhasil dihapus.');
     }
 
-    public function send(SendInvoiceRequest $request, Invoice $invoice): RedirectResponse
+    public function send(SendInvoiceRequest $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
-
         if ($invoice->status !== 'draft') {
-            return redirect()->back()->with('error', 'Hanya invoice draft yang dapat dikirim.');
+            return $this->actionResult($request, false, 'Hanya invoice draft yang dapat dikirim.');
         }
 
         $invoice->update([
@@ -573,21 +777,34 @@ class InvoiceController extends Controller
             'status' => 'sent',
         ]);
 
-        return redirect()->back()->with('success', 'Invoice berhasil dikirim: '.$request->invoice_number);
+        return $this->actionResult($request, true, 'Invoice diterbitkan: '.$request->invoice_number);
     }
 
-    public function rollback(Invoice $invoice): RedirectResponse
+    public function rollback(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         if ($invoice->status !== 'sent') {
-            return redirect()->back()->with('error', 'Hanya invoice yang sudah terkirim yang bisa di-rollback.');
+            return $this->actionResult($request, false, 'Hanya invoice yang sudah terkirim yang bisa di-rollback.');
         }
 
-        if (! Invoice::isInvoiceLatestInMonth($invoice)) {
-            return redirect()->back()->with('error', 'Hanya invoice terbaru di bulan ini yang bisa di-rollback.');
+        if (! Invoice::isLatestInNumberingPeriod($invoice)) {
+            return $this->actionResult($request, false, 'Hanya invoice dengan nomor urut terakhir di periodenya yang bisa di-rollback.');
         }
 
         $invoice->update(['invoice_number' => null, 'status' => 'draft']);
 
-        return redirect()->back()->with('success', 'Invoice berhasil dikembalikan ke draft.');
+        return $this->actionResult($request, true, 'Invoice berhasil dikembalikan ke draft.');
+    }
+
+    /**
+     * Drawer detail memanggil aksi lewat fetch (JSON) agar halaman di belakang modal tidak berganti;
+     * halaman lain tetap mendapat redirect back + flash.
+     */
+    private function actionResult(Request $request, bool $ok, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], $ok ? 200 : 422);
+        }
+
+        return redirect()->back()->with($ok ? 'success' : 'error', $message);
     }
 }

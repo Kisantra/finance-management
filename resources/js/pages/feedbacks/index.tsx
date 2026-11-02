@@ -52,6 +52,7 @@ import { FormSection } from '@/components/shared/form-section';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -717,10 +718,13 @@ export default function FeedbacksIndex() {
                     title="Feedback & Saran"
                     description="Laporkan bug, ajukan fitur, atau berikan masukan untuk perbaikan aplikasi"
                     action={
-                        <Button variant="primary" onClick={() => setCreateOpen(true)}>
-                            <Plus className="w-4 h-4" />
-                            Kirim Feedback
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="feedbacks" />
+                            <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                                <Plus className="w-4 h-4" />
+                                Kirim Feedback
+                            </Button>
+                        </div>
                     }
                 />
 

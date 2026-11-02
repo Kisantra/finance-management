@@ -137,6 +137,14 @@ if ($newRemaining <= 0) {
 ```
 Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada validasi yang mencegah bayar melebihi sisa pokok/bunga (lihat Jebakan).
 
+### Panduan & video tutorial (tombol **Tutorial** di header daftar)
+
+1. `<TutorialButton slug="loans" />` di samping **Tambah Pinjaman** membuka video per role; halaman `/panduan/loans` memuat panduan teks yang sama. Staff tidak punya `view loans`, jadi hanya ada video **Finance manager** (`LoansFinanceManager`: mencatat pinjaman, membayar angsuran) dan **Admin** (`LoansAdmin`: peran, dampak ke rekening/Arus Kas/Laba Rugi, isi transaksi dana masuk & angsuran, jejak di Rekening Bank & Arus Kas › Pengeluaran, peringatan, hapus pinjaman).
+2. Sumber: `video/loans/guide.ts` (teks `/panduan` + adegan), `steps.ts`, `shots.ts`, `tutorial.tsx`, `screens/*.webp`.
+3. Ambil ulang screenshot: server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8016`), jalankan `video/capture/loans.js` (form diisi, **tidak** disimpan) lalu `video/capture/loans-after.js` (hanya membaca) lewat Playwright MCP (`browser_run_code_unsafe`), kemudian `python video/capture/to-webp.py loans` dan salin koordinat ke `shots.ts`. Data contoh: pinjaman "PT Bank Mandiri (Persero) Tbk" (aktif, 2 angsuran), "KSP Mitra Usaha Mandiri" (lunas), dan hasil simpan "PT BPR Dana Makmur" + angsuran ke-3 Mandiri (ref `KMK-261012`).
+4. Karena bug lookup kategori `code` (lihat Invarian), simpan pinjaman & bayar angsuran gagal 500 di MySQL; data hasil simpan untuk screenshot dibuat langsung di DB QC dengan isi yang sama persis dengan yang ditulis controller (kategori memakai label seeder: Penerimaan Pinjaman, Pembayaran Pokok Pinjaman, Beban Bunga Pinjaman). Setelah bug diperbaiki, langkah simpan bisa dijalankan lewat UI.
+5. **Perubahan UI/alur modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
+
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman.

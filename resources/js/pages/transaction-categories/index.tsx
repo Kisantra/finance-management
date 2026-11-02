@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -316,9 +317,12 @@ export default function TransactionCategoriesIndex() {
                             Kelola kategori pemasukan, pengeluaran, dan transfer
                         </p>
                     </div>
-                    <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                        Tambah Kategori
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <TutorialButton slug="transaction-categories" />
+                        <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
+                            Tambah Kategori
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}

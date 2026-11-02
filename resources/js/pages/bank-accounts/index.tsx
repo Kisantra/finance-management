@@ -3,7 +3,6 @@ import {
     ArrowDownLeft,
     ArrowLeftRight,
     ArrowUpRight,
-    BookOpen,
     Building2,
     Download,
     MoreHorizontal,
@@ -28,6 +27,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Tabs } from '@/components/ui/tabs';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { useCan } from '@/hooks/use-can';
 import { cn } from '@/lib/utils';
@@ -39,7 +39,6 @@ import { PaymentsTab } from './components/payments-tab';
 import { TransactionFormDialog } from './components/transaction-form-dialog';
 import { TransactionsTab } from './components/transactions-tab';
 import { TransferDialog } from './components/transfer-dialog';
-import { WorkflowGuideDialog } from './components/workflow-guide-dialog';
 import type { AccountDetail, AccountListItem, OverallSummary } from './types';
 
 interface Props {
@@ -66,7 +65,6 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
 
     const [txType, setTxType] = React.useState<'credit' | 'debit' | null>(null);
     const [transferOpen, setTransferOpen] = React.useState(false);
-    const [guideOpen, setGuideOpen] = React.useState(false);
 
     // Persist active tab in localStorage
     const [activeTab, setActiveTab] = React.useState<TabKey>(() => {
@@ -136,10 +134,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                     description="Pantau saldo, transaksi, dan pembayaran di semua rekening Anda."
                     action={
                         <div className="flex items-center gap-2 flex-wrap">
-                            <Button variant="outline" size="md" onClick={() => setGuideOpen(true)}>
-                                <BookOpen className="w-4 h-4" />
-                                Panduan
-                            </Button>
+                            <TutorialButton slug="bank-accounts" />
                             <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
                                 <Plus className="w-4 h-4" />
                                 Tambah Rekening
@@ -364,7 +359,6 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                 accounts={accounts}
                 fromAccountId={selectedAccount?.id ?? null}
             />
-            <WorkflowGuideDialog open={guideOpen} onOpenChange={setGuideOpen} />
         </AppLayout>
     );
 }

@@ -47,7 +47,15 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant, size, asChild = false, loading, icon, children, disabled, ...props }, ref) => {
-        const Comp = asChild ? Slot : 'button';
+        // Slot hanya menerima satu anak: ikon/spinner ditaruh sendiri oleh pemanggil di dalam elemen anak.
+        if (asChild) {
+            return (
+                <Slot ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props}>
+                    {children}
+                </Slot>
+            );
+        }
+        const Comp = 'button';
         return (
             <Comp
                 ref={ref}

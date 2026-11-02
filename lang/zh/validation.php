@@ -194,6 +194,31 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'title' => 'judul',
+        'description' => 'deskripsi',
+        'amount' => 'nominal',
+        'expense_date' => 'tanggal pengeluaran',
+        'category' => 'kategori',
+        'category_id' => 'kategori transaksi',
+        'attachment' => 'lampiran',
+        'action' => 'aksi',
+        'review_notes' => 'catatan review',
+        'bank_account_id' => 'rekening bank',
+        'payment_date' => 'tanggal pembayaran',
+        'payment_amount' => 'jumlah pembayaran',
+        'reference_notes' => 'catatan referensi',
+        'name' => 'nama',
+        'email' => 'email',
+        'password' => 'kata sandi',
+        'phone' => 'telepon',
+        'address' => 'alamat',
+        'notes' => 'catatan',
+        'date' => 'tanggal',
+        'start_date' => 'tanggal mulai',
+        'end_date' => 'tanggal selesai',
+        'due_date' => 'jatuh tempo',
+        'issue_date' => 'tanggal terbit',
+    ],
 
 ];

@@ -477,6 +477,12 @@
                         <div class="info-label">{{ __('invoice.due_date') }}</div>
                         <div class="info-value">{{ $invoice->due_date->format('d M Y') }}</div>
                     </div>
+                    @if ($invoice->faktur)
+                        <div class="info-row">
+                            <div class="info-label">{{ __('invoice.faktur') }}</div>
+                            <div class="info-value">{{ $invoice->faktur }}</div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -701,30 +707,47 @@
                     </div>
                 @endif
 
-                <!-- DPP (based on net revenue after discount) -->
-                <div class="grand-total-section">
-                    <div class="grand-total-row">
-                        <div class="grand-total-label">{{ __('invoice.dpp') }}</div>
-                        <div class="grand-total-value">IDR {{ number_format($dpp, 0, ',', '.') }}</div>
-                    </div>
-                </div>
-
-                <!-- PP 55 (0.5% from net revenue) -->
-                <div class="grand-total-section">
-                    <div class="grand-total-row">
-                        <div class="grand-total-label">{{ __('invoice.pp_55') }}</div>
-                        <div class="grand-total-value">IDR {{ number_format($pph05Percent, 0, ',', '.') }}</div>
-                    </div>
-                </div>
-
-                <!-- Grand Total -->
-                <div class="grand-total-section">
-                    <div class="grand-total-row">
-                        <div class="grand-total-label">{{ __('invoice.grand_total') }}</div>
-                        <div class="grand-total-value">IDR {{ number_format($netRevenueAfterDiscount, 0, ',', '.') }}
+                @if ($ppn_amount > 0 && $invoice->ppn_rate !== null)
+                    <!-- PKP: DPP (layanan − diskon) + PPN = total ditagih (di luar titipan pajak) -->
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.dpp') }}</div>
+                            <div class="grand-total-value">IDR {{ number_format($netRevenueAfterDiscount, 0, ',', '.') }}</div>
                         </div>
                     </div>
-                </div>
+
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.ppn') }} {{ rtrim(rtrim(number_format($invoice->ppn_rate, 2, ',', '.'), '0'), ',') }}%</div>
+                            <div class="grand-total-value">IDR {{ number_format($ppn_amount, 0, ',', '.') }}</div>
+                        </div>
+                    </div>
+                @else
+                    <!-- DPP (based on net revenue after discount) -->
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.dpp') }}</div>
+                            <div class="grand-total-value">IDR {{ number_format($dpp, 0, ',', '.') }}</div>
+                        </div>
+                    </div>
+
+                    <!-- PP 55 (0.5% from net revenue) -->
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.pp_55') }}</div>
+                            <div class="grand-total-value">IDR {{ number_format($pph05Percent, 0, ',', '.') }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Grand Total -->
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.grand_total') }}</div>
+                            <div class="grand-total-value">IDR {{ number_format($netRevenueAfterDiscount, 0, ',', '.') }}
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 <!-- Jumlah Ditagih (ENHANCED - full invoice amount including tax deposits) -->
                 <!-- Total Row -->

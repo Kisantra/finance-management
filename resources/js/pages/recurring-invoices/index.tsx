@@ -15,9 +15,11 @@ import { CurrencyInput } from '@/components/shared/currency-input';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
+import { resourceHref } from '@/lib/resource-modal';
 import { cn, formatCurrency, toastError, toastErrors, toLocalIso } from '@/lib/utils';
-import { ColDef, CurrencyCell, ResizableTh, parseQty, useColumnResize } from '@/pages/invoices/create';
+import { ColDef, CurrencyCell, ResizableTh, parseQty, useColumnResize } from '@/pages/invoices/components/item-table-helpers';
 import { router } from '@inertiajs/react';
 import {
     BarChart3,
@@ -1167,6 +1169,7 @@ export default function RecurringInvoicesIndex({
                     description="Kelola template dan generate invoice otomatis berulang"
                     action={
                         <div className="flex items-center gap-2">
+                            <TutorialButton slug="recurring-invoices" />
                             {activeTab === 'templates' && (
                                 <Button variant="primary" size="sm" onClick={() => router.get('/recurring-invoices/templates/create')}>
                                     <Plus className="w-4 h-4 mr-1.5" /> Buat Template
@@ -1413,10 +1416,10 @@ export default function RecurringInvoicesIndex({
                                                 </td>
                                                 <td className="px-4 py-3 hidden sm:table-cell text-dark-600 dark:text-dark-400 text-xs">
                                                     <div>{inv.scheduled_date}</div>
-                                                    {inv.published_invoice_number && (
-                                                        <a href={`/invoices?search=${inv.published_invoice_number}`} className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 mt-0.5">
+                                                    {inv.published_invoice_id && (
+                                                        <a href={resourceHref('invoice', inv.published_invoice_id)} className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 mt-0.5">
                                                             <ExternalLink className="w-3 h-3" />
-                                                            {inv.published_invoice_number}
+                                                            {inv.published_invoice_number ?? 'Draft · belum dikirim'}
                                                         </a>
                                                     )}
                                                 </td>

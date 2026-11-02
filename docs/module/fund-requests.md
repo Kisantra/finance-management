@@ -176,13 +176,20 @@ Baris tabel dapat dibuka menjadi dialog detail (`index.tsx`) yang menampilkan: h
 6. Endpoint `export/pdf` → `streamDownload` dengan nama `Rekap-Pengajuan-Dana-{month|all}.pdf`; endpoint `/preview` → response inline (untuk pratinjau di tab browser).
 7. Catatan: per penulisan ini `index.tsx` belum merender tombol export — endpoint diakses via URL (route Wayfinder `resources/js/routes/fund-requests/export/` sudah tergenerate).
 
+### Panduan & video tutorial
+
+- Tombol **Tutorial** di header (`<TutorialButton slug="fund-requests" />`) membuka video per role; teks yang sama tampil di halaman `/panduan`.
+- `video/fund-requests/guide.ts` — naskah panduan (peran, alur status, langkah per tugas, dampak lintas modul, peringatan, matriks hak akses). Perbarui bila alur/aturan modul berubah.
+- `video/fund-requests/tutorial.tsx` — komposisi `FundRequestsStaff`, `FundRequestsFinanceManager`, `FundRequestsAdmin`; `steps.ts` (langkah walkthrough), `shots.ts` (koordinat elemen), `screens/*.webp` (screenshot asli dari DB QC).
+- Ambil ulang screenshot bila UI berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8015`), lalu lewat Playwright MCP `video/capture/fund-requests.js` (membuat 2 permintaan contoh: satu dicairkan, satu ditolak) disusul `video/capture/fund-requests-admin.js` (rekening, arus kas, laba rugi; hanya membaca), kemudian `python video/capture/to-webp.py fund-requests` dan sesuaikan `shots.ts`. Hapus dulu permintaan contoh + transaksi pencairannya sebelum menjalankan ulang.
+
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts / Cash Flow** — pencairan membuat `BankTransaction` debit per item; saldo `BankAccount` adalah accessor computed (`initial_balance + credit - debit`), jadi pencairan langsung menurunkan saldo tanpa update kolom. Transaksi pencairan tampil di halaman Cash Flow → Pengeluaran.
 - **Transaction Categories** — `category_id` item diambil dari `TransactionCategory::selectOptions('expense')` (parent disabled, child dipilih); kategori terbawa ke transaksi bank sehingga pengeluaran pencairan terklasifikasi otomatis.
 - **Company Profile** — `computed_abbreviation` menentukan segmen kedua nomor pengajuan (`KSN`).
 - **Sidebar badge (`HandleInertiaRequests::getActionCounts`)** — hitungan `fund_requests` = jumlah `pending` (bila user bisa approve) + jumlah `approved` (bila user bisa disburse); permission-aware.
-- **Dashboard** — seksi "Pengajuan Dana" menampilkan 5 pengajuan terbaru (`getRecentFundRequests`).
+- **Dashboard** — saat ini tidak menampilkan data permintaan dana (tidak ada referensi `FundRequest` di `DashboardController`); satu-satunya penanda di luar modul adalah badge sidebar.
 - **Laporan Laba Rugi** — sesuai kebijakan project, pencairan fund request langsung menjadi beban lewat transaksi bank berkategori.
 
 ## Invarian & Jebakan
@@ -195,6 +202,8 @@ Baris tabel dapat dibuka menjadi dialog detail (`index.tsx`) yang menampilkan: h
 - **Jebakan submit ulang setelah `rejected`** — `canEdit()` menerima `rejected`, tetapi `canSubmit()` hanya menerima `draft` dan `update()` **tidak mereset status**. Akibatnya `action=submit` pada edit pengajuan `rejected` gagal diam-diam (`submit()` return false) sementara flash tetap "berhasil diajukan"; endpoint `POST .../submit` juga menolak dengan flash error. Perhatikan ini saat mengubah alur pengajuan ulang.
 - **Ownership edit/submit dicek di controller, bukan policy** — endpoint `submit` tidak punya middleware permission; satu-satunya penjaga adalah `user_id === auth()->id()`.
 - **Bukti bayar pencairan disimpan di `transaction-attachments/`** dan hanya satu file fisik untuk banyak transaksi — menghapus satu transaksi yang ikut menghapus file akan mematahkan lampiran transaksi lain.
+- **Catatan Pencairan berawalan `TRF`** — nilainya menjadi `reference_number` setiap transaksi pencairan. `BankTransaction::permissionFeature()` dan `BankTransactionController::update()/destroy()` (juga hapus massal di `CashFlowController`) memperlakukan referensi `TRF*` sebagai pasangan transfer: izin berpindah ke `* transfer`, dan menghapus satu transaksi ikut menghapus **semua** transaksi berreferensi sama (termasuk item lain dari pencairan yang sama). Panduan pengguna meminta catatan tidak diawali `TRF`.
+- **Tab & hapus tidak dijaga kepemilikan** — `index()` menerima `?tab=all` dari siapa pun yang punya `view fund requests` (staff bisa melihat permintaan semua orang lewat URL), dan `destroy()` hanya memanggil `canDelete()` tanpa cek pemilik (pemegang `delete fund requests` bisa menghapus Draft/Rejected milik orang lain).
 - Currency integer rupiah penuh (`unit_price`, `amount`, `total_amount`) — di React wajib `CurrencyInput`.
 
 ## File Kunci

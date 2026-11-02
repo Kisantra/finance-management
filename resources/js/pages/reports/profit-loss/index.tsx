@@ -5,6 +5,7 @@ import { CheckCircle2, Download, FileBarChart, TriangleAlert } from 'lucide-reac
 import * as React from 'react';
 
 import { PageHeader } from '@/components/shared/page-header';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,6 +40,7 @@ interface Report {
     pre_tax_profit: number;
     tax: GroupBlock;
     net_profit: number;
+    ppn_output: number;
     unclassified: { income: GroupBlock; expense: GroupBlock };
 }
 
@@ -242,6 +244,13 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
                 )}
 
                 <DocRow label="Laba Bersih" amount={report.net_profit} weight="bold" rule="top-double" />
+
+                {report.ppn_output > 0 && (
+                    <>
+                        <DocSectionTitle>Catatan</DocSectionTitle>
+                        <DocRow indent label="PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)" amount={report.ppn_output} />
+                    </>
+                )}
             </div>
 
             {/* Document footer */}
@@ -439,11 +448,14 @@ export default function ProfitLossIndex() {
                         title="Laporan Laba Rugi"
                         description="Ringkasan pendapatan, modal, beban, dan laba bersih perusahaan"
                         action={(
-                            <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                                <Button variant="primary" size="sm" icon={<Download className="h-4 w-4" />}>
-                                    Unduh PDF
-                                </Button>
-                            </a>
+                            <div className="flex items-center gap-2">
+                                <TutorialButton slug="profit-loss" />
+                                <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                                    <Button variant="primary" size="sm" icon={<Download className="h-4 w-4" />}>
+                                        Unduh PDF
+                                    </Button>
+                                </a>
+                            </div>
                         )}
                     />
                 </div>

@@ -176,6 +176,13 @@
             <td class="label">Laba Bersih</td>
             <td class="amount">{{ $rp($report['net_profit']) }}</td>
         </tr>
+
+        @if (($report['ppn_output'] ?? 0) > 0)
+            <tr>
+                <td class="label indent">Catatan: PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)</td>
+                <td class="amount">{{ $rp($report['ppn_output']) }}</td>
+            </tr>
+        @endif
     </table>
 
     @php

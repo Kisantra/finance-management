@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Client;
-use App\Models\CompanyProfile;
 
 class RecurringInvoice extends Model
 {
@@ -20,14 +18,14 @@ class RecurringInvoice extends Model
         'due_date',
         'invoice_data',
         'status',
-        'published_invoice_id'
+        'published_invoice_id',
     ];
 
     protected $casts = [
         'scheduled_date' => 'date',
         'issue_date' => 'date',
         'due_date' => 'date',
-        'invoice_data' => 'array'
+        'invoice_data' => 'array',
     ];
 
     public function template(): BelongsTo
@@ -50,9 +48,10 @@ class RecurringInvoice extends Model
     {
         return $this->invoice_data['total_amount'] ?? 0;
     }
+
     public function getFormattedTotalAmountAttribute(): string
     {
-        return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
+        return 'Rp '.number_format($this->total_amount, 0, ',', '.');
     }
 
     // Get items from invoice data
@@ -68,18 +67,26 @@ class RecurringInvoice extends Model
             return $this->publishedInvoice;
         }
 
+        // PPN mengikuti status PKP saat publish (subtotal template sudah tanpa titipan pajak).
+        $company = CompanyProfile::current();
+        $ppnRate = $company?->is_pkp && (float) $company->ppn_rate > 0 ? (float) $company->ppn_rate : 0.0;
+        $discountAmount = (int) ($this->invoice_data['discount_amount'] ?? 0);
+        $ppnAmount = Invoice::ppnFor((int) $this->invoice_data['subtotal'] - $discountAmount, $ppnRate);
+
+        // Draft tanpa nomor, sama seperti invoice biasa: nomor resmi diberikan saat "Kirim".
         $invoice = Invoice::create([
-            'invoice_number' => $this->generateInvoiceNumber(),
             'billed_to_id' => $this->client_id,
             'subtotal' => $this->invoice_data['subtotal'],
-            'discount_amount' => $this->invoice_data['discount_amount'] ?? 0,
+            'discount_amount' => $discountAmount,
             'discount_type' => $this->invoice_data['discount_type'] ?? 'fixed',
             'discount_value' => $this->invoice_data['discount_value'] ?? 0,
             'discount_reason' => $this->invoice_data['discount_reason'] ?? null,
-            'total_amount' => $this->total_amount,
+            'ppn_rate' => $ppnRate,
+            'ppn_amount' => $ppnAmount,
+            'total_amount' => $this->total_amount + $ppnAmount,
             'issue_date' => $this->issue_date ?? $this->scheduled_date,
             'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(30),
-            'status' => 'draft'
+            'status' => 'draft',
         ]);
 
         // Create invoice items
@@ -97,99 +104,17 @@ class RecurringInvoice extends Model
         // Update recurring invoice status
         $this->update([
             'status' => 'published',
-            'published_invoice_id' => $invoice->id
+            'published_invoice_id' => $invoice->id,
         ]);
 
         return $invoice;
     }
 
-    // Generate invoice number for published invoice (same format as regular invoice)
-    private function generateInvoiceNumber(): string
-    {
-        $date = $this->issue_date ?? $this->scheduled_date;
-
-        $invoices = Invoice::whereYear('issue_date', $date->year)
-            ->whereMonth('issue_date', $date->month)
-            ->pluck('invoice_number');
-
-        $maxSequence = 0;
-        foreach ($invoices as $invoiceNumber) {
-            if (preg_match('/^(\d+)\/INV\//', $invoiceNumber, $matches)) {
-                $sequence = (int) $matches[1];
-                $maxSequence = max($maxSequence, $sequence);
-            }
-        }
-
-        $sequence = $maxSequence + 1;
-        $companyInitials = $this->getCompanyInitials();
-        $clientInitials = $this->getClientInitials($this->client_id);
-        $romanMonth = $this->getRomanMonth($date->month);
-        $year = $date->year;
-
-        return sprintf(
-            '%03d/INV/%s-%s/%s/%d',
-            $sequence,
-            $companyInitials,
-            $clientInitials,
-            $romanMonth,
-            $year
-        );
-    }
-
-    private function getCompanyInitials(): string
-    {
-        $company = CompanyProfile::first();
-        if (!$company || !$company->name) {
-            return 'SPI';
-        }
-
-        return $this->extractInitials($company->name) ?: 'SPI';
-    }
-
-    private function getClientInitials($clientId): string
-    {
-        $client = Client::find($clientId);
-        if (!$client) {
-            return 'XXX';
-        }
-
-        $name = $client->type === 'company' && $client->company_name
-            ? $client->company_name
-            : $client->name;
-
-        return $this->extractInitials($name) ?: 'XXX';
-    }
-
-    private function extractInitials(string $name): string
-    {
-        $skipWords = ['pt', 'pt.', 'cv', 'cv.', 'ud', 'ud.', 'tb', 'tb.', 'pd', 'pd.', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
-
-        $words = preg_split('/\s+/', trim($name));
-        $initials = '';
-        foreach ($words as $word) {
-            if (!empty($word) && !in_array(strtolower(rtrim($word, '.')), $skipWords) && !in_array(strtolower($word), $skipWords)) {
-                $initials .= strtoupper($word[0]);
-            }
-        }
-
-        return $initials;
-    }
-
-    private function getRomanMonth($month): string
-    {
-        $romans = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
-            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
-        ];
-
-        return $romans[$month] ?? 'I';
-    }
-
     // Scope for monthly filtering
-    public function scopeForMonth($query, int $month, int $year = null)
+    public function scopeForMonth($query, int $month, ?int $year = null)
     {
         $year = $year ?: now()->year;
+
         return $query->whereYear('scheduled_date', $year)
             ->whereMonth('scheduled_date', $month);
     }

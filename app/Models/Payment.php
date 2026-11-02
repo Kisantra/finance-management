@@ -39,7 +39,7 @@ class Payment extends Model
 
     public function hasAttachment(): bool
     {
-        return !empty($this->attachment_path);
+        return ! empty($this->attachment_path);
     }
 
     public function getAttachmentUrlAttribute(): ?string
@@ -49,10 +49,12 @@ class Payment extends Model
 
     public function getAttachmentTypeAttribute(): ?string
     {
-        if (!$this->attachment_path)
+        if (! $this->attachment_path) {
             return null;
+        }
 
         $extension = pathinfo($this->attachment_name, PATHINFO_EXTENSION);
+
         return strtolower($extension);
     }
 
@@ -72,8 +74,8 @@ class Payment extends Model
         parent::boot();
 
         static::deleting(function ($payment) {
-            if ($payment->attachment_path && Storage::exists($payment->attachment_path)) {
-                Storage::delete($payment->attachment_path);
+            if ($payment->attachment_path && Storage::disk('public')->exists($payment->attachment_path)) {
+                Storage::disk('public')->delete($payment->attachment_path);
             }
         });
     }

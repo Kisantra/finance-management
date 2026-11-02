@@ -403,6 +403,13 @@
                     <span>:</span>
                     <span class="info-value">{{ $invoice->issue_date->format('d F Y') }}</span>
                 </div>
+                @if ($invoice->faktur)
+                <div class="info-row">
+                    <span class="info-label">Faktur</span>
+                    <span>:</span>
+                    <span class="info-value">{{ $invoice->faktur }}</span>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -448,28 +455,40 @@
                 @php
                     $subtotal_without_ppn = 0;
                     $total_ppn = 0;
-                    $show_ppn = isset($company['ppn_rate']) && $company['ppn_rate'] > 0;
+                    $hasPpnData = $invoice->ppn_rate !== null;
+                    // Invoice sejak fitur PPN memakai PPN tersimpannya; invoice lama tetap rumus lama (tarif perusahaan).
+                    $ppn_rate_shown = $hasPpnData ? (float) $invoice->ppn_rate : (float) ($company['ppn_rate'] ?? 0);
+                    $show_ppn = $ppn_rate_shown > 0;
 
                     foreach($items as $item) {
                         $subtotal_without_ppn += $item->amount;
-                        if($show_ppn) {
+                        if($show_ppn && ! $hasPpnData) {
                             $total_ppn += ($item->amount * $company['ppn_rate']) / 100;
                         }
+                    }
+                    if ($hasPpnData) {
+                        $total_ppn = (int) $invoice->ppn_amount;
                     }
                 @endphp
                 <tr>
                     <td class="label">SUBTOTAL</td>
                     <td class="amount">Rp {{ number_format($subtotal_without_ppn, 0, ',', '.') }}</td>
                 </tr>
+                @if($hasPpnData && $invoice->discount_amount > 0)
+                <tr>
+                    <td class="label">DISCOUNT</td>
+                    <td class="amount">- Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td>
+                </tr>
+                @endif
                 @if($show_ppn && $total_ppn > 0)
                 <tr>
-                    <td class="label">PPN {{ rtrim(rtrim(number_format($company['ppn_rate'], 2, ',', '.'), '0'), ',') }}%</td>
+                    <td class="label">PPN {{ rtrim(rtrim(number_format($ppn_rate_shown, 2, ',', '.'), '0'), ',') }}%</td>
                     <td class="amount">Rp {{ number_format($total_ppn, 0, ',', '.') }}</td>
                 </tr>
                 @endif
                 <tr class="total-row">
                     <td class="label">TOTAL</td>
-                    <td class="amount">Rp {{ number_format($show_ppn ? ($subtotal_without_ppn + $total_ppn) : $subtotal_without_ppn, 0, ',', '.') }}</td>
+                    <td class="amount">Rp {{ number_format($hasPpnData ? $invoice->total_amount : ($show_ppn ? ($subtotal_without_ppn + $total_ppn) : $subtotal_without_ppn), 0, ',', '.') }}</td>
                 </tr>
             </table>
             <div class="clear"></div>
