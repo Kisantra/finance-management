@@ -65,3 +65,5 @@ __pycache__/
 # Hasil kerja demo lokal: dump database dev (berisi data nyata) dan berkas
 # sementaranya. Skrip di docs/demo/ membuat ulang semuanya kapan saja.
 /storage/demo/sumber.sql
+/storage/qa-d/server.log
+/storage/qa-d/routes.json

@@ -8,11 +8,6 @@
  * ulang. JANGAN dijalankan dengan DB_DATABASE menunjuk database Anda sendiri —
  * penjaga di bawah menolaknya.
  */
-require __DIR__.'/../../vendor/autoload.php';
-
-$app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Company;
@@ -24,7 +19,19 @@ use App\Models\Role;
 use App\Models\Service;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\PermissionRegistrar;
+
+// Bootstrap HARUS di bawah seluruh `use`: pernyataan use hanya berlaku untuk kode
+// SETELAHNYA. Saat blok ini sempat berada di atas, Kernel::class terbaca sebagai
+// 'Kernel' tanpa namespace dan container gagal me-resolve-nya. Pint yang menyusun
+// ulang import memindahkannya, jadi urutan ini bukan selera — ia yang membuat
+// berkas tetap benar setelah diformat ulang.
+require __DIR__.'/../../vendor/autoload.php';
+
+$app = require __DIR__.'/../../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 // ------------------------------------------------------------------ PENJAGA -
 $pusat = config('database.connections.mysql.database');
@@ -122,7 +129,7 @@ $cabang->run(function () {
 
     $inv->updateStatus();
 
-    echo "  data PT Cabang Demo: klien=".Client::count()
+    echo '  data PT Cabang Demo: klien='.Client::count()
         .' invoice='.Invoice::count()
         .' rekening='.BankAccount::count()."\n";
 });
@@ -131,23 +138,42 @@ $cabang->run(function () {
 // Tanpa ini, admin hanya punya satu perusahaan dan langsung dilempar ke
 // dashboard — pemilih perusahaan dan tombol pindah PT tidak akan pernah muncul,
 // padahal itu justru fitur yang ingin dicoba.
-$admin = User::where('email', $ADMIN)->firstOrFail();
 $semua = Company::pluck('id')->all();
-$admin->companies()->syncWithoutDetaching($semua);
 
 Role::firstOrCreate(['name' => 'admin']);
 
-foreach ($semua as $slug) {
-    setPermissionsTeamId($slug);
-    $admin->unsetRelation('roles')->unsetRelation('permissions');
-    if (! $admin->hasRole('admin')) {
-        $admin->assignRole('admin');
+// Akun demo DAN akun lama hasil impor, dua-duanya dijadikan anggota kedua
+// perusahaan. Pengguna satu perusahaan sengaja dilewatkan halaman pemilihan
+// (langsung ke dashboard) — benar untuk produksi, tetapi untuk MENCOBA fitur
+// multi-perusahaan itu justru menyembunyikan fiturnya: login dengan akun lama
+// terasa seolah pemilih perusahaannya tidak ada.
+$kandidat = [$ADMIN, 'admin@gmail.com'];
+
+foreach ($kandidat as $email) {
+    $u = User::where('email', $email)->first();
+
+    if (! $u) {
+        echo "Lewati {$email}: tidak ada di database pusat.\n";
+
+        continue;
     }
+
+    $u->companies()->syncWithoutDetaching($semua);
+
+    foreach ($semua as $slug) {
+        setPermissionsTeamId($slug);
+        $u->unsetRelation('roles')->unsetRelation('permissions');
+        if (! $u->hasRole('admin')) {
+            $u->assignRole('admin');
+        }
+    }
+
+    setPermissionsTeamId(null);
+    $u->unsetRelation('roles')->unsetRelation('permissions');
+
+    echo "{$email} kini anggota: ".implode(', ', $semua)."\n";
 }
-setPermissionsTeamId(null);
-$admin->unsetRelation('roles')->unsetRelation('permissions');
 
-app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-echo "Admin {$ADMIN} kini anggota: ".implode(', ', $semua)."\n";
-echo "Perusahaan terdaftar: ".Company::count()."\n";
+echo 'Perusahaan terdaftar: '.Company::count()."\n";

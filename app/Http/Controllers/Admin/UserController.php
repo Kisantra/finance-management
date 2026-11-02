@@ -6,14 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BulkDestroyUserRequest;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserController extends Controller
 {
@@ -28,7 +31,7 @@ class UserController extends Controller
 
         $users = User::query()
             ->memberOfCurrentCompany()
-            ->with('roles')
+            ->with(['roles', 'companies:companies.id,name,abbreviation'])
             ->when($search, fn (Builder $q) => $q->whereAny(
                 ['name', 'email', 'phone_number'],
                 'like',
@@ -50,6 +53,12 @@ class UserController extends Controller
                 'initials' => $user->initials(),
                 'created_at' => $user->created_at?->toIso8601String(),
                 'is_current' => $user->id === auth()->id(),
+                // Keanggotaan lintas perusahaan ditampilkan di daftar supaya admin grup
+                // bisa melihat sekilas siapa yang bekerja di lebih dari satu PT.
+                'companies' => $user->companies
+                    ->map(fn (Company $c) => ['slug' => $c->getKey(), 'name' => $c->name])
+                    ->values()
+                    ->all(),
             ]);
 
         // Statistik WAJIB memakai cakupan yang sama dengan daftarnya. Kalau tidak,
@@ -75,6 +84,10 @@ class UserController extends Controller
             'users' => $users,
             'stats' => $stats,
             'roleOptions' => $roleOptions,
+            'companyOptions' => $this->perusahaanSeorganisasi()
+                ->map(fn (Company $c) => ['value' => $c->getKey(), 'label' => $c->name])
+                ->values()
+                ->all(),
             'filters' => [
                 'search' => $search,
                 'role' => $role,
@@ -101,15 +114,94 @@ class UserController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        // User baru masuk ke organization & perusahaan aktif admin yang membuatnya
         $user->organization()->associate(auth()->user()->organization_id)->save();
-        if ($companyId = getPermissionsTeamId()) {
-            $user->companies()->syncWithoutDetaching([$companyId]);
-        }
 
-        $user->assignRole($validated['role']);
+        $this->terapkanKeanggotaan($user, $validated['companies'] ?? null, $validated['role']);
 
         return redirect()->back()->with('success', 'Pengguna berhasil ditambahkan.');
+    }
+
+    /**
+     * Setel keanggotaan perusahaan sekaligus perannya di tiap perusahaan.
+     *
+     * Peran di aplikasi ini per-perusahaan (Spatie teams, team key = slug), jadi
+     * menambahkan seseorang ke perusahaan TANPA memberi peran di sana menghasilkan
+     * akun yang bisa masuk tetapi tidak boleh melakukan apa pun — kebingungan yang
+     * terlihat seperti bug. Karena itu peran yang dipilih diterapkan ke SETIAP
+     * perusahaan yang dicentang.
+     *
+     * Batas v1 yang disengaja: satu peran untuk semua perusahaan yang dipilih,
+     * mengikuti bentuk formulir yang sudah ada. Peran berbeda per perusahaan masih
+     * mungkin lewat `central:import-users` atau dengan menyunting dua kali.
+     *
+     * @param  list<string>|null  $slugDipilih  null = pertahankan yang sekarang
+     *                                          (atau perusahaan aktif untuk user baru)
+     */
+    private function terapkanKeanggotaan(User $user, ?array $slugDipilih, string $peran): void
+    {
+        $diizinkan = $this->perusahaanSeorganisasi()->map(fn (Company $c) => (string) $c->getKey())->all();
+        $aktif = (string) (tenant()?->getTenantKey() ?? '');
+
+        $target = $slugDipilih === null
+            ? ($user->exists && $user->companies()->exists()
+                ? $user->companies()->pluck('companies.id')->map(fn ($s) => (string) $s)->all()
+                : array_filter([$aktif]))
+            : array_values(array_intersect(array_map('strval', $slugDipilih), $diizinkan));
+
+        // Jangan pernah mengeluarkan diri sendiri dari perusahaan yang sedang dibuka:
+        // request berikutnya akan ditolak EnsureUserBelongsToCompany dan admin terkunci
+        // di luar pintu yang baru saja ia tutup sendiri.
+        if ($user->id === auth()->id() && $aktif !== '' && ! in_array($aktif, $target, true)) {
+            $target[] = $aktif;
+        }
+
+        // sync(), bukan syncWithoutDetaching(): mencabut keanggotaan harus bisa juga.
+        // Perusahaan di LUAR organisasi ini tidak pernah ada di $diizinkan, jadi tidak
+        // ikut terhapus oleh sync — keanggotaan lintas organisasi (kalau ada) aman.
+        $diluar = $user->companies()->pluck('companies.id')
+            ->map(fn ($s) => (string) $s)
+            ->reject(fn (string $s) => in_array($s, $diizinkan, true))
+            ->all();
+
+        $user->companies()->sync(array_values(array_unique([...$target, ...$diluar])));
+
+        $sebelumnya = getPermissionsTeamId();
+
+        foreach ($target as $slug) {
+            setPermissionsTeamId($slug);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+            $user->syncRoles([$peran]);
+        }
+
+        setPermissionsTeamId($sebelumnya);
+        $user->unsetRelation('roles')->unsetRelation('permissions');
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * Perusahaan yang berada di organisasi yang sama dengan perusahaan aktif.
+     *
+     * Ini BATAS WEWENANG penugasan: admin hanya boleh memindah-mindahkan orang di
+     * dalam grupnya sendiri. Tanpa batas ini, siapa pun yang punya `manage users`
+     * di satu perusahaan bisa menitipkan dirinya ke perusahaan milik organisasi
+     * lain hanya dengan mengirim slug-nya — dan `users` hidup di database pusat,
+     * jadi slug perusahaan lain memang terjangkau dari sini.
+     *
+     * @return Collection<int, Company>
+     */
+    private function perusahaanSeorganisasi(): Collection
+    {
+        $aktif = tenant();
+
+        if (! $aktif) {
+            return new Collection;
+        }
+
+        return Company::query()
+            ->where('organization_id', $aktif->organization_id)
+            ->orderBy('name')
+            ->get();
     }
 
     /**
@@ -156,7 +248,11 @@ class UserController extends Controller
             $user->update(['password' => Hash::make($validated['password'])]);
         }
 
-        $user->syncRoles([$validated['role']]);
+        // syncRoles() sendirian hanya menyentuh team yang AKTIF. Lewat
+        // terapkanKeanggotaan(), perannya ikut diterapkan ke setiap perusahaan yang
+        // dicentang — kalau tidak, menambahkan orang ke PT kedua menghasilkan akun
+        // yang bisa masuk ke sana tetapi tanpa izin apa pun.
+        $this->terapkanKeanggotaan($user, $validated['companies'] ?? null, $validated['role']);
 
         return redirect()->back()->with('success', 'Pengguna berhasil diperbarui.');
     }
