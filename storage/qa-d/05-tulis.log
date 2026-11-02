@@ -1,0 +1,114 @@
+========================================================================================================
+PERUSAHAAN /c/qaalpha  (sebagai alpha-admin@qa.test)   database: tenant_qaalpha
+========================================================================================================
+  data awal: client=1 bank1=1 bank2=2 kategori_expense=1
+  saldo awal (HTTP): {"ALPHA-REKENING-01":102500000,"ALPHA-REKENING-02":50000000}
+--- INVOICE: draft -> kirim (dapat nomor) -> pembayaran -> saldo ---
+  POST /c/qaalpha/invoices                                        status=302 buat draft invoice
+    -> draft invoice id=2 status=draft
+    nomor DIUSULKAN backend: '001/INV/AQ-A/XI/2026'
+  POST /c/qaalpha/invoices/2/send                                 status=200 kirim invoice
+    nomor TERBIT: '001/INV/AQ-A/XI/2026' invoice_sequence=1 status=sent
+  POST /c/qaalpha/invoices/2/payments                             status=200 catat pembayaran 3.000.000 + lampiran
+    saldo rekening#1 (DB): 102500000 -> 105500000  delta=3000000
+    status invoice setelah bayar: partially_paid
+    lampiran pembayaran tersimpan di: 'payments/x0ZA8OkNJxkoCHf0obmRjc6qcz71rJcP91OBKuDL.png'
+--- REIMBURSEMENT: ajukan -> setujui -> bayar ---
+  POST /c/qaalpha/reimbursements                                  status=200 ajukan reimbursement + lampiran
+    -> reimbursement id=2 status=pending lampiran='reimbursements/OHQFzkt4T8JOdWtmPtW5VvpAHYEYtXkPiCdUq9f7.png'
+  POST /c/qaalpha/reimbursements/2/review                         status=200 setujui
+    status setelah setujui: approved
+  POST /c/qaalpha/reimbursements/2/pay                            status=200 bayar
+    status/payment_status akhir: paid/paid
+--- FUND REQUEST: ajukan -> setujui -> cairkan ---
+    nomor DIUSULKAN backend: '001/ALP/XI/2026'
+  POST /c/qaalpha/fund-requests                                   status=302 ajukan fund request
+    -> fund request id=2 nomor=001/ALP/XI/2026 status=pending
+  POST /c/qaalpha/fund-requests/2/review                          status=302 setujui
+    status setelah setujui: approved
+  POST /c/qaalpha/fund-requests/2/disburse                        status=302 cairkan
+    status akhir: disbursed  saldo 105050000 -> 103850000
+--- TRANSFER antar rekening, lalu HAPUS satu kaki ---
+  POST /c/qaalpha/bank-transactions/transfer                      status=302 transfer 1.000.000 + fee 6.500
+    kaki transfer yang terbentuk: [{"id":4,"bank_account_id":1,"amount":1006500,"transaction_type":"debit","transfer_group_id":"01M6E9XH1WP9SJ58A665GY9419","reference_number":"TRF20261102-GY9419"},{"id":5,"bank_account_id":2,"amount":1000000,"transaction_type":"credit","transfer_group_id":"01M6E9XH1WP9SJ58A665GY9419","reference_number":"TRF20261102-GY9419"}]
+    saldo: rek#1 103850000 -> 102843500, rek#2 50000000 -> 51000000
+    jumlah bank_transactions: 3 -> 5
+  POST /c/qaalpha/bank-transactions/4                             status=302 HAPUS kaki id=4
+    kaki transfer yang tersisa: []
+    jumlah bank_transactions setelah hapus: 3 (hilang 2 baris)
+    saldo setelah hapus: rek#1 103850000, rek#2 50000000
+--- PINJAMAN: buat -> bayar angsuran ---
+  POST /c/qaalpha/loans                                           status=302 buat pinjaman
+    -> pinjaman id=2  saldo 103850000 -> 113850000
+  POST /c/qaalpha/loans/2/pay                                     status=302 bayar angsuran
+    angsuran tercatat: 1  kategori transaksi non-null: 2  saldo 112083333
+--- PIUTANG: buat -> ajukan -> setujui -> bayar ---
+  POST /c/qaalpha/receivables                                     status=302 buat piutang
+    -> piutang id=2 nomor=RCV-00002 status=draft
+  POST /c/qaalpha/receivables/2/submit                            status=302 ajukan
+    status: pending_approval
+  POST /c/qaalpha/receivables/2/approve                           status=302 setujui
+    status: active  saldo 106083333
+  POST /c/qaalpha/receivables/2/pay                               status=302 bayar angsuran
+    angsuran tercatat: 1  saldo 108183333
+  saldo akhir  DB: {"bank1":108183333,"bank2":50000000}
+  saldo akhir HTTP: {"ALPHA-REKENING-01":108183333,"ALPHA-REKENING-02":50000000}
+========================================================================================================
+PERUSAHAAN /c/qabeta  (sebagai beta-admin@qa.test)   database: tenant_qabeta
+========================================================================================================
+  data awal: client=501 bank1=501 bank2=502 kategori_expense=1
+  saldo awal (HTTP): {"BETA-REKENING-01":102500000,"BETA-REKENING-02":50000000}
+--- INVOICE: draft -> kirim (dapat nomor) -> pembayaran -> saldo ---
+  POST /c/qabeta/invoices                                         status=302 buat draft invoice
+    -> draft invoice id=502 status=draft
+    nomor DIUSULKAN backend: '001/INV/BQ-B/XI/2026'
+  POST /c/qabeta/invoices/502/send                                status=200 kirim invoice
+    nomor TERBIT: '001/INV/BQ-B/XI/2026' invoice_sequence=1 status=sent
+  POST /c/qabeta/invoices/502/payments                            status=200 catat pembayaran 3.000.000 + lampiran
+    saldo rekening#501 (DB): 102500000 -> 105500000  delta=3000000
+    status invoice setelah bayar: partially_paid
+    lampiran pembayaran tersimpan di: 'payments/haKbthO7qxY4FxkaVJ4XDGQnFYMF4NgaBEZDQwzU.png'
+--- REIMBURSEMENT: ajukan -> setujui -> bayar ---
+  POST /c/qabeta/reimbursements                                   status=200 ajukan reimbursement + lampiran
+    -> reimbursement id=502 status=pending lampiran='reimbursements/ofGDc3P8xdLdDAfM8tKLgGJEKNg15eMlbUTnERra.png'
+  POST /c/qabeta/reimbursements/502/review                        status=200 setujui
+    status setelah setujui: approved
+  POST /c/qabeta/reimbursements/502/pay                           status=200 bayar
+    status/payment_status akhir: paid/paid
+--- FUND REQUEST: ajukan -> setujui -> cairkan ---
+    nomor DIUSULKAN backend: '001/BTA/XI/2026'
+  POST /c/qabeta/fund-requests                                    status=302 ajukan fund request
+    -> fund request id=502 nomor=001/BTA/XI/2026 status=pending
+  POST /c/qabeta/fund-requests/502/review                         status=302 setujui
+    status setelah setujui: approved
+  POST /c/qabeta/fund-requests/502/disburse                       status=302 cairkan
+    status akhir: disbursed  saldo 105050000 -> 103850000
+--- TRANSFER antar rekening, lalu HAPUS satu kaki ---
+  POST /c/qabeta/bank-transactions/transfer                       status=302 transfer 1.000.000 + fee 6.500
+    kaki transfer yang terbentuk: [{"id":504,"bank_account_id":501,"amount":1006500,"transaction_type":"debit","transfer_group_id":"01M6E9XMDQKV6CFFX5900HFGAP","reference_number":"TRF20261102-0HFGAP"},{"id":505,"bank_account_id":502,"amount":1000000,"transaction_type":"credit","transfer_group_id":"01M6E9XMDQKV6CFFX5900HFGAP","reference_number":"TRF20261102-0HFGAP"}]
+    saldo: rek#501 103850000 -> 102843500, rek#502 50000000 -> 51000000
+    jumlah bank_transactions: 3 -> 5
+  POST /c/qabeta/bank-transactions/504                            status=302 HAPUS kaki id=504
+    kaki transfer yang tersisa: []
+    jumlah bank_transactions setelah hapus: 3 (hilang 2 baris)
+    saldo setelah hapus: rek#501 103850000, rek#502 50000000
+--- PINJAMAN: buat -> bayar angsuran ---
+  POST /c/qabeta/loans                                            status=302 buat pinjaman
+    -> pinjaman id=502  saldo 103850000 -> 113850000
+  POST /c/qabeta/loans/502/pay                                    status=302 bayar angsuran
+    angsuran tercatat: 1  kategori transaksi non-null: 2  saldo 112083333
+--- PIUTANG: buat -> ajukan -> setujui -> bayar ---
+  POST /c/qabeta/receivables                                      status=302 buat piutang
+    -> piutang id=502 nomor=RCV-00502 status=draft
+  POST /c/qabeta/receivables/502/submit                           status=302 ajukan
+    status: pending_approval
+  POST /c/qabeta/receivables/502/approve                          status=302 setujui
+    status: active  saldo 106083333
+  POST /c/qabeta/receivables/502/pay                              status=302 bayar angsuran
+    angsuran tercatat: 1  saldo 108183333
+  saldo akhir  DB: {"bank1":108183333,"bank2":50000000}
+  saldo akhir HTTP: {"BETA-REKENING-01":108183333,"BETA-REKENING-02":50000000}
+
+=== NOMOR DOKUMEN YANG TERBIT ===
+qaalpha   invoice=001/INV/AQ-A/XI/2026   seq=1   fund_request=001/ALP/XI/2026    piutang=RCV-00002
+qabeta    invoice=001/INV/BQ-B/XI/2026   seq=1   fund_request=001/BTA/XI/2026    piutang=RCV-00502

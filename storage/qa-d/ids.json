@@ -1,0 +1,38 @@
+{
+    "qaalpha": {
+        "invoice": 1,
+        "invoice_number": "ALPHA-INV-0001",
+        "reimbursement": 1,
+        "fundRequest": 1,
+        "template": 1,
+        "pdfTemplate": 1,
+        "client": 1,
+        "bankAccount": 1,
+        "bankTransaction": 1,
+        "payment": 1,
+        "loan": 1,
+        "receivable": 1,
+        "service": 1,
+        "transactionCategory": 1,
+        "attachment": "reimbursements\/alpha-lampiran-01.txt",
+        "tabel": 22
+    },
+    "qabeta": {
+        "invoice": 501,
+        "invoice_number": "BETA-INV-0001",
+        "reimbursement": 501,
+        "fundRequest": 501,
+        "template": 501,
+        "pdfTemplate": 501,
+        "client": 501,
+        "bankAccount": 501,
+        "bankTransaction": 501,
+        "payment": 501,
+        "loan": 501,
+        "receivable": 501,
+        "service": 501,
+        "transactionCategory": 1,
+        "attachment": "reimbursements\/beta-lampiran-01.txt",
+        "tabel": 22
+    }
+}

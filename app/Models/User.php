@@ -48,6 +48,31 @@ class User extends Authenticatable
         return $this->belongsToMany(Company::class, 'company_user')->withTimestamps();
     }
 
+    /**
+     * Pengguna yang menjadi anggota perusahaan aktif.
+     *
+     * `users` dan `company_user` hidup di database CENTRAL, jadi isolasi
+     * tingkat koneksi TIDAK melindunginya: tanpa cakupan ini `User::query()`
+     * mengembalikan seluruh pengguna semua perusahaan. Itu bukan sekadar
+     * kebocoran baca — route-model binding memakai tabel yang sama, sehingga
+     * admin PT A dapat mengubah dan MENGHAPUS pengguna PT B.
+     *
+     * GAGAL-TERTUTUP di luar konteks perusahaan. Mengembalikan query terbuka
+     * saat `tenant()` null akan membuat kebocoran yang sama muncul kembali di
+     * setiap pemanggil baru yang lupa konteksnya; lebih baik tidak
+     * mengembalikan siapa pun dan ketahuan segera.
+     */
+    public function scopeMemberOfCurrentCompany($query)
+    {
+        $slug = tenant()?->getTenantKey();
+
+        if ($slug === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('companies', fn ($q) => $q->whereKey($slug));
+    }
+
     public function receivables(): MorphMany
     {
         return $this->morphMany(Receivable::class, 'debtor');

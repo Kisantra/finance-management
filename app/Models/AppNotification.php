@@ -49,6 +49,28 @@ class AppNotification extends Model
         return $query->where('user_id', $userId);
     }
 
+    /**
+     * Notifikasi milik perusahaan aktif, plus baris tanpa konteks perusahaan.
+     *
+     * Tabel `app_notifications` hidup di database CENTRAL, jadi isolasi tingkat
+     * koneksi TIDAK melindunginya. `notify()` sudah menandai setiap baris baru
+     * dengan `company_id`, tetapi penandanya tidak berguna kalau pembacanya
+     * tidak menyaring.
+     *
+     * Logika ini sebelumnya ditulis sebagai closure DI DALAM
+     * HandleInertiaRequests::getNotifications() dan TIDAK ADA di
+     * NotificationController — itulah sebabnya lonceng menampilkan 1 notifikasi
+     * sementara drawer-nya menampilkan 2, yang kedua milik perusahaan lain.
+     * Satu definisi di sini, dipakai kedua pembaca, supaya tidak bisa menyimpang
+     * lagi.
+     */
+    public function scopeForCurrentCompany($query)
+    {
+        return $query->when(tenant(), fn ($q) => $q->where(
+            fn ($sub) => $sub->whereNull('company_id')->orWhere('company_id', tenant()->getTenantKey())
+        ));
+    }
+
     public function scopeRecent($query, int $days = 30)
     {
         return $query->where('created_at', '>=', now()->subDays($days));

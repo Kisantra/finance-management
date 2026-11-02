@@ -57,6 +57,26 @@ class Feedback extends Model
         return $query->where('user_id', $userId);
     }
 
+    /**
+     * Feedback milik perusahaan aktif, plus baris tanpa konteks perusahaan.
+     *
+     * Tabel `feedbacks` hidup di database CENTRAL (model ini memakai
+     * CentralConnection), jadi isolasi tingkat koneksi TIDAK melindunginya —
+     * satu-satunya pelindung adalah cakupan ini. Tanpa dipasang, pengguna
+     * dengan izin `manage feedbacks` di PT A membaca isi feedback PT B lewat
+     * `Feedback::query()` yang terbuka.
+     *
+     * `company_id` NULL ikut disertakan dengan sengaja: baris yang dibuat
+     * sebelum multi-perusahaan tidak punya penanda, dan pada deployment satu
+     * perusahaan hasil adopsi, baris itu memang milik perusahaan tersebut.
+     */
+    public function scopeForCurrentCompany($query)
+    {
+        return $query->when(tenant(), fn ($q) => $q->where(
+            fn ($sub) => $sub->whereNull('company_id')->orWhere('company_id', tenant()->getTenantKey())
+        ));
+    }
+
     public function scopeByStatus($query, string $status)
     {
         return $query->where('status', $status);

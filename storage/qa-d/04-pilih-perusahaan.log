@@ -1,0 +1,28 @@
+==========================================================================================
+PENGGUNA alpha-staff@qa.test — anggota 1 perusahaan
+POST /login status=302 location=http://127.0.0.1:8101/choose-company
+  GET /choose-company                                            status=302 ukuran=410    komponen=(bukan halaman)  -> http://127.0.0.1:8101/c/qaalpha/dashboard
+  GET /c/qaalpha/dashboard                                       status=200 ukuran=11391  komponen=dashboard
+    props.companies = [{"slug":"qaalpha","name":"PT Alpha Qa","abbreviation":"ALP"}]
+    props.company   = {"slug":"qaalpha","name":"PT Alpha Qa","abbreviation":"ALP"}
+  GET /c/qaalpha/dashboard  status=200 komponen=dashboard
+  GET /c/qabeta/dashboard  status=403 komponen=error
+  GET /choose-company   status=302 komponen=(bukan halaman)  -> http://127.0.0.1:8101/c/qaalpha/dashboard
+==========================================================================================
+PENGGUNA both-manager@qa.test — anggota 2 perusahaan
+POST /login status=302 location=http://127.0.0.1:8101/choose-company
+  GET /choose-company                                            status=200 ukuran=11004  komponen=choose-company
+    props.companies = [{"slug":"qaalpha","name":"PT Alpha Qa","abbreviation":"ALP"},{"slug":"qabeta","name":"PT Beta Qa","abbreviation":"BTA"}]
+  GET /c/qaalpha/dashboard  status=200 komponen=dashboard
+  GET /c/qabeta/dashboard  status=200 komponen=dashboard
+  GET /choose-company   status=200 komponen=choose-company
+    props: {"company":null,"companies":[{"slug":"qaalpha","name":"PT Alpha Qa","abbreviation":"ALP"},{"slug":"qabeta","name":"PT Beta Qa","abbreviation":"BTA"}],"locale":"id","flash":{"success":null,"error":null,"warning":null,"info":null},"notifications":{"recent":[{"id":2,"type":"invoice_due","title":"BETA-NOTIF-01","message":"BETA notifikasi rahasia","data":[],"read_at":null,"created_at":"2026-11-02T22:14:59+08:00","icon":"bell","color":"gray"},{"id":1,"type":"invoice_due","title":"ALPHA-NOTIF-01","message":"ALPHA notifikasi rahasia","data":[],"read_at":null,"created_at":"2026-11-02T22:14:59+08:00","i
+==========================================================================================
+PENGGUNA nobody@qa.test — anggota 0 perusahaan
+POST /login status=302 location=http://127.0.0.1:8101/choose-company
+  GET /choose-company                                            status=403 ukuran=3607   komponen=error
+    tidak ada Location — rantai berhenti
+    BODY:  Finance Management (function () { var stored = localStorage.getItem('theme'); var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; if (stored === 'dark' || (!stored && prefersDark)) { document.documentElement.classList.add('dark'); } })(); import RefreshRuntime from 'http://[::1]:5173/@react-refresh' RefreshRuntime.injectIntoGlobalHook(window) window.$RefreshReg$ = () => {} window.$RefreshSig$ = () => (type) => type window.__vite_plugin_react_preamble_installed__ = true 
+  GET /c/qaalpha/dashboard  status=403 komponen=error
+  GET /c/qabeta/dashboard  status=403 komponen=error
+  GET /choose-company   status=403 komponen=error

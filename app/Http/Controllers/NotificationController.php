@@ -16,7 +16,7 @@ class NotificationController extends Controller
 
         $userId = auth()->id();
 
-        $query = AppNotification::forUser($userId)->orderByDesc('created_at');
+        $query = AppNotification::forUser($userId)->forCurrentCompany()->orderByDesc('created_at');
         $total = (clone $query)->count();
         $items = $query->limit($perPage * $page)->get()->map(fn (AppNotification $n) => [
             'id' => $n->id,
@@ -33,7 +33,7 @@ class NotificationController extends Controller
         return response()->json([
             'items' => $items,
             'total' => $total,
-            'unread_count' => AppNotification::forUser($userId)->unread()->count(),
+            'unread_count' => AppNotification::forUser($userId)->forCurrentCompany()->unread()->count(),
             'has_more' => $items->count() < $total,
         ]);
     }
@@ -49,6 +49,7 @@ class NotificationController extends Controller
     public function markAllAsRead(): RedirectResponse
     {
         AppNotification::forUser(auth()->id())
+            ->forCurrentCompany()
             ->unread()
             ->update(['read_at' => now()]);
 

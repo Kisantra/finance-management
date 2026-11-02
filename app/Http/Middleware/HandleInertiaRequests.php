@@ -110,13 +110,11 @@ class HandleInertiaRequests extends Middleware
 
     private function getNotifications(int $userId): array
     {
-        // Notifikasi tersimpan central; tampilkan milik perusahaan aktif + yang
-        // tanpa konteks perusahaan (company_id NULL)
-        $companyScope = fn ($query) => $query->when(tenant(), fn ($q) => $q->where(
-            fn ($sub) => $sub->whereNull('company_id')->orWhere('company_id', tenant()->getTenantKey())
-        ));
-
-        $recent = $companyScope(AppNotification::forUser($userId))
+        // Penyaringan perusahaan hidup di AppNotification::scopeForCurrentCompany().
+        // Dulu ia closure di sini saja, dan NotificationController tidak punya
+        // padanannya — lonceng menampilkan 1 notifikasi, drawer-nya 2.
+        $recent = AppNotification::forUser($userId)
+            ->forCurrentCompany()
             ->recent()
             ->orderByDesc('created_at')
             ->limit(10)
@@ -135,7 +133,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'recent' => $recent->values()->toArray(),
-            'unread_count' => $companyScope(AppNotification::forUser($userId))->unread()->count(),
+            'unread_count' => AppNotification::forUser($userId)->forCurrentCompany()->unread()->count(),
         ];
     }
 }

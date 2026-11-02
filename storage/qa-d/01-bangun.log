@@ -1,0 +1,75 @@
+Repo   : /d/Laravel/finance-management
+Central: qa_central
+Tenant : tenant_qaalpha tenant_qabeta
+
+[1/6] menjatuhkan & membuat ulang database QA
+dropped qa_central
+dropped tenant_qaalpha
+dropped tenant_qabeta
+created qa_central
+[2/6] membersihkan folder storage tenant
+[3/6] migrasi database central
+  2026_08_11_120000_add_manage_companies_permission_to_roles ............................................. 8.46ms DONE
+  2026_10_08_005001_add_manage_invoice_settings_permission ............................................... 5.40ms DONE
+
+[4/6] seeding role & permission master
+📋 Checking Admin User...
+  ⚠ No admin users found!
+  ✗ No users/companies in database to assign admin role!
+
+✅ Master Permission Seeder completed successfully!
+[5/6] organisasi, 2 perusahaan, pengguna, data uji bertanda ALPHA-/BETA-
+DB central: qa_central
+Organization: QA Grup (id 1)
+Perusahaan dibuat: qaalpha (PT Alpha Qa) status=active db=tenant_qaalpha
+Perusahaan dibuat: qabeta (PT Beta Qa) status=active db=tenant_qabeta
+User: alpha-admin@qa.test -> {"qaalpha":"admin"}
+User: beta-admin@qa.test -> {"qabeta":"admin"}
+User: both-manager@qa.test -> {"qaalpha":"finance manager","qabeta":"finance manager"}
+User: alpha-staff@qa.test -> {"qaalpha":"staff"}
+User: nobody@qa.test -> TANPA perusahaan
+--- isi data tenant_qaalpha (penanda ALPHA) ---
+lampiran: D:\Laravel\finance-management\storage/tenantqaalpha/app/public\reimbursements/alpha-lampiran-01.txt
+data tenant_qaalpha: klien=1 invoice=1 rekening=2 trx=1 reimb=1 fr=1 loan=1 rcv=1
+--- isi data tenant_qabeta (penanda BETA) ---
+lampiran: D:\Laravel\finance-management\storage/tenantqabeta/app/public\reimbursements/beta-lampiran-01.txt
+data tenant_qabeta: klien=1 invoice=1 rekening=2 trx=1 reimb=1 fr=1 loan=1 rcv=1
+SELESAI
+mixed-roles@qa.test: qaalpha -> finance manager
+mixed-roles@qa.test: qabeta -> staff
+  harapan qaalpha: peran=finance manager jumlah_izin=70
+  harapan qabeta: peran=staff jumlah_izin=21
+qa_central.app_notifications      2 baris
+tenant_qaalpha.feedbacks          tabel TIDAK ADA
+tenant_qaalpha.app_notifications  tabel TIDAK ADA
+tenant_qabeta.feedbacks           tabel TIDAK ADA
+tenant_qabeta.app_notifications   tabel TIDAK ADA
+
+--- feedbacks di central (company_id per baris) ---
+  id=1 company_id=qaalpha title=ALPHA-FEEDBACK-01
+  id=2 company_id=qabeta title=BETA-FEEDBACK-01
+--- app_notifications di central ---
+  id=1 company_id=qaalpha user_id=3 title=ALPHA-NOTIF-01
+  id=2 company_id=qabeta user_id=3 title=BETA-NOTIF-01
+id per tenant -> storage/qa-d/ids.json
+[6/6] menyimpan daftar route otoritatif
+route -> storage/qa-d/routes.json
+
+Selesai. Pengguna (sandi semuanya QaGerbang#2026):
+  alpha-admin@qa.test   admin           HANYA qaalpha
+  beta-admin@qa.test    admin           HANYA qabeta
+  both-manager@qa.test  finance manager qaalpha + qabeta
+  alpha-staff@qa.test   staff           HANYA qaalpha
+  nobody@qa.test        (tanpa perusahaan)
+  mixed-roles@qa.test   finance manager qaalpha, staff qabeta
+
+Jalankan dev server:
+  SESSION_COOKIE=qa_d_session CACHE_PREFIX=qa_d_ DB_DATABASE=qa_central \
+    php artisan serve --host=127.0.0.1 --port=8101
+
+Lalu rangkaian uji:
+  php storage/qa-d/sweep.php      # D.2 matriks + D.3.1 penanda silang
+  php storage/qa-d/paksa.php      # D.3.2 akses paksa lintas perusahaan
+  php storage/qa-d/kebocoran.php  # D.3.3-D.3.5
+  php storage/qa-d/pilih.php      # D.4 pemilihan perusahaan
+  php storage/qa-d/tulis.php      # D.5 alur tulis
