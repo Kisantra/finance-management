@@ -11,6 +11,7 @@ use App\Models\TransactionCategory;
 use App\Services\ProfitLossService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ProfitLossServiceTest extends TestCase
@@ -371,5 +372,63 @@ class ProfitLossServiceTest extends TestCase
         $this->assertCount(1, $report['opex']['by_category']);
         $this->assertSame('Operasional', $report['opex']['by_category'][0]['category_label']);
         $this->assertSame(20_000, $report['opex']['by_category'][0]['amount']);
+    }
+
+    /**
+     * GERBANG PERFORMA. Jumlah query laporan laba rugi tidak boleh tumbuh
+     * mengikuti jumlah invoice.
+     *
+     * invoiceContributions() dulu memanggil Payment::sum() DUA KALI per invoice
+     * di dalam loop. Terukur pada data nyata: 200 invoice menghasilkan 297 query
+     * dan 130 ms waktu database — satu-satunya beban performa nyata yang tersisa
+     * di aplikasi ini, dan jauh lebih besar daripada biaya multi-perusahaan itu
+     * sendiri (+3 query, +2,33 ms per request).
+     *
+     * N+1 TIDAK PERNAH terlihat dari hasil laporannya: angkanya benar, hanya
+     * lambat. Test nilai karena itu tidak akan pernah menangkapnya, dan gerbang
+     * ini harus menghitung query, bukan rupiah.
+     */
+    public function test_jumlah_query_laba_rugi_tidak_tumbuh_mengikuti_jumlah_invoice(): void
+    {
+        $jalankan = fn (): array => $this->service->generate(
+            Carbon::parse('2026-01-01'),
+            Carbon::parse('2026-01-31')
+        );
+
+        $this->buatInvoiceBerbayar(3);
+        $queryUntuk3 = $this->hitungQuery($jalankan);
+
+        $this->buatInvoiceBerbayar(12);
+        $queryUntuk15 = $this->hitungQuery($jalankan);
+
+        $this->assertSame(
+            $queryUntuk3,
+            $queryUntuk15,
+            "Jumlah query laba rugi naik dari {$queryUntuk3} (3 invoice) menjadi {$queryUntuk15} (15 invoice). "
+            .'Berarti ada query yang dijalankan di dalam loop per-invoice lagi — periksa invoiceContributions().'
+        );
+    }
+
+    private function buatInvoiceBerbayar(int $jumlah): void
+    {
+        for ($i = 0; $i < $jumlah; $i++) {
+            $invoice = $this->makeInvoice(1_000_000, 400_000);
+            $this->makePayment($invoice, 1_000_000, '2026-01-15');
+        }
+    }
+
+    private function hitungQuery(callable $aksi): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        try {
+            $aksi();
+
+            return count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
     }
 }
