@@ -91,13 +91,21 @@ class RecurringInvoice extends Model
 
         // Create invoice items
         foreach ($this->items as $itemData) {
+            // `unit` dan `is_tax_deposit` WAJIB ikut tersalin. Tanpa keduanya,
+            // invoice hasil publish memakai satuan bawaan, dan item titipan pajak
+            // kehilangan penandanya — padahal item titipan dikecualikan dari omzet.
+            // Akibatnya titipan pajak terhitung sebagai pendapatan dan basis PPh
+            // final 0,5% ikut salah. Hilang sekali saat merge rekonsiliasi; dikunci
+            // RecurringInvoiceHardeningTest.
             $invoice->items()->create([
                 'client_id' => $this->client_id,
                 'service_name' => $itemData['service_name'],
                 'quantity' => $itemData['quantity'],
+                'unit' => $itemData['unit'] ?? 'pcs',
                 'unit_price' => $itemData['unit_price'],
                 'amount' => $itemData['amount'],
                 'cogs_amount' => $itemData['cogs_amount'] ?? 0,
+                'is_tax_deposit' => (bool) ($itemData['is_tax_deposit'] ?? false),
             ]);
         }
 

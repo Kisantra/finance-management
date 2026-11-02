@@ -33,27 +33,35 @@ class SettingsHardeningTest extends TestCase
         $this->admin->givePermissionTo(Permission::all());
     }
 
-    /** BUG-SET-01 — /settings harus melempar ke URL yang masih ber-prefix perusahaan. */
-    public function test_root_settings_melempar_ke_url_ber_prefix_perusahaan(): void
-    {
-        $response = $this->actingAs($this->admin)->get('/settings');
-
-        $response->assertRedirect();
-        $this->assertStringContainsString('/c/'.self::TEST_COMPANY.'/settings/profile',
-            $response->headers->get('Location'),
-            'Redirect harus mempertahankan prefix perusahaan, bukan menuju /settings/profile yang 404.');
-    }
-
-    /** Mengikuti redirect itu harus berakhir pada halaman yang benar-benar terbuka. */
-    public function test_mengikuti_redirect_settings_berakhir_200(): void
+    /**
+     * BUG-SET-01 — dulu /settings MELEMPAR ke /settings/profile, dan `Route::redirect`
+     * menulis path literal sehingga di dalam grup /c/{company} tujuannya kehilangan
+     * prefix dan berakhir 404.
+     *
+     * Perilakunya kini berubah: /settings adalah halaman hub tersendiri
+     * (`Route::inertia('/', 'settings/index')`), jadi tidak ada lagi redirect yang
+     * bisa kehilangan prefix. Yang dijaga tetap sama — pintu masuk pengaturan harus
+     * benar-benar terbuka di dalam konteks perusahaan, bukan 404.
+     *
+     * Peringatan untuk yang membaca berikutnya: JANGAN kembalikan `Route::redirect`
+     * di sini. `Route::inertia` aman karena tidak menulis path tujuan; `Route::redirect`
+     * menulisnya literal dan bug-nya kembali.
+     */
+    public function test_root_settings_terbuka_di_dalam_konteks_perusahaan(): void
     {
         $this->actingAs($this->admin)
             ->get('/settings')
-            ->assertRedirect();
-
-        $this->actingAs($this->admin)
-            ->get('/settings/profile')
             ->assertOk();
+    }
+
+    /** Setiap pintu masuk pengaturan harus benar-benar terbuka, bukan 404. */
+    public function test_halaman_pengaturan_utama_terbuka(): void
+    {
+        foreach (['/settings', '/settings/profile'] as $path) {
+            $this->actingAs($this->admin)
+                ->get($path)
+                ->assertOk("Halaman {$path} harus terbuka di dalam konteks perusahaan.");
+        }
     }
 
     /** CATATAN-SET-04 — berkas .ttf berisi byte acak harus ditolak. */

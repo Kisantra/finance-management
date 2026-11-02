@@ -145,9 +145,12 @@ class ClientIntegrityTest extends TestCase
             'payment_date' => now(),
         ]);
 
+        // InvoiceController::destroy memakai actionResult(): flash 'error' untuk
+        // kunjungan biasa, 422 JSON untuk drawer. Bukti sesungguhnya bahwa penolakan
+        // bekerja adalah barisnya masih ada di database, bukan bentuk responsnya.
         $this->actingAs($this->admin)
             ->delete("/invoices/{$invoice->id}")
-            ->assertSessionHasErrors('delete');
+            ->assertSessionHas('error');
 
         $this->assertDatabaseHas('invoices', ['id' => $invoice->id]);
         $this->assertDatabaseCount('payments', 1);

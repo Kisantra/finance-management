@@ -483,7 +483,7 @@ class InvoiceControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->post('/invoices', $this->invoicePayload());
 
         $invoice = Invoice::latest('id')->first();
-        $response->assertRedirect("/invoices/{$invoice->id}");
+        $response->assertRedirect($this->prefixCompanyUri("/invoices/{$invoice->id}"));
         $this->assertNull($invoice->invoice_number);
     }
 

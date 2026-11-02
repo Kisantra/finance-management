@@ -125,9 +125,11 @@ class ReimbursementHardeningTest extends TestCase
 
         $this->bayar($r, 300_000);
 
+        // ReimbursementController::destroy memakai actionResult(): flash 'error'
+        // untuk kunjungan biasa, 422 JSON untuk drawer.
         $this->actingAs($this->pemohon)
             ->delete("/reimbursements/{$r->id}")
-            ->assertSessionHasErrors('delete');
+            ->assertSessionHas('error');
 
         $this->assertDatabaseHas('reimbursements', ['id' => $r->id]);
     }
