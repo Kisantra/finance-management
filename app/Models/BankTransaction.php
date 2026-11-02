@@ -18,6 +18,7 @@ class BankTransaction extends Model
         'transaction_type',
         'description',
         'reference_number',
+        'transfer_group_id',
         'attachment_path',
         'attachment_name',
         'category_id',

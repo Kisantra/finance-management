@@ -8,12 +8,15 @@ use App\Http\Requests\TransferBankTransactionRequest;
 use App\Http\Requests\UpdateBankTransactionRequest;
 use App\Models\BankTransaction;
 use App\Models\Payment;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class BankTransactionController extends Controller
 {
@@ -183,12 +186,35 @@ class BankTransactionController extends Controller
     }
 
     /**
+     * Semua kaki dari satu transfer, termasuk transaksi ini sendiri; null bila bukan transfer.
+     *
+     * Pasangan ditentukan `transfer_group_id` (ULID). `reference_number` hanya dipakai sebagai
+     * cadangan untuk baris warisan yang belum sempat dibackfill — dan itu memang masih ambigu
+     * bila dua transfer lama lahir di detik yang sama.
+     *
+     * @return Builder<BankTransaction>|null
+     */
+    private function kakiTransfer(BankTransaction $bankTransaction)
+    {
+        if ($bankTransaction->transfer_group_id !== null) {
+            return BankTransaction::where('transfer_group_id', $bankTransaction->transfer_group_id);
+        }
+
+        if ($bankTransaction->reference_number && str_starts_with($bankTransaction->reference_number, 'TRF')) {
+            return BankTransaction::where('reference_number', $bankTransaction->reference_number)
+                ->whereNull('transfer_group_id');
+        }
+
+        return null;
+    }
+
+    /**
      * Update a transaction. For TRF transfers, syncs description + date to the paired transaction.
      */
     public function update(UpdateBankTransactionRequest $request, BankTransaction $bankTransaction): RedirectResponse
     {
-        $isTransfer = $bankTransaction->reference_number
-            && str_starts_with($bankTransaction->reference_number, 'TRF');
+        $kaki = $this->kakiTransfer($bankTransaction);
+        $isTransfer = $kaki !== null;
 
         $validated = $request->validated();
 
@@ -222,8 +248,7 @@ class BankTransactionController extends Controller
 
         if ($isTransfer) {
             $pairType = $bankTransaction->transaction_type === 'credit' ? 'debit' : 'credit';
-            BankTransaction::where('reference_number', $bankTransaction->reference_number)
-                ->where('transaction_type', $pairType)
+            $kaki->where('transaction_type', $pairType)
                 ->update([
                     'transaction_date' => $validated['transaction_date'],
                     'description' => $validated['description'],
@@ -240,9 +265,11 @@ class BankTransactionController extends Controller
     {
         Gate::authorize($bankTransaction->abilityFor('delete'));
 
-        if ($bankTransaction->reference_number && str_starts_with($bankTransaction->reference_number, 'TRF')) {
+        $kaki = $this->kakiTransfer($bankTransaction);
+
+        if ($kaki !== null) {
             // Delete the paired transfer transaction too
-            BankTransaction::where('reference_number', $bankTransaction->reference_number)->delete();
+            $kaki->delete();
         } else {
             $bankTransaction->delete();
         }
@@ -259,19 +286,28 @@ class BankTransactionController extends Controller
 
         $transactions = BankTransaction::whereIn('id', $validated['ids'])->get();
 
-        $transferRefs = $transactions
-            ->filter(fn ($t) => $t->reference_number && str_starts_with($t->reference_number, 'TRF'))
+        $isKakiWarisan = fn ($t) => $t->transfer_group_id === null
+            && $t->reference_number
+            && str_starts_with($t->reference_number, 'TRF');
+
+        $groupIds = $transactions->pluck('transfer_group_id')->filter()->unique()->values()->all();
+
+        if (! empty($groupIds)) {
+            BankTransaction::whereIn('transfer_group_id', $groupIds)->delete();
+        }
+
+        $refsWarisan = $transactions->filter($isKakiWarisan)
             ->pluck('reference_number')
             ->unique()
             ->values()
             ->all();
 
-        if (! empty($transferRefs)) {
-            BankTransaction::whereIn('reference_number', $transferRefs)->delete();
+        if (! empty($refsWarisan)) {
+            BankTransaction::whereIn('reference_number', $refsWarisan)->whereNull('transfer_group_id')->delete();
         }
 
         $nonTransferIds = $transactions
-            ->filter(fn ($t) => ! $t->reference_number || ! str_starts_with($t->reference_number, 'TRF'))
+            ->filter(fn ($t) => $t->transfer_group_id === null && ! $isKakiWarisan($t))
             ->pluck('id')
             ->all();
 
@@ -289,7 +325,10 @@ class BankTransactionController extends Controller
     {
         $validated = $request->validated();
 
-        $refNumber = 'TRF'.time();
+        // ULID adalah penanda pasangan yang sesungguhnya; `reference_number` tinggal label
+        // yang dibaca manusia, dan tidak lagi dipakai untuk mencocokkan kaki transfer.
+        $groupId = (string) Str::ulid();
+        $refNumber = 'TRF'.Carbon::parse($validated['transfer_date'])->format('Ymd').'-'.substr($groupId, -6);
         $totalDebit = $validated['amount'] + $validated['admin_fee'];
 
         $attachmentPath = null;
@@ -300,7 +339,7 @@ class BankTransactionController extends Controller
             $attachmentName = $file->getClientOriginalName();
         }
 
-        DB::transaction(function () use ($validated, $totalDebit, $refNumber, $attachmentPath, $attachmentName) {
+        DB::transaction(function () use ($validated, $totalDebit, $refNumber, $groupId, $attachmentPath, $attachmentName) {
             BankTransaction::create([
                 'bank_account_id' => $validated['from_account_id'],
                 'category_id' => $validated['category_id'],
@@ -309,6 +348,7 @@ class BankTransactionController extends Controller
                 'transaction_type' => 'debit',
                 'description' => 'Transfer + Admin Fee - '.$validated['description'],
                 'reference_number' => $refNumber,
+                'transfer_group_id' => $groupId,
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
             ]);
@@ -321,6 +361,7 @@ class BankTransactionController extends Controller
                 'transaction_type' => 'credit',
                 'description' => 'Transfer masuk - '.$validated['description'],
                 'reference_number' => $refNumber,
+                'transfer_group_id' => $groupId,
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
             ]);

@@ -8,7 +8,7 @@
 | Kolom | Tipe/Catatan |
 |---|---|
 | `invoice_number` | string, **nullable saat draft**; diisi saat "send" mengikuti **format yang bisa diatur** di Pengaturan › Penomoran invoice (default `{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`, mis. `001/INV/KSN-ABC/VIII/2026`). Unique (divalidasi di `SendInvoiceRequest`). |
-| `invoice_sequence` | unsigned int nullable — nomor urut di dalam `invoice_number`, **diisi otomatis** oleh hook `saving` model setiap kali `invoice_number` berubah (`InvoiceNumberService::sequenceOf()` dengan pola aktif); null untuk draft dan nomor manual yang tidak cocok pola. Dasar hitungan nomor berikutnya & aturan rollback. Diisi untuk data lama oleh migrasi 2026-10-08 (angka di depan `/INV/`). |
+| `invoice_sequence` | unsigned int nullable — nomor urut di dalam `invoice_number`, **diisi otomatis** oleh hook `saving` model setiap kali `invoice_number` berubah (`InvoiceNumberService::sequenceOf()` dengan pola aktif); null untuk draft dan nomor manual yang tidak cocok pola. Dasar hitungan nomor berikutnya & aturan rollback. Untuk data lama: migrasi 2026-10-08 memakai regex tetap `^(\d+)\/INV\/` dan **gagal diam-diam pada instalasi yang memakai format lain** (mis. `INV/01/KSN/01.26`) — tidak mengisi apa pun, tanpa peringatan. Pakai `php artisan invoice:backfill-sequence` yang membaca **pola aktif** lewat `sequenceOf()` dan melaporkan nomor yang tidak cocok. |
 | `billed_to_id` | FK → `clients.id` (relasi `client()` di model) |
 | `subtotal` | **integer rupiah penuh** — jumlah `amount` semua item |
 | `discount_amount` / `discount_type` / `discount_value` / `discount_reason` | diskon; `discount_type` = `fixed` \| `percentage`; `discount_amount` adalah hasil hitung (integer) |
@@ -120,7 +120,11 @@ Sejak 2026-10-13. PPN dipilih **per invoice**, hanya selama Pengaturan › Profi
 Pengaturan pola ada di modul Settings (`/settings/invoice-numbering`, lihat `settings.md`). Default (format, 3 digit, reset bulanan) menghasilkan nomor yang persis sama dengan generator lama (`InvoiceNumberServiceTest::test_default_format_matches_the_company_numbering`).
 
 ### Rollback Invoice (Sent → Draft)
-**Alur:** POST `/invoices/{invoice}/rollback` → `rollback()` menolak jika status bukan `sent`, dan menolak jika `Invoice::isLatestInNumberingPeriod($invoice)` false (hanya `invoice_sequence` **tertinggi** di periode reset `issue_date`-nya yang boleh, supaya tidak melubangi urutan nomor; invoice bernomor manual di luar pola tidak bisa di-rollback). Jika lolos: `invoice_number` di-null-kan (hook mengosongkan `invoice_sequence`) dan status kembali `draft`.
+**Alur:** POST `/invoices/{invoice}/rollback` → `rollback()` menolak jika status bukan `sent`, dan menolak jika `Invoice::isLatestInNumberingPeriod($invoice)` false (hanya `invoice_sequence` **tertinggi** di periode reset `issue_date`-nya yang boleh, supaya tidak melubangi urutan nomor).
+
+Untuk invoice ber-`invoice_sequence` null (nomor manual atau warisan yang tidak cocok pola) berlaku dua aturan berbeda, dan bedanya penting:
+- Periode itu **masih punya** invoice bernomor urut → ekor deret adalah miliknya, nomor manual **tidak** bisa di-rollback (perilaku lama, dikunci `test_manual_number_outside_the_format_does_not_move_the_counter`).
+- Periode itu **tidak punya satu pun** urutan (mis. seluruh riwayat memakai format lama) → yang **terakhir diterbitkan** dianggap ekornya. Tanpa cadangan ini seluruh riwayat terkunci selamanya: tidak bisa di-rollback, jadi tidak bisa dikoreksi. Dikunci `test_invoice_bernomor_warisan_tanpa_urutan_tidak_terkunci_selamanya`. Jika lolos: `invoice_number` di-null-kan (hook mengosongkan `invoice_sequence`) dan status kembali `draft`.
 
 ### Pembayaran — Catat (POST /invoices/{invoice}/payments)
 **Alur step-by-step:**

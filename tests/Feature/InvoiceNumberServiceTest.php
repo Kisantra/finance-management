@@ -166,4 +166,29 @@ class InvoiceNumberServiceTest extends TestCase
         $this->assertNull($invoice->invoice_number);
         $this->assertSame('draft', $invoice->status);
     }
+
+    /**
+     * Nomor warisan yang tidak mengikuti pola aktif tidak punya `invoice_sequence`.
+     * Dulu `isLatestInPeriod()` mengembalikan false untuk kasus itu, sehingga invoice
+     * seperti ini terkunci selamanya: tidak bisa di-rollback, dan karena itu juga tidak
+     * bisa dikoreksi.
+     */
+    public function test_invoice_bernomor_warisan_tanpa_urutan_tidak_terkunci_selamanya(): void
+    {
+        $warisan = $this->sent('INV/04/KSN/03.26', '2026-03-05');
+        $warisan->forceFill(['invoice_sequence' => null])->save();
+
+        $this->assertNull($warisan->fresh()->invoice_sequence);
+        $this->assertTrue($this->numbers->isLatestInPeriod($warisan->fresh()));
+    }
+
+    public function test_invoice_warisan_yang_bukan_terakhir_di_periodenya_tetap_terkunci(): void
+    {
+        $awal = $this->sent('INV/01/KSN/03.26', '2026-03-05');
+        $akhir = $this->sent('INV/02/KSN/03.26', '2026-03-20');
+        Invoice::whereKey([$awal->id, $akhir->id])->update(['invoice_sequence' => null]);
+
+        $this->assertFalse($this->numbers->isLatestInPeriod($awal->fresh()));
+        $this->assertTrue($this->numbers->isLatestInPeriod($akhir->fresh()));
+    }
 }

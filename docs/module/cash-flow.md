@@ -15,7 +15,8 @@
 | `transaction_type` | enum `credit` \| `debit` | credit = uang masuk, debit = uang keluar |
 | `category_id` | FK → `transaction_categories` | Menentukan halaman mana yang menampilkan baris |
 | `description` | string | — |
-| `reference_number` | string, nullable | Prefix `TRF` menandai leg transfer |
+| `reference_number` | string, nullable | Prefix `TRF` menandai leg transfer. **Label untuk dibaca manusia saja** — bukan penanda pasangan |
+| `transfer_group_id` | char(26) nullable, index | ULID yang dibagi kedua kaki satu transfer. **Ini penanda pasangan yang sesungguhnya** |
 | `attachment_path` / `attachment_name` | string, nullable | Bukti transaksi di disk `public` |
 
 ### `payments` (read-only di modul ini)
@@ -87,13 +88,23 @@ if ($includePayments && $includeTransactions) {
 
 ### Halaman Transfers — `GET /cash-flow/transfers` (`can:view transfer`)
 
-Satu transfer = **dua baris** `bank_transactions` (debit di rekening asal, credit di rekening tujuan) yang berbagi `reference_number` berprefix `TRF`. Halaman menampilkan pasangan tersebut sebagai satu baris.
+Satu transfer = **dua baris** `bank_transactions` (debit di rekening asal, credit di rekening tujuan) yang berbagi **`transfer_group_id`** (ULID). Halaman menampilkan pasangan tersebut sebagai satu baris.
+
+> **Invarian:** pasangan kaki transfer ditentukan `transfer_group_id`, **tidak pernah** `reference_number`.
+> Sebelum 2026-11-02 pasangan dibentuk konvensi string `'TRF'.time()` yang beresolusi **detik**: dua
+> transfer di detik yang sama berbagi `reference_number`, sehingga menghapus salah satunya ikut
+> menghapus kedua kaki transfer yang lain dan menggeser saldo tanpa jejak. `reference_number` kini
+> berformat `TRF{Ymd}-{6 karakter terakhir ULID}` dan hanya dipakai sebagai label.
+> Baris warisan yang `transfer_group_id`-nya masih null tetap dipasangkan lewat `reference_number`
+> sebagai cadangan — dan untuk baris itu ambiguitasnya masih ada. Migrasi
+> `2026_11_02_143410` memberi ULID hanya pada kelompok yang terurai **bersih** (tepat satu debit +
+> satu kredit); kelompok ambigu sengaja dibiarkan null dan dicatat ke log untuk ditinjau manual.
 
 **Alur step-by-step:**
 
 1. Filter: `date_from/date_to`, `bank_accounts`, `search`, paginasi.
 2. Query dasar mengambil **sisi credit** saja: `transaction_type='credit'`, kategori bertipe `transfer`, `reference_number` not null.
-3. Setelah paginasi, seluruh `reference_number` di halaman itu dicari pasangan **debit**-nya dalam satu query, di-key by reference.
+3. Setelah paginasi, seluruh `reference_number` di halaman itu dicari pasangan **debit**-nya dalam satu query, di-key by reference. (Tampilan daftar masih memakai reference; yang pindah ke `transfer_group_id` adalah jalur **ubah dan hapus**, tempat salah-pasangan merusak data.)
 4. Tiap baris digabung: `amount` (nominal diterima), `total_debit` (nominal keluar dari rekening asal), `admin_fee = max(0, total_debit − amount)`, `from_account` (dari leg debit), `to_account` (dari leg credit), attachment.
 5. Respons Inertia `cash-flow/transfers`; UI menampilkan arah transfer antar-rekening, biaya admin, dan dialog create transfer.
 
@@ -158,9 +169,9 @@ public function abilityFor(string $action): string
 
 1. User edit dari detail dialog → `PUT /bank-transactions/{id}` payload `{transaction_date, description, amount?, category_id?, reference_number?, attachment?, remove_attachment?}`.
 2. **Otorisasi di `UpdateBankTransactionRequest::authorize()`**: `user->can($transaction->abilityFor('edit'))` — jadi leg transfer butuh `edit transfer`, transaksi credit butuh `edit income`, dst.
-3. `BankTransactionController::update()` mendeteksi leg transfer (`reference_number` diawali `TRF`):
+3. `BankTransactionController::update()` mendeteksi leg transfer lewat helper `kakiTransfer()` (`transfer_group_id` bila ada, cadangan `reference_number` berprefix `TRF` untuk baris warisan):
    - **Bukan transfer**: amount, category, reference, dan attachment (ganti/hapus, file lama dihapus dari disk) ikut diupdate.
-   - **Transfer**: hanya `transaction_date` + `description` yang diubah, lalu **disinkronkan ke pasangan** (leg dengan tipe berlawanan dan reference sama) — nominal transfer tidak boleh diubah lewat edit.
+   - **Transfer**: hanya `transaction_date` + `description` yang diubah, lalu **disinkronkan ke pasangan** (leg dengan tipe berlawanan dalam `transfer_group_id` yang sama) — nominal transfer tidak boleh diubah lewat edit.
 4. Redirect back + flash `pages.transaction_updated_successfully`.
 
 ```php

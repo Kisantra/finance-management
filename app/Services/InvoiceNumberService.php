@@ -119,8 +119,26 @@ class InvoiceNumberService
     /** Hanya urutan tertinggi di periodenya yang boleh di-rollback, supaya urutan tidak berlubang. */
     public function isLatestInPeriod(Invoice $invoice): bool
     {
-        if ($invoice->invoice_sequence === null || ! $invoice->issue_date) {
+        if (! $invoice->issue_date) {
             return false;
+        }
+
+        // Nomor warisan atau nomor ketikan bebas tidak mengikuti pola aktif, jadi tidak punya
+        // urutan untuk dibandingkan.
+        //
+        // Bila di periode itu MASIH ADA invoice bernomor urut, ekor deret adalah miliknya dan
+        // nomor manual bukan yang terakhir — perilaku lama dipertahankan. Tapi bila SELURUH
+        // periode tidak punya satu pun urutan (mis. seluruh riwayat memakai format lama),
+        // aturan itu mengunci semuanya selamanya: tidak bisa di-rollback, jadi tidak bisa
+        // dikoreksi. Untuk kasus itu, yang terakhir diterbitkan dianggap ekornya.
+        if ($invoice->invoice_sequence === null) {
+            $periode = fn () => $this->inPeriod(Invoice::query(), $invoice->issue_date, $this->settings()['reset']);
+
+            if ($periode()->whereNotNull('invoice_sequence')->exists()) {
+                return false;
+            }
+
+            return $invoice->id === $periode()->whereNotNull('invoice_number')->orderByDesc('id')->value('id');
         }
 
         return $invoice->invoice_sequence === $this->nextSequence($invoice->issue_date) - 1;
