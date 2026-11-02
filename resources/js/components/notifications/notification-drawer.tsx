@@ -20,7 +20,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { companyUrl } from '@/lib/company';
+import { openResource } from '@/lib/resource-modal';
 import { cn } from '@/lib/utils';
 import type { NotificationItem } from '@/types';
 
@@ -84,7 +84,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
 
         try {
             const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-            const res = await fetch(companyUrl(`/notifications?page=${targetPage}&per_page=20`), {
+            const res = await fetch(`/notifications?page=${targetPage}&per_page=20`, {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -119,13 +119,16 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
     const openItem = (item: NotificationItem) => {
         const url = (item.data as { url?: string } | null)?.url;
         router.post(
-            companyUrl(`/notifications/${item.id}/read`),
+            `/notifications/${item.id}/read`,
             {},
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     onOpenChange(false);
-                    if (url) router.visit(companyUrl(url));
+                    // Tautan detail invoice (#invoice/13 atau /invoices/13 lama) dibuka sebagai modal di halaman ini.
+                    const invoice = url?.match(/(?:#invoice|\/invoices)\/(\d+)$/);
+                    if (invoice) openResource('invoice', Number(invoice[1]));
+                    else if (url) router.visit(url);
                 },
             },
         );
@@ -133,7 +136,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
 
     const markAllRead = () => {
         router.post(
-            companyUrl('/notifications/mark-all-read'),
+            '/notifications/mark-all-read',
             {},
             {
                 preserveScroll: true,

@@ -194,6 +194,73 @@ class BankTransactionControllerTest extends TestCase
             ->assertJsonValidationErrors('from_account_id');
     }
 
+    /**
+     * Dua transfer yang dibuat dalam detik yang sama dulu berbagi `reference_number`
+     * ('TRF'.time() beresolusi detik), sehingga menghapus salah satunya ikut menghapus
+     * kedua kaki transfer yang lain dan menggeser saldo tanpa jejak.
+     */
+    public function test_menghapus_transfer_tidak_menyentuh_transfer_lain_di_detik_yang_sama(): void
+    {
+        [$a, $b, $c, $d] = BankAccount::factory()->count(4)->create(['initial_balance' => 10000000]);
+        $cat = TransactionCategory::create(['type' => 'transfer', 'label' => 'Transfer Internal']);
+
+        $kirim = fn (BankAccount $dari, BankAccount $ke, int $nominal) => $this->actingAs($this->admin)
+            ->post('/bank-transactions/transfer', [
+                'from_account_id' => $dari->id,
+                'to_account_id' => $ke->id,
+                'category_id' => $cat->id,
+                'amount' => $nominal,
+                'admin_fee' => 0,
+                'description' => 'Transfer '.$nominal,
+                'transfer_date' => '2026-03-10',
+            ]);
+
+        $kirim($a, $b, 1000000);
+        $kirim($c, $d, 7000000);
+
+        $pertama = BankTransaction::where('bank_account_id', $a->id)->sole();
+        $kedua = BankTransaction::where('bank_account_id', $c->id)->sole();
+
+        // Paksa tabrakan nomor referensi, persis seperti yang dihasilkan 'TRF'.time()
+        // ketika dua transfer dibuat dalam detik yang sama.
+        BankTransaction::query()->update(['reference_number' => 'TRF1772000000']);
+
+        $this->assertNotSame($pertama->transfer_group_id, $kedua->transfer_group_id);
+
+        $saldoC = $c->fresh()->balance;
+        $saldoD = $d->fresh()->balance;
+
+        $this->actingAs($this->admin)->delete('/bank-transactions/'.$pertama->id);
+
+        $this->assertDatabaseMissing('bank_transactions', ['transfer_group_id' => $pertama->transfer_group_id]);
+        $this->assertSame(2, BankTransaction::where('transfer_group_id', $kedua->transfer_group_id)->count());
+        $this->assertSame($saldoC, $c->fresh()->balance);
+        $this->assertSame($saldoD, $d->fresh()->balance);
+    }
+
+    public function test_transfer_memberi_transfer_group_id_unik_pada_kedua_kaki(): void
+    {
+        [$dari, $ke] = BankAccount::factory()->count(2)->create(['initial_balance' => 5000000]);
+        $cat = TransactionCategory::create(['type' => 'transfer', 'label' => 'Transfer Internal']);
+
+        $this->actingAs($this->admin)->post('/bank-transactions/transfer', [
+            'from_account_id' => $dari->id,
+            'to_account_id' => $ke->id,
+            'category_id' => $cat->id,
+            'amount' => 1000000,
+            'admin_fee' => 10000,
+            'description' => 'Transfer ke kas',
+            'transfer_date' => '2026-03-10',
+        ]);
+
+        $kaki = BankTransaction::all();
+
+        $this->assertCount(2, $kaki);
+        $this->assertNotNull($kaki[0]->transfer_group_id);
+        $this->assertSame($kaki[0]->transfer_group_id, $kaki[1]->transfer_group_id);
+        $this->assertSame(26, strlen($kaki[0]->transfer_group_id));
+    }
+
     public function test_update_via_method_spoofing_saves_category_and_attachment(): void
     {
         Storage::fake('public');

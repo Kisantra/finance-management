@@ -30,6 +30,7 @@ import { FormSection } from '@/components/shared/form-section';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
@@ -391,9 +392,12 @@ export default function ClientsIndex() {
                     title="Klien"
                     description="Kelola data klien dan informasi kontak"
                     action={
-                        <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                            Tambah Klien
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <TutorialButton slug="clients" />
+                            <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
+                                Tambah Klien
+                            </Button>
+                        </div>
                     }
                 />
 

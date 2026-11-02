@@ -9,17 +9,54 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class InvoicePrintService
 {
     /**
-     * Template Blade yang sah. Nama template datang dari query string dan dulu
-     * dipakai langsung sebagai nama view, sehingga `?template=tidak-ada`
-     * menghasilkan 500 `View [pdf.tidak-ada] not found` alih-alih 404.
+     * Template Blade bawaan yang boleh dirender.
      *
-     * @var list<string>
+     * Daftar putih ini WAJIB: nama template datang dari query string dan dulu dipakai
+     * langsung sebagai nama view, sehingga `?template=tidak-ada` menghasilkan 500
+     * `View [pdf.tidak-ada] not found` alih-alih 404.
      */
-    public const TEMPLATE_SAH = ['kisantra-invoice', 'semesta-invoice', 'agsa-invoice', 'invoice'];
+    public const BLADE_TEMPLATES = ['kisantra-invoice', 'semesta-invoice', 'agsa-invoice', 'invoice'];
 
     public function generateSingleInvoicePdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice')
     {
         $invoice->load(['client', 'items.client', 'payments.bankAccount']);
+
+        return $this->renderPdf($invoice, $dpAmount, $pelunasanAmount, $template);
+    }
+
+    /**
+     * Satu-satunya jalur render PDF invoice (template Blade). Unduhan dan pratinjau langsung di
+     * editor sama-sama lewat sini, sehingga pratinjau adalah PDF yang sama persis dengan hasil ekspor.
+     * Relasi client, items.client, dan payments harus sudah terpasang (boleh model yang belum disimpan).
+     *
+     * $highlightRow (0-based) hanya untuk pratinjau editor: mewarnai baris item yang sedang diedit.
+     */
+    public function renderPdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', ?int $highlightRow = null): \Barryvdh\DomPDF\PDF
+    {
+        $html = view('pdf.'.$template, $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
+
+        if ($highlightRow !== null) {
+            $style = '<style>.items-table tbody tr:nth-child('.($highlightRow + 1).') td{background-color:#dbeafe !important;}</style>';
+            $html = str_replace('</head>', $style.'</head>', $html);
+        }
+
+        return Pdf::loadHTML($html)
+            ->setPaper('A4', 'portrait')
+            ->setOptions([
+                'dpi' => 150,
+                'defaultFont' => 'DejaVu Sans',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+            ]);
+    }
+
+    /**
+     * Data view template invoice. Satu sumber untuk unduhan dan pratinjau.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildViewData(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice'): array
+    {
         $company = CompanyProfile::current();
 
         $isDownPayment = ! is_null($dpAmount) && $dpAmount > 0;
@@ -34,7 +71,13 @@ class InvoicePrintService
         $discountAmount = $invoice->discount_amount ?? 0;
 
         // Template-specific calculations
-        if ($template === 'semesta-invoice') {
+        if ($invoice->ppn_rate !== null) {
+            // Invoice sejak fitur PPN: PPN sudah tersimpan & termasuk dalam total_amount.
+            $ppnAmount = (int) $invoice->ppn_amount;
+            $pph22Amount = 0;
+            $displayAmount = $isDownPayment ? $dpAmount : ($isPelunasan ? $pelunasanAmount : $invoice->total_amount);
+            $grandTotal = $displayAmount;
+        } elseif ($template === 'semesta-invoice') {
             // SEMESTA: PPN 11% + PPH 22 1.5%
             $ppnRate = $company?->ppn_rate ?? 11;
             $ppnAmount = ($itemsTotal * $ppnRate / 100);
@@ -58,7 +101,7 @@ class InvoicePrintService
 
         $grossProfit = $netRevenue - $totalCogs - $discountAmount;
 
-        $data = [
+        return [
             'invoice' => $invoice,
             'client' => $invoice->client,
             'items' => $invoice->items,
@@ -86,15 +129,6 @@ class InvoicePrintService
                 'profit_margin' => $netRevenue > 0 ? ($grossProfit / $netRevenue) * 100 : 0,
             ],
         ];
-
-        return Pdf::loadView('pdf.'.$template, $data)
-            ->setPaper('A4', 'portrait')
-            ->setOptions([
-                'dpi' => 150,
-                'defaultFont' => 'DejaVu Sans',
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-            ]);
     }
 
     public function downloadSingleInvoice(Invoice $invoice, string $template = 'kisantra-invoice')
@@ -118,11 +152,7 @@ class InvoicePrintService
             'logo_base64' => $this->getImageBase64($company?->letter_head_path ?? 'images/letter-head.png'),
             'signature_base64' => $company?->signature_path ? $this->getImageBase64($company->signature_path) : '',
             'stamp_base64' => $company?->stamp_path ? $this->getImageBase64($company->stamp_path) : '',
-            // Kolom ini NULL pada setiap perusahaan yang baru diprovisioning, dan
-            // form Profil Perusahaan belum menyediakan cara mengisinya. Template
-            // Blade melakukan @foreach tanpa penjaga, sehingga seluruh unduhan PDF
-            // mati 500 di tenant baru. Default array kosong menutup sumbernya.
-            'bank_accounts' => $company->bank_accounts ?? [],
+            'bank_accounts' => $company->bank_accounts,
             'signature' => [
                 'name' => $company->finance_manager_name,
                 'position' => $company->finance_manager_position,

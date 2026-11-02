@@ -38,6 +38,32 @@ class StoreInvoiceRequest extends FormRequest
             // membuat penolakan itu terlihat.
             'discount_value' => ['nullable', 'integer', 'min:0'],
             'discount_reason' => ['nullable', 'string', 'max:255'],
+            'apply_ppn' => ['nullable', 'boolean'],
+            'faktur' => ['nullable', 'string', 'max:50'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'client_id.required' => 'Klien wajib dipilih.',
+            'client_id.exists' => 'Klien tidak ditemukan.',
+            'issue_date.required' => 'Tanggal invoice wajib diisi.',
+            'due_date.required' => 'Jatuh tempo wajib diisi.',
+            'due_date.after_or_equal' => 'Jatuh tempo tidak boleh sebelum tanggal invoice.',
+            'items.required' => 'Tambahkan minimal satu item.',
+            'items.min' => 'Tambahkan minimal satu item.',
+            'items.*.service_name.required' => 'Nama layanan baris :position wajib diisi.',
+            'items.*.quantity.required' => 'Qty baris :position wajib diisi.',
+            'items.*.quantity.min' => 'Qty baris :position harus lebih dari 0.',
+            'items.*.unit_price.required' => 'Harga satuan baris :position wajib diisi.',
+            'items.*.unit_price.min' => 'Harga satuan baris :position tidak boleh negatif.',
+            'discount_value.min' => 'Diskon tidak boleh negatif.',
+            'faktur.max' => 'Nomor faktur pajak maksimal 50 karakter.',
+            'discount_value.integer' => 'Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.',
         ];
     }
 
@@ -46,13 +72,6 @@ class StoreInvoiceRequest extends FormRequest
      *
      * @return array<string, string>
      */
-    public function messages(): array
-    {
-        return [
-            'discount_value.integer' => 'Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.',
-        ];
-    }
-
     /**
      * Batas atas diskon bergantung pada tipe dan subtotal, jadi tidak bisa
      * dituliskan sebagai aturan statis.

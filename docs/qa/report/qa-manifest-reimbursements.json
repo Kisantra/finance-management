@@ -1,0 +1,613 @@
+{
+  "module": "reimbursements",
+  "title": "Modul Reimbursement",
+  "date": "8 Oktober 2026",
+  "environment": "database finance_management_qc (MySQL lokal), server php artisan serve 127.0.0.1:8001, aset dari npm run build; Chromium via Playwright MCP, viewport 1366×900 skala perangkat 2× (2732×1800 px); akun staff@qc.test (staff), fm@qc.test (finance manager), admin@gmail.com (admin); PHP lokal upload_max_filesize 2M, post_max_size 8M",
+  "scope": "Eksekusi 24 test case di docs/qa/test-cases/reimbursements.md: 9 normal, 11 abnormal/edge, 4 berantai lintas aktor/modul. Alur pemohon → reviewer → pembayar dijalankan lewat layar dengan tiga akun berbeda; aturan yang harus ditegakkan server diuji ulang dengan memanggil endpoint langsung memakai cookie sesi (kolom Lapisan). Setiap hasil dicek ke database dan disk (file lampiran). Kasus yang gagal diperbaiki, diberi test regresi, lalu dijalankan ulang. PHPUnit akhir: 477 lolos (10 test regresi baru untuk BUG-01, BUG-03 s.d. BUG-09 dan model saudara).",
+  "shots_src": "C:/Users/Lenovo/AppData/Local/Temp/claude/d--Laravel-finance-management/9c38df04-988f-475d-a4c5-20b2f17c4337/scratchpad/shots/reimbursements",
+  "shots_dst": "../evidence/reimbursements",
+  "evidence_into": "../test-cases/reimbursements.md",
+  "report_out": "Laporan-QA-Reimbursements.pdf",
+  "shots_per_row": 1,
+  "summary": [
+    "Seluruh 24 test case akhirnya lolos. Sembilan kasus menemukan cacat aplikasi (BUG-01 s.d. BUG-09): delapan gagal di percobaan pertama, sedangkan A07 baru gagal di percobaan kedua karena percobaan pertamanya tidak konklusif (belum ada data milik pengguna lain). Semuanya diperbaiki, diberi test regresi, dan dijalankan ulang lewat layar atau endpoint. Alur inti — buat, ajukan, setujui dengan kategori resmi, bayar cicilan lalu pelunasan, transaksi bank dan Arus Kas — sudah benar sejak percobaan pertama.",
+    "Temuan paling serius menyangkut uang dan akses: pembayaran boleh melebihi sisa sehingga kelebihan keluar dari kas (BUG-04), admin bisa menghapus pengajuan yang sudah dibayar sehingga transaksi banknya menjadi pengeluaran yatim (BUG-09), staff bisa melihat pengajuan semua orang lewat ?tab=all (BUG-06) dan menghapus draft milik orang lain (BUG-07).",
+    "Alur bisnis yang buntu: pengajuan yang ditolak tidak pernah bisa diajukan ulang — tombol Ajukan di form edit menampilkan toast sukses padahal status tetap Ditolak (BUG-08).",
+    "Akar BUG-03 lebih luas dari modul ini: lang/id/validation.php ternyata salinan bahasa Inggris, sehingga semua form di aplikasi menampilkan pesan validasi Inggris. File itu diterjemahkan, jadi perbaikannya berlaku untuk semua modul. Akar BUG-01 (hook hapus lampiran memakai disk yang salah) juga ditemukan dan diperbaiki di tiga model lain: transaksi bank, pembayaran invoice, dan feedback."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-01",
+      "title": "File lampiran tertinggal di disk setelah pengajuan dihapus",
+      "sifat": "Sedang — sampah file menumpuk, berisi data pribadi (struk/kuitansi)",
+      "cases": "N04",
+      "gejala": "Draft \"ATK kantor\" terhapus dari database, tetapi kuitansi-hotel.pdf tetap ada di storage/app/public/reimbursements/.",
+      "sebab": "Hook deleting di model memanggil Storage::exists()/delete() tanpa disk sehingga memakai disk default (local), padahal lampiran disimpan ke disk public oleh controller.",
+      "cakupan": "Pola yang sama ada di BankTransaction, Payment (pembayaran invoice), dan Feedback — ketiganya juga menyimpan lampiran di disk public.",
+      "perbaikan": "Keempat model memakai Storage::disk('public'). Test regresi: test_deleting_removes_attachment_from_public_disk, AttachmentCleanupTest (transaksi bank & pembayaran invoice)."
+    },
+    {
+      "id": "BUG-02",
+      "title": "Dialog detail menghasilkan DOM tidak valid (peringatan hidrasi React)",
+      "sifat": "Ringan — tampilan benar, console berisi error",
+      "cases": "N09",
+      "gejala": "Membuka detail memunculkan error console \"<div> cannot be a descendant of <p>\".",
+      "sebab": "Komponen Field membungkus nilai dengan <p>, sementara nilai Status berupa badge (elemen blok).",
+      "cakupan": "Hanya dialog detail reimbursement.",
+      "perbaikan": "Field memakai <div>. Diverifikasi ulang: console bersih (N09 langkah 3)."
+    },
+    {
+      "id": "BUG-03",
+      "title": "Pesan validasi berbahasa Inggris dan toast error tanpa isi",
+      "sifat": "Sedang — membingungkan pengguna, melanggar standar proyek",
+      "cases": "A01 (juga terlihat di A02, A04, A06)",
+      "gejala": "Form kosong menampilkan \"The title field is required.\", \"The amount field must be at least 1.\"; toast hanya berbunyi \"Gagal menyimpan\".",
+      "sebab": "lang/id/validation.php — locale utama aplikasi — berisi teks bahasa Inggris (salinan file bawaan). Halaman reimbursement memakai toast.error generik, bukan toastErrors yang menampilkan pesan asli Laravel.",
+      "cakupan": "Seluruh form di aplikasi yang tidak menulis pesan sendiri (modul invoice sebelumnya ditambal per form).",
+      "perbaikan": "lang/id/validation.php diterjemahkan lengkap + nama atribut umum (judul, nominal, kategori, lampiran, …), disalin ke lang/zh sesuai aturan proyek; pesan khusus nominal & lampiran (\"Ukuran lampiran maksimal 5 MB.\"); semua onError halaman memakai toastErrors. Test regresi: test_validation_messages_are_in_indonesian."
+    },
+    {
+      "id": "BUG-04",
+      "title": "Pembayaran boleh melebihi sisa — kelebihan keluar dari kas",
+      "sifat": "Tinggi — kerugian uang tanpa jejak alasan",
+      "cases": "A05",
+      "gejala": "Pengajuan Rp 420.000 dibayar Rp 500.000: diterima, amount_paid 500.000 (sisa −80.000), rekening BCA terpotong Rp 500.000.",
+      "sebab": "PayReimbursementRequest hanya mensyaratkan min:1; dialog bayar tidak membatasi nominal.",
+      "cakupan": "Endpoint bayar reimbursement.",
+      "perbaikan": "Server: payment_amount max = sisa, pesan \"Jumlah pembayaran melebihi sisa reimbursement (Rp X).\" UI: pesan \"Melebihi sisa …\" dan tombol bayar nonaktif. Test regresi: test_payment_cannot_exceed_remaining_amount."
+    },
+    {
+      "id": "BUG-05",
+      "title": "Error 500 bila kolom deskripsi tidak dikirim",
+      "sifat": "Sedang — server crash untuk input yang sah",
+      "cases": "A11",
+      "gejala": "POST /reimbursements tanpa kolom description → 500 \"Undefined array key description\" (ditemukan saat menyiapkan fixture).",
+      "sebab": "Deskripsi opsional (nullable) sehingga tidak ada di hasil validasi bila tidak dikirim, tetapi controller membaca $validated['description'] langsung di store() dan update().",
+      "cakupan": "store() dan update() reimbursement. Form web selalu mengirim kolom ini sehingga tidak terlihat dari layar; klien lain/API langsung terkena.",
+      "perbaikan": "$validated['description'] ?? null. Test regresi: test_store_without_description_field_succeeds."
+    },
+    {
+      "id": "BUG-06",
+      "title": "Staff bisa melihat pengajuan semua pengguna lewat ?tab=all",
+      "sifat": "Tinggi — kebocoran data antarkaryawan",
+      "cases": "A07",
+      "gejala": "staff@qc.test membuka /reimbursements?tab=all dan melihat draft milik Fina Manager beserta kolom pemohon dan statistik total semua orang.",
+      "sebab": "Tab \"Semua\" hanya disembunyikan di UI; controller memakai nilai tab dari URL tanpa memeriksa izin.",
+      "cakupan": "Daftar dan statistik reimbursement.",
+      "perbaikan": "Tab Semua hanya untuk pemegang izin approve atau pay (canSeeAll); selain itu dipaksa 'my'. UI memakai prop canSeeAll dari server. Test regresi: test_staff_only_sees_own_reimbursements_even_with_tab_all."
+    },
+    {
+      "id": "BUG-07",
+      "title": "Pengguna dengan izin hapus bisa menghapus draft milik orang lain",
+      "sifat": "Tinggi — data orang lain hilang",
+      "cases": "A08",
+      "gejala": "DELETE /reimbursements/5 oleh staff menghapus draft milik finance manager.",
+      "sebab": "canDelete() hanya memeriksa status (draft/ditolak), bukan pemiliknya; route hanya memeriksa izin delete.",
+      "cakupan": "Endpoint hapus reimbursement. Modul Permintaan Dana memakai pola canDelete yang sama — belum diuji, dicatat sebagai CATATAN-5.",
+      "perbaikan": "canDelete(): selain admin, hanya pemilik dan hanya status draft/ditolak. Test regresi: test_user_cannot_delete_another_users_draft."
+    },
+    {
+      "id": "BUG-08",
+      "title": "Pengajuan yang ditolak tidak bisa diajukan ulang (gagal diam-diam)",
+      "sifat": "Tinggi — alur bisnis buntu",
+      "cases": "C01",
+      "gejala": "Staff memperbaiki pengajuan yang ditolak lalu klik Ajukan: toast \"berhasil diperbarui\", status tetap Ditolak, tidak masuk antrean finance; tidak ada tombol Ajukan lain.",
+      "sebab": "canEdit() menerima status rejected tetapi canSubmit() hanya draft, sehingga submit() mengembalikan false tanpa pesan; flash/toast tetap sukses.",
+      "cakupan": "Form edit dan tombol Ajukan di daftar/detail.",
+      "perbaikan": "canSubmit() menerima draft dan rejected; pengajuan ulang mengosongkan reviewed_by/reviewed_at/review_notes sehingga menjadi review baru; pesan flash/toast mengikuti hasil sebenarnya. Test regresi: test_rejected_reimbursement_can_be_edited_and_resubmitted."
+    },
+    {
+      "id": "BUG-09",
+      "title": "Admin bisa menghapus pengajuan yang sudah dibayar — transaksi bank jadi yatim",
+      "sifat": "Tinggi — saldo terpotong tanpa jejak asal",
+      "cases": "C04",
+      "gejala": "Admin menghapus \"Taksi meeting klien\" (Lunas): pengajuan dan baris pembayarannya hilang, dua transaksi bank Rp 100.000 + Rp 85.000 tetap ada dan tetap memotong saldo BCA.",
+      "sebab": "canDelete() memberi admin hak hapus untuk status apa pun.",
+      "cakupan": "Endpoint hapus reimbursement.",
+      "perbaikan": "Pengajuan dengan amount_paid > 0 tidak bisa dihapus siapa pun (sama dengan aturan invoice yang punya pembayaran); pesan \"Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.\" Tombol hapus disembunyikan. Test regresi: test_reimbursement_with_payment_cannot_be_deleted_even_by_admin."
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat & langsung ajukan, dengan lampiran",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 berhenti karena selector tombol tanggal salah (alat uji). DB: status pending, expense_date 6 Okt, file jpg ada di disk public.",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Staff membuka `/reimbursements` di database QC yang masih kosong: kartu statistik 0 dan state kosong \"Belum ada reimbursement\"."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Form **Buat Pengajuan** terisi: judul \"Taksi meeting klien PT Sanjaya\", Rp 185.000, tanggal 06 Okt 2026, kategori Transport, lampiran `struk-taksi.jpg`."
+        },
+        {
+          "img": "N01-3",
+          "cap": "Setelah **Ajukan**: sheet tertutup, baris baru berstatus **Pending Review** dengan ikon lampiran; toast \"Reimbursement berhasil dibuat\"."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Simpan draft lalu ajukan dari daftar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: status pending setelah konfirmasi.",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Form terisi \"Makan siang tim proyek\" Rp 420.000, kategori Meals & Entertainment, tanpa lampiran."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Setelah **Simpan Draft**: baris berstatus **Draft** dengan tombol **Ajukan** di kolom aksi."
+        },
+        {
+          "img": "N02-3",
+          "cap": "Klik **Ajukan** di baris: dialog konfirmasi \"Ajukan reimbursement ini?\". (Dialog terekam saat animasi muncul belum selesai sehingga masih tembus pandang; isinya tetap terbaca. Keadaan ini tidak bisa direkam ulang karena datanya sudah berubah.)"
+        },
+        {
+          "img": "N02-4",
+          "cap": "Setelah konfirmasi: status berubah menjadi **Pending Review** dan tombol Ajukan hilang."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Edit draft",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: amount 175000, attachment_name kuitansi-hotel.pdf.",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Draft baru \"ATK kantor\" Rp 150.000 di daftar."
+        },
+        {
+          "img": "N03-2",
+          "cap": "Sheet **Edit Reimbursement**: nominal diubah menjadi Rp 175.000 dan lampiran `kuitansi-hotel.pdf` ditambahkan."
+        },
+        {
+          "img": "N03-3",
+          "cap": "Setelah **Simpan Draft**: baris menampilkan Rp 175.000 dan ikon lampiran."
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Hapus draft beserta lampirannya",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: baris terhapus tetapi file PDF tertinggal di disk (BUG-01). Percobaan 2 (draft baru #7) setelah perbaikan: baris dan file terhapus.",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Percobaan 1 — konfirmasi \"Hapus reimbursement ini?\" untuk draft \"ATK kantor\". (Dialog terekam saat animasi muncul belum selesai sehingga masih tembus pandang; isinya tetap terbaca. Keadaan ini tidak bisa direkam ulang karena datanya sudah berubah.)"
+        },
+        {
+          "img": "N04-2",
+          "cap": "Percobaan 1 — baris hilang dari daftar, namun pengecekan disk: `kuitansi-hotel.pdf` masih ada di `storage/app/public/reimbursements/` (BUG-01)."
+        },
+        {
+          "img": "N04-3",
+          "cap": "Percobaan 2 setelah perbaikan — konfirmasi hapus untuk draft \"ATK kantor (uji ulang)\" yang berlampiran PDF. (Dialog terekam saat animasi muncul belum selesai sehingga masih tembus pandang; isinya tetap terbaca. Keadaan ini tidak bisa direkam ulang karena datanya sudah berubah.)"
+        },
+        {
+          "img": "N04-4",
+          "cap": "Percobaan 2 — baris hilang; pengecekan database dan disk: row #7 dan file PDF-nya sama-sama terhapus."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Setujui dengan kategori resmi",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 berhenti karena nama opsi kategori diawali \"↳\" (alat uji). DB: approved, category OPERASIONAL, reviewed_by fm@qc.test, catatan tersimpan.",
+      "steps": [
+        {
+          "img": "N05-1",
+          "cap": "Finance manager di tab **Semua Pengajuan**: dua pengajuan Pending Review milik Staf Uji; badge sidebar Reimbursement 2."
+        },
+        {
+          "img": "N05-2",
+          "cap": "Dialog **Setujui Reimbursement**: tombol Setujui baru aktif setelah kategori **OPERASIONAL** dipilih; catatan \"Sesuai struk taksi.\"."
+        },
+        {
+          "img": "N05-3",
+          "cap": "Setelah disetujui: status **Approved** dan muncul tombol **Bayar**."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Bayar sebagian (cicilan)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: amount_paid 100000, payment_status partial; tx#11 debit Rp 100.000 kategori OPERASIONAL \"Cicilan Reimbursement: …\".",
+      "steps": [
+        {
+          "img": "N06-1",
+          "cap": "Dialog **Proses Pembayaran**: sisa Rp 185.000, rekening BCA - Operasional (saldo Rp 64.802.500), nominal Rp 100.000, catatan TRF-001."
+        },
+        {
+          "img": "N06-2",
+          "cap": "Setelah diproses: status tetap Approved dengan keterangan **sisa Rp 85.000**."
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Lunasi sisa",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: status paid, amount_paid 185000, 2 baris reimbursement_payments; tx#12 \"Pelunasan Reimbursement: …\".",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Dialog bayar kedua: nominal otomatis terisi sisa **Rp 85.000**."
+        },
+        {
+          "img": "N07-2",
+          "cap": "Setelah diproses: status **Paid** dan tombol Bayar hilang."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Filter, cari, rentang tanggal",
+      "verdict": "Pass (percobaan ke-3)",
+      "attempts": "ttp",
+      "note": "Percobaan 1: selector kolom Cari salah; percobaan 2: rentang tanggal ditutup dengan Escape padahal komponen menunggu tombol Terapkan (keduanya alat uji).",
+      "steps": [
+        {
+          "img": "N08-1",
+          "cap": "Filter status **Paid**: hanya \"Taksi meeting klien PT Sanjaya\"."
+        },
+        {
+          "img": "N08-2",
+          "cap": "Filter kategori **Meals & Entertainment**: hanya \"Makan siang tim proyek\"."
+        },
+        {
+          "img": "N08-3",
+          "cap": "Cari \"taksi\": hanya satu baris yang cocok."
+        },
+        {
+          "img": "N08-4",
+          "cap": "Rentang 1–3 Okt 2026 (URL `date_from=2026-10-01&date_to=2026-10-03`): tidak ada data, tampil state kosong."
+        },
+        {
+          "img": "N08-5",
+          "cap": "**Reset**: kedua pengajuan tampil kembali."
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Detail & lampiran",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: isi lengkap tetapi console mencatat DOM tidak valid (BUG-02). Setelah perbaikan console bersih.",
+      "steps": [
+        {
+          "img": "N09-1",
+          "cap": "Percobaan 1 — dialog detail: pemohon, tanggal, kategori, status Paid, Rp 185.000, sudah dibayar Rp 185.000, peninjau Fina Manager + catatan, deskripsi, tautan lampiran."
+        },
+        {
+          "img": "N09-2",
+          "cap": "Pratinjau lampiran `struk-taksi.jpg` terbuka (gambar 600 px termuat)."
+        },
+        {
+          "img": "N09-3",
+          "cap": "Setelah perbaikan BUG-02 — dialog detail \"Makan siang tim proyek\" dibuka ulang; console tanpa error."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Form kosong",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: pesan berbahasa Inggris dan toast \"Gagal menyimpan\" (BUG-03). Server juga menolak form kosong (422).",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Percobaan 1 — Ajukan form kosong: \"The title field is required.\", \"The amount field must be at least 1.\", \"The category field is required.\"; toast generik \"Gagal menyimpan\"."
+        },
+        {
+          "img": "A01-2",
+          "cap": "Setelah perbaikan — \"Judul wajib diisi.\", \"Nominal minimal Rp 1.\", \"Kategori wajib diisi.\"; toast merinci ketiga pesan dari server."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Nominal 0",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 memotret pesan lama karena menunggu dengan timer (alat uji). Server: 422 untuk amount 0.",
+      "steps": [
+        {
+          "img": "A02-1",
+          "cap": "Judul dan kategori terisi, nominal Rp 0 → **Simpan Draft** ditolak dengan pesan nominal minimal (teks masih berbahasa Inggris sebelum perbaikan BUG-03)."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Lampiran salah tipe / terlalu besar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "UI menolak keduanya; server: `catatan.txt` 422 (mimes), file 6 MB 422. Lihat CATATAN-1 tentang batas upload PHP 2 MB.",
+      "steps": [
+        {
+          "img": "A03-1",
+          "cap": "Memilih `catatan.txt`: \"Format file tidak didukung.\" dan file tidak diterima."
+        },
+        {
+          "img": "A03-2",
+          "cap": "Memilih `besar.pdf` (6 MB): \"Ukuran file melebihi batas 5MB.\"."
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Setujui tanpa kategori",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "API langsung tanpa category_id → 422; status N02 tetap pending.",
+      "steps": [
+        {
+          "img": "A04-1",
+          "cap": "Dialog Setujui tanpa kategori: tombol **Setujui** nonaktif. (Direkam ulang 8 Okt setelah animasi dialog selesai; rekaman pertama tertangkap saat dialog masih muncul. Perilakunya tidak berubah oleh perbaikan.)"
+        }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Bayar melebihi sisa",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: Rp 500.000 untuk pengajuan Rp 420.000 diterima, BCA terpotong Rp 500.000 (BUG-04). Percobaan 2 (pengajuan #8 Rp 300.000): UI dan server menolak, tidak ada pembayaran tercatat.",
+      "steps": [
+        {
+          "img": "A05-1",
+          "cap": "Percobaan 1 — dialog bayar \"Hotel dinas Surabaya\" (sisa Rp 420.000) diisi Rp 500.000; tombol tetap aktif."
+        },
+        {
+          "img": "A05-2",
+          "cap": "Percobaan 1 — detail \"Hotel dinas Surabaya\" hasil pembayaran tadi: Jumlah Rp 420.000, **Sudah Dibayar Rp 500.000**, status Paid (BUG-04). (Direkam ulang setelah animasi dialog selesai; data yang tampil adalah sisa percobaan 1 yang masih ada di database QC.)"
+        },
+        {
+          "img": "A05-3",
+          "cap": "Setelah perbaikan — \"Tiket kereta Bandung\" (sisa Rp 300.000) diisi Rp 350.000: pesan \"Melebihi sisa Rp 300.000.\", tombol bayar nonaktif; server juga menjawab 422 \"Jumlah pembayaran melebihi sisa reimbursement (Rp 300.000).\""
+        }
+      ]
+    },
+    {
+      "id": "A06",
+      "title": "Tanggal bayar di masa depan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "API dengan payment_date besok → 422.",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Kalender tanggal pembayaran: tanggal 9 Okt (besok) nonaktif."
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "title": "Staff membuka tab \"Semua\" lewat URL",
+      "verdict": "Pass (percobaan ke-3)",
+      "attempts": "tfp",
+      "note": "Percobaan 1 tidak konklusif: belum ada data milik pengguna lain karena fixture FM gagal dibuat (memicu BUG-05). Percobaan 2: kebocoran terbukti (BUG-06). Percobaan 3 setelah perbaikan: hanya milik sendiri.",
+      "steps": [
+        {
+          "img": "A07-1",
+          "cap": "Percobaan 2 — staff di `/reimbursements?tab=all` melihat kolom Pemohon dan draft **\"Kurir dokumen kontrak (FM)\" milik Fina Manager**; statistik Total 4 (semua pengguna)."
+        },
+        {
+          "img": "A07-2",
+          "cap": "Setelah perbaikan — URL yang sama hanya menampilkan pengajuan milik Staf Uji; draft FM (#9) tidak terlihat."
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "title": "Staff menghapus draft milik orang lain",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Diverifikasi di level API + database (tidak ada alur layar karena tombol hapus memang tidak tampil untuk milik orang lain). Percobaan 1: DELETE /reimbursements/5 menghapus draft FM (BUG-07). Percobaan 2: DELETE /reimbursements/9 ditolak dengan flash \"Reimbursement tidak dapat dihapus\", row tetap ada."
+    },
+    {
+      "id": "A09",
+      "title": "Staff memanggil review / bayar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Diverifikasi di level API: POST /review dan /pay sebagai staff → 403; status N02 tidak berubah."
+    },
+    {
+      "id": "A10",
+      "title": "Edit pengajuan yang sudah diajukan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "PUT langsung → redirect back, data tidak berubah.",
+      "steps": [
+        {
+          "img": "A10-1",
+          "cap": "Staff membuka `/reimbursements/2/edit` (Pending): dialihkan ke daftar dengan toast \"Reimbursement tidak dapat diedit\"."
+        }
+      ]
+    },
+    {
+      "id": "A11",
+      "title": "Buat tanpa kolom deskripsi (API)",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Diverifikasi di level API + database. Percobaan 1 (fixture FM): 500 \"Undefined array key description\" (BUG-05). Percobaan 2: 302 ke daftar, row #9 tersimpan dengan description null."
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Ditolak → diperbaiki → diajukan ulang",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: pengajuan ulang gagal diam-diam (BUG-08). Percobaan 2: tombol Ajukan tersedia untuk status Ditolak, status kembali pending, data review lama dikosongkan, muncul lagi di antrean FM.",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "FM menolak \"Makan siang tim proyek\" dengan catatan \"Lampirkan struk/nota restoran.\"."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Status di sisi FM menjadi **Rejected**."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Staff membuka detail: status Rejected dan catatan penolakan terlihat; satu-satunya aksi adalah **Edit**. (Dialog terekam saat animasi muncul belum selesai sehingga masih tembus pandang; isinya tetap terbaca. Keadaan ini tidak bisa direkam ulang karena datanya sudah berubah.)"
+        },
+        {
+          "img": "C01-4",
+          "cap": "Staff menambahkan lampiran `struk-taksi.jpg` di sheet edit lalu klik **Ajukan**."
+        },
+        {
+          "img": "C01-5",
+          "cap": "Percobaan 1 — toast \"Reimbursement berhasil diperbarui\", tetapi status **tetap Rejected** (DB: rejected) dan tidak ada cara lain untuk mengajukan (BUG-08)."
+        },
+        {
+          "img": "C01-6",
+          "cap": "Setelah perbaikan — baris Rejected kini memiliki tombol **Ajukan**."
+        },
+        {
+          "img": "C01-7",
+          "cap": "Setelah konfirmasi: status **Pending Review**; toast \"Reimbursement berhasil diajukan\"."
+        },
+        {
+          "img": "C01-8",
+          "cap": "Di sisi FM pengajuan muncul lagi sebagai Pending Review dengan tombol **Review**."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Pembayaran memotong saldo & masuk arus kas",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 tertahan karena server artisan serve sempat tidak merespons dan selector halaman rekening menunggu elemen tersembunyi (alat uji/lingkungan). DB: saldo BCA 64.802.500 → 64.617.500 (−185.000).",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "Arus Kas → Pengeluaran: \"Cicilan Reimbursement …\" −Rp 100.000 (TRF-001) dan \"Pelunasan Reimbursement …\" −Rp 85.000 (TRF-002), kategori OPERASIONAL, rekening BCA - Operasional."
+        },
+        {
+          "img": "C02-2",
+          "cap": "Halaman rekening bank setelah pembayaran: BCA - Operasional Rp 64.617.500."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Badge antrean di sidebar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Badge FM: 0 → 1 setelah staff mengajukan → tetap 1 setelah disetujui (pindah ke antrean bayar) → 0 setelah lunas.",
+      "steps": [
+        {
+          "img": "C03-1",
+          "cap": "Awal: badge Reimbursement di sidebar FM kosong (0)."
+        },
+        {
+          "img": "C03-2",
+          "cap": "Staff mengajukan \"Parkir gedung klien\" Rp 25.000; setelah FM memuat ulang badge menjadi **1**."
+        },
+        {
+          "img": "C03-3",
+          "cap": "FM menyetujui: badge tetap **1** (sekarang antrean bayar)."
+        },
+        {
+          "img": "C03-4",
+          "cap": "FM membayar lunas: badge kembali kosong."
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "Admin menghapus pengajuan yang sudah dibayar",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: terhapus, transaksi bank tx#11 & tx#12 tertinggal dan tetap memotong saldo (BUG-09). Percobaan 2: tombol hapus tidak tampil untuk baris yang sudah dibayar; DELETE langsung ditolak, data #6 dan pembayarannya tetap ada.",
+      "steps": [
+        {
+          "img": "C04-1",
+          "cap": "Percobaan 1 — admin: tombol hapus tampil pada baris Paid \"Taksi meeting klien\"; konfirmasi hapus. (Dialog terekam saat animasi muncul belum selesai sehingga masih tembus pandang; isinya tetap terbaca. Keadaan ini tidak bisa direkam ulang karena datanya sudah berubah.)"
+        },
+        {
+          "img": "C04-2",
+          "cap": "Percobaan 1 — baris hilang; DB: pengajuan & pembayaran terhapus tetapi 2 transaksi bank (Rp 185.000) tetap ada (BUG-09)."
+        },
+        {
+          "img": "C04-3",
+          "cap": "Setelah perbaikan — baris Paid \"Parkir gedung klien\" tanpa tombol hapus (draft lain masih bisa dihapus admin)."
+        },
+        {
+          "img": "C04-4",
+          "cap": "DELETE langsung ke `/reimbursements/6` → toast \"Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.\"; data tetap ada."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "CATATAN-1",
+      "title": "Batas upload PHP 2 MB lebih kecil dari batas form 5 MB",
+      "body": "Di mesin uji upload_max_filesize = 2M, sehingga lampiran 2–5 MB (umum untuk foto struk dari ponsel) lolos di UI tetapi ditolak server. Pesannya kini berbahasa Indonesia (\"Lampiran gagal diunggah. Pastikan ukurannya tidak melebihi batas server.\"), tetapi akar masalahnya konfigurasi: pastikan php.ini di VPS memakai upload_max_filesize ≥ 6M dan post_max_size ≥ 8M."
+    },
+    {
+      "id": "CATATAN-2",
+      "title": "Data QC tercemar oleh percobaan sebelum perbaikan",
+      "body": "Database QC menyimpan sisa percobaan pertama: pengajuan #4 dengan amount_paid 500.000 > amount 420.000 (A05) dan transaksi bank #11–#12 tanpa pengajuan (C04). Production bisa saja memiliki anomali serupa dari masa lalu; periksa dengan query reimbursements WHERE amount_paid > amount, dan bank_transactions berdeskripsi \"%Reimbursement:%\" yang tidak punya baris reimbursement_payments."
+    },
+    {
+      "id": "CATATAN-3",
+      "title": "Catatan penolakan hilang saat diajukan ulang",
+      "body": "Keputusan perbaikan BUG-08: pengajuan ulang mengosongkan peninjau dan catatan review supaya tampil sebagai review baru. Riwayat penolakan sebelumnya tidak disimpan; bila dibutuhkan jejak audit, perlu tabel riwayat persetujuan (cocok dengan timeline pada referensi redesign)."
+    },
+    {
+      "id": "CATATAN-4",
+      "title": "Masukan UX untuk redesign",
+      "body": "Status dan kategori berbahasa Inggris (Pending Review, Approved, Paid, Meals & Entertainment); state kosong saat filter tidak menemukan apa pun berbunyi \"Belum ada reimbursement\"; dialog detail tidak menampilkan riwayat pembayaran (dua cicilan hanya terlihat sebagai total); checkbox per baris tidak punya aksi massal; kartu statistik masih gaya lama. Tidak diubah di QA ini karena masuk lingkup redesign."
+    },
+    {
+      "id": "CATATAN-5",
+      "title": "Pola yang sama di modul Permintaan Dana (belum diuji)",
+      "body": "FundRequest::canDelete() memakai logika yang sama dengan reimbursement sebelum perbaikan BUG-07 (tanpa cek pemilik, admin bebas). Belum diuji karena di luar lingkup modul ini — disarankan QA modul Permintaan Dana berikutnya."
+    },
+    {
+      "id": "CATATAN-6",
+      "title": "Perbaikan BUG-01 di model Feedback diverifikasi dengan membaca kode",
+      "body": "Model Feedback tidak punya factory sehingga tidak dibuatkan test otomatis; perubahannya identik satu baris dengan model yang teruji (BankTransaction, Payment, Reimbursement)."
+    }
+  ],
+  "tooling_problems": [
+    "N01: tombol tanggal di form punya nama aksesibel berbeda dari teksnya; selector getByRole gagal, diganti locator teks.",
+    "N05: opsi kategori transaksi diawali \"↳ \"; selector nama persis gagal pada percobaan pertama.",
+    "N08: selector placeholder kolom Cari salah; lalu rentang tanggal ditutup dengan Escape padahal komponen sengaja menunggu tombol Terapkan — dua percobaan terbuang, bukan cacat aplikasi.",
+    "A02: screenshot pertama diambil setelah menunggu 1,2 detik dengan timer sehingga memotret pesan dari A01; diulang dengan menunggu respons server.",
+    "C02: server php artisan serve (satu proses) sempat tidak merespons satu navigasi; pulih sendiri. Elemen saldo di halaman rekening punya salinan tersembunyi untuk layout lain.",
+    "Dialog Radix memudar masuk ±200 ms; tujuh screenshot pertama diambil sebelum animasi selesai. A04-1 dan A05-2 direkam ulang dengan menunggu document.getAnimations() selesai; lima lainnya (N02-3, N04-1, N04-3, C01-3, C04-1) keadaannya sudah tidak ada sehingga dibiarkan dengan keterangan di caption.",
+    "Probe API memakai p.request dengan cookie sesi dan header X-XSRF-TOKEN; flash dari probe dapat ikut tampil di halaman berikutnya."
+  ],
+  "honesty": "Perbaikan ditulis oleh asisten yang sama yang merancang dan menjalankan pengujian, sehingga pengujian mewarisi asumsi penulis. Tiga hal yang sebaiknya diperiksa manusia secara independen: (1) unggah foto struk asli dari ponsel (3–5 MB) di VPS untuk memastikan batas upload server sudah cukup (CATATAN-1); (2) alur pengajuan ulang dari sudut pandang staff sungguhan — apakah hilangnya catatan penolakan setelah diajukan ulang dapat diterima (CATATAN-3); (3) dengan akun finance manager, coba bayar melebihi sisa dan hapus pengajuan yang sudah dibayar di data production setelah deploy, lalu jalankan query CATATAN-2 untuk mencari anomali lama."
+}

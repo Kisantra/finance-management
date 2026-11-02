@@ -23,6 +23,7 @@ use App\Http\Controllers\ReimbursementController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\CompanyController;
 use App\Http\Controllers\Settings\CustomFontController;
+use App\Http\Controllers\Settings\InvoiceSettingsController;
 use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -43,6 +44,7 @@ use App\Services\InvoicePrintService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 
 // ============================================================================
@@ -50,6 +52,12 @@ use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 // ============================================================================
 
 Route::redirect('/', '/choose-company')->name('home');
+
+// Panduan (dokumentasi + video tutorial per modul; isi di video/<modul>/guide.ts) sengaja publik:
+// calon pengguna mempelajari sistem sebelum punya akun. Isinya data contoh, bukan data perusahaan.
+Route::get('/panduan/{slug?}', fn (?string $slug = null) => Inertia::render('guide/index', ['slug' => $slug]))
+    ->where('slug', '[a-z0-9-]+')
+    ->name('guide');
 
 // ============================================================================
 // CENTRAL ROUTES (tanpa konteks perusahaan)
@@ -185,7 +193,9 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/export/excel', [InvoiceController::class, 'exportExcel'])->name('export.excel');
         Route::get('/export/pdf', [InvoiceController::class, 'exportPdf'])->name('export.pdf');
         Route::post('/', [InvoiceController::class, 'store'])->middleware('can:create invoices')->name('store');
-        Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::post('/preview', [InvoiceController::class, 'preview'])->name('preview');
+        Route::get('/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('show');
+        Route::get('/{invoice}/data', [InvoiceController::class, 'data'])->name('data');
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');
         Route::put('/{invoice}', [InvoiceController::class, 'update'])->middleware('can:edit invoices')->name('update');
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->middleware('can:delete invoices')->name('destroy');
@@ -402,6 +412,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/reimbursements', [ReimbursementController::class, 'index'])->name('reimbursements.index');
         Route::get('/reimbursements/create', [ReimbursementController::class, 'create'])->middleware('can:create reimbursements')->name('reimbursements.create');
         Route::post('/reimbursements', [ReimbursementController::class, 'store'])->middleware('can:create reimbursements')->name('reimbursements.store');
+        Route::get('/reimbursements/{reimbursement}/data', [ReimbursementController::class, 'data'])->whereNumber('reimbursement')->name('reimbursements.data');
         Route::get('/reimbursements/{reimbursement}/edit', [ReimbursementController::class, 'edit'])->middleware('can:edit reimbursements')->name('reimbursements.edit');
         Route::put('/reimbursements/{reimbursement}', [ReimbursementController::class, 'update'])->middleware('can:edit reimbursements')->name('reimbursements.update');
         Route::delete('/reimbursements/{reimbursement}', [ReimbursementController::class, 'destroy'])->middleware('can:delete reimbursements')->name('reimbursements.destroy');
@@ -583,11 +594,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     // SETTINGS
     // ------------------------------------------------------------------------
     Route::prefix('settings')->name('settings.')->group(function () {
-        // Route::redirect menulis path LITERAL: di dalam grup ber-prefix
-        // /c/{company} target itu tidak ikut mendapat prefix, sehingga
-        // /c/{slug}/settings melempar ke /settings/profile yang 404. Redirect
-        // berbasis nama route membentuk prefix-nya sendiri.
-        Route::get('/', fn () => redirect()->route('settings.profile'));
+        // JANGAN pakai Route::redirect di sini: ia menulis path LITERAL, dan di
+        // dalam grup ber-prefix /c/{company} target itu tidak ikut mendapat
+        // prefix sehingga /c/{slug}/settings melempar ke /settings/profile yang
+        // 404. Route::inertia aman — ia tidak menulis path tujuan.
+        Route::inertia('/', 'settings/index')->name('index');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -604,6 +615,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             Route::get('/company', [CompanyController::class, 'edit'])->name('company');
             Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
             Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+        });
+
+        Route::middleware('can:manage invoice settings')->group(function () {
+            Route::get('/invoice-numbering', [InvoiceSettingsController::class, 'edit'])->name('invoice-numbering');
+            Route::put('/invoice-numbering', [InvoiceSettingsController::class, 'update'])->name('invoice-numbering.update');
         });
 
         // PDF Template Builder — gated by permission

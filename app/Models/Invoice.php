@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\InvoiceNumberService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,8 @@ class Invoice extends Model
         'discount_type',
         'discount_value',
         'discount_reason',
+        'ppn_rate',
+        'ppn_amount',
         'total_amount',
         'issue_date',
         'due_date',
@@ -33,8 +36,20 @@ class Invoice extends Model
         'subtotal' => 'integer',
         'discount_amount' => 'integer',
         'discount_value' => 'integer',
+        'ppn_rate' => 'decimal:2',
+        'ppn_amount' => 'integer',
         'total_amount' => 'integer',
+        'invoice_sequence' => 'integer',
     ];
+
+    /**
+     * PPN dari DPP (subtotal layanan − diskon, tanpa titipan pajak) dengan tarif persen.
+     * Satu-satunya rumus PPN — dipakai editor invoice, publish invoice berulang, dan pratinjau.
+     */
+    public static function ppnFor(int $dpp, float|string|null $rate): int
+    {
+        return $rate ? (int) round(max(0, $dpp) * (float) $rate / 100) : 0;
+    }
 
     public function client(): BelongsTo
     {
@@ -76,9 +91,20 @@ class Invoice extends Model
         return $this->items()->sum('cogs_amount');
     }
 
+    /** PPN adalah titipan untuk negara, bukan pendapatan — tidak ikut laba. */
     public function getGrossProfitAttribute(): int
     {
-        return $this->total_amount - $this->total_cogs;
+        return $this->total_amount - (int) $this->ppn_amount - $this->total_cogs;
+    }
+
+    /** Dasar Pengenaan Pajak: subtotal layanan (tanpa titipan pajak) − diskon. */
+    public function getDppAmountAttribute(): int
+    {
+        $deposits = $this->relationLoaded('items')
+            ? (int) $this->items->where('is_tax_deposit', true)->sum('amount')
+            : (int) $this->items()->where('is_tax_deposit', true)->sum('amount');
+
+        return max(0, (int) $this->subtotal - $deposits - (int) $this->discount_amount);
     }
 
     public function getOutstandingProfitAttribute(): int
@@ -100,135 +126,32 @@ class Invoice extends Model
         return $this->gross_profit - $this->outstanding_profit;
     }
 
-    // Invoice number generation
+    /**
+     * Nomor urut selalu mengikuti nomor: setiap kali invoice_number berubah (kirim, terbitkan,
+     * rollback, data lama/factory) urutannya dibaca ulang dari nomor dengan pola aktif.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Invoice $invoice): void {
+            if ($invoice->isDirty('invoice_number') && ! $invoice->isDirty('invoice_sequence')) {
+                $invoice->invoice_sequence = $invoice->invoice_number
+                    ? app(InvoiceNumberService::class)->sequenceOf($invoice->invoice_number)
+                    : null;
+            }
+        });
+    }
+
     public static function generateInvoiceNumber(\DateTimeInterface $issueDate, int $clientId): string
     {
-        $maxSequence = static::getMaxSequenceFromDb($issueDate);
-        $sequence = $maxSequence + 1;
-
-        $companyInitials = static::getCompanyInitials();
-        $clientInitials = static::getClientInitials($clientId);
-        $romanMonth = static::getRomanMonth($issueDate->month);
-        $year = $issueDate->year;
-
-        return sprintf(
-            '%03d/INV/%s-%s/%s/%d',
-            $sequence,
-            $companyInitials,
-            $clientInitials,
-            $romanMonth,
-            $year
-        );
+        return app(InvoiceNumberService::class)->next(Carbon::instance($issueDate), $clientId);
     }
 
-    public static function getMaxSequenceFromDb(\DateTimeInterface $date): int
+    public static function isLatestInNumberingPeriod(self $invoice): bool
     {
-        $invoiceNumbers = static::whereYear('issue_date', $date->format('Y'))
-            ->whereMonth('issue_date', $date->format('m'))
-            ->where('invoice_number', 'LIKE', '%/INV/%')
-            ->pluck('invoice_number');
-
-        if ($invoiceNumbers->isEmpty()) {
-            return 0;
-        }
-
-        return (int) $invoiceNumbers->map(fn ($num) => (int) explode('/INV/', $num)[0])->max();
-    }
-
-    public static function isInvoiceLatestInMonth(self $invoice): bool
-    {
-        if (! $invoice->invoice_number) {
-            return false;
-        }
-
-        // Nomor bebas ketikan pengguna belum tentu berpola `NNN/INV/...`. Dulu
-        // nomor di luar pola itu langsung dianggap "bukan yang terbaru" sehingga
-        // invoice-nya tidak pernah bisa di-rollback — terkunci selamanya. Bila
-        // pola tidak dikenali, jatuhkan penilaian ke urutan penerbitan: invoice
-        // bernomor terakhir pada bulan yang sama.
-        if (! str_contains($invoice->invoice_number, '/INV/')) {
-            $terakhir = static::whereNotNull('invoice_number')
-                ->whereYear('issue_date', Carbon::parse($invoice->issue_date)->year)
-                ->whereMonth('issue_date', Carbon::parse($invoice->issue_date)->month)
-                ->orderByDesc('id')
-                ->value('id');
-
-            return $terakhir === $invoice->id;
-        }
-
-        $maxSeq = static::getMaxSequenceFromDb(Carbon::parse($invoice->issue_date));
-        $invoiceSeq = (int) explode('/INV/', $invoice->invoice_number)[0];
-
-        return $invoiceSeq === (int) $maxSeq;
-    }
-
-    private static function getCompanyInitials(): string
-    {
-        $company = CompanyProfile::first();
-        if (! $company || ! $company->name) {
-            return 'SPI';
-        }
-
-        return static::extractInitials($company->name) ?: 'SPI';
-    }
-
-    private static function getClientInitials(int $clientId): string
-    {
-        $client = Client::find($clientId);
-        if (! $client) {
-            return 'XXX';
-        }
-
-        $name = $client->type === 'company' && $client->company_name
-            ? $client->company_name
-            : $client->name;
-
-        return static::extractInitials($name) ?: 'XXX';
-    }
-
-    public static function extractCompanyInitials(string $name): string
-    {
-        return static::extractInitials($name);
-    }
-
-    private static function extractInitials(string $name): string
-    {
-        $skipWords = ['pt', 'pt.', 'cv', 'cv.', 'ud', 'ud.', 'tb', 'tb.', 'pd', 'pd.', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
-
-        $words = preg_split('/\s+/', trim($name));
-        $initials = '';
-        foreach ($words as $word) {
-            if (! empty($word) && ! in_array(strtolower(rtrim($word, '.')), $skipWords) && ! in_array(strtolower($word), $skipWords)) {
-                $initials .= strtoupper($word[0]);
-            }
-        }
-
-        return $initials;
-    }
-
-    private static function getRomanMonth(int $month): string
-    {
-        $romans = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
-            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
-        ];
-
-        return $romans[$month] ?? 'I';
+        return app(InvoiceNumberService::class)->isLatestInPeriod($invoice);
     }
 
     // Update invoice status based on payments
-    /**
-     * Hitung ulang status dari nilai yang sudah dibayar.
-     *
-     * Dulu metode ini hanya mengenal tiga keluaran dan selalu menjatuhkan invoice
-     * tanpa pembayaran ke `draft` — termasuk invoice yang SUDAH punya nomor resmi
-     * dan sudah dikirim ke klien. Akibatnya menghapus seluruh pembayarannya
-     * mengunci invoice itu: pembayaran baru ditolak karena statusnya `draft`,
-     * rollback ditolak karena statusnya bukan `sent`, dan nilainya hilang dari
-     * omzet karena laporan mengecualikan draft. Nomor invoice adalah penanda
-     * bahwa dokumen itu pernah terbit, jadi ia yang menentukan dasar pijakannya.
-     */
     public function updateStatus(): void
     {
         $amountPaid = $this->amount_paid;

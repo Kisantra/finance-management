@@ -70,6 +70,23 @@ class TemplateTokens
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->discount_amount ?? 0)),
             ],
             [
+                'path' => 'invoice.dpp',
+                'label' => 'DPP (dasar PPN)',
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah($inv->dpp_amount),
+            ],
+            [
+                'path' => 'invoice.ppn_rate',
+                'label' => 'Tarif PPN',
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => (float) $inv->ppn_rate > 0
+                    ? rtrim(rtrim(number_format((float) $inv->ppn_rate, 2, ',', '.'), '0'), ',').'%'
+                    : '',
+            ],
+            [
+                'path' => 'invoice.ppn_amount',
+                'label' => 'PPN',
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->ppn_amount ?? 0)),
+            ],
+            [
                 'path' => 'invoice.total_amount',
                 'label' => 'Total',
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->total_amount ?? 0)),

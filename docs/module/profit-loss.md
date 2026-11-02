@@ -1,6 +1,6 @@
 # Modul: Profit & Loss (Laporan Laba Rugi)
 
-> Laporan laba rugi tingkat perusahaan **berbasis kas** untuk kebutuhan manajemen (bukan audit), dirakit langsung dari data `payments` (pendapatan invoice), `invoice_items` (HPP metode tutup-modal-dulu + pengecualian titipan pajak), dan `bank_transactions` yang diklasifikasi per `transaction_categories.pl_group`. Kebijakan final terdokumentasi di `.claude/context/laba-rugi.md` dan implementasinya di `ProfitLossService` **sesuai** dokumen tersebut. Route: `GET /reports/profit-loss` + `GET /reports/profit-loss/pdf`, keduanya digate permission `view profit-loss` (`routes/web.php:441-444`). Klasifikasi inline memakai endpoint terpisah `PATCH /transaction-categories/{id}/pl-group` (gate `manage categories`).
+> Laporan laba rugi tingkat perusahaan **berbasis kas** untuk kebutuhan manajemen (bukan audit), dirakit langsung dari data `payments` (pendapatan invoice), `invoice_items` (HPP metode tutup-modal-dulu + pengecualian titipan pajak), dan `bank_transactions` yang diklasifikasi per `transaction_categories.pl_group`. Kebijakan final terdokumentasi di `docs/design/laba-rugi.md` dan implementasinya di `ProfitLossService` **sesuai** dokumen tersebut. Route: `GET /reports/profit-loss` + `GET /reports/profit-loss/pdf`, keduanya digate permission `view profit-loss` (`routes/web.php:441-444`). Klasifikasi inline memakai endpoint terpisah `PATCH /transaction-categories/{id}/pl-group` (gate `manage categories`).
 
 ## Tabel Database
 
@@ -44,7 +44,7 @@ $end = isset($validated['end_date'])
 Urutan perhitungan (`app/Services/ProfitLossService.php:40-94`), persis mengikuti struktur di `laba-rugi.md`:
 
 ```
-PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu) + non-invoice (pl_group=revenue, credit)
+PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu: titipan pajak lalu PPN) + non-invoice (pl_group=revenue, credit)
 (−) HPP           = invoice (cost-recovery) + manual (pl_group=cogs, debit)
 = LABA KOTOR      (gross_profit)
 (−) BEBAN OPERASIONAL (pl_group=opex, debit, dirinci per kategori)
@@ -56,14 +56,17 @@ PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu) + non-invoice (pl_group=re
 = LABA BERSIH     (net_profit)
 
 + bucket 'unclassified' (income & expense) — TERPISAH, TIDAK masuk total mana pun
++ ppn_output (memo "PPN Keluaran diterima") — TERPISAH, TIDAK masuk total mana pun
 ```
 
 **Pendapatan & HPP invoice — "titipan dulu" + cost recovery** (`invoiceContributions()`, baris 117-157). Untuk setiap invoice yang menerima pembayaran dalam periode:
 
 ```php
 // app/Services/ProfitLossService.php:146-153
-$revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit);          // titipan-dulu
-$revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit);
+$totalPpn += min(max(0, $paidThroughEnd - $taxDeposit), $ppn)        // PPN Keluaran (memo)
+    - min(max(0, $paidThroughStartPrev - $taxDeposit), $ppn);
+$revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit - $ppn);   // titipan-dulu
+$revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit - $ppn);
 
 $totalRevenue += $revenueThroughEnd - $revenueThroughStartPrev;
 
@@ -71,7 +74,7 @@ if ($invoiceCogs > 0) {
     $totalCogs += min($revenueThroughEnd, $invoiceCogs) - min($revenueThroughStartPrev, $invoiceCogs);
 }
 ```
-- **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), sisanya baru diakui pendapatan.
+- **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), lalu `invoices.ppn_amount` (PPN Keluaran perusahaan PKP, sejak 2026-10-13), sisanya baru diakui pendapatan. PPN yang tertutup dalam periode dilaporkan sebagai `ppn_output` — memo "Catatan: PPN Keluaran diterima" di bawah Laba Bersih (halaman & PDF, hanya bila > 0), bukan pendapatan dan tidak masuk total mana pun. Setoran PPN ke negara dicatat sebagai transaksi berkategori `financing` agar tidak menjadi beban.
 - **Cost recovery ("tutup modal dulu")**: porsi pendapatan menutup `total_cogs` invoice dulu sampai penuh; HPP periode = selisih kumulatif `MIN(pendapatan_kumulatif, total_cogs)` di batas akhir vs batas awal periode. Invoice lunas sebelum periode otomatis berkontribusi 0 (delta kolaps).
 
 **Baris berbasis kategori** (`transactionsByGroup()`, baris 164-188): join `bank_transactions × transaction_categories`, filter `pl_group` + arah (`credit`/`debit`) + rentang `transaction_date`, group by kategori → `{by_category: [{category_id, category_label, amount}], total}`.
@@ -119,23 +122,31 @@ return $pdf->download($filename);
 ```
 4. Template Blade `resources/views/pdf/profit-loss.blade.php` (Blade hanya dipakai untuk PDF di project ini).
 
+### Panduan & video tutorial (tombol **Tutorial** di header laporan)
+
+1. `<TutorialButton slug="profit-loss" />` di samping **Unduh PDF** membuka video per role: **Finance manager** (`ProfitLossFinanceManager`: membaca laporan, mengklasifikasi kategori dari panel, periode & PDF) dan **Admin** (`ProfitLossAdmin`: cara laporan terbentuk, asal tiap baris, jejak ke Arus Kas › Pemasukan & Kategori Transaksi, peringatan). Staff tidak punya `view profit-loss`.
+2. Sumber: `video/profit-loss/guide.ts` (teks `/panduan` + adegan), `steps.ts`, `shots.ts`, `tutorial.tsx`, `screens/`.
+3. Ambil ulang screenshot: server QC port 8014, jalankan `video/capture/cash-flow.js` lebih dulu (butuh pemasukan berkategori "Sewa Ruang Rapat" yang belum diklasifikasi), lalu `video/capture/profit-loss.js` lewat Playwright MCP (skrip ini mengubah grup L/R kategori contoh tersebut menjadi Pendapatan Lain), kemudian `python video/capture/to-webp.py profit-loss` dan salin koordinatnya ke `shots.ts`.
+4. **Perubahan struktur laporan/klasifikasi harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
+
 ## Keterkaitan Antar Modul
 
 - **Invoices & Payments** — sumber baris Pendapatan Usaha (invoice) dan HPP invoice; bergantung pada `invoice_items.cogs_amount` dan flag `is_tax_deposit`. Pendapatan diakui saat pembayaran masuk (basis kas), bukan saat invoice terbit.
 - **Bank Transactions / Cash Flow** — satu-satunya sumber untuk semua baris non-invoice. Reimbursement (`Reimbursement::recordPayment`) dan Fund Request (`FundRequest::disburse`) bermuara ke `BankTransaction`, sehingga otomatis tertangkap sekali sebagai beban (fund request = langsung beban saat cair, sesuai kebijakan #3).
 - **Transaction Categories** — `pl_group` adalah penggerak klasifikasi; UI kategori (`/transaction-categories`) juga menampilkan status classified/unclassified dan stats-nya (`TransactionCategoryController::index`).
-- **Loans & Receivables** — pokok pinjaman/piutang harus berkategori `financing` (dikecualikan dari P&L); bunga pinjaman (`EXP-INTEREST` → `other_expense`) dan bunga piutang (`REV-INTEREST` → `other_income`) yang seharusnya mengisi baris Beban/Pendapatan Lain. Catatan: saat ini lookup kategori by `code` di kedua controller itu rusak (kolom `code` sudah dihapus) — lihat Jebakan.
+- **Loans & Receivables** — pokok pinjaman/piutang harus berkategori `financing` (dikecualikan dari P&L); bunga pinjaman (`EXP-INTEREST` → `other_expense`) dan bunga piutang (`REV-INTEREST` → `other_income`) yang seharusnya mengisi baris Beban/Pendapatan Lain. Lookup kategorinya kini lewat `system_key` (diperbaiki 2026-09-17).
 - **Company Profile & Permission** — kop laporan dari `CompanyProfile::first()`; permission `view profit-loss` diseed di `MasterPermissionSeeder.php:186` (admin & finance manager; staff tidak).
 
 ## Invarian & Jebakan
 
 - **Anti-dobel HPP adalah disiplin input, bukan constraint sistem** — jangan catat HPP manual (`pl_group=cogs`) untuk penjualan yang sudah lewat invoice; kalau dilanggar, modal terhitung 2× dan laba mengecil. Sistem tidak memblokir ini (didokumentasikan eksplisit di komentar service).
+- **PPN bukan pendapatan.** `ppn_output` hanya memo; jangan menjumlahkannya ke Total Pendapatan, dan jangan beri kategori setoran PPN `pl_group` beban (pakai `type=financing`).
 - **Bucket unclassified tidak masuk total** — laba bersih yang tampil bisa "belum final" selama masih ada transaksi belum terklasifikasi; panel peringatan sengaja mencolok agar diklasifikasi dulu.
 - **Klasifikasi inline butuh permission berbeda**: melihat laporan cukup `view profit-loss`, tetapi PATCH pl-group digate `manage categories` — user pelapor tanpa permission kategori akan mendapat 403 saat mencoba mengklasifikasi dari panel.
 - `pl_group` di-set per **kategori**, berlaku retroaktif ke seluruh transaksi historis kategori itu (laporan periode lama ikut berubah saat kategori direklasifikasi).
 - Kategori `financing`/`transfer` dikecualikan total — pokok pinjaman/piutang, transfer antar rekening, dan **setoran titipan pajak klien ke negara** (harus dikategorikan `type=financing`) tidak pernah menyentuh P&L.
 - Baris pendapatan invoice & HPP invoice **tidak digerakkan kategori** sama sekali — murni `payments` + `invoice_items`; `pl_group=revenue` hanya untuk pendapatan non-invoice. Jangan mengklasifikasi transaksi credit hasil pembayaran invoice ke `revenue` (payment invoice memang tidak lewat `bank_transactions`, jadi normalnya tidak dobel — `Payment` dan `BankTransaction` adalah dua tabel terpisah yang tidak overlap).
-- **Dampak bug kolom `code`** (modul Loans/Receivables): karena `TransactionCategory::where('code', ...)` gagal di MySQL, transaksi bunga pinjaman/piutang saat ini gagal tercatat sama sekali (endpoint-nya error) — baris Pendapatan/Beban Lain berpotensi kosong bukan karena datanya nol, melainkan karena pencatatannya gagal. Setelah bug diperbaiki dengan lookup non-`code`, pastikan kategori penggantinya memiliki `pl_group` `other_expense`/`other_income` yang benar.
+- **Bunga pinjaman/piutang pernah tidak tercatat sama sekali** karena lookup kategori by `code` gagal di MySQL (diperbaiki 2026-09-17, lihat loans.md). Bila laporan periode lama memperlihatkan Beban/Pendapatan Lain kosong, itu bisa berarti pencatatannya memang gagal saat itu — bukan datanya nol. Migration `2026_09_17_000001` juga mengisi `pl_group` `other_expense`/`other_income` untuk kategori bunga yang masih NULL, tanpa menimpa klasifikasi yang sudah disesuaikan pengguna.
 - Penyusutan aset, akrual antar-periode, dan uang muka **belum dilacak** — disederhanakan by design untuk versi awal (dicatat di `laba-rugi.md`).
 - Verifikasi implementasi vs dokumen kebijakan: keempat keputusan final (basis kas; HPP dua sumber; fund request langsung beban; cost-recovery HPP) plus aturan titipan pajak **sudah terimplementasi sesuai** di `ProfitLossService`; satu-satunya deviasi minor dari rencana adalah bucket unclassified (penambahan, bukan penyimpangan — memperketat, bukan melonggarkan, kebijakan).
 
@@ -143,13 +154,13 @@ return $pdf->download($filename);
 
 | File | Peran |
 |------|------|
-| `d:\Laravel\finance-management\.claude\context\laba-rugi.md` | Dokumen kebijakan final (basis kas, HPP, titipan pajak, pl_group) |
-| `d:\Laravel\finance-management\app\Services\ProfitLossService.php` | Mesin hitung: cost-recovery, titipan-dulu, agregasi per pl_group, bucket unclassified |
-| `d:\Laravel\finance-management\app\Http\Controllers\ProfitLossReportController.php` | index (resolve periode, unclassifiedTypes) + downloadPdf |
-| `d:\Laravel\finance-management\app\Http\Controllers\TransactionCategoryController.php` (`updatePlGroup`, baris 120-129) | Endpoint klasifikasi inline |
-| `d:\Laravel\finance-management\app\Models\TransactionCategory.php` | Konstanta `PL_GROUPS`, kolom `pl_group` |
-| `d:\Laravel\finance-management\database\migrations\2026_05_25_160957_add_pl_group_to_transaction_categories_table.php` | Penambahan kolom `pl_group` (nullable, indexed) |
-| `d:\Laravel\finance-management\resources\js\pages\reports\profit-loss\index.tsx` | Halaman laporan: preset periode, dokumen P&L, panel klasifikasi, tombol PDF |
-| `d:\Laravel\finance-management\resources\views\pdf\profit-loss.blade.php` | Template PDF (DomPDF, A4 portrait) |
-| `d:\Laravel\finance-management\routes\web.php` (baris 339, 441-444) | Route + permission (`view profit-loss`, `manage categories`) |
-| `d:\Laravel\finance-management\tests\Feature\ProfitLossServiceTest.php`, `ProfitLossReportControllerTest.php` | Tes mesin hitung & controller |
+| `docs/design/laba-rugi.md` | Dokumen kebijakan final (basis kas, HPP, titipan pajak, pl_group) |
+| `app/Services/ProfitLossService.php` | Mesin hitung: cost-recovery, titipan-dulu, agregasi per pl_group, bucket unclassified |
+| `app/Http/Controllers/ProfitLossReportController.php` | index (resolve periode, unclassifiedTypes) + downloadPdf |
+| `app/Http/Controllers/TransactionCategoryController.php` (`updatePlGroup`, baris 120-129) | Endpoint klasifikasi inline |
+| `app/Models/TransactionCategory.php` | Konstanta `PL_GROUPS`, kolom `pl_group` |
+| `database/migrations/2026_05_25_160957_add_pl_group_to_transaction_categories_table.php` | Penambahan kolom `pl_group` (nullable, indexed) |
+| `resources/js/pages/reports/profit-loss/index.tsx` | Halaman laporan: preset periode, dokumen P&L, panel klasifikasi, tombol PDF |
+| `resources/views/pdf/profit-loss.blade.php` | Template PDF (DomPDF, A4 portrait) |
+| `routes/web.php` (baris 339, 441-444) | Route + permission (`view profit-loss`, `manage categories`) |
+| `tests/Feature/ProfitLossServiceTest.php`, `ProfitLossReportControllerTest.php` | Tes mesin hitung & controller |

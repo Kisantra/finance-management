@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { StatsCard } from '@/components/shared/stats-card';
+import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { formatCurrency, toastErrors } from '@/lib/utils';
@@ -234,9 +235,12 @@ export default function ServicesIndex() {
                             Katalog layanan dan harga
                         </p>
                     </div>
-                    <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                        Tambah Layanan
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <TutorialButton slug="services" />
+                        <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
+                            Tambah Layanan
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}

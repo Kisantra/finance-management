@@ -145,6 +145,14 @@ $totalInterest = (int) round($receivable->principal_amount * $receivable->intere
 ```
 Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang memprorata rate tahunan per bulan × tenor).
 
+### Panduan & video tutorial (tombol **Tutorial** di header daftar)
+
+1. `<TutorialButton slug="receivables" />` di samping **Tambah Piutang** membuka video per role; halaman `/panduan/receivables` memuat panduan teks yang sama: **Staff** (`ReceivablesStaff`: mengajukan kasbon, membaca penolakan), **Finance manager** (`ReceivablesFinanceManager`: setujui & cairkan, cicilan potong gaji & transfer, menolak), **Admin** (`ReceivablesAdmin`: peran, dampak, isi transaksi pencairan & cicilan, jejak di Rekening Bank & Arus Kas › Pemasukan, peringatan, matriks akses).
+2. Sumber: `video/receivables/guide.ts`, `steps.ts`, `shots.ts`, `tutorial.tsx`, `screens/*.webp`.
+3. Ambil ulang screenshot (server QC port 8016, Playwright MCP `browser_run_code_unsafe`), berurutan: `video/capture/receivables.js` (form staff, tidak disimpan) → siapkan 2 draft kasbon "Staf Uji" (Rp 6.000.000/6 bln, Rp 15.000.000/12 bln) → `receivables-review.js` (staff mengajukan, FM mengisi dialog setujui lalu batal, FM menolak yang kedua) → setujui draft pertama dari BCA - Operasional → `receivables-after.js` (FM menyimpan cicilan Potongan Gaji, mengisi cicilan transfer) → catat cicilan transfer CV. Karya Bersama (ref `TRF-KB-1012`) → `receivables-admin.js`. Lalu `python video/capture/to-webp.py receivables` dan salin koordinat ke `shots.ts`.
+4. Langkah "siapkan/setujui/catat" dikerjakan langsung di DB QC (isi sama persis dengan yang ditulis controller) karena **Simpan Draft / Simpan Perubahan** dan **Setujui & Cairkan** / cicilan **Transfer Bank** saat ini gagal 500 (lihat Invarian). Ajukan, Tolak, dan cicilan Kas/Potongan Gaji berjalan lewat UI.
+5. **Perubahan UI/alur modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
+
 ## Keterkaitan Antar Modul
 
 - **Users & Clients** — debitur polimorfik: `employee_loan` → `User` (opsi: user `status=active`), `company_loan` → `Client` (opsi: `type=company`, `status=Active`). Relasi `debtor(): MorphTo` di `app/Models/Receivable.php:43`.
@@ -155,6 +163,8 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 ## Invarian & Jebakan
 
 - **[DIPERBAIKI 2026-08-11 — sama dengan modul Loans]** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`). Coverage baru `tests/Feature/ReceivableControllerTest.php` menguji approve/pay (termasuk assertion `category_id` terisi) dan berjalan di MySQL. Catatan perbaikan ikutan: approve/pay kini null-safe terhadap key request opsional (`notes`, `reference_number`, `bank_account_id`) yang sebelumnya diakses langsung.
+
+- **[DIPERBAIKI 2026-09-17 — sama dengan modul Loans]** Lookup `FIN-RCV-OUT` / `FIN-RCV-IN` / `REV-INTEREST` dulu memakai kolom `code` yang sudah di-drop, sehingga **approve (pencairan) dan pay via bank_transfer gagal 500** di MySQL. Sekarang `TransactionCategory::findSystem(...)` di atas kolom `system_key`. Ingat: suite memakai SQLite in-memory yang menutupi kesalahan kolom semacam ini — tes harus memeriksa `category_id` yang terbentuk.
 - Workflow state machine ketat, dijaga `abort_if` per endpoint: edit hanya `draft|rejected`; submit hanya `draft`; approve/reject hanya `pending_approval`; pay hanya `active`; delete hanya `draft` tanpa payment. `paid_off` dan `rejected` final (rejected bisa "hidup lagi" hanya lewat edit → reset ke draft).
 - **Pencairan memakai tanggal hari ini (`now()`), bukan `loan_date`** — jika approval terlambat, tanggal mutasi bank ≠ tanggal pinjam di record piutang.
 - `disbursement_account` hanyalah string informasi dari pemohon; rekening sumber dana sesungguhnya dipilih reviewer saat approve (`bank_account_id`). Keduanya bisa tidak konsisten.
@@ -163,14 +173,17 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 - Tidak ada cap: pokok dibayar boleh melebihi sisa (langsung `paid_off`); `submit` tidak butuh permission khusus selain `view receivables`.
 - Edit setelah reject menghitung ulang cicilan/due date dan menghapus `rejection_reason`, tetapi `approved_by/at` lama tidak dibersihkan.
 - Menghapus/mengubah piutang **tidak pernah** mengoreksi `BankTransaction` yang sudah tercatat.
+- **[BUG AKTIF] Simpan Draft & Simpan Perubahan gagal 500.** Form dikirim `forceFormData`, jadi `installment_months` tiba sebagai string; `now()->parse(...)->addMonths($installmentMonths)` (`ReceivableController.php:169` & `:229`) melempar `TypeError: Carbon::rawAddUnit(): Argument #3 must be of type int|float, string given`. Tes lolos karena mengirim JSON integer.
+- Dialog konfirmasi **Ajukan Piutang?** memakai `ConfirmDialog` tanpa `confirmLabel`, sehingga tombol konfirmasinya bertuliskan **Hapus** (default) walau aksinya mengajukan.
+- Tombol Edit/Hapus di baris memakai flag `can_edit`/`can_delete` yang tidak memeriksa permission — Staff melihat tombolnya tetapi server menolak (403). Index juga tidak memfilter per pemilik: semua pemegang `view receivables` (termasuk Staff) melihat seluruh piutang.
 
 ## File Kunci
 
 | File | Peran |
 |------|------|
-| `d:\Laravel\finance-management\app\Http\Controllers\ReceivableController.php` | index/store/update/destroy/submit/approve/pay + generate nomor |
-| `d:\Laravel\finance-management\app\Http\Requests\StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
-| `d:\Laravel\finance-management\app\Models\Receivable.php`, `app\Models\ReceivablePayment.php` | Model, morph `debtor`, casts |
-| `d:\Laravel\finance-management\routes\web.php` (baris 466-474) | Route + permission middleware |
-| `d:\Laravel\finance-management\resources\js\pages\receivables\index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
-| `d:\Laravel\finance-management\database\seeders\MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |
+| `app/Http/Controllers/ReceivableController.php` | index/store/update/destroy/submit/approve/pay + generate nomor |
+| `app/Http/Requests/StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
+| `app/Models/Receivable.php`, `app/Models/ReceivablePayment.php` | Model, morph `debtor`, casts |
+| `routes/web.php` (baris 466-474) | Route + permission middleware |
+| `resources/js/pages/receivables/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
+| `database/seeders/MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |

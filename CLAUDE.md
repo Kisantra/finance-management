@@ -16,15 +16,28 @@ Stack frontend **sepenuhnya React/Inertia** — migrasi dari Livewire + TallStac
 
 **Aturan pemeliharaan:** perubahan yang mengubah perilaku modul (alur, status, endpoint, aturan bisnis) WAJIB memperbarui dokumen modulnya di commit yang sama.
 
+## Panduan Pengguna & Video Tutorial (`/panduan`)
+
+Panduan untuk pengguna (bukan dokumentasi teknis) ada di `video/<slug>/` — satu folder per modul, ditemukan otomatis oleh halaman `/panduan`, tombol `<TutorialButton slug>` di header modul, dan Remotion Studio:
+- `guide.ts` — isi panduan (`ModuleGuide`, skema di `video/guide.ts`): peran, alur, langkah per tugas, **dampak ke modul lain / data otomatis / perhatian** (khusus admin). Sumber yang sama dipakai teks halaman dan adegan video.
+- `shots.ts` + `screens/*.webp` (screenshot QC, diambil `video/capture/<slug>.js` lalu `python video/capture/to-webp.py <slug>`), `steps.ts` (walkthrough), `tutorial.tsx` (`TUTORIALS` per role).
+
+**Akses:** `/panduan` **selalu publik** (di luar grup `auth`) agar calon pengguna bisa belajar sebelum punya akun — **juga saat sudah login**: halaman ini tidak pernah memakai `AppLayout`, melainkan kerangkanya sendiri (`pages/guide/components/shell.tsx`), dan semua orang melihat semua modul, semua peran, dan semua bagian (bedanya hanya tombol kanan: "Masuk" / "Buka aplikasi"). Penyaringan per peran ada di lensa "Baca sebagai" (`?peran=staff|fm|admin`). Dialog Tutorial di dalam aplikasi tetap menyaring tab sesuai peran (`components/tutorial/access.ts`). Karena publik, screenshot & contoh di panduan WAJIB memakai data contoh (DB QC), jangan data perusahaan asli. Video "Sekilas" per modul = field `overview` di `guide.ts` (MP4 di `public/videos/panduan/`).
+
+**Aturan pemeliharaan:** perubahan perilaku/label/hak akses modul WAJIB juga memperbarui `video/<slug>/guide.ts` (dan screenshot/steps bila tampilan berubah) — kalau tidak, panduan & video mengajarkan hal yang salah. Folder bernama `video/` (bukan `remotion/`) agar tidak bentrok dengan paket npm `remotion`.
+
 ## Common Commands
 
 ```bash
 composer dev                           # Start all servers (artisan + queue + vite)
+./deploy.sh                            # Deploy di server (VPS) — lihat docs/guides/DEPLOY.md
 php artisan migrate:fresh --seed       # Fresh migration + seeders
 php artisan test                       # Run tests
 ./vendor/bin/pint                      # Format code
 php artisan pail                       # View logs real-time
 npm run build                          # Build for production
+npm run video                          # Remotion Studio (video tutorial, folder video/)
+npm run video:render -- <Id> out/x.mp4 # Render video, mis. ReimbursementStaff
 ```
 
 ---
@@ -58,84 +71,7 @@ Di React, gunakan komponen `CurrencyInput` (lihat React Component Catalog) yang 
 
 **CRITICAL: Semua page baru atau redesign HARUS mengikuti design system ini untuk konsistensi.**
 
-**Design System Reference:** `.claude/design-systems/archipelago.md`
-Sebelum membuat atau memodifikasi UI apapun, **baca file ini terlebih dahulu**. File tersebut mendokumentasikan token warna (primary + dark scale), tipografi, spacing, radius, layout patterns, interactive states, dan shadcn/ui mapping yang berlaku — hasil ekstraksi langsung dari production site dengan DevTools + visual analysis.
-
-**Core Philosophy:** Minimalist, Clean & Readable, Consistent, Functional-First.
-
----
-
-### Visual Design Tokens
-
-#### Dark Mode Color System
-
-Palette zinc — didefinisikan di `app.css` sebagai `--color-dark-*`. **JANGAN hardcode hex** — selalu pakai Tailwind class `dark:bg-dark-{n}`, `dark:text-dark-{n}`, dll.
-
-**Hierarki Background (semakin gelap = semakin tinggi angka):**
-
-| Variable | Hex | Dipakai untuk |
-|----------|-----|---------------|
-| `dark-950` | `#111113` | Body & main content background |
-| `dark-900` | `#18181b` | Sidebar & header background |
-| `dark-800` | `#1e1e1e` | Input field background (`<input>`, `<select>`, checkbox, textarea, range) |
-| `dark-700` | `#27272a` | Card, modal, slide panel, dropdown/floating panel, navbar |
-| `dark-600` | `#52525b` | Border utama, hover background item, disabled background |
-| `dark-500` | `#71717a` | Divider (`divide-*`, `border-t`) |
-| `dark-400` | `#a1a1aa` | Icon, placeholder text, muted text |
-| `dark-300` | `#d4d4d8` | Teks konten utama (body text) |
-| `dark-200` | `#e4e4e7` | Teks heading / prominent text |
-| `dark-50` | `#fafafa` | Teks terang (di atas bg gelap) |
-
-**Konvensi className saat menyusun komponen baru:**
-
-```
-// Input / Select trigger
-dark:bg-dark-800 dark:text-dark-300 dark:ring-dark-600 dark:placeholder-dark-400
-
-// Dropdown panel / floating container
-dark:bg-dark-700 dark:ring-white/10
-
-// Dropdown item (normal)
-dark:text-dark-300 dark:hover:bg-dark-600
-
-// Border / separator
-dark:border-dark-600
-
-// Icon di dalam input
-dark:text-dark-400
-
-// Disabled input
-dark:bg-dark-600 dark:text-dark-500
-
-// Label teks
-dark:text-dark-300
-```
-
----
-
-#### Typography
-
-- **Headings (h1-h6)**: Plus Jakarta Sans (600, 700, 800)
-- **Body Text**: Inter (400, 500, 600, 700)
-
-```css
-/* Auto-applied via app.css */
-h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
-```
-
----
-
-#### Spacing Rules
-
-| Level | Value |
-|-------|-------|
-| Root container | `space-y-6` |
-| Filter section | `space-y-4` |
-| Stats grid gap | `gap-4` |
-| Filter grid gap | `gap-3` |
-| Section title | `text-xl font-semibold` |
-| Label/Info | `text-sm` |
-| Small text | `text-xs` |
+**Satu-satunya sumber kebenaran:** `.claude/design-systems/archipelago.md` — **baca file ini terlebih dahulu** sebelum membuat atau memodifikasi UI apa pun. File itu memuat token warna (primary + dark scale, sinkron dengan `resources/css/app.css`), konvensi className, tipografi, spacing, radius, pola layout per jenis halaman, interactive states, motion, dan pemetaan ke shadcn/ui. Jangan menyalin nilai token ke dokumen lain; rujuk file itu.
 
 ---
 
@@ -256,18 +192,18 @@ Loading skeleton                  → Skeleton
 | Loans | `/loans` | Index, Create, Update, Delete, PayLoan |
 | Receivables | `/receivables` | Index, Create, Update, Submit, Approve, Pay |
 | Feedbacks | `/feedbacks` | All/My, Create, Show, Respond |
-| Settings | `/settings/*` | Profile, Password, Company, PDF Templates |
+| Settings | `/settings/*` | Hub, Profile, Password, Company, Penomoran Invoice, PDF Templates |
 | Users | `/admin/users` | Index, Create, Edit, Delete |
 | Permissions/Roles | `/permissions` | Permissions + Roles CRUD |
 | Companies | `/admin/companies` | Provisioning perusahaan baru (admin, kuota per organization) |
 
 ### Key Business Logic
 
-**Invoice:** `001/INV/KSN-XXX/I/2026` (seq/INV/{abbrev perusahaan}-{inisial klien}/{bulan romawi}/{tahun}) — nomor baru diisi saat `send`, sebelum itu `null`; status: `draft → sent → partially_paid → paid`
+**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual
-**Bank Balance:** COMPUTED dynamically — `initial_balance + payments(credit) + tx(credit) - tx(debit)` — NOT stored
+**Bank Balance:** COMPUTED dynamically — `initial_balance + payments(credit) + tx(credit) - tx(debit)` — NOT stored. Untuk daftar/total WAJIB `BankAccount::withBalance()` (1 query); tanpa itu accessor menjalankan 3 query agregat **per rekening** dan `$appends` memanggilnya tiap serialisasi
 **Receivable Debtor:** Polymorphic — User OR Client
 
 **Notification events:** `Bell → dispatch('open-notification-drawer') → Drawer` / `Drawer → dispatch('notification-read') → Bell`
@@ -306,6 +242,8 @@ Route::middleware('can:view invoices')->name('invoices.index')
 ```
 
 Reset cache: `php artisan permission:cache-reset`
+
+**Permission baru WAJIB lewat migrasi** (`Permission::firstOrCreate` + `givePermissionTo` ke role yang perlu) **dan** didaftarkan di `MasterPermissionSeeder` untuk instalasi baru. Jangan mengandalkan seeder saat deploy — `syncPermissions()` di seeder menyetel ulang izin role yang diatur lewat UI. Lihat `docs/guides/DEPLOY.md`.
 
 ---
 
@@ -392,7 +330,7 @@ Berlaku untuk: shadcn/ui components, library React (react-day-picker, cmdk, reac
 | File | Purpose |
 |------|---------|
 | **`docs/module/README.md`** | **Indeks dokumentasi per modul + peta alur data lintas modul — WAJIB dibaca sebelum menyentuh modul apa pun** |
-| `MIGRATION_PLAN.md` | Status migrasi, fase & progress |
+| `docs/archive/MIGRATION_PLAN.md` | Status migrasi, fase & progress |
 | `.claude/design-systems/archipelago.md` | Design system tokens, typography, spacing, color palette |
 | `app/Services/InvoicePrintService.php` | PDF generation |
 | `app/Models/Invoice.php` | Status & profit calculations |
@@ -440,8 +378,6 @@ This application is a Laravel application and its main Laravel ecosystems packag
 
 This project has domain-specific skills available. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
 
-- `livewire-development` — Develops reactive Livewire 3 components. Activates when creating, updating, or modifying Livewire components; working with wire:model, wire:click, wire:loading, or any wire: directives; adding real-time updates, loading states, or reactivity; debugging component behavior; writing Livewire tests; or when the user mentions Livewire, component, counter, or reactive UI.
-- `volt-development` — Develops single-file Livewire components with Volt. Activates when creating Volt components, converting Livewire to Volt, working with @volt directive, functional or class-based Volt APIs; or when the user mentions Volt, single-file components, functional Livewire, or inline component logic in Blade files.
 - `tailwindcss-development` — Styles applications using Tailwind CSS v4 utilities. Activates when adding styles, restyling components, working with gradients, spacing, layout, flex, grid, responsive design, dark mode, colors, typography, or borders; or when the user mentions CSS, styling, classes, Tailwind, restyle, hero section, cards, buttons, or any visual/UI changes.
 
 ## Conventions
@@ -641,7 +577,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - Livewire allows you to build dynamic, reactive interfaces using only PHP — no JavaScript required.
 - Instead of writing frontend code in JavaScript frameworks, you use Alpine.js to build the UI when client-side interactions are required.
 - State lives on the server; the UI reflects it. Validate and authorize in actions (they're like HTTP requests).
-- IMPORTANT: Activate `livewire-development` every time you're working with Livewire-related tasks.
 
 === volt/core rules ===
 
@@ -650,7 +585,6 @@ protected function isAccessible(User $user, ?string $path = null): bool
 - Single-file Livewire components: PHP logic and Blade templates in one file.
 - Always check existing Volt components to determine functional vs class-based style.
 - IMPORTANT: Always use `search-docs` tool for version-specific Volt documentation and updated code examples.
-- IMPORTANT: Activate `volt-development` every time you're working with a Volt or single-file component-related task.
 
 === pint/core rules ===
 

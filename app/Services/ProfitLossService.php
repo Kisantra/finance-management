@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Generates the Profit & Loss (Laporan Laba Rugi) report.
  *
- * Policy (final, see .claude/context/laba-rugi.md):
+ * Policy (final, see docs/design/laba-rugi.md):
  *  - Cash basis: revenue recognized when payment received.
  *  - "Titipan dulu" allocation: incoming payments first cover any client tax
  *    deposit (invoice_items.is_tax_deposit=true) before being recognized as
@@ -86,6 +86,8 @@ class ProfitLossService
             'pre_tax_profit' => $preTaxProfit,
             'tax' => $tax,
             'net_profit' => $netProfit,
+            // Memo: PPN Keluaran yang ikut diterima dari pembayaran invoice — titipan negara, tidak ikut laba.
+            'ppn_output' => $invoiceContrib['ppn'],
             'unclassified' => [
                 'income' => $this->unclassified('credit', $start, $end),
                 'expense' => $this->unclassified('debit', $start, $end),
@@ -100,8 +102,8 @@ class ProfitLossService
      *   For each invoice that received a payment in the period:
      *     paid_e     = SUM(payments WHERE payment_date <= end)
      *     paid_s     = SUM(payments WHERE payment_date <  start)
-     *     titipan    = SUM(items WHERE is_tax_deposit=true).amount
-     *     revenue_e  = MAX(0, paid_e − titipan)        // titipan-dulu
+     *     titipan    = SUM(items WHERE is_tax_deposit=true).amount + ppn_amount
+     *     revenue_e  = MAX(0, paid_e − titipan)        // titipan-dulu (PPN reported as ppn_output)
      *     revenue_s  = MAX(0, paid_s − titipan)
      *     cogs_e     = MIN(revenue_e, total_cogs)      // cost-recovery
      *     cogs_s     = MIN(revenue_s, total_cogs)
@@ -122,16 +124,18 @@ class ProfitLossService
             ->pluck('invoice_id');
 
         if ($invoiceIds->isEmpty()) {
-            return ['revenue' => 0, 'cogs' => 0];
+            return ['revenue' => 0, 'cogs' => 0, 'ppn' => 0];
         }
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)->with('items')->get();
 
         $totalRevenue = 0;
         $totalCogs = 0;
+        $totalPpn = 0;
 
         foreach ($invoices as $invoice) {
             $taxDeposit = (int) $invoice->items->where('is_tax_deposit', true)->sum('amount');
+            $ppn = (int) $invoice->ppn_amount;
             $invoiceCogs = (int) $invoice->total_cogs;
 
             $paidThroughEnd = (int) Payment::where('invoice_id', $invoice->id)
@@ -142,9 +146,13 @@ class ProfitLossService
                 ->where('payment_date', '<', $start->toDateString())
                 ->sum('amount');
 
-            // "Titipan dulu": cover the client tax deposit before recognizing revenue.
-            $revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit);
-            $revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit);
+            // "Titipan dulu": cover the client tax deposit, then PPN Keluaran (owed to the
+            // state, not revenue), before recognizing revenue.
+            $totalPpn += min(max(0, $paidThroughEnd - $taxDeposit), $ppn)
+                - min(max(0, $paidThroughStartPrev - $taxDeposit), $ppn);
+
+            $revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit - $ppn);
+            $revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit - $ppn);
 
             $totalRevenue += $revenueThroughEnd - $revenueThroughStartPrev;
 
@@ -153,7 +161,7 @@ class ProfitLossService
             }
         }
 
-        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs];
+        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs, 'ppn' => $totalPpn];
     }
 
     /**

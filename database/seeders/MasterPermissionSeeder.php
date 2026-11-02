@@ -200,6 +200,8 @@ class MasterPermissionSeeder extends Seeder
             // dan computed_abbreviation menggerakkan penomoran dokumen, jadi
             // penyuntingannya tidak boleh terbuka untuk semua user login.
             'manage company profile',
+            // Invoice Settings (format penomoran)
+            'manage invoice settings',
         ];
 
         $newCount = 0;
@@ -362,6 +364,8 @@ class MasterPermissionSeeder extends Seeder
             // sehari-hari finance manager. Tetap berupa permission biasa,
             // jadi bisa dicabut lewat matriks Izin & Peran kapan saja.
             'manage company profile',
+            // Invoice Settings
+            'manage invoice settings',
         ];
 
         $financeManager->syncPermissions($financeManagerPermissions);

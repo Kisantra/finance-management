@@ -1,3 +1,5 @@
+import type { ReimbursementStatus } from './components/rb';
+
 export interface PaginationMeta {
     current_page: number;
     last_page: number;
@@ -7,36 +9,20 @@ export interface PaginationMeta {
     to: number | null;
 }
 
-export interface FilterOption {
-    label: string;
-    value: number | string;
-}
-
+/** Baris ringkas daftar; detail lengkap diambil drawer dari /reimbursements/{id}/data. */
 export interface ReimbursementRow {
     id: number;
     title: string;
-    description: string | null;
     amount: number;
     amount_paid: number;
     amount_remaining: number;
-    expense_date: string;
+    expense_date: string | null;
     category_input: string;
     category_label: string;
-    category_id: number | null;
-    status: 'draft' | 'pending' | 'approved' | 'rejected' | 'paid';
-    payment_status: 'unpaid' | 'partial' | 'paid';
+    status: ReimbursementStatus;
     user_name: string | null;
     user_id: number;
-    reviewed_by_name: string | null;
-    reviewed_at: string | null;
-    review_notes: string | null;
-    attachment_url: string | null;
-    attachment_name: string | null;
-    can_edit: boolean;
-    can_delete: boolean;
-    can_submit: boolean;
-    can_review: boolean;
-    can_pay: boolean;
+    has_attachment: boolean;
     created_at: string;
 }
 
@@ -55,6 +41,8 @@ export interface ReimbursementStats {
     total: number;
     total_amount: number;
     pending_count: number;
+    pending_amount: number;
     approved_count: number;
+    approved_remaining: number;
     total_paid: number;
 }

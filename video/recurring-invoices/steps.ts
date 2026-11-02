@@ -1,0 +1,311 @@
+import type { Step } from '../components/walkthrough';
+import { around, SCREENS, SHOTS, type ShotName } from './shots';
+
+const img = (name: ShotName) => SCREENS[name];
+const S = SHOTS;
+
+/** Menyusun template tagihan rutin. */
+export const TEMPLATE_STEPS: Step[] = [
+    {
+        src: img('fm-index'),
+        focus: S['fm-index'].tabs,
+        zoom: 1.7,
+        caption: 'Keuangan › Invoice Berulang punya tiga tab: Templates (tagihan rutin), Bulanan (draft per bulan), dan Analitik.',
+        duration: 130,
+    },
+    {
+        src: img('fm-index'),
+        focus: S['fm-index'].create,
+        cursor: S['fm-index'].create,
+        click: true,
+        zoom: 2,
+        caption: 'Mulai dari tab Templates: klik Buat Template.',
+        duration: 90,
+    },
+    {
+        src: img('fm-tpl-name'),
+        focus: S['fm-tpl-name'].name,
+        cursor: S['fm-tpl-name'].name,
+        click: true,
+        type: S['fm-tpl-name'].name,
+        zoom: 2,
+        caption: 'Nama Template: mis. "Retainer Pembukuan Bulanan", agar mudah dikenali di daftar.',
+        duration: 110,
+    },
+    {
+        src: img('fm-tpl-client'),
+        focus: around(S['fm-tpl-client'].client, S['fm-tpl-client'].list),
+        cursor: S['fm-tpl-client'].option,
+        click: true,
+        zoom: 1.5,
+        caption: 'Pilih Klien yang ditagih. Klien ini otomatis terisi di setiap baris item.',
+        duration: 110,
+    },
+    {
+        src: img('fm-tpl-start'),
+        focus: around(S['fm-tpl-start'].start, S['fm-tpl-start'].calendar),
+        cursor: S['fm-tpl-start'].day,
+        click: true,
+        zoom: 1.5,
+        caption: 'Tanggal Mulai: 1 September 2026. Pakai tanggal 1–28 agar tidak ada bulan yang terlewat.',
+        duration: 110,
+    },
+    {
+        src: img('fm-tpl-dates'),
+        focus: around(S['fm-tpl-dates'].start, S['fm-tpl-dates'].end),
+        zoom: 1.6,
+        caption: 'Tanggal Berakhir 1 September 2027. Tagihan pertama jatuh satu periode setelah mulai, yaitu Oktober 2026.',
+        duration: 130,
+    },
+    {
+        src: img('fm-tpl-dates'),
+        focus: S['fm-tpl-dates'].frequency,
+        zoom: 1.7,
+        caption: 'Frekuensi: Bulanan, Triwulanan, Semesteran, atau Tahunan. Contoh ini ditagih setiap bulan.',
+        duration: 110,
+    },
+    {
+        src: img('fm-tpl-lookup'),
+        focus: around(S['fm-tpl-lookup'].lookup1, S['fm-tpl-lookup'].popover),
+        cursor: S['fm-tpl-lookup'].search,
+        click: true,
+        zoom: 1.5,
+        caption: 'Di Item Invoice, klik kaca pembesar untuk memilih dari katalog Layanan. Nama dan harganya terisi otomatis.',
+        duration: 130,
+    },
+    {
+        src: img('fm-tpl-item1'),
+        focus: S['fm-tpl-item1'].row1,
+        zoom: 1.6,
+        caption: 'Lengkapi Satuan dan HPP (Rp 400.000). Qty harus bilangan bulat; centang PPh hanya untuk titipan pajak.',
+        duration: 140,
+    },
+    {
+        src: img('fm-tpl-filled'),
+        focus: around(S['fm-tpl-filled'].addItem, S['fm-tpl-filled'].rows),
+        zoom: 1.4,
+        caption: 'Tambah Item untuk baris kedua: Maintenance website Rp 450.000, HPP Rp 100.000.',
+        duration: 120,
+    },
+    {
+        src: img('fm-tpl-filled'),
+        focus: S['fm-tpl-filled'].summary,
+        zoom: 1.6,
+        caption: 'Ringkasan kanan: Total Rp 1.950.000 dan Laba Kotor Rp 1.450.000 setiap kali ditagih.',
+        duration: 110,
+    },
+    {
+        src: img('fm-tpl-filled'),
+        focus: S['fm-tpl-filled'].submit,
+        cursor: S['fm-tpl-filled'].submit,
+        click: true,
+        zoom: 2,
+        caption: 'Klik Simpan Template.',
+        duration: 80,
+    },
+    {
+        src: img('fm-templates'),
+        focus: S['fm-templates'].card,
+        zoom: 1.7,
+        caption: 'Template tampil sebagai kartu: frekuensi, nominal, periode, dan progres jumlah invoice yang sudah dibuat.',
+        chime: true,
+        duration: 130,
+    },
+];
+
+/** Generate & menyesuaikan draft bulanan. */
+export const MONTHLY_STEPS: Step[] = [
+    {
+        src: img('fm-monthly-empty'),
+        focus: S['fm-monthly-empty'].month,
+        zoom: 2,
+        caption: 'Buka tab Bulanan dan pilih bulan dengan tombol panah. Oktober 2026 masih kosong.',
+        duration: 110,
+    },
+    {
+        src: img('fm-monthly-empty'),
+        focus: S['fm-monthly-empty'].generate,
+        cursor: S['fm-monthly-empty'].generate,
+        click: true,
+        zoom: 2,
+        caption: 'Klik Generate Otomatis setiap awal bulan. Sistem tidak menjalankannya sendiri.',
+        duration: 110,
+    },
+    {
+        src: img('fm-generate'),
+        focus: S['fm-generate'].dialog,
+        cursor: S['fm-generate'].confirm,
+        click: true,
+        zoom: 1.5,
+        caption: 'Isi Tanggal Terbit dan Jatuh Tempo untuk semua draft, lalu klik Generate Sekarang.',
+        duration: 120,
+    },
+    {
+        src: img('fm-monthly'),
+        focus: S['fm-monthly'].table,
+        zoom: 1.3,
+        caption: 'Dua draft dibuat: template bulanan dan template triwulanan yang jatuh tempo Oktober. Klik ulang tidak membuat dobel.',
+        chime: true,
+        duration: 140,
+    },
+    {
+        src: img('fm-monthly'),
+        focus: S['fm-monthly'].stats,
+        zoom: 1.3,
+        caption: 'Ringkasan bulan ini: revenue, profit (revenue − HPP), margin, dan profit dari draft yang belum dipublish.',
+        duration: 130,
+    },
+    {
+        src: img('fm-monthly'),
+        focus: S['fm-monthly'].edit,
+        cursor: S['fm-monthly'].edit,
+        click: true,
+        zoom: 2.4,
+        caption: 'Perlu penyesuaian khusus bulan ini? Klik ikon pensil pada barisnya.',
+        duration: 100,
+    },
+    {
+        src: img('fm-monthly-edit'),
+        focus: around(S['fm-monthly-edit'].dates, S['fm-monthly-edit'].items),
+        zoom: 1.15,
+        caption: 'Ubah tanggal atau item draft ini, lalu Simpan Perubahan. Template aslinya tidak ikut berubah.',
+        duration: 130,
+    },
+];
+
+/** Publish & analitik. */
+export const PUBLISH_STEPS: Step[] = [
+    {
+        src: img('fm-monthly'),
+        focus: S['fm-monthly'].publish,
+        cursor: S['fm-monthly'].publish,
+        click: true,
+        zoom: 2.4,
+        caption: 'Sudah benar? Klik ikon kirim (Publish) pada baris draft.',
+        duration: 100,
+    },
+    {
+        src: img('fm-publish'),
+        focus: S['fm-publish'].dialog,
+        cursor: S['fm-publish'].confirm,
+        click: true,
+        zoom: 1.6,
+        caption: 'Periksa Tanggal Terbit dan Jatuh Tempo, lalu klik Publish. Baris yang sudah dipublish tidak bisa diedit lagi.',
+        duration: 140,
+    },
+    {
+        src: img('fm-published'),
+        focus: S['fm-published'].row,
+        zoom: 1.4,
+        caption: 'Status menjadi Published, dan sebuah invoice draft dibuat di menu Invoice.',
+        chime: true,
+        duration: 110,
+    },
+    {
+        src: img('fm-published'),
+        focus: S['fm-published'].link,
+        cursor: S['fm-published'].link,
+        zoom: 2.4,
+        caption: 'Tautan "Draft · belum dikirim" membuka invoice itu. Klik Kirim invoice di sana agar mendapat nomor resmi.',
+        duration: 140,
+    },
+    {
+        src: img('fm-bulk'),
+        focus: around(S['fm-bulk'].row2, S['fm-bulk'].bar),
+        cursor: S['fm-bulk'].checkbox,
+        click: true,
+        zoom: 1.3,
+        caption: 'Banyak draft? Centang barisnya, lalu pakai Publish atau Hapus di bilah bawah. Hapus di sini langsung jalan tanpa konfirmasi.',
+        duration: 150,
+    },
+    {
+        src: img('fm-analytics'),
+        focus: around(S['fm-analytics'].kpi, S['fm-analytics'].chart),
+        zoom: 1.05,
+        caption: 'Tab Analitik: revenue per bulan atau triwulan. Angkanya dari draft & published, bukan dari pembayaran yang diterima.',
+        duration: 130,
+    },
+];
+
+/** Admin: jejak publish di menu Invoice. */
+export const ADMIN_IMPACT_STEPS: Step[] = [
+    {
+        src: img('fm-published'),
+        focus: S['fm-published'].link,
+        cursor: S['fm-published'].link,
+        click: true,
+        zoom: 2.4,
+        caption: 'Jejak publish: tautan di baris Bulanan membuka invoice yang dibuat.',
+        duration: 100,
+    },
+    {
+        src: img('admin-invoice-drawer'),
+        focus: S['admin-invoice-drawer'].header,
+        zoom: 2.2,
+        caption: 'Invoicenya berstatus Draft dan belum bernomor. Nomor resmi baru diberikan saat Kirim invoice.',
+        duration: 130,
+    },
+    {
+        src: img('admin-invoice-drawer'),
+        focus: S['admin-invoice-drawer'].items,
+        zoom: 1.7,
+        caption: 'Item disalin dari draft: nama, qty, harga, HPP. Satuan "bulan" berubah menjadi pcs.',
+        duration: 140,
+    },
+    {
+        src: img('admin-invoice-drawer'),
+        focus: S['admin-invoice-drawer'].metrics,
+        zoom: 1.35,
+        caption: 'Total Rp 1.950.000 dengan laba kotor Rp 1.450.000. Belum ada pembayaran.',
+        duration: 120,
+    },
+    {
+        src: img('admin-invoices'),
+        focus: S['admin-invoices'].row,
+        zoom: 1.4,
+        caption: 'Di Keuangan › Invoice ia muncul di filter Draft, sama seperti invoice yang dibuat manual.',
+        duration: 120,
+    },
+    {
+        src: img('admin-invoices'),
+        focus: S['admin-invoices'].summary,
+        zoom: 1.25,
+        caption: 'Invoice draft belum dihitung di Total ditagih. Angkanya baru masuk setelah invoice dikirim.',
+        duration: 130,
+    },
+    {
+        src: img('admin-invoice-drawer'),
+        focus: S['admin-invoice-drawer'].send,
+        cursor: S['admin-invoice-drawer'].send,
+        zoom: 2.2,
+        caption: 'Setelah dikirim, pembayaran dicatat di menu Invoice seperti invoice lain; pembayaran itulah yang menambah saldo rekening dan Arus Kas.',
+        duration: 150,
+    },
+];
+
+/** Admin: arsip vs hapus template. */
+export const ADMIN_STEPS: Step[] = [
+    {
+        src: img('fm-templates'),
+        focus: S['fm-templates'].remove,
+        cursor: S['fm-templates'].remove,
+        click: true,
+        zoom: 2.4,
+        caption: 'Ikon tempat sampah di kartu template. Hasilnya bergantung pada riwayat template itu.',
+        duration: 110,
+    },
+    {
+        src: img('admin-archive'),
+        focus: S['admin-archive'].dialog,
+        zoom: 1.8,
+        caption: 'Sudah punya invoice terpublish: template hanya diarsipkan dan tidak di-generate lagi. Invoice yang sudah dibuat tetap ada.',
+        duration: 150,
+    },
+    {
+        src: img('admin-delete-template'),
+        focus: S['admin-delete-template'].dialog,
+        zoom: 1.8,
+        caption: 'Belum ada yang terpublish: template dihapus permanen beserta semua draft-nya.',
+        duration: 130,
+    },
+];

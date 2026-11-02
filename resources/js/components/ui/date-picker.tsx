@@ -154,6 +154,7 @@ function MonthCaptionInner({
                 type="button"
                 disabled={!previousMonth}
                 onClick={() => previousMonth && goToMonth(previousMonth)}
+                aria-label="Bulan sebelumnya"
                 className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
             >
                 <ChevronLeft className="h-4 w-4" />
@@ -178,6 +179,7 @@ function MonthCaptionInner({
                 type="button"
                 disabled={!nextMonth}
                 onClick={() => nextMonth && goToMonth(nextMonth)}
+                aria-label="Bulan berikutnya"
                 className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
             >
                 <ChevronRight className="h-4 w-4" />
@@ -215,6 +217,7 @@ function MonthGrid({
                     type="button"
                     disabled={year <= fromYear}
                     onClick={() => onYearChange(year - 1)}
+                    aria-label="Tahun sebelumnya"
                     className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronLeft className="h-4 w-4" />
@@ -226,6 +229,7 @@ function MonthGrid({
                     type="button"
                     disabled={year >= toYear}
                     onClick={() => onYearChange(year + 1)}
+                    aria-label="Tahun berikutnya"
                     className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronRight className="h-4 w-4" />

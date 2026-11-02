@@ -54,7 +54,7 @@ Cash Flow (input manual income/expense/transfer)──► bank_transactions
 
 Laporan Laba Rugi membaca `payments` (pendapatan) + `bank_transactions` yang kategorinya
 punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
-[profit-loss.md](profit-loss.md) dan dokumen kebijakan `.claude/context/laba-rugi.md`.
+[profit-loss.md](profit-loss.md) dan dokumen kebijakan `docs/design/laba-rugi.md`.
 
 ## Konvensi Lintas Modul
 
@@ -83,12 +83,26 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   Frontend: literal path WAJIB lewat `companyUrl()`
   (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
   di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
+
+- **Kategori sistem Loans/Receivables** (diperbaiki 2026-09-17): kategori sistem diidentifikasi
+  lewat kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `FIN-RCV-OUT`, `FIN-RCV-IN`,
+  `EXP-INTEREST`, `REV-INTEREST`) via `TransactionCategory::findSystem()`. Kolom `code` sudah
+  di-drop sejak migration 2026_02_05; lookup lama melempar `Unknown column 'code'` di MySQL dan
+  menjatuhkan create/pay loan serta approve/pay receivable. `system_key` di luar `$fillable`
+  supaya tidak bisa diklaim lewat form. Detail di [loans.md](loans.md) / [receivables.md](receivables.md).
+- **⚠ SQLite menutupi kesalahan kolom**: suite memakai SQLite in-memory (`phpunit.xml`), yang
+  mem-fallback identifier tak dikenal menjadi string literal — query ke kolom yang tidak ada
+  mengembalikan `null` diam-diam alih-alih error, persis yang membuat bug `code` lolos berbulan-bulan.
+  Tes yang menyentuh kolom harus memeriksa **data yang terbentuk**, bukan sekadar status HTTP.
 - **Halaman error**: setiap respons HTTP ≥ 400 untuk request halaman (bukan JSON) dirender sebagai
   halaman Inertia `error` oleh `App\Services\ErrorReportService`, dipasang lewat
   `$exceptions->respond()` di `bootstrap/app.php` — **bukan** `render()`: Handler Laravel mengubah
   `TokenMismatchException` menjadi `HttpException(419)` sebelum callback render dicocokkan, sehingga
   callback bertipe `TokenMismatchException` tidak pernah terpicu. Aturannya:
   - Aktif hanya saat `APP_DEBUG=false`; developer tetap mendapat halaman error Laravel lengkap.
+    Untuk melihat halaman custom di lokal tanpa mematikan debug: `ERROR_PAGE_IN_DEBUG=true`.
+    Catatan: saat `APP_DEBUG=true` tanpa saklar itu, error HTTP (404/403/419/...) tetap memakai
+    view `errors/*` Blade — jadi yang tampil halaman cadangan, bukan halaman Inertia.
   - Setiap error diberi ID `ERR-XXXXXXXXXX` yang sama dengan `error_id` di `storage/logs/laravel.log`.
   - Detail teknis (exception, pesan, jejak kode aplikasi) hanya untuk role `admin` dan hanya 5xx —
     pesan exception bisa memuat SQL beserta datanya.
@@ -106,4 +120,12 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
     perusahaan yang dibuka selama pengecekan izin lalu mengembalikannya. Jangan menulis ke
     `storage_path()` dari penanganan error: di dalam tenancy path itu diarahkan ke folder tenant.
   - Uji: `tests/Feature/ErrorPageTest.php`.
+
+  - **Lapisan cadangan** (`resources/views/errors/*.blade.php`): dipakai ketika halaman Inertia
+    sendiri gagal dirender (database mati, manifest Vite hilang). Berkas itu HARAM menyentuh
+    database, session, auth, atau Vite — semuanya bisa jadi penyebab error yang sedang
+    ditampilkan. `ViewServiceProvider` melewati view `errors.*` dan menelan kegagalan query
+    profil perusahaan; tanpa itu halaman error ikut jatuh dan Laravel menampilkan halaman
+    Symfony polos (kejadian 2026-09-17).
+  - Uji: `tests/Feature/ErrorPageTest.php`, `tests/Feature/HalamanErrorCadanganTest.php`.
 - **Test = spesifikasi**: aturan bisnis paling akurat ada di `tests/Feature/` per modul.

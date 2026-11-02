@@ -276,6 +276,16 @@ class ErrorPageTest extends TestCase
             'Developer butuh halaman error Laravel lengkap saat debug — jangan ditimpa.');
     }
 
+    public function test_saklar_error_page_in_debug_menampilkan_halaman_custom_walau_debug_menyala(): void
+    {
+        config(['app.debug' => true, 'app.error_page_in_debug' => true]);
+
+        $this->actingAs($this->staff)
+            ->get('/halaman-yang-tidak-pernah-ada')
+            ->assertNotFound()
+            ->assertInertia(fn (Assert $page) => $page->component('error'));
+    }
+
     public function test_tamu_tidak_ditawari_tombol_laporkan(): void
     {
         $this->get('/halaman-yang-tidak-pernah-ada')

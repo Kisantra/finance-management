@@ -175,24 +175,30 @@ class Reimbursement extends Model
     {
         $user = $user ?? auth()->user();
 
-        // Admin can delete any reimbursement
+        // Sudah ada pembayaran: transaksi bank debitnya tetap memotong saldo, jadi
+        // pengajuannya tidak boleh hilang — bahkan oleh admin.
+        if ($this->amount_paid > 0) {
+            return false;
+        }
+
         if ($user && $user->hasRole('admin')) {
             return true;
         }
 
-        // Owner can only delete if draft or rejected (not yet approved/paid).
-        // Cek kepemilikan WAJIB: tanpa ini setiap pemegang permission
-        // "delete reimbursements" (termasuk role staff) dapat menghapus
-        // pengajuan milik orang lain — komentar lama menjanjikan "owner only"
-        // tetapi user_id tidak pernah diperiksa.
-        return $user
+        // Selain admin: hanya pemilik, dan hanya selama belum diproses (draft/ditolak).
+        // Cek kepemilikan WAJIB — tanpa `user_id`, setiap pemegang permission
+        // "delete reimbursements" (termasuk role staff) bisa menghapus pengajuan
+        // milik orang lain. Komentar lama menjanjikan "owner only" padahal
+        // kepemilikannya tidak pernah diperiksa.
+        return $user !== null
             && $this->user_id === $user->id
             && in_array($this->status, ['draft', 'rejected']);
     }
 
+    /** Draft, atau ditolak lalu diperbaiki pemohon (pengajuan ulang). */
     public function canSubmit(): bool
     {
-        return $this->status === 'draft';
+        return in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canReview(): bool
@@ -217,7 +223,13 @@ class Reimbursement extends Model
             return false;
         }
 
-        return $this->update(['status' => 'pending']);
+        // Pengajuan ulang setelah ditolak masuk antrean sebagai review baru.
+        return $this->update([
+            'status' => 'pending',
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'review_notes' => null,
+        ]);
     }
 
     public function approve(int $reviewerId, ?string $notes = null): bool
@@ -357,10 +369,10 @@ class Reimbursement extends Model
     {
         return match ($this->status) {
             'draft' => 'Draft',
-            'pending' => 'Pending Review',
-            'approved' => 'Approved',
-            'rejected' => 'Rejected',
-            'paid' => 'Paid',
+            'pending' => 'Menunggu review',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak',
+            'paid' => 'Lunas',
             default => ucfirst($this->status),
         };
     }
@@ -382,16 +394,19 @@ class Reimbursement extends Model
             return $this->category->label;
         }
 
-        return match ($this->category_input) {
-            'transport' => 'Transport',
-            'meals' => 'Meals & Entertainment',
-            'office_supplies' => 'Office Supplies',
-            'communication' => 'Communication',
-            'accommodation' => 'Accommodation',
-            'medical' => 'Medical',
-            'other' => 'Other',
-            default => ucfirst($this->category_input ?? 'Other'),
-        };
+        return static::categoryLabel($this->category_input);
+    }
+
+    /** Label kategori pilihan pemohon (bahasa Indonesia, sesuai UI). */
+    public static function categoryLabel(?string $value): string
+    {
+        foreach (static::categories() as $category) {
+            if ($category['value'] === $value) {
+                return $category['label'];
+            }
+        }
+
+        return $value ? ucfirst($value) : 'Lainnya';
     }
 
     // =====================================
@@ -406,13 +421,13 @@ class Reimbursement extends Model
     public static function categories(): array
     {
         return [
-            ['label' => 'Transport', 'value' => 'transport'],
-            ['label' => 'Meals & Entertainment', 'value' => 'meals'],
-            ['label' => 'Office Supplies', 'value' => 'office_supplies'],
-            ['label' => 'Communication', 'value' => 'communication'],
-            ['label' => 'Accommodation', 'value' => 'accommodation'],
-            ['label' => 'Medical', 'value' => 'medical'],
-            ['label' => 'Other', 'value' => 'other'],
+            ['label' => 'Transportasi', 'value' => 'transport'],
+            ['label' => 'Makan & jamuan', 'value' => 'meals'],
+            ['label' => 'Perlengkapan kantor', 'value' => 'office_supplies'],
+            ['label' => 'Komunikasi', 'value' => 'communication'],
+            ['label' => 'Akomodasi', 'value' => 'accommodation'],
+            ['label' => 'Kesehatan', 'value' => 'medical'],
+            ['label' => 'Lainnya', 'value' => 'other'],
         ];
     }
 
@@ -420,10 +435,10 @@ class Reimbursement extends Model
     {
         return [
             ['label' => 'Draft', 'value' => 'draft'],
-            ['label' => 'Pending Review', 'value' => 'pending'],
-            ['label' => 'Approved', 'value' => 'approved'],
-            ['label' => 'Rejected', 'value' => 'rejected'],
-            ['label' => 'Paid', 'value' => 'paid'],
+            ['label' => 'Menunggu review', 'value' => 'pending'],
+            ['label' => 'Disetujui', 'value' => 'approved'],
+            ['label' => 'Ditolak', 'value' => 'rejected'],
+            ['label' => 'Lunas', 'value' => 'paid'],
         ];
     }
 
@@ -437,6 +452,7 @@ class Reimbursement extends Model
 
         // Delete attachment when model is deleted
         static::deleting(function ($reimbursement) {
+            // Lampiran disimpan di disk "public" (lihat controller store/update), bukan disk default.
             if ($reimbursement->attachment_path && Storage::disk('public')->exists($reimbursement->attachment_path)) {
                 Storage::disk('public')->delete($reimbursement->attachment_path);
             }

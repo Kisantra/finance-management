@@ -1,0 +1,649 @@
+{
+  "module": "invoices-redesign",
+  "title": "Modul Invoice — redesign Obsidian & pratinjau PDF langsung",
+  "date": "26 & 29 September 2026",
+  "environment": "database finance_management_qc (MySQL lokal), server php artisan serve 127.0.0.1:8001; aset dari npm run build lalu (sejak N05 ulang) dari Vite dev server 5173 yang dijalankan user; Chromium 153 via Playwright MCP, viewport 1366×900 skala perangkat 2× (2732×1800 px); akun admin@gmail.com",
+  "scope": "Eksekusi 31 test case di docs/qa/test-cases/invoices-redesign.md: 23 normal, 7 abnormal/edge, 1 berantai. Fokus 26 Sep: pratinjau editor sama persis dengan PDF ekspor, detail invoice, Simpan & terbitkan, Perlu ditagih, pembayaran melebihi sisa. Fokus 29 Sep (bagian E): semua filter daftar invoice dan ekspor rekap Excel/PDF dijalankan lewat layar, isi berkas dicocokkan dengan layar dan database. Bagian D (modal berbasis hash, 28 Sep) diverifikasi dengan eksekusi tetapi tanpa tangkapan bukti skala 2×, sehingga tidak dihitung di tabel ini. PHPUnit akhir: 449 lolos.",
+  "shots_src": "C:/Users/Lenovo/AppData/Local/Temp/claude/d--Laravel-finance-management/9c38df04-988f-475d-a4c5-20b2f17c4337/scratchpad/shots/redesign",
+  "shots_dst": "../evidence/invoices-redesign",
+  "evidence_into": "../test-cases/invoices-redesign.md",
+  "report_out": "Laporan-QA-Invoices-Redesign.pdf",
+  "shots_per_row": 1,
+  "summary": [
+    "Seluruh 31 test case akhirnya lolos. Delapan gagal pada percobaan pertama (enam pada pengujian 26 September, dua pada pengujian filter & ekspor 29 September) dan dua lainnya (N05, A01) gagal setelah percobaan pertama yang terganggu masalah tooling. Semua kegagalan berasal dari sembilan cacat aplikasi yang ditemukan pengujian ini dan diperbaiki, masing-masing dengan tes regresi atau bukti ulang.",
+    "Temuan terpenting adalah BUG-05: pratinjau versi pertama merender template Blade kisantra sebagai HTML di browser. Isinya sama, tetapi perbandingan piksel dengan PDF DomPDF menunjukkan beda 9,66% (kotak TOTAL memakai flex yang diabaikan DomPDF, tinggi baris tabel berbeda). Pratinjau kini adalah PDF asli dari jalur render yang sama dengan tombol Unduh; perbandingan akhir: byte identik (kecuali stempel waktu dan ID acak) dan 0 piksel berbeda.",
+    "BUG-01 membuat halaman daftar invoice putih total — komponen bersama Button mengirim dua anak ke Radix Slot saat asChild. Tautan dari Ringkasan ke /invoices/{id} yang sebelumnya membuka JSON mentah kini membuka drawer dan menutupnya kembali ke Ringkasan.",
+    "Pengujian filter & ekspor (29 Sep) menemukan BUG-07: saat pil \"Perlu ditagih\" aktif, tombol Ekspor menghasilkan rekap seluruh bulan terpilih — 5 invoice September, padahal layar menampilkan 2 invoice lewat tempo dari Jan & Feb. Server kini menerapkan aturan filter yang sama dengan daftar; rekap Excel & PDF berisi tepat baris yang tampil."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-01",
+      "title": "Halaman daftar invoice putih: Button asChild crash",
+      "sifat": "Kritis — halaman tidak bisa dipakai",
+      "cases": "N01",
+      "gejala": "/invoices kosong; konsol: \"React.Children.only expected to receive a single React element child\".",
+      "sebab": "components/ui/button.tsx selalu merender slot ikon/spinner (null) + children. Saat asChild, Radix Slot menerima dua anak dan melempar galat. Belum pernah terpicu karena belum ada pemanggil Button asChild sebelum redesign.",
+      "cakupan": "Semua pemakaian Button asChild (baru: tombol Buat Invoice, Kembali, Buka PDF).",
+      "perbaikan": "Mode asChild kini hanya meneruskan children ke Slot; ikon ditaruh pemanggil di dalam elemen anak."
+    },
+    {
+      "id": "BUG-02",
+      "title": "Tanggal di daftar mundur satu hari",
+      "sifat": "Sedang — data tampil salah",
+      "cases": "N02",
+      "gejala": "Daftar menampilkan 21 Sep / 5 Okt, drawer untuk invoice yang sama 22 Sep / 6 Okt.",
+      "sebab": "index() mengirim issue_date/due_date sebagai objek Carbon (JSON ISO UTC, mis. 2026-09-21T16:00:00Z karena zona app Asia/Makassar), sedangkan frontend membaca 10 karakter pertama.",
+      "cakupan": "Kolom tanggal invoice dan jatuh tempo di daftar, termasuk penanda lewat tempo.",
+      "perbaikan": "Controller mengirim format Y-m-d. Tes regresi test_index_sends_calendar_dates_without_timezone_shift."
+    },
+    {
+      "id": "BUG-03",
+      "title": "Baris item editor sempit di 1366 px",
+      "sifat": "Rendah — tampilan",
+      "cases": "N05",
+      "gejala": "Input harga satuan meluber menutupi subtotal (tampil \".500.000\"); tanggal terpotong \"26 Sep 20…\" oleh tombol hapus.",
+      "sebab": "Input di dalam CurrencyInput punya lebar intrinsik yang melebihi kolom grid; DatePicker wajib masih menampilkan tombol kosongkan.",
+      "cakupan": "Editor buat & edit invoice.",
+      "perbaikan": "Input diberi min-w-0/w-full, kolom grid dirapikan, kolom kiri sedikit lebih lebar, clearable={false} untuk tanggal wajib."
+    },
+    {
+      "id": "BUG-04",
+      "title": "Gaya field menimpa chip & tautan di dialog",
+      "sifat": "Rendah — tampilan/umpan balik",
+      "cases": "N07, A02, A04",
+      "gejala": "Chip nominal yang aktif tidak tampak aktif; tautan \"Pakai nomor yang disarankan\" tampil sebagai kotak gelap.",
+      "sebab": "Kelas pembungkus FIELD memakai selektor turunan [&_button] untuk menyelaraskan Combobox/DatePicker, sehingga ikut mengenai tombol lain di dalam pembungkus yang sama.",
+      "cakupan": "Dialog Catat pembayaran dan Kirim invoice.",
+      "perbaikan": "Chip dan tautan dipindah ke luar pembungkus FIELD."
+    },
+    {
+      "id": "BUG-05",
+      "title": "Pratinjau HTML tidak sama persis dengan PDF ekspor",
+      "sifat": "Tinggi — melanggar syarat utama permintaan",
+      "cases": "N05, N09",
+      "gejala": "Pratinjau pertama memakai margin 1,2 cm (beda 15,2% piksel); setelah margin dibetulkan tetap beda 9,66%: kotak TOTAL tertata flex di browser tetapi tidak di DomPDF, dan tinggi baris tabel berbeda sehingga isi bawah bergeser ±12 px.",
+      "sebab": "Browser dan DomPDF adalah dua mesin tata letak berbeda; template kisantra memakai CSS yang hanya didukung browser. Backend GD DomPDF juga dicoba tetapi memakai font DejaVu, jadi tidak identik.",
+      "cakupan": "Pratinjau editor, tab Pratinjau cetak di drawer, panel pratinjau di dialog cetak.",
+      "perbaikan": "InvoicePrintService::renderPdf menjadi satu-satunya jalur render (unduhan & pratinjau). Editor mengirim POST /invoices/preview dan menampilkan PDF-nya di penampil bawaan browser (dua lapis iframe agar tidak berkedip); sorotan baris disuntikkan sebagai CSS hanya di pratinjau. Tes test_preview_pdf_is_identical_to_the_downloaded_pdf mengunci kesamaan byte."
+    },
+    {
+      "id": "BUG-06",
+      "title": "Pesan validasi invoice berbahasa Inggris",
+      "sifat": "Rendah — kejelasan",
+      "cases": "A01, A04",
+      "gejala": "\"The client id field is required.\", \"The items.0.service_name field is required.\", \"The invoice number has already been taken.\"",
+      "sebab": "lang/id/validation.php belum diterjemahkan dan Form Request tidak punya messages().",
+      "cakupan": "Simpan/ubah invoice dan kirim invoice.",
+      "perbaikan": "messages() di StoreInvoiceRequest (termasuk nomor baris lewat :position) dan SendInvoiceRequest. Tes test_store_validation_messages_are_in_indonesian dan test_send_rejects_a_number_already_used."
+    },
+    {
+      "id": "BUG-07",
+      "title": "Ekspor mengabaikan filter \"Perlu ditagih\"",
+      "sifat": "Tinggi — rekap tidak sesuai layar",
+      "cases": "A05",
+      "gejala": "Layar: 2 invoice lewat tempo (INV/02, 001/INV/KSN-TMI/I/2026). Rekap Excel: 5 invoice September, sisa 6.167.500, tidak satu pun lewat tempo.",
+      "sebab": "Tombol Ekspor sengaja tidak mengirim status=overdue, dan buildRecapData() di server pun hanya mengenal status tersimpan (where status = ?) serta selalu menerapkan filter bulan.",
+      "cakupan": "Rekap Excel dan PDF (keduanya memakai buildRecapData).",
+      "perbaikan": "buildRecapData() memakai applyStatusFilter() yang sama dengan daftar dan melewati filter periode untuk \"Perlu ditagih\"; label periode \"Perlu ditagih (lewat jatuh tempo, semua periode)\"; frontend mengirim status apa adanya. Tes test_export_follows_the_overdue_filter_across_months."
+    },
+    {
+      "id": "BUG-08",
+      "title": "Teks urutan footer salah untuk kolom nominal",
+      "sifat": "Rendah — teks",
+      "cases": "N19",
+      "gejala": "Urut Jumlah naik tertulis \"urut jumlah terlama\".",
+      "sebab": "Footer memakai kata terbaru/terlama untuk semua kolom.",
+      "cakupan": "Footer daftar invoice.",
+      "perbaikan": "Label per kolom: tanggal terbaru/terlama, jatuh tempo terjauh/terdekat, jumlah terbesar/terkecil, klien Z–A/A–Z."
+    },
+    {
+      "id": "BUG-09",
+      "title": "Tombol panah kalender tanpa label",
+      "sifat": "Rendah — aksesibilitas",
+      "cases": "N18",
+      "gejala": "Tombol bulan/tahun sebelumnya & berikutnya hanya berisi ikon; pembaca layar menyebut \"tombol\" tanpa nama.",
+      "sebab": "Komponen bersama DatePicker tidak memberi aria-label pada tombol ikon.",
+      "cakupan": "Semua DatePicker di aplikasi.",
+      "perbaikan": "aria-label \"Bulan sebelumnya/berikutnya\" dan \"Tahun sebelumnya/berikutnya\"."
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Daftar invoice tampil",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: halaman putih (BUG-01).",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "`/invoices?month=` setelah perbaikan: ringkasan Total ditagih Rp 14.600.000, Sudah dibayar Rp 9.050.000 (62%), Belum dibayar Rp 5.550.000, Perlu ditagih Rp 2.500.000; bar sebaran status; tabel 9 baris."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Klik baris → drawer, Back menutup",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1: tanggal daftar mundur sehari (BUG-02).",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Klik baris Budi Santoso `002/INV/KSN-BS/IX/2026`: URL `/invoices/6?month=`, drawer menampilkan Diterbitkan 22 Sep 2026 · jatuh tempo 6 Okt 2026 — sama dengan kolom daftar."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Tombol Back browser: drawer tertutup, URL kembali `/invoices?month=` dengan filter utuh."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Tautan langsung /invoices/{id}",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Membuka `/invoices/6` langsung: daftar dirender server dengan drawer invoice #6 sudah terbuka."
+        },
+        {
+          "img": "N03-2",
+          "cap": "Tutup drawer: URL menjadi `/invoices`, daftar tetap di tempat."
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Dari Ringkasan ke detail invoice dan kembali",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1: skrip mengklik tautan Buat invoice (tooling).",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Ringkasan: tautan invoice Siti Nurhaliza (bingkai oranye ditambahkan skrip untuk penanda) mengarah ke `/invoices/7`."
+        },
+        {
+          "img": "N04-2",
+          "cap": "Setelah klik: `/invoices/7` dengan drawer `003/INV/KSN-SN/IX/2026` Terkirim. Sebelum redesign tautan ini membuka JSON mentah."
+        },
+        {
+          "img": "N04-3",
+          "cap": "Tutup drawer: kembali ke `/dashboard` (Ringkasan), bukan ke daftar invoice."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Editor: pratinjau PDF langsung",
+      "verdict": "Pass (percobaan ke-4)",
+      "attempts": "tffp",
+      "note": "Percobaan 1 salah selektor (tooling); 2: tata letak sempit (BUG-03); 3: pratinjau HTML tidak identik (BUG-05).",
+      "steps": [
+        {
+          "img": "N05-1",
+          "cap": "Editor kosong: kiri isian, kanan pratinjau berlabel \"terbaru\" — sudah PDF asli (kertas di penampil PDF browser)."
+        },
+        {
+          "img": "N05-2",
+          "cap": "Setelah mengisi klien Budi Santoso dan 3 item (satu titipan pajak) dan fokus di qty baris 2: status \"baris 2 disorot\", baris 2 berwarna biru di PDF, nomor perkiraan `006/INV/KSN-BS/IX/2026`."
+        },
+        {
+          "img": "N05-3",
+          "cap": "Qty baris 2 diubah 3 → 4: subtotal kiri Rp 1.800.000 dan PDF ikut berubah (4 bulan, 1.800.000, TOTAL IDR 6.435.000)."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Simpan & terbitkan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Diverifikasi di DB: status sent, nomor sama dengan perkiraan.",
+      "steps": [
+        {
+          "img": "N06-1",
+          "cap": "Setelah Simpan & terbitkan: toast \"Invoice diterbitkan: 005/INV/KSN-TMI/IX/2026\", URL `/invoices/12`, drawer invoice baru status Terkirim."
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Catat pembayaran 50% tunai",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Fungsi benar sejak awal; chip aktif tidak tampak aktif (BUG-04). Langkah 1 ditangkap ulang setelah perbaikan (isian yang sama, lalu Batal).",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Dialog Catat pembayaran: chip 50% aktif mengisi Rp 1.608.750 (tangkapan ulang saat sisa sudah 3.217.500), rekening BCA, metode Tunai, ref KW-QA-0926."
+        },
+        {
+          "img": "N07-2",
+          "cap": "Setelah simpan (percobaan asli, 50% dari 6.435.000): toast \"Pembayaran Rp 3.217.500 dicatat.\", status Sebagian, riwayat \"dicatat · tunai\"."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Dialog cetak: pelunasan & uang muka",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N08-1",
+          "cap": "Cetak dari drawer #12: jenis tagihan default Pelunasan (sudah ada pembayaran), panel kanan PDF asli \"TOTAL PELUNASAN IDR 3.217.500\"."
+        },
+        {
+          "img": "N08-2",
+          "cap": "Uang muka Rp 2.000.000: ringkasan kiri \"Sisa setelah DP Rp 4.435.000\" dan PDF kanan \"TOTAL DOWN PAYMENT IDR 2.000.000\". Unduh PDF menghasilkan `DP-Invoice-005-INV-KSN-TMI-IX-2026.pdf`."
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Pratinjau sama persis dengan ekspor",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Percobaan 1 (pratinjau HTML) gagal — BUG-05.",
+      "steps": [
+        {
+          "img": "N09-1",
+          "cap": "SEBELUM: pratinjau HTML (kiri) vs PDF unduhan (tengah) vs tumpang tindih (kanan): beda 9,66% piksel — kotak TOTAL tertata berbeda dan isi bawah bergeser."
+        },
+        {
+          "img": "N09-2",
+          "cap": "SESUDAH: PDF pratinjau editor (kiri) vs PDF `/invoice/13/download` (tengah): 10.797 byte keduanya, identik setelah stempel waktu & ID acak dibuang, selisih piksel 0 (kanan putih polos)."
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "title": "Simpan draft",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N10-1",
+          "cap": "Simpan draft dari editor N05: toast \"Invoice disimpan sebagai draft.\", `/invoices/13`, drawer \"belum bernomor\" status Draft dengan tombol Kirim invoice."
+        }
+      ]
+    },
+    {
+      "id": "N11",
+      "title": "Filter Perlu ditagih lintas bulan",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1: selektor ambigu (kartu ringkasan juga tombol \"Perlu ditagih\") — tooling.",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Pil \"Perlu ditagih\" aktif: invoice Feb dan Jan 2026 yang lewat jatuh tempo (penanda \"lewat 216/235 hari\") tampil walau filter bulan September; pemilih bulan diredupkan."
+        }
+      ]
+    },
+    {
+      "id": "N12",
+      "title": "Tab Pratinjau cetak di drawer",
+      "verdict": "Pass",
+      "attempts": "tp",
+      "steps": [
+        {
+          "img": "N12-1",
+          "cap": "Drawer #12 tab Pratinjau cetak: PDF asli invoice tersimpan dengan pilihan Pas lebar/100%."
+        }
+      ]
+    },
+    {
+      "id": "N13",
+      "title": "Mode terang",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N13-1",
+          "cap": "Daftar invoice mode terang."
+        },
+        {
+          "img": "N13-2",
+          "cap": "Edit invoice #12 mode terang, fokus baris 1: \"baris 1 disorot\" dan baris 1 biru di PDF; tombol tunggal Simpan perubahan karena invoice sudah terbit."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Simpan form kosong",
+      "verdict": "Pass (percobaan ke-3)",
+      "attempts": "tfp",
+      "note": "Percobaan 1: klik sebelum Inertia siap (tooling). Percobaan 2: pesan Inggris (BUG-06).",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Banner \"2 isian perlu diperbaiki\", galat di bawah Klien (\"Klien wajib dipilih.\") dan baris 1 (\"Nama layanan baris 1 wajib diisi.\"), toast daftar galat; URL tetap `/invoices/create`."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Pembayaran melebihi sisa (FE+BE)",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "note": "Server diuji langsung: POST /invoices/12/payments 5.000.000 → 422 dengan pesan yang sama; tidak ada baris pembayaran baru.",
+      "steps": [
+        {
+          "img": "A02-1",
+          "cap": "Nominal lain Rp 5.000.000 > sisa 3.217.500: \"Melebihi sisa tagihan Rp 3.217.500. Catat kelebihan sebagai transaksi terpisah.\", chip Nominal lain aktif, tombol Simpan nonaktif."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Tautan ke invoice yang tidak ada",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A03-1",
+          "cap": "`/invoices/999999`: daftar tetap tampil, drawer \"Invoice tidak ditemukan\" dengan tombol Tutup."
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Kirim dengan nomor yang sudah dipakai",
+      "verdict": "Pass (percobaan ke-3)",
+      "attempts": "ffp",
+      "note": "Percobaan 1: pesan Inggris (BUG-06) dan tautan bergaya kotak (BUG-04). Percobaan 2: galat tetap tampil setelah nomor diganti ke saran — ditemukan saat meninjau lembar kontak, diperbaiki (galat dihapus saat nomor berubah).",
+      "steps": [
+        {
+          "img": "A04-1",
+          "cap": "Nomor `005/INV/KSN-TMI/IX/2026` (milik #12) ditolak: \"Nomor ini sudah dipakai invoice lain.\" + tautan \"Pakai nomor yang disarankan\"."
+        },
+        {
+          "img": "A04-2",
+          "cap": "Klik tautan: nomor kembali ke saran `007/INV/KSN-KB/IX/2026` dan galat di bawah field hilang (toast galat sengaja tidak menutup sendiri). Dialog lalu dibatalkan; invoice tetap draft."
+        }
+      ]
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Draft → Kirim → Lunas → saldo bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: #13 paid 6.435.000 bank_transfer ref TRF-QA-0926; saldo BCA terhitung 64.702.500.",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Kirim invoice draft #13: nomor terisi otomatis `006/INV/KSN-BS/IX/2026`, ringkasan klien & total."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Setelah kirim: status Terkirim, tombol utama berganti Catat pembayaran."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Catat pembayaran Sisa penuh Rp 6.435.000 ke BCA: status Lunas, sisa Rp 0."
+        },
+        {
+          "img": "C01-4",
+          "cap": "Tutup drawer: daftar sudah segar — #13 Lunas, ringkasan Sudah dibayar naik; toast pembayaran masih terlihat."
+        }
+      ]
+    },
+    {
+      "section": "E. FILTER & EKSPOR (29 SEPTEMBER 2026)"
+    },
+    {
+      "id": "N14",
+      "title": "Filter bulan Feb 2026",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N14-1",
+          "cap": "Bulan Feb 2026: INV/03 Lunas & INV/02 Sebagian; Total ditagih Rp 6.000.000, dibayar Rp 4.000.000, belum dibayar Rp 2.000.000 — sama dengan database."
+        }
+      ]
+    },
+    {
+      "id": "N15",
+      "title": "Tab status di dalam bulan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N15-1",
+          "cap": "Pil Lunas: hanya INV/03; kartu 2.000.000 / 2.000.000 / 0, sedangkan hitungan pil tetap Sebagian 1 · Lunas 1."
+        }
+      ]
+    },
+    {
+      "id": "N16",
+      "title": "Filter klien + semua bulan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N16-1",
+          "cap": "Klien PT. Teknologi Maju Indonesia, semua bulan: 4 invoice; ditagih Rp 11.935.000, dibayar Rp 8.217.500, belum dibayar Rp 3.717.500, perlu ditagih Rp 500.000."
+        }
+      ]
+    },
+    {
+      "id": "N17",
+      "title": "Pencarian",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N17-1",
+          "cap": "Cari \"Budi\" di semua bulan: 3 invoice Budi Santoso (006, 002, 004)."
+        }
+      ]
+    },
+    {
+      "id": "N18",
+      "title": "Rentang tanggal",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "steps": [
+        {
+          "img": "N18-1",
+          "cap": "Kalender rentang: 1 Jan – 28 Feb 2026 dipilih lewat pemilih bulan."
+        },
+        {
+          "img": "N18-2",
+          "cap": "Hasil: 4 invoice, judul \"1 Jan 2026 – 28 Feb 2026 · 4 invoice\", pemilih bulan berlabel \"Rentang aktif\"; ditagih Rp 9.500.000, dibayar Rp 7.000.000."
+        }
+      ],
+      "note": "Percobaan 1: skrip mengklik saat halaman memuat dan mencari tombol panah bawaan yang disembunyikan komponen (tooling). Sekaligus menemukan BUG-09."
+    },
+    {
+      "id": "N19",
+      "title": "Urut kolom Jumlah",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N19-1",
+          "cap": "Urut Jumlah naik: 100.000 → 6.435.000, footer \"11 invoice · urut jumlah terkecil\" (sebelumnya tertulis \"terlama\")."
+        }
+      ],
+      "note": "Urutan data benar sejak awal; teks footer salah (BUG-08)."
+    },
+    {
+      "id": "N20",
+      "title": "Paginasi menjaga filter",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N20-1",
+          "cap": "`per_page=5`, semua bulan: halaman 1 berisi 5 dari 11 invoice, pager 1 2 3."
+        },
+        {
+          "img": "N20-2",
+          "cap": "Halaman 2: \"Menampilkan 6–10 dari 11 data\", URL tetap `month=&per_page=5`."
+        }
+      ]
+    },
+    {
+      "id": "N21",
+      "title": "Ekspor Excel dari layar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N21-1",
+          "cap": "Menu Ekspor dengan filter N16 aktif; tautan Rekap Excel membawa `month=&client_ids[]=1`."
+        },
+        {
+          "img": "N21-2",
+          "cap": "Isi berkas Excel yang terunduh: 4 baris PT. Teknologi Maju, TOTAL omzet 11.935.000, terbayar 8.217.500, sisa 3.717.500 — sama dengan layar."
+        }
+      ]
+    },
+    {
+      "id": "N22",
+      "title": "Ekspor PDF dari layar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N22-1",
+          "cap": "Rekap PDF yang terunduh (dirender ulang dari berkas): kartu Omzet 11.935.000 & Outstanding 3.717.500, 4 baris sama dengan Excel."
+        }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Ekspor saat \"Perlu ditagih\" aktif",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A05-1",
+          "cap": "Layar: pil Perlu ditagih aktif, 2 invoice lewat tempo (Feb & Jan); menu Ekspor terbuka. Tangkapan sebelum perbaikan: tautan belum membawa `status=overdue`."
+        },
+        {
+          "img": "A05-2",
+          "cap": "SEBELUM: Excel berisi 5 invoice September, tidak satu pun lewat jatuh tempo — rekap tidak sesuai layar."
+        },
+        {
+          "img": "A05-3",
+          "cap": "SESUDAH: Excel berisi tepat 2 invoice yang tampil, sisa 2.500.000 = kartu Perlu ditagih; periode \"Perlu ditagih (lewat jatuh tempo, semua periode)\"."
+        },
+        {
+          "img": "A05-4",
+          "cap": "SESUDAH: Rekap PDF menampilkan 2 invoice yang sama."
+        }
+      ],
+      "note": "Percobaan 1 gagal (BUG-07)."
+    },
+    {
+      "id": "A06",
+      "title": "Filter tanpa hasil",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Tab Lunas + cari \"zzz-tidak-ada\": keadaan kosong \"Tidak ada invoice lunas\" dengan tombol Hapus filter."
+        },
+        {
+          "img": "A06-2",
+          "cap": "Setelah Hapus filter: kembali ke bulan berjalan tanpa pencarian/status, 6 invoice."
+        }
+      ],
+      "note": "Percobaan 1: skrip menunggu tabel kosong \"terlihat\" (tooling)."
+    },
+    {
+      "id": "A07",
+      "title": "Ekspor mengikuti tab + pencarian",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A07-1",
+          "cap": "Semua bulan, pil Lunas, cari \"Teknologi\": INV/04 dan INV/01."
+        },
+        {
+          "img": "A07-2",
+          "cap": "Excel yang terunduh: dua baris yang sama, TOTAL 5.000.000."
+        }
+      ]
+    },
+    {
+      "id": "N23",
+      "title": "Katalog per baris (masukan user)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Sebelumnya satu tombol \"Dari katalog\" di header kartu yang selalu mengisi/menambah baris terakhir.",
+      "steps": [
+        {
+          "img": "N23-1",
+          "cap": "Tombol 🔍 di samping nama layanan setiap baris; katalog dibuka dari baris 2 (layanan uji ditambahkan ke database QC)."
+        },
+        {
+          "img": "N23-2",
+          "cap": "Hasil: baris 1 \"Website company profile\" Rp 4.500.000 dan baris 2 \"Maintenance website\" Rp 450.000 — masing-masing terisi di barisnya sendiri; pratinjau PDF ikut memuat keduanya."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "CATATAN-1",
+      "title": "Ikon \"?\" di kotak Informasi Down Payment",
+      "body": "Template kisantra memakai karakter ikon yang tidak ada di font DomPDF sehingga tercetak \"?\". Sudah ada sebelum redesign dan identik di PDF unduhan; tidak diubah karena di luar lingkup."
+    },
+    {
+      "id": "CATATAN-2",
+      "title": "Tab Aktivitas dari mockup diganti Riwayat",
+      "body": "Aplikasi tidak menyimpan log aktivitas (siapa melakukan apa). Drawer menampilkan Riwayat yang diturunkan dari created_at invoice dan pembayaran, tanpa nama pengguna."
+    },
+    {
+      "id": "CATATAN-3",
+      "title": "Pratinjau bergantung penampil PDF bawaan browser",
+      "body": "Chrome/Edge/Firefox desktop menampilkan PDF di iframe. Safari iOS hanya menampilkan halaman pertama sebagai gambar. Sorotan baris hanya ada di pratinjau editor; berkas unduhan tidak pernah berisi sorotan."
+    },
+    {
+      "id": "CATATAN-4",
+      "title": "Server dev satu-thread",
+      "body": "php artisan serve memproses satu permintaan sekaligus; render PDF pratinjau (±0,7 dtk) membuat simpan menunggu. Di server produksi (PHP-FPM) tidak terjadi."
+    },
+    {
+      "id": "CATATAN-5",
+      "title": "Titipan pajak dihitung sebagai omzet di rekap (perlu keputusan)",
+      "body": "Rekap Excel/PDF menghitung Omzet = total invoice, termasuk titipan pajak (mis. invoice 005: 6.435.000 termasuk titipan 135.000), sehingga Profit 5.085.000 dan PPh 0,5% 32.175. Editor dan drawer mengecualikan titipan: laba kotor 4.950.000, estimasi PPh 31.500. Tidak diubah karena menyangkut definisi omzet untuk pelaporan pajak — perlu keputusan tim keuangan."
+    },
+    {
+      "id": "CATATAN-6",
+      "title": "Nol tampil kosong di Excel",
+      "body": "Kolom bernilai 0 (HPP, Terbayar, Sisa) tampil sebagai sel kosong di Excel, sedangkan PDF menulis 0. Sudah ada sebelum pengujian ini; tidak mengubah angka."
+    }
+  ],
+  "tooling_problems": [
+    "globalThis tidak bertahan antar panggilan Playwright MCP; halaman uji dicari ulang lewat browser.contexts() di setiap langkah.",
+    "Selektor salah tiga kali: nama aksesibel tombol klien adalah \"Klien\" (dari label), \"Perlu ditagih\" cocok dengan dua tombol, dan tautan pertama /invoices/ di Ringkasan adalah \"Buat invoice\".",
+    "Klik Simpan segera setelah halaman dimuat terjadi sebelum Inertia selesai inisialisasi sehingga kunjungan tidak pernah selesai; setelah menunggu status pratinjau \"terbaru\" selalu berhasil. Tidak dapat direproduksi oleh pengguna manusia (jendela < 1 detik).",
+    "Uji penampil PDF pertama dari halaman about:blank tidak membawa cookie sesi dan menampilkan halaman login.",
+    "Playwright menganggap body penampil PDF tersembunyi; langkah menunggu elemen iframe diganti.",
+    "Ekspektasi awal N05 di skrip (Rp 6.885.000) salah hitung dari mockup; nilai benar 5.985.000/6.435.000 dan aplikasi benar.",
+    "Di tengah sesi user menjalankan Vite dev server (public/hot), sehingga aset sejak itu dilayani dari 5173, bukan build.",
+    "29 Sep: klik pada pemilih rentang tanggal sesaat setelah halaman dimuat tidak membuka popover; tombol panah bawaan kalender berukuran 0 (disembunyikan komponen) sehingga navigasi dialihkan ke pemilih bulan.",
+    "29 Sep: menunggu tabel kosong berstatus \"terlihat\" gagal karena tabel tanpa baris berukuran 0; diganti menunggu keadaan kosongnya."
+  ],
+  "honesty": "Kode yang diuji ditulis oleh asisten yang sama yang merancang dan menjalankan pengujian, sehingga pengujian mewarisi asumsi penulis. Tiga hal yang sebaiknya diperiksa manusia secara independen: (1) buka editor di browser yang dipakai tim sehari-hari (Chrome/Edge) dan pastikan penampil PDF di panel kanan tampil tanpa toolbar dan tidak berkedip mengganggu saat mengetik cepat; (2) cetak satu invoice sungguhan dengan kop surat, tanda tangan, dan stempel perusahaan, lalu bandingkan pratinjau editor dengan PDF unduhan — data QC tidak memiliki gambar kop sehingga posisi stempel absolut belum teruji dengan gambar asli; (3) tutup drawer dari tiga asal berbeda (daftar, Ringkasan, tautan yang ditempel di tab baru) dan pastikan masing-masing kembali ke tempat yang diharapkan."
+}

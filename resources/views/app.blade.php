@@ -9,7 +9,7 @@
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net" />
-        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|plus-jakarta-sans:600,700,800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap" rel="stylesheet" />
 
         <!-- Dark mode init — must run before React to avoid FOUC -->
         <script>
@@ -27,7 +27,7 @@
         @vite(['resources/css/app.css', 'resources/js/inertia.tsx'])
         @inertiaHead
     </head>
-    <body class="h-full font-sans antialiased bg-white dark:bg-dark-950 text-dark-900 dark:text-dark-50">
+    <body class="h-full font-sans antialiased bg-ob-page text-ob-ink ob-tabular">
         @inertia
     </body>
 </html>

@@ -67,15 +67,23 @@ class RecurringInvoice extends Model
             return $this->publishedInvoice;
         }
 
+        // PPN mengikuti status PKP saat publish (subtotal template sudah tanpa titipan pajak).
+        $company = CompanyProfile::current();
+        $ppnRate = $company?->is_pkp && (float) $company->ppn_rate > 0 ? (float) $company->ppn_rate : 0.0;
+        $discountAmount = (int) ($this->invoice_data['discount_amount'] ?? 0);
+        $ppnAmount = Invoice::ppnFor((int) $this->invoice_data['subtotal'] - $discountAmount, $ppnRate);
+
+        // Draft tanpa nomor, sama seperti invoice biasa: nomor resmi diberikan saat "Kirim".
         $invoice = Invoice::create([
-            'invoice_number' => $this->generateInvoiceNumber(),
             'billed_to_id' => $this->client_id,
             'subtotal' => $this->invoice_data['subtotal'],
-            'discount_amount' => $this->invoice_data['discount_amount'] ?? 0,
+            'discount_amount' => $discountAmount,
             'discount_type' => $this->invoice_data['discount_type'] ?? 'fixed',
             'discount_value' => $this->invoice_data['discount_value'] ?? 0,
             'discount_reason' => $this->invoice_data['discount_reason'] ?? null,
-            'total_amount' => $this->total_amount,
+            'ppn_rate' => $ppnRate,
+            'ppn_amount' => $ppnAmount,
+            'total_amount' => $this->total_amount + $ppnAmount,
             'issue_date' => $this->issue_date ?? $this->scheduled_date,
             'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(30),
             'status' => 'draft',
@@ -83,19 +91,13 @@ class RecurringInvoice extends Model
 
         // Create invoice items
         foreach ($this->items as $itemData) {
-            // `unit` dan `is_tax_deposit` dulu tidak ikut tersalin. Akibatnya
-            // invoice hasil publish memakai satuan bawaan, dan item titipan
-            // pajak kehilangan penandanya — basis PPh 0,5% ikut salah karena
-            // item titipan seharusnya dikecualikan dari perhitungan itu.
             $invoice->items()->create([
                 'client_id' => $this->client_id,
                 'service_name' => $itemData['service_name'],
                 'quantity' => $itemData['quantity'],
-                'unit' => $itemData['unit'] ?? 'pcs',
                 'unit_price' => $itemData['unit_price'],
                 'amount' => $itemData['amount'],
                 'cogs_amount' => $itemData['cogs_amount'] ?? 0,
-                'is_tax_deposit' => (bool) ($itemData['is_tax_deposit'] ?? false),
             ]);
         }
 
@@ -106,89 +108,6 @@ class RecurringInvoice extends Model
         ]);
 
         return $invoice;
-    }
-
-    // Generate invoice number for published invoice (same format as regular invoice)
-    private function generateInvoiceNumber(): string
-    {
-        $date = $this->issue_date ?? $this->scheduled_date;
-
-        $invoices = Invoice::whereYear('issue_date', $date->year)
-            ->whereMonth('issue_date', $date->month)
-            ->pluck('invoice_number');
-
-        $maxSequence = 0;
-        foreach ($invoices as $invoiceNumber) {
-            if (preg_match('/^(\d+)\/INV\//', $invoiceNumber, $matches)) {
-                $sequence = (int) $matches[1];
-                $maxSequence = max($maxSequence, $sequence);
-            }
-        }
-
-        $sequence = $maxSequence + 1;
-        $companyInitials = $this->getCompanyInitials();
-        $clientInitials = $this->getClientInitials($this->client_id);
-        $romanMonth = $this->getRomanMonth($date->month);
-        $year = $date->year;
-
-        return sprintf(
-            '%03d/INV/%s-%s/%s/%d',
-            $sequence,
-            $companyInitials,
-            $clientInitials,
-            $romanMonth,
-            $year
-        );
-    }
-
-    private function getCompanyInitials(): string
-    {
-        $company = CompanyProfile::first();
-        if (! $company || ! $company->name) {
-            return 'SPI';
-        }
-
-        return $this->extractInitials($company->name) ?: 'SPI';
-    }
-
-    private function getClientInitials($clientId): string
-    {
-        $client = Client::find($clientId);
-        if (! $client) {
-            return 'XXX';
-        }
-
-        $name = $client->type === 'company' && $client->company_name
-            ? $client->company_name
-            : $client->name;
-
-        return $this->extractInitials($name) ?: 'XXX';
-    }
-
-    private function extractInitials(string $name): string
-    {
-        $skipWords = ['pt', 'pt.', 'cv', 'cv.', 'ud', 'ud.', 'tb', 'tb.', 'pd', 'pd.', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
-
-        $words = preg_split('/\s+/', trim($name));
-        $initials = '';
-        foreach ($words as $word) {
-            if (! empty($word) && ! in_array(strtolower(rtrim($word, '.')), $skipWords) && ! in_array(strtolower($word), $skipWords)) {
-                $initials .= strtoupper($word[0]);
-            }
-        }
-
-        return $initials;
-    }
-
-    private function getRomanMonth($month): string
-    {
-        $romans = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV',
-            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII',
-            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII',
-        ];
-
-        return $romans[$month] ?? 'I';
     }
 
     // Scope for monthly filtering
