@@ -488,15 +488,32 @@ butir 4). Admin yang sebenarnya datang dari `central:import-users`.
 
 ### G.1 Setup server (sekali saja)
 
+> **KOREKSI 2026-11-02 — TIDAK ADA wildcard DNS/SSL.**
+> Bagian ini sebelumnya menyuruh memasang `*.kisantra.com` beserta sertifikat
+> wildcard lewat DNS-01 challenge. Itu peninggalan rancangan subdomain yang
+> **dibatalkan**. Yang akhirnya dibangun adalah identifikasi perusahaan lewat
+> **PATH**: `/c/{slug}/...`, dengan `InitializeTenancyByPath` sebagai satu-satunya
+> resolver (diverifikasi: tidak ada `InitializeTenancyByDomain` di mana pun, dan
+> seluruh 63 route modul ber-prefix `c/{company}`).
+>
+> Artinya **satu domain biasa sudah cukup**, sertifikat Let's Encrypt standar
+> sudah cukup, dan tidak perlu akses API DNS provider. Ini justru alasan utama
+> path dipilih dulu. Jangan kejar wildcard — Anda akan membuang waktu pada
+> syarat yang tidak ada.
+>
+> Pelanggan di domain lain = **site CloudPanel baru** dengan instalasi sendiri
+> (lihat Jalur A). Di dalam tiap site, grup pelanggan itu boleh punya banyak
+> perusahaan lewat `/c/{slug}`.
+
 ```bash
-# 1. DNS wildcard
-*.kisantra.com    A    <IP-server>
+# 1. DNS — satu A record biasa, tanpa wildcard
+finance.kisantra.com    A    <IP-server>
 
-# 2. SSL wildcard (perlu DNS-01 challenge)
-certbot certonly --dns-<provider> -d "kisantra.com" -d "*.kisantra.com"
+# 2. SSL — Let's Encrypt standar (HTTP-01). Di CloudPanel cukup lewat UI.
+certbot --nginx -d finance.kisantra.com
 
-# 3. nginx — SATU vhost untuk semua organization
-server_name kisantra.com *.kisantra.com;
+# 3. nginx — satu vhost, satu nama. Perusahaan dibedakan oleh PATH, bukan host.
+server_name finance.kisantra.com;
 root /var/www/finance-management/public;
 
 # 4. MySQL — DUA kredensial (pengetatan dari PDF slide 11: JANGAN GRANT CREATE ke app user)
@@ -511,8 +528,21 @@ GRANT CREATE ON *.* TO 'finance_provisioner'@'localhost';
 
 `.env` produksi: `DB_DATABASE=kisantra_core`, koneksi `tenancy` provisioning memakai
 kredensial `finance_provisioner` (di `config/tenancy.php` database manager),
-`SESSION_DOMAIN=.kisantra.com` (terverifikasi: cukup env, tidak ada Sanctum/Fortify),
-`SESSION_SECURE_COOKIE=true`, `APP_URL=https://kisantra.com`.
+`SESSION_SECURE_COOKIE=true`, `APP_URL=https://finance.kisantra.com`.
+
+`SESSION_DOMAIN` **dikosongkan saja** — nilai `.kisantra.com` berawalan titik itu
+gunanya berbagi cookie antar subdomain, dan kita tidak memakai subdomain. Cookie
+cukup terikat ke satu host.
+
+Dua hal lagi yang sudah terbukti perlu, dan tidak ada di PDF:
+
+- **`php8.4-redis` wajib dipasang bila `.env` memakai `REDIS_CLIENT=phpredis`.**
+  Tanpa ekstensinya, cache/session gagal saat boot, bukan degradasi halus.
+  Alternatif tanpa pasang apa pun: `REDIS_CLIENT=predis` (sudah ada di composer).
+- **Pastikan `public/hot` TIDAK ikut ter-deploy.** Berkas itu dibuat
+  `npm run dev` dan membelokkan SELURUH aset ke Vite di port 5173. Kalau
+  tertinggal di server, setiap halaman jadi layar putih tanpa pesan error apa
+  pun. Sudah ter-gitignore, tetapi periksa sekali setelah rilis pertama.
 
 ### G.2 Urutan cutover deployment existing — **SUDAH DILATIH, BUKAN DIRENCANAKAN**
 

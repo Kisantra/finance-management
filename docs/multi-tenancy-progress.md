@@ -194,7 +194,9 @@ job/command yang menyentuh permission → `setPermissionsTeamId()` manual.
 
 ### 1. Go-live (§G runbook)
 - [ ] **0.3 dulu**: ukur version drift semua deployment berjalan (manual).
-- [ ] Setup server sekali: wildcard DNS + SSL, satu vhost nginx, **dua user MySQL**
+- [ ] Setup server sekali: **satu A record + SSL Let's Encrypt biasa** (perusahaan
+      dibedakan lewat PATH `/c/{slug}`, bukan subdomain — wildcard TIDAK perlu),
+      satu vhost nginx, **dua user MySQL**
       (`finance_app` tanpa CREATE; `finance_provisioner` khusus provisioning),
       `.env`: `SESSION_DOMAIN`, `APP_URL`, DB central.
 - [ ] Cutover per deployment: freeze + backup → restore dump ke `tenant_{slug}` →
