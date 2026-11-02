@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
 import { cn } from '@/lib/utils';
 
 /*
@@ -48,12 +49,12 @@ export function Widget({ title, count, action, height, className, bodyClassName,
 /** Tautan kecil di header kartu: "Lihat semua →". */
 export function WidgetLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
     return (
-        <a
+        <AppLink
             href={href}
             className={cn('inline-flex items-center gap-1 text-xs font-semibold text-ob-ink-2 hover:text-ob-ink', className)}
         >
             {children}
-        </a>
+        </AppLink>
     );
 }
 

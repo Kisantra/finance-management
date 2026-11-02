@@ -20,6 +20,8 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { api } from '@/lib/api';
+import { companyUrl } from '@/lib/company';
 import { openResource } from '@/lib/resource-modal';
 import { cn } from '@/lib/utils';
 import type { NotificationItem } from '@/types';
@@ -83,15 +85,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
         else setLoadingMore(true);
 
         try {
-            const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-            const res = await fetch(`/notifications?page=${targetPage}&per_page=20`, {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrf,
-                },
-                credentials: 'same-origin',
-            });
+            const res = await api(`/notifications?page=${targetPage}&per_page=20`);
             const data: FetchResponse = await res.json();
             setItems(replace ? data.items : data.items);
             setUnreadCount(data.unread_count);
@@ -119,7 +113,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
     const openItem = (item: NotificationItem) => {
         const url = (item.data as { url?: string } | null)?.url;
         router.post(
-            `/notifications/${item.id}/read`,
+            companyUrl(`/notifications/${item.id}/read`),
             {},
             {
                 preserveScroll: true,
@@ -128,7 +122,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                     // Tautan detail invoice (#invoice/13 atau /invoices/13 lama) dibuka sebagai modal di halaman ini.
                     const invoice = url?.match(/(?:#invoice|\/invoices)\/(\d+)$/);
                     if (invoice) openResource('invoice', Number(invoice[1]));
-                    else if (url) router.visit(url);
+                    else if (url) router.visit(companyUrl(url));
                 },
             },
         );
@@ -136,7 +130,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
 
     const markAllRead = () => {
         router.post(
-            '/notifications/mark-all-read',
+            companyUrl('/notifications/mark-all-read'),
             {},
             {
                 preserveScroll: true,

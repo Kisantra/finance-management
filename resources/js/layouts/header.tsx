@@ -1,8 +1,10 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Building2, ChevronDown, ChevronRight, LogOut, Menu, Settings } from 'lucide-react';
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationDrawer } from '@/components/notifications/notification-drawer';
+import { appPath } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -55,7 +57,7 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
 };
 
 function getBreadcrumbs(url: string): BreadcrumbItem[] {
-    const path = url.split('?')[0];
+    const path = appPath(url).split('?')[0];
     if (BREADCRUMB_MAP[path]) return BREADCRUMB_MAP[path];
     const prefixMatch = Object.entries(BREADCRUMB_MAP).find(
         ([key]) => key !== '/' && path.startsWith(key + '/'),
@@ -181,12 +183,12 @@ function UserChip() {
                     className="absolute right-0 top-full z-50 mt-1.5 flex w-56 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20 ob-fade-in"
                 >
                     <span className="truncate px-2.5 pt-1.5 pb-2 text-xs text-ob-ink-3">{user?.email ?? ''}</span>
-                    <Link href="/settings" role="menuitem" className={item} onClick={() => setOpen(false)}>
+                    <AppLink href="/settings" role="menuitem" className={item} onClick={() => setOpen(false)}>
                         <Settings className="h-4 w-4 opacity-70" /> Pengaturan
-                    </Link>
-                    <Link href="/settings/company" role="menuitem" className={item} onClick={() => setOpen(false)}>
+                    </AppLink>
+                    <AppLink href="/settings/company" role="menuitem" className={item} onClick={() => setOpen(false)}>
                         <Building2 className="h-4 w-4 opacity-70" /> Profil perusahaan
-                    </Link>
+                    </AppLink>
                     {/* Lewat klien Inertia agar token CSRF selalu segar (riwayat "419 PAGE EXPIRED"). */}
                     <button type="button" role="menuitem" onClick={() => router.post('/logout')} className={cn(item, 'text-ob-late hover:text-ob-late')}>
                         <LogOut className="h-4 w-4 opacity-80" /> Keluar
@@ -224,9 +226,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                             {last ? (
                                 <span className="truncate font-semibold text-ob-ink">{crumb.label}</span>
                             ) : crumb.href ? (
-                                <Link href={crumb.href} className="shrink-0 font-medium text-ob-ink-3 hover:text-ob-ink">
+                                <AppLink href={crumb.href} className="shrink-0 font-medium text-ob-ink-3 hover:text-ob-ink">
                                     {crumb.label}
-                                </Link>
+                                </AppLink>
                             ) : (
                                 <span className="shrink-0 font-medium text-ob-ink-3">{crumb.label}</span>
                             )}

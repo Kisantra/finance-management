@@ -17,6 +17,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
+import { api } from '@/lib/api';
+import { companyUrl } from '@/lib/company';
 import { resourceHref } from '@/lib/resource-modal';
 import { cn, formatCurrency, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { ColDef, CurrencyCell, ResizableTh, parseQty, useColumnResize } from '@/pages/invoices/components/item-table-helpers';
@@ -192,10 +194,6 @@ const COMMON_UNITS = [
 ];
 
 const itemCellCls = 'h-8 text-xs px-2 rounded-md border-transparent hover:border-secondary-300 dark:hover:border-dark-600 bg-transparent dark:bg-transparent focus:bg-white dark:focus:bg-dark-800';
-
-function getCsrfToken(): string {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-}
 
 // ─── Items Repeater ─────────────────────────────────────────────────────────
 
@@ -604,9 +602,9 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
         };
 
         try {
-            const res = await fetch(url, {
+            const res = await api(url, {
                 method: isEdit ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
@@ -749,9 +747,9 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
     const handle = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/generate', {
+            const res = await api('/recurring-invoices/monthly/generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ month, year, issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
@@ -840,9 +838,9 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
         if (!invoice) return;
         setLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/monthly/${invoice.id}/publish`, {
+            const res = await api(`/recurring-invoices/monthly/${invoice.id}/publish`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
@@ -918,9 +916,9 @@ function BulkPublishModal({ open, onClose, onSuccess, selectedIds }: BulkPublish
     const handle = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/bulk-publish', {
+            const res = await api('/recurring-invoices/monthly/bulk-publish', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: selectedIds, issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
@@ -1003,7 +1001,7 @@ export default function RecurringInvoicesIndex({
 
     // Navigate to update monthly data
     const navigateMonthly = (month: number, year: number, templateFilter?: number | null, statusFilter?: string) => {
-        router.get('/recurring-invoices', {
+        router.get(companyUrl('/recurring-invoices'), {
             tab: 'monthly',
             month,
             year,
@@ -1020,7 +1018,7 @@ export default function RecurringInvoicesIndex({
     };
 
     const navigateAnalytics = (year: number, period: string) => {
-        router.get('/recurring-invoices', {
+        router.get(companyUrl('/recurring-invoices'), {
             tab: 'analytics',
             analytics_year: year,
             analytics_period: period,
@@ -1049,9 +1047,8 @@ export default function RecurringInvoicesIndex({
         if (!deleteTemplateTarget) return;
         setDeleteTemplateLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/templates/${deleteTemplateTarget.id}`, {
+            const res = await api(`/recurring-invoices/templates/${deleteTemplateTarget.id}`, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
             const json = await res.json();
             if (!res.ok) { toastError(json.message); console.error('[DeleteTemplate]', res.status, json); return; }
@@ -1067,9 +1064,8 @@ export default function RecurringInvoicesIndex({
 
     const handleRestoreTemplate = async (template: RecurringTemplate) => {
         try {
-            const res = await fetch(`/recurring-invoices/templates/${template.id}/restore`, {
+            const res = await api(`/recurring-invoices/templates/${template.id}/restore`, {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
             const json = await res.json();
             if (!res.ok) { toastError(json.message); console.error('[RestoreTemplate]', res.status, json); return; }
@@ -1093,9 +1089,8 @@ export default function RecurringInvoicesIndex({
         if (!deleteMonthlyTarget) return;
         setDeleteMonthlyLoading(true);
         try {
-            const res = await fetch(`/recurring-invoices/monthly/${deleteMonthlyTarget.id}`, {
+            const res = await api(`/recurring-invoices/monthly/${deleteMonthlyTarget.id}`, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
             });
             const json = await res.json();
             if (!res.ok) { toastError(json.message); console.error('[DeleteMonthly]', res.status, json); return; }
@@ -1110,9 +1105,9 @@ export default function RecurringInvoicesIndex({
         if (!selectedIds.length) return;
         setBulkDeleteLoading(true);
         try {
-            const res = await fetch('/recurring-invoices/monthly/bulk-destroy', {
+            const res = await api('/recurring-invoices/monthly/bulk-destroy', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken(), Accept: 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: selectedIds }),
             });
             const json = await res.json();
@@ -1171,7 +1166,7 @@ export default function RecurringInvoicesIndex({
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="recurring-invoices" />
                             {activeTab === 'templates' && (
-                                <Button variant="primary" size="sm" onClick={() => router.get('/recurring-invoices/templates/create')}>
+                                <Button variant="primary" size="sm" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}>
                                     <Plus className="w-4 h-4 mr-1.5" /> Buat Template
                                 </Button>
                             )}
@@ -1239,7 +1234,7 @@ export default function RecurringInvoicesIndex({
                                 icon={<Repeat2 className="w-12 h-12" />}
                                 title="Belum ada template"
                                 description="Buat template recurring untuk generate invoice otomatis"
-                                action={<Button variant="primary" onClick={() => router.get('/recurring-invoices/templates/create')}><Plus className="w-4 h-4 mr-1.5" /> Buat Template</Button>}
+                                action={<Button variant="primary" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}><Plus className="w-4 h-4 mr-1.5" /> Buat Template</Button>}
                             />
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1260,7 +1255,7 @@ export default function RecurringInvoicesIndex({
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0">
                                                     {t.status === 'active' && (
-                                                        <button onClick={() => router.get(`/recurring-invoices/templates/${t.id}/edit`)} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
+                                                        <button onClick={() => router.get(companyUrl(`/recurring-invoices/templates/${t.id}/edit`))} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
                                                             <Edit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}

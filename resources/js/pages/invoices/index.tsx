@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { ArrowDown, ArrowUp, Clock, Eye, FileSpreadsheet, FileText, MoreHorizontal, Pencil, Plus, Printer, Search, Trash2, Upload } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -11,7 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Pagination } from '@/components/shared/pagination';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { AppLink } from '@/components/app-link';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -158,7 +160,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
     const openInvoiceId = useResource()?.id ?? null;
 
     const navigate = (params: Record<string, unknown>) => {
-        router.get('/invoices', { ...f, ...params, page: 1 }, { preserveState: true, preserveScroll: true, replace: true });
+        router.get(companyUrl('/invoices'), { ...f, ...params, page: 1 }, { preserveState: true, preserveScroll: true, replace: true });
     };
 
     const exportUrl = (format: 'excel' | 'pdf', template?: 'jsm') => {
@@ -172,7 +174,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
         f.client_ids.forEach((id) => params.append('client_ids[]', String(id)));
         params.set('sort', f.sort);
         params.set('direction', f.direction);
-        return `/invoices/export/${format}?${params}`;
+        return companyUrl(`/invoices/export/${format}?${params}`);
     };
 
     const sortBy = (key: string) => {
@@ -183,7 +185,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
     const deleteInvoice = () => {
         if (!deleteRow) return;
         setDeleting(true);
-        router.delete(`/invoices/${deleteRow.id}`, {
+        router.delete(companyUrl(`/invoices/${deleteRow.id}`), {
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
@@ -253,9 +255,9 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Button asChild className={BTN.primary}>
-                            <Link href="/invoices/create">
+                            <AppLink href="/invoices/create">
                                 <Plus className="h-4 w-4" /> Buat Invoice
-                            </Link>
+                            </AppLink>
                         </Button>
                     </div>
                 </div>
@@ -428,7 +430,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                         {invoices.last_page > 1 ? (
                             <Pagination
                                 meta={{ current_page: invoices.current_page, last_page: invoices.last_page, per_page: invoices.per_page, total: invoices.total, from: invoices.from, to: invoices.to }}
-                                onPageChange={(page) => router.get('/invoices', { ...f, page }, { preserveState: true, preserveScroll: true })}
+                                onPageChange={(page) => router.get(companyUrl('/invoices'), { ...f, page }, { preserveState: true, preserveScroll: true })}
                             />
                         ) : (
                             <span>{f.per_page} per halaman</span>
@@ -578,7 +580,7 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
                         <DropdownMenuItem onClick={onOpen}>
                             <Eye className="h-4 w-4" /> Lihat detail
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.visit(`/invoices/${inv.id}/edit`)}>
+                        <DropdownMenuItem onClick={() => router.visit(companyUrl(`/invoices/${inv.id}/edit`))}>
                             <Pencil className="h-4 w-4" /> Edit
                         </DropdownMenuItem>
                         {inv.invoice_number && (
@@ -610,9 +612,9 @@ function EmptyList({ statusLabel, hasFilters, onReset }: { statusLabel: string |
                 </Button>
             ) : (
                 <Button asChild className={cn(BTN.primary, 'h-9 px-4 text-[13px]')}>
-                    <Link href="/invoices/create">
+                    <AppLink href="/invoices/create">
                         <Plus className="h-4 w-4" /> Buat Invoice
-                    </Link>
+                    </AppLink>
                 </Button>
             )}
         </div>

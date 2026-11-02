@@ -1,7 +1,7 @@
 import { Check, X } from 'lucide-react';
 import { StatusPill } from '@/components/dashboard/widget';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { getCsrfToken } from '@/pages/invoices/components/ob';
 
 /*
  * Bahan bersama modul Reimbursement (gaya Obsidian). Komponen visual umum — BTN, CARD, FIELD,
@@ -50,7 +50,6 @@ export interface ActionResult {
     errors: Record<string, string>;
 }
 
-const JSON_HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
 
 /**
  * Aksi lewat fetch JSON, bukan kunjungan Inertia: redirect back akan mengganti halaman di
@@ -58,9 +57,9 @@ const JSON_HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpR
  */
 export async function rbAction(url: string, method: 'POST' | 'DELETE', body?: Record<string, unknown> | FormData): Promise<ActionResult> {
     const isForm = body instanceof FormData;
-    const res = await fetch(url, {
+    const res = await api(url, {
         method,
-        headers: { ...JSON_HEADERS, 'X-CSRF-TOKEN': getCsrfToken(), ...(isForm || !body ? {} : { 'Content-Type': 'application/json' }) },
+        headers: isForm || !body ? {} : { 'Content-Type': 'application/json' },
         body: isForm ? body : body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));

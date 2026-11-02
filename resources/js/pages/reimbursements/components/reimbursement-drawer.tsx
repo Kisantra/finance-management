@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FilePreviewDialog } from '@/components/shared/file-preview-dialog';
+import { api } from '@/lib/api';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import { BTN, dateTime, FIELD, longDate, rp, SURFACE } from '@/pages/invoices/components/ob';
 import { PersonAvatar, rbAction, ReimbursementStatusPill, type ReimbursementStatus } from './rb';
@@ -100,7 +101,7 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
 
     const load = React.useCallback(async (id: number, signal?: AbortSignal) => {
         try {
-            const res = await fetch(`/reimbursements/${id}/data`, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal });
+            const res = await api(`/reimbursements/${id}/data`, { signal });
             if (res.status === 404) return setState({ kind: 'missing' });
             if (!res.ok) throw new Error(`Server membalas ${res.status}.`);
             setState({ kind: 'ready', detail: await res.json() });

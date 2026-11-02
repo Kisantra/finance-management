@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import {
     BarChart3,
     BookOpen,
@@ -16,6 +16,8 @@ import {
     X,
 } from 'lucide-react';
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
+import { appPath } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -183,7 +185,7 @@ function RailTooltip({ label, hint }: { label: string; hint?: string }) {
 export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, onToggleDark }: SidebarProps) {
     const { auth, actionCounts } = usePage<SharedProps>().props;
     const permissions = auth.permissions;
-    const currentUrl = usePage().url;
+    const currentUrl = appPath(usePage().url);
 
     const can = (permission?: string) => !permission || permissions.includes(permission);
 
@@ -313,7 +315,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                         if (g.href) {
                             return (
                                 <li key={g.key}>
-                                    <Link
+                                    <AppLink
                                         href={g.href}
                                         onClick={onClose}
                                         aria-current={isActive ? 'page' : undefined}
@@ -322,7 +324,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                         {iconBox}
                                         {label}
                                         {isCollapsed && <RailTooltip label={g.label} />}
-                                    </Link>
+                                    </AppLink>
                                 </li>
                             );
                         }
@@ -375,7 +377,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                             const count = badgeOf(item);
                                             return (
                                                 <li key={item.href}>
-                                                    <Link
+                                                    <AppLink
                                                         href={item.href}
                                                         onClick={onClose}
                                                         aria-current={cur ? 'page' : undefined}
@@ -392,7 +394,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                                                 {count}
                                                             </span>
                                                         )}
-                                                    </Link>
+                                                    </AppLink>
                                                 </li>
                                             );
                                         })}
@@ -417,7 +419,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                         const cur = matches(currentUrl, item.matchPrefix);
                         const count = badgeOf(item);
                         return (
-                            <Link
+                            <AppLink
                                 key={item.href}
                                 href={item.href}
                                 role="menuitem"
@@ -429,7 +431,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                             >
                                 <span className="truncate">{item.label}</span>
                                 {count > 0 && <span className="text-xs text-ob-ink-3">{count}</span>}
-                            </Link>
+                            </AppLink>
                         );
                     })}
                 </div>
