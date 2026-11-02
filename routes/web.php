@@ -40,6 +40,7 @@ use App\Models\PdfTemplate;
 use App\Models\TransactionCategory;
 use App\Services\BuilderInvoicePrinter;
 use App\Services\FundRequestExportService;
+use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -142,7 +143,12 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         $tanggal = $request->query('date');
         $tanggal = $tanggal ? Carbon::parse($tanggal) : Carbon::now();
 
-        return ['sequence' => Invoice::getMaxSequenceFromDb($tanggal) + 1];
+        // Invoice::getMaxSequenceFromDb() TIDAK PERNAH ADA — endpoint ini selalu
+        // melempar BadMethodCallException (HTTP 500) sejak ditulis, dan tidak
+        // ketahuan karena belum ada pemanggilnya di frontend. nextSequence()
+        // sudah menambahkan satu sendiri dan sudah memakai periode reset dari
+        // pengaturan, jadi JANGAN tambahkan "+ 1" lagi di sini.
+        return ['sequence' => app(InvoiceNumberService::class)->nextSequence($tanggal)];
     })->middleware('can:create invoices')->name('api.invoices.next-sequence');
 });
 
