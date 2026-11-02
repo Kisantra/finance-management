@@ -5,9 +5,12 @@
 # Skrip ini tidak mengubah satu pun berkas, konfigurasi, atau baris database.
 # Tidak ada restart, tidak ada TRUNCATE, tidak ada penulisan ke DB.
 #
-# Pemakaian (jalankan di VPS, dari folder aplikasi):
-#   ./baseline.sh                 tampilkan ke layar + simpan ke berkas
-#   ./baseline.sh > hasil.txt     simpan saja
+# Pemakaian (jalankan di VPS):
+#   ./baseline.sh                        dari dalam folder aplikasi
+#   /tmp/baseline.sh /path/ke/aplikasi   dari mana saja — dipakai untuk mengukur SEBELUM
+#                                        menarik kode baru, supaya deploy tidak mengubah
+#                                        kondisi yang sedang diukur
+#   ./baseline.sh > hasil.txt            simpan saja
 #
 #   BASELINE_SAMPLE_SECONDS=10 ./baseline.sh    perpendek jeda sampling laju (default 60)
 #
@@ -24,7 +27,17 @@ main() {
     set -uo pipefail   # sengaja TANPA -e: satu perintah yang tidak ada tidak boleh
                        # menghentikan seluruh potret
 
-    local APP_DIR; APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Folder aplikasi: argumen pertama, lalu env, lalu lokasi skrip ini. Argumen membuat
+    # skrip bisa dijalankan dari /tmp — sehingga baseline bisa diukur TANPA menarik kode
+    # baru ke server, yang justru akan mengubah kondisi yang sedang diukur.
+    local APP_DIR
+    APP_DIR="${1:-${BASELINE_APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}}"
+
+    if [ ! -f "$APP_DIR/artisan" ]; then
+        echo "Bukan folder aplikasi Laravel: $APP_DIR" >&2
+        echo "Pemakaian: $0 [/path/ke/folder/aplikasi]" >&2
+        return 1
+    fi
     local STAMP; STAMP="$(date +%Y-%m-%d_%H%M%S)"
     local OUT="$APP_DIR/storage/logs/baseline-$STAMP.txt"
     mkdir -p "$APP_DIR/storage/logs" 2>/dev/null
