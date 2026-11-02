@@ -286,15 +286,17 @@ mysql_status() {
           ), 5) AS hit_ratio;" 2>/dev/null | sed 's/^/   /'
     echo "   hit_ratio < 0,99 untuk beban sekecil ini = buffer pool jauh terlalu kecil."
 
+    # SHOW GLOBAL STATUS, bukan performance_schema.global_status: pada server dengan
+    # performance_schema=OFF sebagian counter (termasuk Com_commit) tidak muncul di sana,
+    # dan kegagalannya tidak terlihat — angkanya hilang begitu saja tanpa pesan.
     sub "Metrik lain"
     "${MYSQL[@]}" -e "
-        SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status
-        WHERE VARIABLE_NAME IN (
+        SHOW GLOBAL STATUS WHERE Variable_name IN (
             'Com_commit','Com_select','Questions','Uptime','Threads_running','Threads_connected',
             'Opened_tables','Open_tables','Table_open_cache_misses','Table_open_cache_overflows',
             'Created_tmp_disk_tables','Created_tmp_tables','Innodb_row_lock_time_avg',
             'Innodb_os_log_written','Slow_queries','Aborted_connects'
-        ) ORDER BY VARIABLE_NAME;" 2>/dev/null | sed 's/^/   /'
+        );" 2>/dev/null | sed 's/^/   /'
     echo
     echo "   Com_commit / Uptime ≈ commit per detik. Dengan SESSION_DRIVER=database,"
     echo "   angka itu kira-kira sama dengan request per detik — tiap request satu fsync."
@@ -302,19 +304,29 @@ mysql_status() {
     echo "   Threads_running > 4 (2x vCPU) berkelanjutan = saturasi."
     echo "   Opened_tables yang terus memanjat = table_open_cache terlalu kecil."
 
-    sub "Sampel kedua 60 detik lagi, untuk menghitung laju (bukan total sejak boot)"
+    sub "Sampel kedua, untuk menghitung laju (bukan total sejak boot)"
     local c1 q1 c2 q2
-    c1="$("${MYSQL[@]}" -e "SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Com_commit'" 2>/dev/null)"
-    q1="$("${MYSQL[@]}" -e "SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Questions'" 2>/dev/null)"
+    c1="$(status_of Com_commit)"; q1="$(status_of Questions)"
     local JEDA="${BASELINE_SAMPLE_SECONDS:-60}"
     echo "   menunggu ${JEDA} detik..."
     sleep "$JEDA"
-    c2="$("${MYSQL[@]}" -e "SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Com_commit'" 2>/dev/null)"
-    q2="$("${MYSQL[@]}" -e "SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Questions'" 2>/dev/null)"
+    c2="$(status_of Com_commit)"; q2="$(status_of Questions)"
+
     if [ -n "${c1:-}" ] && [ -n "${c2:-}" ]; then
         echo "   commit/detik : $(awk -v a="$c1" -v b="$c2" -v d="$JEDA" 'BEGIN{printf "%.2f", (b-a)/d}')"
-        echo "   query/detik  : $(awk -v a="$q1" -v b="$q2" -v d="$JEDA" 'BEGIN{printf "%.2f", (b-a)/d}')"
+    else
+        lewati "Com_commit tidak terbaca"
     fi
+    if [ -n "${q1:-}" ] && [ -n "${q2:-}" ]; then
+        echo "   query/detik  : $(awk -v a="$q1" -v b="$q2" -v d="$JEDA" 'BEGIN{printf "%.2f", (b-a)/d}')"
+    else
+        lewati "Questions tidak terbaca"
+    fi
+}
+
+# Satu nilai status global. SHOW GLOBAL STATUS, bukan performance_schema — lihat alasan di atas.
+status_of() {
+    "${MYSQL[@]}" -e "SHOW GLOBAL STATUS WHERE Variable_name='$1'" 2>/dev/null | awk '{print $2}'
 }
 
 mysql_ukuran() {
