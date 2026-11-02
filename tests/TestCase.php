@@ -8,8 +8,43 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * ==========================================================================
+ * PERINGATAN: SUITE INI *TIDAK* MENGUJI MULTI-TENANCY.
+ * ==========================================================================
+ *
+ * Selama `$realTenancy === false` (default), setUp() MENGOSONGKAN
+ * `tenancy.bootstrappers`. Artinya DatabaseTenancyBootstrapper,
+ * FilesystemTenancyBootstrapper, dan QueueTenancyBootstrapper TIDAK PERNAH
+ * dieksekusi: seluruh test berjalan pada SATU database (central + tenant
+ * menyatu), satu folder storage, dan satu konteks queue.
+ *
+ * Konsekuensinya, suite ini hijau TANPA membuktikan apa pun tentang:
+ *   - isolasi data antar perusahaan,
+ *   - pin koneksi central untuk model central,
+ *   - validasi unique/exists yang melintasi database,
+ *   - storage per-tenant,
+ *   - pipeline provisioning (CreateDatabase → MigrateDatabase → SeedDatabase),
+ *   - konteks tenant di dalam queued job.
+ *
+ * Hal-hal itu diuji oleh testsuite TERPISAH `TenancyReal`
+ * (lihat tests/TenancyTestCase.php + tests/Tenancy/, dan phpunit.xml):
+ *
+ *     php artisan test --testsuite=TenancyReal
+ *
+ * JANGAN menambahkan test tenancy ke sini — di sini tenancy mati, jadi test
+ * seperti itu akan hijau karena alasan yang salah.
+ */
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Apakah bootstrapper tenancy dibiarkan NYATA.
+     *
+     * false (default) = tenancy dilumpuhkan, lihat docblock kelas di atas.
+     * Hanya Tests\TenancyTestCase yang menyetelnya true.
+     */
+    protected bool $realTenancy = false;
+
     /**
      * Slug perusahaan default untuk test. Semua request non-central otomatis
      * di-prefix /c/{slug} (lihat call()), user actingAs otomatis menjadi
@@ -26,12 +61,21 @@ abstract class TestCase extends BaseTestCase
         '/login', '/logout', '/register', '/forgot-password', '/reset-password',
         '/verify-email', '/email', '/confirm-password', '/language',
         '/choose-company', '/up',
+        // Publik / lintas perusahaan — tidak pernah ber-prefix /c/{company}.
+        '/panduan',
+        // Rute aset vendor stancl (stancl.tenancy.asset). Dorman selama
+        // tenancy.filesystem.asset_helper_tenancy = false, tetapi tetap central.
+        '/tenancy',
+        // Lensa grup lintas perusahaan. BELUM ADA RUTENYA — entri ini mendahului
+        // fiturnya supaya /grup tidak pernah ikut ter-prefix saat dibuat nanti.
+        '/grup',
         // Catatan: '/storage' TIDAK lagi central — berkas perusahaan dilayani
         // route /c/{company}/storage/{path} (lihat TenantStorageController).
     ];
 
     /**
-     * Test berjalan pada SATU database (central + tenant menyatu):
+     * Test berjalan pada SATU database (central + tenant menyatu) selama
+     * $realTenancy === false:
      * - bootstrappers tenancy dikosongkan → InitializeTenancyByPath tetap
      *   men-set tenant() tanpa menukar koneksi/storage/queue;
      * - migration tenant dimuat ke DB test via AppServiceProvider (env testing);
@@ -41,7 +85,12 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        config(['tenancy.bootstrappers' => []]);
+        // Pelumpuhan tenancy — EKSPLISIT dan dapat dimatikan per kelas.
+        // Lihat docblock kelas: tanpa bootstrapper, tenancy hanya menyetel
+        // tenant() tanpa menukar koneksi/storage/queue.
+        if (! $this->realTenancy) {
+            config(['tenancy.bootstrappers' => []]);
+        }
 
         if (Schema::hasTable('companies')) {
             $organization = Organization::firstOrCreate(

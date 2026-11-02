@@ -11,6 +11,15 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!--
+            Tenancy NYATA: database tenant sungguhan, bootstrapper TIDAK
+            dikosongkan. Dipisah karena harness-nya berbeda total dari suite
+            Unit/Feature, di sana tenancy dilumpuhkan. Cara menjalankan dan
+            alasannya ada di docblock tests/TenancyTestCase.php.
+        -->
+        <testsuite name="TenancyReal">
+            <directory>tests/Tenancy</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
