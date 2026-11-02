@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { Building2, ChevronDown, ChevronRight, LogOut, Menu, Settings } from 'lucide-react';
+import { Building2, Check, ChevronDown, ChevronRight, LogOut, Menu, Settings } from 'lucide-react';
 import * as React from 'react';
 import { AppLink } from '@/components/app-link';
 import { NotificationBell } from '@/components/notifications/notification-bell';
@@ -135,7 +135,7 @@ function LanguageSwitcher({ locale }: { locale: string }) {
 
 /** Chip akun: avatar inisial + nama + peran; membuka menu profil, perusahaan, keluar. */
 function UserChip() {
-    const { auth } = usePage<SharedProps>().props;
+    const { auth, company, companies } = usePage<SharedProps>().props;
     const [open, setOpen] = React.useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
     const user = auth.user;
@@ -183,6 +183,39 @@ function UserChip() {
                     className="absolute right-0 top-full z-50 mt-1.5 flex w-56 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20 ob-fade-in"
                 >
                     <span className="truncate px-2.5 pt-1.5 pb-2 text-xs text-ob-ink-3">{user?.email ?? ''}</span>
+                    {/*
+                     * Pengalih perusahaan. Hanya muncul bila pengguna memang anggota lebih
+                     * dari satu perusahaan — pengguna satu perusahaan tidak perlu tahu
+                     * fitur grup ini ada.
+                     *
+                     * Sengaja <a href> biasa, BUKAN AppLink: AppLink menambahkan prefix
+                     * perusahaan AKTIF, padahal di sini tujuannya justru perusahaan LAIN.
+                     * Muat ulang penuh juga yang paling aman — berpindah perusahaan berarti
+                     * berpindah database, jadi seluruh state halaman lama harus dibuang.
+                     */}
+                    {companies.length > 1 && (
+                        <>
+                            <span className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-ob-ink-3">Perusahaan</span>
+                            {companies.map((c) => {
+                                const aktif = c.slug === company?.slug;
+
+                                return (
+                                    <a
+                                        key={c.slug}
+                                        href={`/c/${c.slug}/dashboard`}
+                                        role="menuitem"
+                                        aria-current={aktif ? 'true' : undefined}
+                                        className={cn(item, aktif && 'bg-ob-hover text-ob-ink')}
+                                    >
+                                        <Building2 className="h-4 w-4 shrink-0 opacity-70" />
+                                        <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                                        {aktif && <Check className="h-4 w-4 shrink-0 opacity-80" />}
+                                    </a>
+                                );
+                            })}
+                            <span className="my-1 h-px bg-ob-line" />
+                        </>
+                    )}
                     <AppLink href="/settings" role="menuitem" className={item} onClick={() => setOpen(false)}>
                         <Settings className="h-4 w-4 opacity-70" /> Pengaturan
                     </AppLink>

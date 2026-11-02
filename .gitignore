@@ -7,10 +7,13 @@
 /storage/pail
 /storage/backups
 /vendor
+# Semua varian .env diabaikan, KECUALI .env.example. Daftar putih ini lebih aman
+# daripada menyebut satu per satu: berkas seperti .env.demo berisi sandi database
+# dan dulu tidak tercakup pola lama, jadi ia akan muncul sebagai berkas baru yang
+# siap ter-commit tanpa ada yang menyadarinya.
 .env
-.env.backup
-.env.production
-.env.testing
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -58,3 +61,7 @@ __pycache__/
 
 # Hasil render video Remotion (npm run video:render)
 /out/
+
+# Hasil kerja demo lokal: dump database dev (berisi data nyata) dan berkas
+# sementaranya. Skrip di docs/demo/ membuat ulang semuanya kapan saja.
+/storage/demo/sumber.sql
