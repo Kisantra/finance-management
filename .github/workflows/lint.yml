@@ -33,6 +33,13 @@ jobs:
       - name: Run Pint
         run: vendor/bin/pint
 
+      # Gerbang ini sebelumnya tidak ada, dan 14 error tipe sempat menumpuk tanpa
+      # terlihat. Tiga di antaranya cacat yang dilihat pengguna: paginasi yang
+      # melempar (layar putih), tombol Simpan yang mati, dan tabel Template Builder
+      # yang dirender PDF memakai renderer yang salah. Compiler sudah tahu ketiganya.
+      - name: Periksa tipe TypeScript
+        run: npm run types
+
       # - name: Commit Changes
       #   uses: stefanzweifel/git-auto-commit-action@v5
       #   with:

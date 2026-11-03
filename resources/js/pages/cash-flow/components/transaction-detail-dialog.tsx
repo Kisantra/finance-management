@@ -203,7 +203,9 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
                     />
                 ) : data.kind === 'payment' ? (
                     <PaymentDetailContent data={data} onClose={() => onOpenChange(false)} />
-                ) : (
+                ) : data.kind === 'transfer' ? (
+                    /* Dipersempit secara positif, bukan lewat cabang `else`: kalau suatu saat
+                       ada jenis baru, ia tidak ikut dirender sebagai transfer. */
                     <TransferEditContent
                         data={data}
                         form={form}
@@ -213,7 +215,7 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
                         onSubmit={handleSubmit}
                         onClose={() => onOpenChange(false)}
                     />
-                )}
+                ) : null}
             </DialogContent>
         </Dialog>
     );

@@ -4,7 +4,9 @@ import { cn } from '@/lib/utils';
 interface FormSectionProps {
     title: string;
     description?: string;
-    children: React.ReactNode;
+    /** Opsional: sebagian halaman memakai komponen ini sebagai judul bagian saja,
+        dengan field-nya sebagai elemen saudara, bukan anak. */
+    children?: React.ReactNode;
     className?: string;
 }
 

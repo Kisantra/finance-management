@@ -125,6 +125,8 @@ class ReceivableControllerTest extends TestCase
         $receivable = $this->makeReceivable(['status' => 'active']);
 
         $this->actingAs($this->admin)->post("/receivables/{$receivable->id}/pay", [
+            // Wajib di payload request (divalidasi PayReceivableRequest) — berbeda dari
+            // tabel `receivable_payments`, yang memang tidak punya kolom ini.
             'bank_account_id' => $this->bankAccount->id,
             'payment_date' => '2026-02-01',
             'principal_paid' => 500000,
@@ -272,7 +274,6 @@ class ReceivableControllerTest extends TestCase
             'due_date' => now()->subMonths(2)->toDateString(),
         ]);
         $menunggak->payments()->create([
-            'bank_account_id' => $this->bankAccount->id,
             'payment_date' => now()->subMonths(3)->toDateString(),
             'principal_paid' => 3_000_000,
             'interest_paid' => 0,
@@ -287,7 +288,6 @@ class ReceivableControllerTest extends TestCase
             'due_date' => now()->subMonths(1)->toDateString(),
         ]);
         $sudahKembali->payments()->create([
-            'bank_account_id' => $this->bankAccount->id,
             'payment_date' => now()->subMonths(1)->toDateString(),
             'principal_paid' => 5_000_000,
             'interest_paid' => 0,
@@ -327,7 +327,6 @@ class ReceivableControllerTest extends TestCase
             'due_date' => now()->addMonth()->toDateString(),
         ]);
         $aktif->payments()->create([
-            'bank_account_id' => $this->bankAccount->id,
             'payment_date' => now()->toDateString(),
             'principal_paid' => 2_000_000,
             'interest_paid' => 100_000,
@@ -342,7 +341,6 @@ class ReceivableControllerTest extends TestCase
             'due_date' => now()->subMonth()->toDateString(),
         ]);
         $lunas->payments()->create([
-            'bank_account_id' => $this->bankAccount->id,
             'payment_date' => now()->subMonth()->toDateString(),
             'principal_paid' => 2_500_000,
             'interest_paid' => 300_000,

@@ -1,5 +1,6 @@
 ﻿import * as React from 'react';
 import { router, usePage } from '@inertiajs/react';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
 import { AppLayout } from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -220,7 +221,16 @@ type Band = {
     elements: BandEl[];
 };
 
-type HeaderBand = Band & { repeat: boolean };
+/*
+ * Ditulis utuh, bukan `Band & { repeat: boolean }`: tipe interseksi tidak
+ * mendapat index signature implisit, sehingga BandedLayout yang memuatnya
+ * ditolak sebagai payload `router.post`. Isinya sama persis dengan Band + repeat.
+ */
+type HeaderBand = {
+    height: number;
+    elements: BandEl[];
+    repeat: boolean;
+};
 
 type BandedLayout = {
     paper: { margins: { top: number; right: number; bottom: number; left: number } };
@@ -265,10 +275,20 @@ function makeDefaultTable(id: number, catalog: ItemColumnEntry[], x: number, y: 
     };
     const colWidths = defaults.map((c) => widths[c.key] ?? 100);
 
+    /*
+     * `kind` WAJIB ada. Dua hal bergantung padanya:
+     *   1. tinggi baris di editor (`row.kind === 'body' ? TABLE_ROW_H : TABLE_HEADER_H`);
+     *   2. deteksi di template PDF — `isset($rows[0]['kind'])` yang memilih antara
+     *      renderer row-band milik builder ini dan renderer legacy.
+     * Tanpa `kind`, setiap tabel yang dibuat lewat builder dirender PDF memakai jalur
+     * legacy, sehingga hasil cetaknya tidak sama dengan yang terlihat di editor.
+     */
     const headRow: TableRow = {
+        kind: 'head',
         cells: defaults.map((c) => ({ content: c.label, align: c.align, bold: true })),
     };
     const detailRow: TableRow = {
+        kind: 'body',
         repeat: 'items',
         cells: defaults.map((c) => ({ content: `{{item.${c.key}}}`, align: c.align })),
     };
@@ -1116,7 +1136,7 @@ export default function PdfTemplateEdit() {
         snapshot();
         updateTrb((el) => {
             const newCells: TableCell[] = el.colWidths.map(() => ({ content: '', align: 'left' as const }));
-            const newRow: TableRow = { cells: newCells };
+            const newRow: TableRow = { kind: 'body', cells: newCells };
             const rows = [...el.rows];
             const insertIdx = selectedCell != null ? selectedCell.row + 1 : rows.length;
             rows.splice(insertIdx, 0, newRow);
@@ -1363,13 +1383,19 @@ export default function PdfTemplateEdit() {
 
     const save = () => {
         setSaving(true);
-        const layout: BandedLayout = {
-            paper: { margins },
-            bands,
-        };
+        const layout: BandedLayout = { paper: { margins }, bands };
+        /*
+         * Penegasan tipe, bukan penyembunyian error. `FormDataConvertible` hanya
+         * menerima objek yang punya index signature implisit, dan itu tidak menurun
+         * ke tipe bernama bersarang (HeaderBand, TableEl, Band) — padahal isinya murni
+         * data polos: angka, string, boolean, null, dan array. Inertia
+         * menserialisasikannya tanpa masalah, dan itulah yang sudah berjalan selama ini.
+         * `as unknown as` dipakai alih-alih `@ts-expect-error` supaya kesalahan LAIN
+         * pada baris ini tetap tertangkap compiler.
+         */
         router.post(
             companyUrl(`/settings/pdf-templates/${template.id}/save`),
-            { layout },
+            { layout: layout as unknown as FormDataConvertible },
             {
                 preserveScroll: true,
                 preserveState: true,

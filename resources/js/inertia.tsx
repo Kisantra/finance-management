@@ -22,14 +22,31 @@ trackNavigation();
 // Harus sebelum createInertiaApp: listener popstate-nya perlu berjalan lebih dulu dari milik Inertia.
 installResourceModal();
 
+/** Bentuk modul halaman: komponen default, dengan `layout` opsional yang dipasang padanya. */
+type ModulHalaman = {
+    default: React.ComponentType<Record<string, never>> & {
+        layout?: (page: React.ReactNode) => React.ReactNode;
+    };
+};
+
 createInertiaApp({
     title: (title) => (title ? `${title} — ${appName}` : appName),
 
-    resolve: (name) =>
-        resolvePageComponent(
+    /*
+     * `.default` dibuka di sini, bukan diserahkan ke Inertia. `resolvePageComponent`
+     * mengembalikan MODUL-nya, dan tipe resolver Inertia tidak memuat
+     * `Promise<{ default: ... }>` — padahal runtime-nya menerimanya. Membukanya sendiri
+     * membuat tipenya jujur tanpa cast, dan hasilnya identik: `layout` di repo ini
+     * selalu dipasang pada komponennya (`Halaman.layout = ...`), bukan diekspor terpisah.
+     */
+    resolve: async (name) => {
+        const modul = await resolvePageComponent(
             `./pages/${name}.tsx`,
-            import.meta.glob('./pages/**/*.tsx'),
-        ),
+            import.meta.glob<ModulHalaman>('./pages/**/*.tsx'),
+        );
+
+        return modul.default;
+    },
 
     setup({ el, App, props }) {
         syncActiveCompany(props.initialPage.props);

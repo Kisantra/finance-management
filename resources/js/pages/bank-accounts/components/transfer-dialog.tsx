@@ -261,7 +261,7 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId }: 
     );
 }
 
-function FlowChip({ account, label, tone }: { account?: AccountListItem; label: string; tone: 'red' | 'green' }) {
+function FlowChip({ account, label, tone }: { account?: AccountPickerItem; label: string; tone: 'red' | 'green' }) {
     const toneMap = {
         red: 'border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-900/10',
         green: 'border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10',

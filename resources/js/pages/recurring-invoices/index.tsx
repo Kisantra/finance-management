@@ -658,7 +658,7 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                                     options={templateOptions}
                                     value={form.template_id ? String(form.template_id) : ''}
                                     onChange={(v) => {
-                                        const id = v ? parseInt(v) : null;
+                                        const id = v ? Number(v) : null;
                                         setForm({ ...form, template_id: id });
                                         loadFromTemplate(id);
                                     }}
@@ -1331,7 +1331,7 @@ export default function RecurringInvoicesIndex({
                                 <Combobox
                                     options={[{ value: '', label: 'Semua Template' }, ...active_templates.map((t) => ({ value: String(t.id), label: t.label }))]}
                                     value={monthly.template_filter ? String(monthly.template_filter) : ''}
-                                    onChange={(v) => navigateMonthly(monthly.month, monthly.year, v ? parseInt(v) : null)}
+                                    onChange={(v) => navigateMonthly(monthly.month, monthly.year, v ? Number(v) : null)}
                                     placeholder="Filter template"
                                     className="w-52"
                                 />
@@ -1480,7 +1480,7 @@ export default function RecurringInvoicesIndex({
                             <Combobox
                                 options={yearOptions}
                                 value={String(analyticsYear)}
-                                onChange={(v) => { if (v) { setAnalyticsYear(parseInt(v)); navigateAnalytics(parseInt(v), analyticsPeriod); } }}
+                                onChange={(v) => { if (v) { setAnalyticsYear(Number(v)); navigateAnalytics(Number(v), analyticsPeriod); } }}
                                 placeholder="Tahun"
                                 className="w-32"
                             />

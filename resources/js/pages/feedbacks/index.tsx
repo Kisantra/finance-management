@@ -109,7 +109,9 @@ interface Stats {
     feedbacks: number;
 }
 
-interface Filters {
+/* `type`, bukan `interface`: hanya type alias yang mendapat index signature
+   implisit, dan tanpa itu objek ini ditolak sebagai payload `router.get`. */
+type Filters = {
     tab: 'all' | 'mine';
     search?: string;
     status?: string;
@@ -118,7 +120,7 @@ interface Filters {
     per_page?: number;
     sort?: string;
     direction?: string;
-}
+};
 
 interface Props extends SharedProps {
     rows: PaginatedFeedbacks;
