@@ -22,6 +22,26 @@
 # Server PHP bawaan dipanggil langsung di sini, jadi APP_ENV ada di environment
 # proses yang SAMA dengan yang melayani request. Tidak ada perantara yang bisa
 # membuangnya.
+#
+# --------------------------------------------------------------------------
+# CATATAN: `.env` SEKARANG SUDAH MENUNJUK KE DEMO
+# --------------------------------------------------------------------------
+# Sejak 2026-11-03, `.env` diarahkan ke `demo_central` supaya `composer run dev`
+# dan `php artisan serve` biasa ikut bekerja. Sebelumnya `.env` masih menunjuk
+# `finance_main_dev` yang PRA-TENANCY (tidak punya tabel `companies`), sehingga
+# setiap login berakhir dengan 500 "Table finance_main_dev.companies doesn't
+# exist" — bukan karena fiturnya rusak, tetapi karena database-nya salah.
+#
+# Jadi skrip ini TIDAK lagi wajib: `composer run dev` sudah cukup. Skrip ini
+# tetap berguna kalau Anda mengembalikan `.env` ke finance_main_dev dan hanya
+# ingin menjalankan demo sesekali di jendela terpisah.
+#
+# PENTING saat berpindah branch: `main` belum multi-perusahaan, jadi di sana
+# `.env` harus dikembalikan ke `DB_DATABASE=finance_main_dev`. Cadangannya ada
+# di `.env.sebelum-demo-*`.
+#
+# `artisan serve` mengambil snapshot `.env` saat START dan mewariskannya ke
+# proses anak — mengubah `.env` TIDAK berpengaruh sampai servernya di-restart.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
