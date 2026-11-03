@@ -25,7 +25,13 @@ class FundRequestController extends Controller
     {
         $canApprove = auth()->user()->can('approve fund requests');
         $canDisburse = auth()->user()->can('disburse fund requests');
-        $tab = $request->input('tab', $canApprove ? 'all' : 'my');
+        // Izin menentukan tab apa yang BOLEH dibuka, bukan sekadar tab bawaannya.
+        // Bentuk lama — `$request->input('tab', $canApprove ? 'all' : 'my')` —
+        // memakai nilai dari URL apa adanya, sehingga staff cukup menambahkan
+        // ?tab=all untuk membaca permintaan dana milik orang lain. Dibuktikan QC
+        // 2026-11-03: staff melihat permintaan Rp 777.000 milik Finance Manager.
+        // Modul reimbursement sudah memakai bentuk yang benar ini sejak awal.
+        $tab = $canApprove ? $request->input('tab', 'all') : 'my';
 
         $search = $request->input('search');
         $status = $request->input('status');

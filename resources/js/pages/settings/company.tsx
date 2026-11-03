@@ -56,7 +56,7 @@ interface Company {
 }
 
 interface Props extends SharedProps {
-    company: Company | null;
+    companyProfile: Company | null;
 }
 
 interface CompanyFormData {
@@ -92,7 +92,7 @@ const COLOR_MAP: Record<string, { bg: string; text: string }> = {
 };
 
 export default function CompanySettings() {
-    const { company } = usePage<Props>().props;
+    const { companyProfile: company } = usePage<Props>().props;
 
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm<CompanyFormData>({
         name: company?.name ?? '',

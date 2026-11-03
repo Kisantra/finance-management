@@ -30,7 +30,7 @@ interface CompanyRow {
 }
 
 interface Props {
-    companies: CompanyRow[];
+    organizationCompanies: CompanyRow[];
     quota: { used: number; total: number };
     organizationName: string;
 }
@@ -41,7 +41,7 @@ const STATUS_BADGE: Record<CompanyRow['status'], { variant: 'green' | 'yellow' |
     failed: { variant: 'red', label: 'Gagal', icon: <XCircle className="w-3 h-3" /> },
 };
 
-export default function CompaniesIndex({ companies, quota, organizationName }: Props) {
+export default function CompaniesIndex({ organizationCompanies: companies, quota, organizationName }: Props) {
     const [createOpen, setCreateOpen] = React.useState(false);
     const [retryingSlug, setRetryingSlug] = React.useState<string | null>(null);
 

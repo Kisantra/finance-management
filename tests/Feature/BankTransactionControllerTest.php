@@ -133,6 +133,44 @@ class BankTransactionControllerTest extends TestCase
         $this->assertDatabaseMissing('bank_transactions', ['id' => $tx->id]);
     }
 
+    /**
+     * Nomor Referensi adalah teks bebas. Awalan "TRF" di dalamnya BUKAN tanda
+     * bahwa baris itu kaki transfer.
+     *
+     * Cadangan pemasangan untuk transfer lama (sebelum transfer_group_id ada)
+     * dulu memasangkan apa pun yang referensinya berawalan "TRF". QC 2026-11-03
+     * membuktikan akibatnya: tiga biaya kantor biasa yang kebetulan diberi
+     * referensi seperti itu TERHAPUS SEMUA saat salah satunya dihapus.
+     *
+     * Tiga baris debit bernominal berbeda jelas bukan transfer — sepasang
+     * transfer selalu tepat dua baris, satu kredit satu debit, nominal dan
+     * tanggal sama.
+     */
+    public function test_menghapus_biaya_biasa_berawalan_tr_f_tidak_menyeret_baris_lain(): void
+    {
+        $biaya = collect([250_000, 310_000, 480_000])->map(fn (int $nominal) => BankTransaction::factory()->create([
+            'bank_account_id' => $this->account->id,
+            'transaction_type' => 'debit',
+            'amount' => $nominal,
+            'transaction_date' => '2026-03-10',
+            'reference_number' => 'TRF-KANTOR-2026',
+        ]));
+
+        $this->actingAs($this->admin)->delete("/bank-transactions/{$biaya[0]->id}");
+
+        $this->assertDatabaseMissing('bank_transactions', ['id' => $biaya[0]->id]);
+
+        foreach ([$biaya[1], $biaya[2]] as $selamat) {
+            // assertNotNull, bukan assertDatabaseHas: argumen ketiga
+            // assertDatabaseHas adalah nama KONEKSI, bukan pesan kegagalan.
+            $this->assertNotNull(
+                BankTransaction::find($selamat->id),
+                'Biaya lain dengan Nomor Referensi yang sama ikut terhapus. Awalan "TRF" pada '
+                .'teks bebas bukan penanda kaki transfer.'
+            );
+        }
+    }
+
     public function test_transfer_creates_debit_and_credit_pair(): void
     {
         $fromAccount = BankAccount::factory()->create(['initial_balance' => 0]);

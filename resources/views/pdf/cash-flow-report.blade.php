@@ -380,11 +380,14 @@
     </div>
 
     {{-- Footer --}}
+    {{--
+        Atribusi "Generated with Claude Code" DIHAPUS. Ini dokumen keuangan yang
+        dicetak dan dikirim ke klien; alat yang dipakai membangun aplikasinya
+        bukan urusan pembacanya, dan mencantumkannya di laporan kas perusahaan
+        terbaca tidak profesional. Ditemukan QC 2026-11-03.
+    --}}
     <div class="footer">
         <p>Dicetak pada: {{ now()->format('d/m/Y H:i:s') }}</p>
-        <p style="font-style: italic; margin-top: 2px;">
-            🤖 Generated with <a href="https://claude.com/claude-code" style="color: #999;">Claude Code</a>
-        </p>
     </div>
 </body>
 

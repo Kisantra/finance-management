@@ -148,6 +148,15 @@ class UserController extends Controller
                 : array_filter([$aktif]))
             : array_values(array_intersect(array_map('strval', $slugDipilih), $diizinkan));
 
+        // LAPIS KEDUA. Daftar yang dikirim tetapi habis setelah disaring BUKAN
+        // perintah "keluarkan dari semua perusahaan" — itu permintaan yang
+        // seluruh isinya tidak sah. Membiarkannya lolos ke sync() di bawah akan
+        // MENGHAPUS seluruh keanggotaan pengguna. Validasi di StoreUserRequest
+        // sudah menolaknya lebih dulu; ini jaring kalau ada pemanggil lain.
+        if ($slugDipilih !== null && $target === []) {
+            abort(422, 'Tidak ada perusahaan sah yang dipilih. Keanggotaan tidak diubah.');
+        }
+
         // Jangan pernah mengeluarkan diri sendiri dari perusahaan yang sedang dibuka:
         // request berikutnya akan ditolak EnsureUserBelongsToCompany dan admin terkunci
         // di luar pintu yang baru saja ia tutup sendiri.
@@ -166,6 +175,17 @@ class UserController extends Controller
         $user->companies()->sync(array_values(array_unique([...$target, ...$diluar])));
 
         $sebelumnya = getPermissionsTeamId();
+
+        // Peran WAJIB ikut dicabut dari perusahaan yang keanggotaannya dilepas.
+        // Peran per-perusahaan hidup di tabel pivot Spatie, terpisah dari
+        // company_user — melepas keanggotaan saja meninggalkan baris peran yang
+        // yatim, dan peran itu hidup kembali begitu orangnya ditugaskan ulang ke
+        // perusahaan tersebut. Ditemukan QC 2026-11-03.
+        foreach (array_diff($diizinkan, $target) as $slug) {
+            setPermissionsTeamId($slug);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
+            $user->syncRoles([]);
+        }
 
         foreach ($target as $slug) {
             setPermissionsTeamId($slug);

@@ -213,12 +213,37 @@ class BankTransactionController extends Controller
             return BankTransaction::where('transfer_group_id', $bankTransaction->transfer_group_id);
         }
 
-        if ($bankTransaction->reference_number && str_starts_with($bankTransaction->reference_number, 'TRF')) {
-            return BankTransaction::where('reference_number', $bankTransaction->reference_number)
-                ->whereNull('transfer_group_id');
+        if (! $bankTransaction->reference_number || ! str_starts_with($bankTransaction->reference_number, 'TRF')) {
+            return null;
         }
 
-        return null;
+        /*
+         * Cadangan untuk transfer LAMA, dari sebelum transfer_group_id ada.
+         *
+         * Awalan "TRF" saja TIDAK cukup menandai kaki transfer: Nomor Referensi
+         * adalah teks bebas yang diketik pengguna. QC 2026-11-03 membuktikan
+         * akibatnya — tiga biaya kantor biasa yang kebetulan diberi referensi
+         * berawalan "TRF" ikut terhapus semuanya saat satu dihapus.
+         *
+         * Jadi pasangan hanya diakui bila bentuknya memang bentuk transfer, dan
+         * syaratnya sengaja ketat: TEPAT dua baris, satu kredit satu debit,
+         * nominal sama, tanggal sama. Tiga biaya debit tidak lolos; transfer lama
+         * yang asli lolos. Kalau ragu, JANGAN pasangkan — menebak di sini berarti
+         * menghapus baris yang bukan pasangannya, dan itu tidak bisa dibatalkan.
+         */
+        $sekelompok = BankTransaction::where('reference_number', $bankTransaction->reference_number)
+            ->whereNull('transfer_group_id');
+
+        $baris = (clone $sekelompok)->get(['transaction_type', 'amount', 'transaction_date']);
+
+        $berbentukTransfer = $baris->count() === 2
+            && $baris->pluck('transaction_type')->sort()->values()->all() === ['credit', 'debit']
+            && $baris->pluck('amount')->unique()->count() === 1
+            && $baris->pluck('transaction_date')->map(
+                fn ($t) => $t instanceof \DateTimeInterface ? $t->format('Y-m-d') : (string) $t
+            )->unique()->count() === 1;
+
+        return $berbentukTransfer ? $sekelompok : null;
     }
 
     /**

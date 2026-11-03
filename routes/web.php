@@ -169,9 +169,19 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     // ponytail: redirect sandbox GET to new module; keep save/pdf routes for test backward-compat.
+    //
+    // `can:manage pdf templates` WAJIB, sama seperti grup settings/pdf-templates
+    // yang sah (lihat bawah). Tanpa itu, dua route ini adalah pintu belakang:
+    // QC 2026-11-03 membuktikan staff yang dijawab 403 di /settings/pdf-templates
+    // tetap bisa MENIMPA template PDF bawaan perusahaan lewat sini — namanya
+    // berubah jadi "Sandbox", kop suratnya hilang, dan is_default tetap 1,
+    // sehingga setiap invoice berikutnya tercetak dengan template rusak itu.
+    // TemplateBuilderController sendiri tidak punya pemeriksaan izin apa pun.
     Route::get('/template-builder-test', fn () => redirect()->route('settings.pdf-templates.index'))->name('template-builder-test');
-    Route::post('/template-builder-test', [TemplateBuilderController::class, 'save'])->name('template-builder-test.save');
-    Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->name('template-builder-test.pdf');
+    Route::middleware('can:manage pdf templates')->group(function () {
+        Route::post('/template-builder-test', [TemplateBuilderController::class, 'save'])->name('template-builder-test.save');
+        Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->name('template-builder-test.pdf');
+    });
 
     // ------------------------------------------------------------------------
     // CLIENTS & SERVICES

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
@@ -27,7 +28,19 @@ class StoreUserRequest extends FormRequest
             // perusahaan tidak bisa membuka apa pun dan hanya menimbulkan laporan "akun
             // saya rusak".
             'companies' => ['sometimes', 'array', 'min:1'],
-            'companies.*' => ['string', 'exists:mysql.companies,id'],
+            // Dibatasi ke organisasi perusahaan AKTIF, dan ditolak di sini —
+            // bukan disaring diam-diam di controller. Penyaringan diam-diam
+            // mengubah "semua perusahaan yang dikirim tidak sah" menjadi "daftar
+            // kosong", dan daftar kosong yang lolos ke sync() MENGHAPUS SELURUH
+            // keanggotaan pengguna. Ditemukan QC 2026-11-03: aturan `min:1` tidak
+            // menolongnya, karena ia memeriksa permintaannya, bukan sisa setelah
+            // disaring.
+            'companies.*' => [
+                'string',
+                Rule::exists('mysql.companies', 'id')->where(
+                    fn ($q) => $q->where('organization_id', tenant()?->organization_id)
+                ),
+            ],
         ];
     }
 
@@ -38,7 +51,7 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'companies.min' => 'Pilih minimal satu perusahaan. Pengguna tanpa perusahaan tidak dapat membuka halaman apa pun.',
-            'companies.*.exists' => 'Perusahaan yang dipilih tidak dikenal.',
+            'companies.*.exists' => 'Perusahaan yang dipilih tidak dikenal, atau bukan milik organisasi Anda.',
         ];
     }
 }

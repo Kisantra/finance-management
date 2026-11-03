@@ -49,7 +49,7 @@ interface Props extends SharedProps {
     report: Report;
     unclassifiedTypes: Record<string, 'income' | 'expense'>;
     filters: { start_date: string; end_date: string };
-    company: { name: string; address: string | null; npwp: string | null } | null;
+    companyProfile: { name: string; address: string | null; npwp: string | null } | null;
 }
 
 const PL_GROUP_OPTIONS: Record<'income' | 'expense', { value: string; label: string }[]> = {
@@ -147,7 +147,7 @@ function DocSectionTitle({ children }: { children: React.ReactNode }) {
 
 /* ────────────────────────────────────────────────────────── document view ── */
 
-function PdfDocument({ report, company }: { report: Report; company: Props['company'] }) {
+function PdfDocument({ report, company }: { report: Report; company: Props['companyProfile'] }) {
     return (
         <article
             className={cn(
@@ -408,7 +408,7 @@ function UncategorizedPanel({
 /* ─────────────────────────────────────────────────────────────── main page ── */
 
 export default function ProfitLossIndex() {
-    const { report, unclassifiedTypes, filters, company } = usePage<Props>().props;
+    const { report, unclassifiedTypes, filters, companyProfile: company } = usePage<Props>().props;
 
     const [start, setStart] = React.useState<Date>(new Date(filters.start_date + 'T00:00:00'));
     const [end, setEnd] = React.useState<Date>(new Date(filters.end_date + 'T00:00:00'));

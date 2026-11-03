@@ -36,7 +36,12 @@ class CompanyController extends Controller
             ]);
 
         return Inertia::render('admin/companies/index', [
-            'companies' => $companies,
+            // BUKAN 'companies': nama itu dipakai prop bersama yang berisi
+            // perusahaan tempat pengguna menjadi ANGGOTA. Daftar di sini lain —
+            // seluruh perusahaan organisasi, termasuk yang bukan anggotanya —
+            // sehingga menimpanya membuat pengalih perusahaan di header menawarkan
+            // PT yang akan menjawab 403 saat diklik.
+            'organizationCompanies' => $companies,
             'quota' => [
                 'used' => $companies->count(),
                 'total' => $organization->company_quota,

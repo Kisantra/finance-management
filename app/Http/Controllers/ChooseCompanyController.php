@@ -28,7 +28,10 @@ class ChooseCompanyController extends Controller
         }
 
         return Inertia::render('choose-company', [
-            'companies' => $companies->map(fn ($company) => [
+            // BUKAN 'companies': nama itu milik prop bersama. Di sini isinya
+            // kebetulan sama, tetapi membiarkan prop halaman menimpa prop bersama
+            // adalah kebiasaan yang di dua halaman lain sudah terbukti merusak.
+            'memberships' => $companies->map(fn ($company) => [
                 'slug' => $company->getTenantKey(),
                 'name' => $company->name,
                 'abbreviation' => $company->abbreviation,

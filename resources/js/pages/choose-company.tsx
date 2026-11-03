@@ -6,10 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { CompanyOption, SharedProps } from '@/types';
 
 interface Props {
-    companies: CompanyOption[];
+    memberships: CompanyOption[];
 }
 
-export default function ChooseCompany({ companies }: Props) {
+export default function ChooseCompany({ memberships: companies }: Props) {
     const { auth } = usePage<SharedProps>().props;
 
     return (

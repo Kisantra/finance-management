@@ -149,4 +149,85 @@ class RecurringInvoiceHardeningTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('items.0.unit');
     }
+
+    /**
+     * Invoice hasil publish harus menagih sejumlah barisnya — termasuk titipan pajak.
+     *
+     * Ditemukan QC 2026-11-03 (T-04). `invoice_data['subtotal']` dan
+     * `['total_amount']` yang disimpan adalah basis OMZET: builder di
+     * RecurringInvoiceController sengaja TIDAK menjumlahkan item titipan pajak,
+     * dan halaman analitik memang menolak item titipan saat menghitung
+     * pendapatan. Itu benar untuk pelaporan.
+     *
+     * publish() dulu memakai angka omzet itu sebagai nilai TAGIHAN, sehingga
+     * invoice menagih kurang persis sebesar titipannya: baris berjumlah
+     * 9.500.000 tetapi total tertulis 8.000.000 — satu-satunya invoice di
+     * aplikasi ini yang totalnya tidak sama dengan jumlah barisnya. PDF-nya
+     * bahkan mencetak "Termasuk titipan pajak Rp 1.500.000" yang dibantah
+     * totalnya sendiri, dan perusahaan menyetor pajak lebih besar dari yang ia
+     * tagih ke klien.
+     *
+     * Fixture di sini SENGAJA memakai bentuk yang dihasilkan builder sungguhan
+     * (subtotal tanpa titipan). Test publish yang lama memakai fixture yang
+     * kebetulan konsisten, jadi ia tidak pernah bisa menangkap ini.
+     */
+    public function test_publish_menagih_sejumlah_barisnya_termasuk_titipan_pajak(): void
+    {
+        $template = $this->template();
+
+        $recurring = RecurringInvoice::create([
+            'template_id' => $template->id,
+            'client_id' => $this->klien->id,
+            'scheduled_date' => now(),
+            'issue_date' => now(),
+            'due_date' => now()->addDays(30),
+            'status' => 'draft',
+            'invoice_data' => [
+                // Basis omzet: 8.000.000 saja, titipan 1.500.000 tidak dijumlahkan.
+                'subtotal' => 8_000_000,
+                'total_amount' => 8_000_000,
+                'discount_amount' => 0,
+                'items' => [
+                    [
+                        'service_name' => 'Jasa Konsultan',
+                        'quantity' => 1,
+                        'unit' => 'bulan',
+                        'unit_price' => 8_000_000,
+                        'amount' => 8_000_000,
+                        'cogs_amount' => 0,
+                        'is_tax_deposit' => false,
+                    ],
+                    [
+                        'service_name' => 'Titipan PPh 21',
+                        'quantity' => 1,
+                        'unit' => 'dokumen',
+                        'unit_price' => 1_500_000,
+                        'amount' => 1_500_000,
+                        'cogs_amount' => 0,
+                        'is_tax_deposit' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        $invoice = $recurring->publish();
+
+        $jumlahBaris = (int) $invoice->items()->sum('amount');
+
+        $this->assertSame(9_500_000, $jumlahBaris, 'Prasyarat: kedua item harus tersalin.');
+
+        $this->assertSame(
+            $jumlahBaris,
+            (int) $invoice->total_amount,
+            'Invoice menagih '.$invoice->total_amount.' padahal barisnya berjumlah '.$jumlahBaris
+            .'. Selisihnya adalah titipan pajak yang tidak ikut ditagih — perusahaan menyetor '
+            .'pajak lebih besar daripada yang diterimanya dari klien.'
+        );
+
+        $this->assertSame(
+            9_500_000,
+            (int) $invoice->subtotal,
+            'Subtotal invoice harus mencakup semua baris, sama seperti invoice biasa.'
+        );
+    }
 }
