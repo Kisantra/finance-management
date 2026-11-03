@@ -43,4 +43,11 @@ export interface LoanStats {
     total_principal: number;
     active_count: number;
     active_principal: number;
+    /** Pokok pinjaman aktif yang belum dibayar — angka utama halaman. */
+    outstanding_principal: number;
+    /** Pokok & bunga yang sudah dibayar, dicakup ke pinjaman aktif saja. */
+    paid_principal: number;
+    paid_interest: number;
+    /** Jatuh tempo terdekat di antara pinjaman aktif; null bila tidak ada yang aktif. */
+    next_maturity: string | null;
 }

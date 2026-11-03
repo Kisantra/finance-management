@@ -202,6 +202,16 @@ summary {
     cursor: pointer;
 }
 
+/* Pasangan aturan di atas: yang nonaktif harus terasa nonaktif sebelum diklik, bukan sesudah.
+   Opasitas saja menyisakan kursor "pointer" yang menjanjikan tombolnya bisa ditekan. */
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+}
+
 /* Typography - Heading fonts */
 h1, h2, h3, h4, h5, h6,
 .heading,

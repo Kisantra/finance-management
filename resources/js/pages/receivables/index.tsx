@@ -96,7 +96,7 @@ function isoOrNull(d: Date | null): string | null {
 }
 
 function statusBadge(status: string) {
-    const map: Record<string, JSX.Element> = {
+    const map: Record<string, React.ReactElement> = {
         draft: <Badge variant="zinc">Draft</Badge>,
         pending_approval: <Badge variant="yellow">Menunggu</Badge>,
         active: <Badge variant="blue">Aktif</Badge>,
@@ -396,15 +396,7 @@ export default function ReceivablesIndex({
                     </div>
                 )}
 
-                {pagination.last_page > 1 && (
-                    <Pagination
-                        currentPage={pagination.current_page}
-                        lastPage={pagination.last_page}
-                        perPage={pagination.per_page}
-                        total={pagination.total}
-                        onPageChange={(page) => apply({ page })}
-                    />
-                )}
+                {pagination.last_page > 1 && <Pagination meta={pagination} onPageChange={(page) => apply({ page })} />}
             </div>
 
             {/* Create Sheet */}

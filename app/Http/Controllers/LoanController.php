@@ -14,6 +14,7 @@ use App\Services\JadwalAngsuranService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -48,8 +49,19 @@ class LoanController extends Controller
             COUNT(*) as total,
             SUM(principal_amount) as total_principal,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as active_principal
+            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as active_principal,
+            MIN(CASE WHEN status = 'active' THEN maturity_date END) as next_maturity
         ")->first();
+
+        // Dicakup ke pinjaman AKTIF, bukan seluruh pembayaran: sisa pokok hanya punya arti
+        // untuk utang yang masih berjalan, dan pinjaman yang ditandai lunas secara manual
+        // (pembayarannya tidak genap) akan menggeser angkanya kalau ikut dijumlah.
+        $terbayarAktif = LoanPayment::whereHas('loan', fn ($q) => $q->where('status', 'active'))
+            ->selectRaw('COALESCE(SUM(principal_paid), 0) as pokok, COALESCE(SUM(interest_paid), 0) as bunga')
+            ->first();
+
+        $activePrincipal = (int) ($statsRow->active_principal ?? 0);
+        $paidPrincipal = (int) ($terbayarAktif->pokok ?? 0);
 
         $rows = $paginator->map(fn (Loan $l) => [
             'id' => $l->id,
@@ -94,7 +106,13 @@ class LoanController extends Controller
                 'total' => (int) ($statsRow->total ?? 0),
                 'total_principal' => (int) ($statsRow->total_principal ?? 0),
                 'active_count' => (int) ($statsRow->active_count ?? 0),
-                'active_principal' => (int) ($statsRow->active_principal ?? 0),
+                'active_principal' => $activePrincipal,
+                'outstanding_principal' => max(0, $activePrincipal - $paidPrincipal),
+                'paid_principal' => $paidPrincipal,
+                'paid_interest' => (int) ($terbayarAktif->bunga ?? 0),
+                'next_maturity' => $statsRow->next_maturity
+                    ? Carbon::parse($statsRow->next_maturity)->toDateString()
+                    : null,
             ],
             'filters' => [
                 'search' => $search,
