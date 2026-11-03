@@ -72,12 +72,56 @@ class ErrorReportService
     }
 
     /**
+     * Pesan yang SENGAJA ditulis di `abort(403, '...')`, bila aman ditampilkan.
+     *
+     * Tanpa ini, setiap pesan yang disusun khusus dibuang dan diganti teks tetap
+     * per kode status — ada 10+ di aplikasi ini, dan semuanya kalimat yang memang
+     * ditulis untuk menjelaskan situasinya. Akibat paling terasa ada di onboarding:
+     * pengguna baru yang belum ditautkan ke perusahaan mana pun membaca "Akun Anda
+     * tidak memiliki izin untuk membuka halaman ini", bukan "Akun Anda belum
+     * terdaftar di perusahaan mana pun. Hubungi administrator." — lalu ia
+     * menyimpulkan akunnya rusak dan membuka tiket yang tidak perlu.
+     *
+     * Tiga syarat, dan ketiganya soal keamanan, bukan kerapian:
+     *
+     * 1. Hanya HttpExceptionInterface — artinya exception ini memang dibuat oleh
+     *    `abort()` di kode kita, bukan kecelakaan runtime yang kebetulan punya pesan.
+     * 2. Hanya status < 500. Pesan exception 5xx bisa memuat SQL beserta datanya;
+     *    itu sebabnya detail teknis di kelas ini pun hanya dikirim ke role admin.
+     * 3. Pesan yang berbau internal ditolak: backslash (nama kelas ber-namespace),
+     *    "SQLSTATE", dan "No query results for model" — yang terakhir dihasilkan
+     *    route-model binding pada 404 dan membocorkan nama model beserta id-nya.
+     */
+    private static function pesanKhusus(Throwable $e, int $status): ?string
+    {
+        if (! $e instanceof HttpExceptionInterface || $status >= 500) {
+            return null;
+        }
+
+        $pesan = trim($e->getMessage());
+
+        if ($pesan === '' || mb_strlen($pesan) > 300) {
+            return null;
+        }
+
+        foreach (['\\', 'SQLSTATE', 'No query results for model'] as $penanda) {
+            if (str_contains($pesan, $penanda)) {
+                return null;
+            }
+        }
+
+        return $pesan;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function props(int $status, Throwable $e, Request $request): array
     {
         [$title, $description] = self::MESSAGES[$status]
             ?? ($status >= 500 ? self::MESSAGES[500] : ['Permintaan tidak dapat diproses', 'Terjadi kendala saat memproses permintaan Anda.']);
+
+        $description = self::pesanKhusus($e, $status) ?? $description;
 
         $user = $request->user();
 

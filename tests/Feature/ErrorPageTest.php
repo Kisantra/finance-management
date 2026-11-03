@@ -80,6 +80,12 @@ class ErrorPageTest extends TestCase
             Route::get('/_uji/query-rusak', fn () => DB::table('tabel_yang_tidak_pernah_ada')->get());
 
             Route::get('/_uji/invoice/{invoice}', fn (Invoice $invoice) => 'tidak pernah sampai');
+
+            Route::get('/_uji/ditolak-dengan-alasan', fn () => abort(403, 'Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.'));
+
+            Route::get('/_uji/ditolak-tanpa-alasan', fn () => abort(403));
+
+            Route::get('/_uji/bocor-namespace', fn () => abort(403, 'Gagal memuat App\Models\Invoice milik tenant rahasia'));
         });
     }
 
@@ -306,5 +312,72 @@ class ErrorPageTest extends TestCase
             ->assertJsonStructure(['id']);
 
         $this->assertSame('bug', Feedback::sole()->type);
+    }
+
+    /**
+     * Pesan yang ditulis di `abort(403, '...')` harus sampai ke pengguna.
+     *
+     * Ada 10+ panggilan abort berpesan khusus di aplikasi ini — semuanya kalimat
+     * yang memang disusun untuk menjelaskan situasinya. Sebelum perbaikan,
+     * ErrorReportService membuang semuanya dan menggantinya dengan teks tetap per
+     * kode status. Yang paling merugikan ada di onboarding: pengguna baru yang
+     * belum ditautkan ke perusahaan membaca "tidak memiliki izin", lalu
+     * menyimpulkan akunnya rusak.
+     */
+    public function test_pesan_abort_khusus_ditampilkan_apa_adanya(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/ditolak-dengan-alasan')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.')
+            );
+    }
+
+    /** Tanpa pesan khusus, teks tetap per kode status tetap dipakai. */
+    public function test_tanpa_pesan_khusus_memakai_teks_bawaan(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/ditolak-tanpa-alasan')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.')
+            );
+    }
+
+    /**
+     * GERBANG KEBOCORAN. Pesan yang memuat nama kelas ber-namespace tidak boleh
+     * lolos ke pengguna biasa — detail teknis di kelas ini memang sengaja dibatasi
+     * ke role admin saja.
+     */
+    public function test_pesan_yang_memuat_detail_internal_tidak_ditampilkan(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/bocor-namespace')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.')
+            );
+    }
+
+    /**
+     * Pesan exception 5xx bisa memuat SQL beserta datanya, jadi ia TIDAK boleh
+     * dipakai sebagai deskripsi — rute /_uji/meledak sengaja melempar pesan
+     * "SQLSTATE rahasia: password=hunter2".
+     */
+    public function test_pesan_exception_5xx_tidak_pernah_jadi_deskripsi(): void
+    {
+        $respons = $this->actingAs($this->staff)->get('/_uji/meledak');
+
+        $respons->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Ini bukan kesalahan Anda. Tim IT dapat menelusurinya dengan ID referensi di bawah.')
+            );
+
+        $this->assertStringNotContainsString('hunter2', $respons->getContent());
     }
 }
