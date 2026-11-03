@@ -543,6 +543,10 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::put('/loans/{loan}', [LoanController::class, 'update'])->middleware('can:edit loans')->name('loans.update');
         Route::delete('/loans/{loan}', [LoanController::class, 'destroy'])->middleware('can:delete loans')->name('loans.destroy');
         Route::post('/loans/{loan}/pay', [LoanController::class, 'pay'])->middleware('can:pay loans')->name('loans.pay');
+        // Jadwal dihitung saat panel detail dibuka, bukan ikut di payload daftar:
+        // penyusunannya menjumlahkan pembayaran per pinjaman, jadi menaruhnya di
+        // daftar berarti 2 query dikali jumlah baris.
+        Route::get('/loans/{loan}/schedule', [LoanController::class, 'schedule'])->name('loans.schedule');
     });
 
     Route::middleware('can:view receivables')->group(function () {
@@ -551,6 +555,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::put('/receivables/{receivable}', [ReceivableController::class, 'update'])->middleware('can:edit receivables')->name('receivables.update');
         Route::delete('/receivables/{receivable}', [ReceivableController::class, 'destroy'])->middleware('can:delete receivables')->name('receivables.destroy');
         Route::post('/receivables/{receivable}/submit', [ReceivableController::class, 'submit'])->name('receivables.submit');
+        Route::get('/receivables/{receivable}/schedule', [ReceivableController::class, 'schedule'])->name('receivables.schedule');
         Route::post('/receivables/{receivable}/approve', [ReceivableController::class, 'approve'])->middleware('can:approve receivables')->name('receivables.approve');
         Route::post('/receivables/{receivable}/pay', [ReceivableController::class, 'pay'])->middleware('can:pay receivables')->name('receivables.pay');
     });

@@ -13,6 +13,8 @@ use App\Models\Receivable;
 use App\Models\ReceivablePayment;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use App\Services\JadwalAngsuranService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -423,5 +425,28 @@ class ReceivableController extends Controller
         $nextId = $last ? $last->id + 1 : 1;
 
         return 'RCV-'.str_pad($nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Jadwal angsuran satu receivable, dihitung saat panel detail dibuka.
+     *
+     * Tidak ikut di payload daftar: penyusunannya menjumlahkan pembayaran per
+     * baris, jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function schedule(Receivable $receivable, JadwalAngsuranService $jadwal): JsonResponse
+    {
+        $this->authorize('view receivables');
+
+        return response()->json([
+            'rows' => $jadwal->untukPiutang($receivable),
+            'summary' => [
+                'principal' => (int) $receivable->principal_amount,
+                'interest' => $jadwal->totalBungaPiutang($receivable),
+                'terms' => (int) $receivable->installment_months,
+                'start_date' => $receivable->loan_date?->toDateString(),
+                'principal_paid' => (int) $receivable->payments()->sum('principal_paid'),
+                'interest_paid' => (int) $receivable->payments()->sum('interest_paid'),
+            ],
+        ]);
     }
 }

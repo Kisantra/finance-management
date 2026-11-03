@@ -10,6 +10,8 @@ use App\Models\BankTransaction;
 use App\Models\Loan;
 use App\Models\LoanPayment;
 use App\Models\TransactionCategory;
+use App\Services\JadwalAngsuranService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -226,9 +228,10 @@ class LoanController extends Controller
         $paidPrincipal = (int) $loan->payments()->sum('principal_paid');
         $remainingPrincipal = $loan->principal_amount - $paidPrincipal;
 
-        $totalInterest = $loan->interest_type === 'fixed'
-            ? (int) ($loan->interest_amount ?? 0)
-            : (int) round($loan->principal_amount * ($loan->interest_rate ?? 0) / 100 / 12 * $loan->term_months);
+        // Satu definisi rumus bunga, dipakai bersama jadwal angsuran yang
+        // ditampilkan di layar. Dua salinan akan menyimpang, dan yang menyimpang
+        // berarti layar menjanjikan angka yang ditolak server ini.
+        $totalInterest = app(JadwalAngsuranService::class)->totalBungaPinjaman($loan);
         $paidInterest = (int) $loan->payments()->sum('interest_paid');
         $remainingInterest = $totalInterest - $paidInterest;
 
@@ -321,5 +324,28 @@ class LoanController extends Controller
         } while (Loan::where('loan_number', $nomor)->exists());
 
         return $nomor;
+    }
+
+    /**
+     * Jadwal angsuran satu loan, dihitung saat panel detail dibuka.
+     *
+     * Tidak ikut di payload daftar: penyusunannya menjumlahkan pembayaran per
+     * baris, jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function schedule(Loan $loan, JadwalAngsuranService $jadwal): JsonResponse
+    {
+        $this->authorize('view loans');
+
+        return response()->json([
+            'rows' => $jadwal->untukPinjaman($loan),
+            'summary' => [
+                'principal' => (int) $loan->principal_amount,
+                'interest' => $jadwal->totalBungaPinjaman($loan),
+                'terms' => (int) $loan->term_months,
+                'start_date' => $loan->start_date?->toDateString(),
+                'principal_paid' => (int) $loan->payments()->sum('principal_paid'),
+                'interest_paid' => (int) $loan->payments()->sum('interest_paid'),
+            ],
+        ]);
     }
 }

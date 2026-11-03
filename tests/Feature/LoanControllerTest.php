@@ -209,4 +209,39 @@ class LoanControllerTest extends TestCase
             'lender_name' => 'Bank BCA',
         ]);
     }
+
+    /**
+     * Endpoint jadwal angsuran: dipanggil saat panel detail dibuka, bukan ikut
+     * di payload daftar — penyusunannya menjumlahkan pembayaran per pinjaman,
+     * jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function test_endpoint_jadwal_mengembalikan_termin_dan_ringkasannya(): void
+    {
+        $loan = $this->makeLoan();
+
+        $isi = $this->actingAs($this->admin)
+            ->getJson("/loans/{$loan->id}/schedule")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount((int) $loan->term_months, $isi['rows'], 'Jumlah termin harus sama dengan tenor.');
+        $this->assertSame((int) $loan->principal_amount, $isi['summary']['principal']);
+
+        $this->assertSame(
+            (int) $loan->principal_amount + $isi['summary']['interest'],
+            array_sum(array_column($isi['rows'], 'angsuran')),
+            'Total jadwal yang dikirim ke layar meleset dari nilai utangnya.'
+        );
+    }
+
+    public function test_endpoint_jadwal_ditolak_tanpa_izin_view_loans(): void
+    {
+        $loan = $this->makeLoan();
+
+        $tanpaIzin = User::factory()->create();
+
+        $this->actingAs($tanpaIzin)
+            ->getJson("/loans/{$loan->id}/schedule")
+            ->assertForbidden();
+    }
 }
