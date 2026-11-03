@@ -62,7 +62,7 @@ class RecurringInvoiceController extends Controller
         $analytics = $this->buildAnalytics($analyticsYear, $analyticsPeriod);
 
         // ── Form data ─────────────────────────────────────────────────────────
-        $clients = Client::where('status', 'active')
+        $clients = Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email'])
             ->map(fn ($c) => [
@@ -315,6 +315,21 @@ class RecurringInvoiceController extends Controller
             DB::beginTransaction();
 
             $template = RecurringTemplate::find($data['template_id']);
+
+            // Bulan yang diminta harus benar-benar jatuh pada siklus template
+            // dan berada di dalam masa berlakunya. Tanpa pemeriksaan ini,
+            // template triwulanan bisa ditagih tiap bulan, dan invoice bisa
+            // dibuat untuk bulan di luar rentang start_date..end_date —
+            // pembatasan itu selama ini hanya ada di daftar bulan pada layar.
+            if ($template && ! $template->isValidPeriodForGeneration($scheduledDate->year, $scheduledDate->month)) {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'Bulan tersebut bukan periode penagihan yang sah untuk template ini.',
+                    'errors' => ['scheduled_date' => ['Bulan tersebut bukan periode penagihan yang sah untuk template ini.']],
+                ], 422);
+            }
+
             [$invoiceData] = $this->buildInvoiceData($data);
 
             $invoice = RecurringInvoice::create([
@@ -464,7 +479,7 @@ class RecurringInvoiceController extends Controller
 
     private function getClientOptions(): Collection
     {
-        return Client::where('status', 'active')
+        return Client::where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email'])
             ->map(fn ($c) => [
@@ -581,8 +596,14 @@ class RecurringInvoiceController extends Controller
                 $total = $invs->count();
                 $published = $invs->where('status', 'published')->count();
                 $revenue = $invs->sum(fn ($inv) => $inv->invoice_data['total_amount'] ?? 0);
+
+                // Item titipan pajak bukan pendapatan perusahaan — ia hanya
+                // menumpang lewat. Dulu ia ikut dihitung sebagai laba padahal
+                // penyebutnya (`total_amount`) sudah dipotong diskon, sehingga
+                // margin bisa melampaui 100%.
                 $profit = $invs->sum(function ($inv) {
                     return collect($inv->invoice_data['items'] ?? [])
+                        ->reject(fn ($item) => (bool) ($item['is_tax_deposit'] ?? false))
                         ->sum(fn ($item) => ($item['amount'] ?? 0) - ($item['cogs_amount'] ?? 0));
                 });
 
@@ -593,7 +614,7 @@ class RecurringInvoiceController extends Controller
                     'count' => $total,
                     'published' => $published,
                     'success_rate' => $total > 0 ? round(($published / $total) * 100, 1) : 0,
-                    'profit_margin' => $revenue > 0 ? round(($profit / $revenue) * 100, 1) : 0,
+                    'profit_margin' => $revenue > 0 ? min(100.0, round(($profit / $revenue) * 100, 1)) : 0,
                 ];
             })
             ->sortByDesc('revenue')

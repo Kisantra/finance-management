@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { companyUrl } from '@/lib/company';
 
 export default function PasswordSettings() {
     const { data, setData, put, processing, errors, reset, recentlySuccessful } = useForm({
@@ -20,7 +21,7 @@ export default function PasswordSettings() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        put('/settings/password', {
+        put(companyUrl('/settings/password'), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Kata sandi berhasil diperbarui.');

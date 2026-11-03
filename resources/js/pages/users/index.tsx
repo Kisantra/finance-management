@@ -38,6 +38,7 @@ import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -54,6 +55,7 @@ interface UserRow {
     initials: string;
     created_at: string | null;
     is_current: boolean;
+    companies: { slug: string; name: string }[];
 }
 
 interface PaginatedUsers {
@@ -92,6 +94,7 @@ interface Props extends SharedProps {
     users: PaginatedUsers;
     stats: Stats;
     roleOptions: FilterOption[];
+    companyOptions: FilterOption[];
     filters: Filters;
 }
 
@@ -103,6 +106,7 @@ interface UserFormData {
     phone_number: string;
     status: 'active' | 'inactive';
     role: string;
+    companies: string[];
     password: string;
     password_confirmation: string;
 }
@@ -113,6 +117,7 @@ const blankForm: UserFormData = {
     phone_number: '',
     status: 'active',
     role: '',
+    companies: [],
     password: '',
     password_confirmation: '',
 };
@@ -147,12 +152,16 @@ function UserFormDialog({
     mode,
     editingUser,
     roleOptions,
+    companyOptions,
+    activeCompany,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     mode: 'create' | 'edit';
     editingUser: UserRow | null;
     roleOptions: FilterOption[];
+    companyOptions: FilterOption[];
+    activeCompany: string | null;
 }) {
     const [showPassword, setShowPassword] = React.useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = React.useState(false);
@@ -167,11 +176,17 @@ function UserFormDialog({
                 phone_number: editingUser.phone_number ?? '',
                 status: editingUser.status,
                 role: editingUser.role ?? '',
+                companies: editingUser.companies.map((c) => c.slug),
                 password: '',
                 password_confirmation: '',
             });
         } else if (open && mode === 'create') {
             reset();
+            // Pengguna baru default-nya masuk perusahaan yang sedang dibuka —
+            // perilaku lama sebelum ada pilihan ini, dan tebakan yang paling sering benar.
+            if (activeCompany) {
+                setData('companies', [activeCompany]);
+            }
         }
         if (!open) {
             clearErrors();
@@ -193,9 +208,9 @@ function UserFormDialog({
             },
         };
         if (mode === 'create') {
-            post('/admin/users', opts);
+            post(companyUrl('/admin/users'), opts);
         } else if (editingUser) {
-            put(`/admin/users/${editingUser.id}`, opts);
+            put(companyUrl(`/admin/users/${editingUser.id}`), opts);
         }
     };
 
@@ -314,6 +329,55 @@ function UserFormDialog({
                                     {errors.role && <p className="text-xs text-red-600 dark:text-red-400">{errors.role}</p>}
                                 </div>
 
+                                {/*
+                                 * Penugasan perusahaan. Hanya muncul kalau organisasi ini
+                                 * memang punya lebih dari satu perusahaan — instalasi satu
+                                 * perusahaan tidak perlu melihat konsep ini sama sekali.
+                                 *
+                                 * Peran di atas berlaku untuk SETIAP perusahaan yang dicentang:
+                                 * peran bersifat per-perusahaan, jadi mencentang perusahaan
+                                 * tanpa memberi peran di sana menghasilkan akun yang bisa masuk
+                                 * tetapi tidak boleh berbuat apa pun.
+                                 */}
+                                {companyOptions.length > 1 && (
+                                    <div className="space-y-1.5">
+                                        <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
+                                            Perusahaan *
+                                        </label>
+                                        <p className="text-xs text-dark-500 dark:text-dark-400">
+                                            Peran di atas berlaku di setiap perusahaan yang dipilih.
+                                        </p>
+                                        <div className="space-y-1 rounded-xl border border-secondary-200 p-3 dark:border-dark-600">
+                                            {companyOptions.map((c) => {
+                                                const dipilih = data.companies.includes(c.value);
+
+                                                return (
+                                                    <label
+                                                        key={c.value}
+                                                        className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1.5 hover:bg-secondary-50 dark:hover:bg-dark-600"
+                                                    >
+                                                        <Checkbox
+                                                            checked={dipilih}
+                                                            onCheckedChange={(v) =>
+                                                                setData(
+                                                                    'companies',
+                                                                    v === true
+                                                                        ? [...data.companies, c.value]
+                                                                        : data.companies.filter((x) => x !== c.value),
+                                                                )
+                                                            }
+                                                        />
+                                                        <span className="text-sm text-dark-900 dark:text-dark-300">{c.label}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                        {errors.companies && (
+                                            <p className="text-xs text-red-600 dark:text-red-400">{errors.companies}</p>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
                                         Kata Sandi {mode === 'create' && '*'}
@@ -418,7 +482,7 @@ function UserAvatar({ initials, size = 'md' }: { initials: string; size?: 'sm' |
 /* ─────────────────────────────────── main page ─── */
 
 export default function UsersIndex() {
-    const { users, stats, roleOptions, filters, auth } = usePage<Props>().props;
+    const { users, stats, roleOptions, companyOptions, filters, auth, company } = usePage<Props>().props;
 
     const can = (perm: string) => auth.permissions.includes(perm);
     const canManage = can('manage users');
@@ -447,7 +511,7 @@ export default function UsersIndex() {
 
     const apply = (patch: Partial<Filters & { page: number }>) => {
         router.get(
-            '/admin/users',
+            companyUrl('/admin/users'),
             {
                 search: patch.search ?? search ?? undefined,
                 role: patch.role ?? roleFilter ?? undefined,
@@ -470,7 +534,7 @@ export default function UsersIndex() {
         setSearch('');
         setRoleFilter('');
         setStatusFilter('');
-        router.get('/admin/users', {}, { preserveScroll: true, replace: true });
+        router.get(companyUrl('/admin/users'), {}, { preserveScroll: true, replace: true });
     };
 
     const activeFilterCount = [search, roleFilter, statusFilter].filter(Boolean).length;
@@ -490,7 +554,7 @@ export default function UsersIndex() {
     const confirmDelete = () => {
         if (!deletingUser) return;
         setDeleteProcessing(true);
-        router.delete(`/admin/users/${deletingUser.id}`, {
+        router.delete(companyUrl(`/admin/users/${deletingUser.id}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Pengguna berhasil dihapus.');
@@ -505,7 +569,7 @@ export default function UsersIndex() {
         if (selected.length === 0) return;
         setDeleteProcessing(true);
         router.post(
-            '/admin/users/bulk-delete',
+            companyUrl('/admin/users/bulk-delete'),
             { ids: selected },
             {
                 preserveScroll: true,
@@ -724,6 +788,17 @@ export default function UsersIndex() {
                                                             <div className="text-xs text-dark-500 dark:text-dark-400 truncate">
                                                                 {user.email}
                                                             </div>
+                                                            {/* Hanya ditampilkan bila orang ini memang bekerja di lebih
+                                                                dari satu perusahaan — selain itu cuma menambah bising. */}
+                                                            {user.companies.length > 1 && (
+                                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                                    {user.companies.map((c) => (
+                                                                        <Badge key={c.slug} variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                                                            {c.name}
+                                                                        </Badge>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>
@@ -850,6 +925,8 @@ export default function UsersIndex() {
                 mode={editingUser ? 'edit' : 'create'}
                 editingUser={editingUser}
                 roleOptions={roleOptions}
+                companyOptions={companyOptions}
+                activeCompany={company?.slug ?? null}
             />
 
             {/* Single delete */}

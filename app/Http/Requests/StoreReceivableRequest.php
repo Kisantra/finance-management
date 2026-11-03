@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Client;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreReceivableRequest extends FormRequest
 {
@@ -15,6 +18,11 @@ class StoreReceivableRequest extends FormRequest
     {
         return [
             'type' => ['required', 'in:employee_loan,company_loan'],
+            // Hanya `integer` sebelumnya: id apa pun diterima, termasuk id yang
+            // tidak ada dan id yang tipenya tidak cocok dengan jenis piutang.
+            // `debtor_type` ditentukan semata dari `type`, jadi ketidakcocokan
+            // itu langsung menghasilkan relasi polimorfik yang menunjuk entah
+            // ke mana.
             'debtor_id' => ['required', 'integer'],
             'principal_amount' => ['required', 'integer', 'min:1'],
             'interest_type' => ['required', 'in:fixed,percentage'],
@@ -27,5 +35,30 @@ class StoreReceivableRequest extends FormRequest
             'disbursement_account' => ['required', 'string', 'max:255'],
             'contract_attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ];
+    }
+
+    /**
+     * Debitur harus benar-benar ada dan sesuai jenis piutangnya.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $id = $this->input('debtor_id');
+            $type = $this->input('type');
+
+            if (! $id || ! $type) {
+                return;
+            }
+
+            $ada = $type === 'employee_loan'
+                ? User::whereKey($id)->exists()
+                : Client::whereKey($id)->exists();
+
+            if (! $ada) {
+                $validator->errors()->add('debtor_id', $type === 'employee_loan'
+                    ? 'Karyawan yang dipilih tidak ditemukan.'
+                    : 'Klien yang dipilih tidak ditemukan.');
+            }
+        });
     }
 }

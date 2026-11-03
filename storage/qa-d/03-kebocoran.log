@@ -1,0 +1,50 @@
+==================== D.3.3  LAMPIRAN ====================
+GET /c/qaalpha/reimbursements/1/data (sebagai alpha-staff@qa.test) status=200
+  attachment_url dari backend: 'http://127.0.0.1:8101/c/qaalpha/storage/reimbursements/alpha-lampiran-01.txt'
+  LULUS D.3.3 url berprefix /c/qaalpha/storage/ — http://127.0.0.1:8101/c/qaalpha/storage/reimbursements/alpha-lampiran-01.txt
+  LULUS D.3.3 anggota qaalpha bisa mengambil lampirannya — status=200 isi_benar=ya
+GET /c/qabeta/reimbursements/501/data (sebagai beta-admin@qa.test) status=200
+  attachment_url dari backend: 'http://127.0.0.1:8101/c/qabeta/storage/reimbursements/beta-lampiran-01.txt'
+  LULUS D.3.3 url berprefix /c/qabeta/storage/ — http://127.0.0.1:8101/c/qabeta/storage/reimbursements/beta-lampiran-01.txt
+  LULUS D.3.3 anggota qabeta bisa mengambil lampirannya — status=200 isi_benar=ya
+  LULUS D.3.3 alpha mengambil berkas beta di jalur alpha — status=404 harap=404
+  LULUS D.3.3 beta mengambil berkas alpha di jalur beta — status=404 harap=404
+  LULUS D.3.3 alpha-admin (bukan anggota beta) ke jalur beta — status=403 harap=403
+  LULUS D.3.3 beta-admin (bukan anggota alpha) ke jalur alpha — status=403 harap=403
+
+==================== D.3.4  TABEL DI DATABASE CENTRAL ====================
+GET /c/qaalpha/admin/users (alpha-admin, admin hanya di qaalpha) status=200 ukuran=13036
+  email yang terlihat di daftar: alpha-admin@qa.test, beta-admin@qa.test, both-manager@qa.test, alpha-staff@qa.test, nobody@qa.test, mixed-roles@qa.test
+  GAGAL D.3.4 /admin/users TIDAK membocorkan pengguna perusahaan lain — beta-admin@qa.test TERLIHAT oleh alpha-admin
+GET /c/qaalpha/admin/permissions status=200 ukuran=14841 komponen=permissions/index
+GET /c/qabeta/admin/permissions  status=200 ukuran=14834 komponen=permissions/index
+  (peran GLOBAL by design — lihat MasterPermissionSeeder: setPermissionsTeamId(null))
+  LULUS D.3.4 /admin/permissions tidak menampilkan email pengguna perusahaan lain — tidak ada email lintas perusahaan
+GET /c/qaalpha/notifications (both-manager) status=200 ukuran=427
+  judul yang dikirim: BETA-NOTIF-01, ALPHA-NOTIF-01
+  GAGAL D.3.4 notifikasi di /c/qaalpha tidak memuat notifikasi perusahaan lain — memuat BETA-NOTIF-01
+GET /c/qabeta/notifications (both-manager) status=200 ukuran=427
+  judul yang dikirim: BETA-NOTIF-01, ALPHA-NOTIF-01
+  GAGAL D.3.4 notifikasi di /c/qabeta tidak memuat notifikasi perusahaan lain — memuat ALPHA-NOTIF-01
+GET /c/qaalpha/feedbacks?tab=all (sebagai alpha-admin@qa.test) status=200 ukuran=12426
+  GAGAL D.3.4 feedback di /c/qaalpha tidak memuat feedback perusahaan lain — memuat BETA-FEEDBACK-01
+GET /c/qabeta/feedbacks?tab=all (sebagai beta-admin@qa.test) status=200 ukuran=12413
+  GAGAL D.3.4 feedback di /c/qabeta tidak memuat feedback perusahaan lain — memuat ALPHA-FEEDBACK-01
+
+==================== D.3.5  KONTEKS IZIN PER PERUSAHAAN ====================
+mixed-roles@qa.test = finance manager di qaalpha, staff di qabeta
+  langkah 1: /c/qaalpha/dashboard status=200 jumlah_izin=70  manage_users=tidak view_profit_loss=ya
+  langkah 2: /c/qabeta/dashboard status=200 jumlah_izin=21  manage_users=tidak view_profit_loss=tidak
+  langkah 3: /c/qaalpha/dashboard status=200 jumlah_izin=70  manage_users=tidak view_profit_loss=ya
+  langkah 4: /c/qabeta/dashboard status=200 jumlah_izin=21  manage_users=tidak view_profit_loss=tidak
+  LULUS D.3.5 izin berbeda per perusahaan — qaalpha=70 izin, qabeta=21 izin
+  LULUS D.3.5 kembali ke perusahaan pertama memulihkan izinnya (bukan tercache) — qaalpha: 70 lalu 70; qabeta: 21 lalu 21
+  LULUS D.3.5 halaman yang hanya boleh finance manager: 200 di qaalpha, 403 di qabeta — qaalpha=200 qabeta=403
+
+==================== RINGKASAN ====================
+pemeriksaan: 17, lulus: 12, gagal: 5
+  GAGAL: D.3.4 /admin/users TIDAK membocorkan pengguna perusahaan lain — beta-admin@qa.test TERLIHAT oleh alpha-admin
+  GAGAL: D.3.4 notifikasi di /c/qaalpha tidak memuat notifikasi perusahaan lain — memuat BETA-NOTIF-01
+  GAGAL: D.3.4 notifikasi di /c/qabeta tidak memuat notifikasi perusahaan lain — memuat ALPHA-NOTIF-01
+  GAGAL: D.3.4 feedback di /c/qaalpha tidak memuat feedback perusahaan lain — memuat BETA-FEEDBACK-01
+  GAGAL: D.3.4 feedback di /c/qabeta tidak memuat feedback perusahaan lain — memuat ALPHA-FEEDBACK-01

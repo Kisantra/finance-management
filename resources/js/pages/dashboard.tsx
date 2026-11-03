@@ -1,6 +1,7 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Check, Plus } from 'lucide-react';
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
 import { AppLayout } from '@/layouts/app-layout';
 import { CashFlowChart, CashFlowChartSkeleton, compactRupiah } from '@/components/dashboard/cash-flow-chart';
 import { DonutChart, useDonutRamp } from '@/components/dashboard/donut-chart';
@@ -231,13 +232,13 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                     <TutorialButton slug="dashboard" />
                     {can('create invoices') && (
-                        <Link
+                        <AppLink
                             href="/invoices/create"
                             className="inline-flex h-11 items-center gap-2 rounded-full bg-ob-act-fill px-[18px] text-[13px] font-semibold text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page"
                         >
                             <Plus className="h-4 w-4" strokeWidth={2.5} />
                             Buat Invoice
-                        </Link>
+                        </AppLink>
                     )}
                 </div>
             </div>
@@ -441,14 +442,14 @@ export default function Dashboard() {
                                     Terbesar: {biggest.name.toLowerCase()}, {formatCurrency(biggest.value)}.{' '}
                                     {categoryTab === 'expense'
                                         ? can('view expense') && (
-                                              <Link href="/cash-flow/expenses" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
+                                              <AppLink href="/cash-flow/expenses" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
                                                   Lihat pengeluaran →
-                                              </Link>
+                                              </AppLink>
                                           )
                                         : can('view income') && (
-                                              <Link href="/cash-flow/income" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
+                                              <AppLink href="/cash-flow/income" className="font-semibold text-ob-ink-2 hover:text-ob-ink">
                                                   Lihat pemasukan →
-                                              </Link>
+                                              </AppLink>
                                           )}
                                 </p>
                             )}
@@ -523,9 +524,9 @@ export default function Dashboard() {
                             description="Saldo kas dihitung dari rekening. Tambahkan rekening pertama untuk mulai mencatat transaksi."
                             action={
                                 can('create bank-accounts') && (
-                                    <Link href="/bank-accounts" className="mt-1 inline-flex h-8 items-center rounded-xl border border-ob-line bg-ob-inner px-3.5 text-xs font-semibold text-ob-ink hover:bg-ob-hover">
+                                    <AppLink href="/bank-accounts" className="mt-1 inline-flex h-8 items-center rounded-xl border border-ob-line bg-ob-inner px-3.5 text-xs font-semibold text-ob-ink hover:bg-ob-hover">
                                         + Tambah rekening
-                                    </Link>
+                                    </AppLink>
                                 )
                             }
                         />
@@ -533,7 +534,7 @@ export default function Dashboard() {
                         <ScrollList label={`Daftar rekening, ${bankAccounts.length} item, dapat digulir`} height={210} className="gap-3">
                             {bankAccounts.map((acc) => (
                                 <li key={acc.id} className="shrink-0">
-                                    <Link
+                                    <AppLink
                                         href="/bank-accounts"
                                         className="flex h-[62px] items-center gap-3 rounded-2xl border border-ob-line-soft bg-ob-inner px-3.5 text-ob-ink transition-colors hover:bg-ob-hover"
                                     >
@@ -545,7 +546,7 @@ export default function Dashboard() {
                                             <span className="truncate text-xs text-ob-ink-3">{acc.bank} · {acc.account_number}</span>
                                         </span>
                                         <span className={cn('shrink-0 text-sm font-semibold', acc.balance <= 0 && 'text-ob-ink-2')}>{formatCurrency(acc.balance)}</span>
-                                    </Link>
+                                    </AppLink>
                                 </li>
                             ))}
                         </ScrollList>

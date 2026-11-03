@@ -80,6 +80,14 @@ class TransactionCategorySeeder extends Seeder
             'Penghasilan' => [
                 ['type' => 'income', 'label' => 'Kembali Dana'],
             ],
+            // WAJIB ada minimal satu anak. Pemilih kategori hanya menawarkan
+            // kategori ANAK — induknya dirender sebagai baris non-aktif. Selama
+            // "Transfer Internal" tidak punya anak, pemilih di dialog Transfer
+            // tampil kosong dan transfer antar rekening MUSTAHIL dilakukan di
+            // perusahaan yang baru dibuat. Ditemukan QC 2026-11-03.
+            'Transfer Internal' => [
+                ['type' => 'transfer', 'label' => 'Antar Rekening Sendiri'],
+            ],
         ];
 
         foreach ($children as $parentLabel => $childCategories) {

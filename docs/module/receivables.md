@@ -53,7 +53,18 @@ Model: `app/Models/Receivable.php` — relasi `debtor(): MorphTo`, `payments(): 
 'can_edit' => in_array($r->status, ['draft', 'rejected']),
 'can_delete' => $r->status === 'draft' && ! $r->payments()->exists(),
 ```
-4. Props tambahan: stats (total, active, pending, total pokok aktif), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
+4. Ringkasan dihitung tiga query:
+   - satu `selectRaw` agregat status (total, per-status, `pending_amount`, `next_due` = jatuh tempo paling awal di antara yang **aktif**);
+   - satu agregat pembayaran yang **dicakup ke piutang aktif** → `paid_principal`, `paid_interest`, `outstanding_principal = total_principal_active − paid_principal`. Tanpa cakupan ini, pembayaran piutang yang sudah lunas ikut menyusutkan sisa piutang yang masih berjalan;
+   - satu query **lewat tempo** lewat `leftJoinSub` agregat pembayaran: aktif, `due_date` sudah lewat, DAN `principal_amount > COALESCE(bayar.pokok, 0)`. Syarat terakhir wajib — tanpanya, piutang yang tanggalnya lewat tapi pokoknya sudah kembali ikut terhitung sebagai tunggakan. Dijaga `ReceivableControllerTest::test_lewat_tempo_hanya_menghitung_piutang_aktif_yang_pokoknya_belum_tertutup`.
+
+   Dihitung di SQL, bukan dengan menarik baris ke PHP: jumlah piutang lewat tempo tidak punya batas atas.
+5. Props tambahan: `statusCounts` (hitungan per status untuk pil filter), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
+6. Halaman React (gaya Obsidian) menampilkan ringkasan 4 angka — **belum kembali, lewat tempo, menunggu persetujuan, jatuh tempo terdekat** — lalu pil status berhitung dan tabel 6 kolom.
+   Susunannya sengaja berbeda dari halaman Pinjaman: di Pinjaman kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
+   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian (`components/receivable-drawer.tsx`) yang terbuka saat baris diklik: jadwal angsuran, Ajukan, Proses pengajuan, Catat pembayaran, Edit, Hapus.
+   Untuk piutang **ditolak**, alasan penolakan tampil paling atas di panel, karena itulah yang harus diperbaiki pengajunya.
+   Jadwal angsuran tetap ditampilkan sebelum disetujui (itu yang dinilai penyetuju), tetapi penanda "termin berikutnya" dimatikan: menyorot termin yang harus dibayar duluan pada sesuatu yang belum berjalan menjanjikan aksi yang belum ada.
 5. React (`resources/js/pages/receivables/index.tsx`) merender tabel + tombol aksi per baris sesuai flag `can_*`.
 
 ### Buat Piutang (Store) — mulai dari `draft`
@@ -107,7 +118,7 @@ $debtorType = $validated['type'] === 'employee_loan' ? User::class : Client::cla
 1. Reviewer (punya `approve receivables`) membuka `ApproveReceivableDialog` pada baris `pending_approval`: pilih aksi approve/reject, rekening sumber pencairan (wajib jika approve), catatan.
 2. `POST /receivables/{receivable}/approve` → middleware `can:approve receivables` + double-check `abort_if(! auth()->user()->can('approve receivables'), 403)` di controller → guard status `pending_approval`.
 3. Validasi `ApproveReceivableRequest`: `action` in:approve,reject; `bank_account_id` `required_if:action,approve`; `notes` max:500.
-4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori by code `FIN-RCV-OUT`, lalu status → `active` + `approved_by/at` + `review_notes`:
+4. Jika **approve**, dalam `DB::transaction`: dibuat `BankTransaction` **debit** (dana keluar) sebesar pokok, kategori sistem `FIN-RCV-OUT` via `TransactionCategory::findSystem()`, lalu status → `active` + `approved_by/at` + `review_notes`:
 ```php
 // app/Http/Controllers/ReceivableController.php:286-296
 $category = TransactionCategory::findSystem('FIN-RCV-OUT');
@@ -133,8 +144,8 @@ BankTransaction::create([
 4. Dalam `DB::transaction`:
    - `ReceivablePayment::create` (`total_paid = pokok + bunga`).
    - **Hanya jika** `payment_method === 'bank_transfer' && bank_account_id` terisi:
-     - pokok > 0 → `BankTransaction` **credit** kategori code `FIN-RCV-IN`;
-     - bunga > 0 → `BankTransaction` **credit** kategori code `REV-INTEREST` (pendapatan bunga → baris "Pendapatan Lain" di P&L).
+     - pokok > 0 → `BankTransaction` **credit** kategori sistem `FIN-RCV-IN` (findSystem);
+     - bunga > 0 → `BankTransaction` **credit** kategori sistem `REV-INTEREST` (findSystem) (pendapatan bunga → baris "Pendapatan Lain" di P&L).
    - Jika akumulasi pokok terbayar ≥ pokok → status `paid_off`.
 5. Metode `cash` / `payroll_deduction` hanya tercatat di `receivable_payments` — **tidak menyentuh saldo rekening sama sekali** (dan karenanya tidak pernah muncul di P&L yang berbasis `bank_transactions`).
 
@@ -162,6 +173,8 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 
 ## Invarian & Jebakan
 
+- **[DIPERBAIKI 2026-08-11 — sama dengan modul Loans]** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`). Coverage baru `tests/Feature/ReceivableControllerTest.php` menguji approve/pay (termasuk assertion `category_id` terisi) dan berjalan di MySQL. Catatan perbaikan ikutan: approve/pay kini null-safe terhadap key request opsional (`notes`, `reference_number`, `bank_account_id`) yang sebelumnya diakses langsung.
+
 - **[DIPERBAIKI 2026-09-17 — sama dengan modul Loans]** Lookup `FIN-RCV-OUT` / `FIN-RCV-IN` / `REV-INTEREST` dulu memakai kolom `code` yang sudah di-drop, sehingga **approve (pencairan) dan pay via bank_transfer gagal 500** di MySQL. Sekarang `TransactionCategory::findSystem(...)` di atas kolom `system_key`. Ingat: suite memakai SQLite in-memory yang menutupi kesalahan kolom semacam ini — tes harus memeriksa `category_id` yang terbentuk.
 - Workflow state machine ketat, dijaga `abort_if` per endpoint: edit hanya `draft|rejected`; submit hanya `draft`; approve/reject hanya `pending_approval`; pay hanya `active`; delete hanya `draft` tanpa payment. `paid_off` dan `rejected` final (rejected bisa "hidup lagi" hanya lewat edit → reset ke draft).
 - **Pencairan memakai tanggal hari ini (`now()`), bukan `loan_date`** — jika approval terlambat, tanggal mutasi bank ≠ tanggal pinjam di record piutang.
@@ -183,5 +196,8 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 | `app/Http/Requests/StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
 | `app/Models/Receivable.php`, `app/Models/ReceivablePayment.php` | Model, morph `debtor`, casts |
 | `routes/web.php` (baris 466-474) | Route + permission middleware |
+| `app/Services/JadwalAngsuranService.php` | Penyusun jadwal angsuran (dipakai Piutang & Pinjaman); rumus bunga piutang = persentase atas SELURUH pokok, tidak diprorata |
+| `resources/js/pages/receivables/components/` | `receivable-drawer.tsx` (rincian + jadwal), `-form-sheet`, `-approve-sheet`, `-pay-sheet`, `ptg.tsx` (status/bunga bersama) |
+| `resources/js/components/jadwal-angsuran.tsx` | Tabel jadwal angsuran, dipakai bersama modul Pinjaman |
 | `resources/js/pages/receivables/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
 | `database/seeders/MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |

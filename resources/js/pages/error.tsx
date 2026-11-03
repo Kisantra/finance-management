@@ -39,6 +39,7 @@ interface Props {
     description: string;
     is_guest: boolean;
     home_url: string;
+    home_label: string;
     can_retry: boolean;
     can_report: boolean;
     report_url: string | null;
@@ -95,7 +96,7 @@ async function copyText(text: string): Promise<boolean> {
     }
 }
 
-export default function ErrorPage({ status, title, description, home_url, can_retry, can_report, report_url, report, is_guest }: Props) {
+export default function ErrorPage({ status, title, description, home_url, home_label, can_retry, can_report, report_url, report, is_guest }: Props) {
     const [detailOpen, setDetailOpen] = React.useState(false);
     const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'failed'>('idle');
     const [sentId, setSentId] = React.useState<number | null>(null);
@@ -139,7 +140,7 @@ export default function ErrorPage({ status, title, description, home_url, can_re
         }
     }
 
-    const homeLabel = isGuest ? 'Masuk' : 'Ke Dashboard';
+    const homeLabel = home_label;
     const homeIcon = isGuest ? <LogIn className="h-4 w-4" /> : <LayoutDashboard className="h-4 w-4" />;
 
     return (
@@ -170,7 +171,7 @@ export default function ErrorPage({ status, title, description, home_url, can_re
                                 {status === 419 ? (
                                     <a href={home_url} className={buttonVariants({ variant: 'primary' })}>
                                         {homeIcon}
-                                        {isGuest ? 'Masuk kembali' : 'Ke Dashboard'}
+                                        {isGuest ? 'Masuk kembali' : homeLabel}
                                     </a>
                                 ) : (
                                     <>

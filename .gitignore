@@ -7,9 +7,13 @@
 /storage/pail
 /storage/backups
 /vendor
+# Semua varian .env diabaikan, KECUALI .env.example. Daftar putih ini lebih aman
+# daripada menyebut satu per satu: berkas seperti .env.demo berisi sandi database
+# dan dulu tidak tercakup pola lama, jadi ia akan muncul sebagai berkas baru yang
+# siap ter-commit tanpa ada yang menyadarinya.
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -39,8 +43,17 @@ public/run-migration.php
 /storage/fonts/*
 !/storage/fonts/.gitkeep
 
-# Evidence QA: hanya laporan PDF jadi yang masuk git
+/.claude/worktrees
+/.env.backup-*
+/storage/tenant*
+
+# Tangkapan layar bukti QA: sumber lokal, TIDAK dipush.
+# Gambarnya tertanam di dalam docs/qa/report/*.pdf yang justru dipush,
+# jadi bukti visualnya tetap ikut ke repositori lewat laporan jadinya.
 /docs/qa/evidence/
+
+# Artefak latihan migrasi (dump produksi, log) — jangan pernah masuk git
+/storage/latihan/
 
 # Python bytecode from QA skill scripts
 __pycache__/
@@ -48,3 +61,9 @@ __pycache__/
 
 # Hasil render video Remotion (npm run video:render)
 /out/
+
+# Hasil kerja demo lokal: dump database dev (berisi data nyata) dan berkas
+# sementaranya. Skrip di docs/demo/ membuat ulang semuanya kapan saja.
+/storage/demo/sumber.sql
+/storage/qa-d/server.log
+/storage/qa-d/routes.json

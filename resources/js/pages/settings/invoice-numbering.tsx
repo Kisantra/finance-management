@@ -1,12 +1,14 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Info, RotateCcw } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { AppLink } from '@/components/app-link';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { companyUrl } from '@/lib/company';
 import { cn, toastErrors } from '@/lib/utils';
 import { BTN, FIELD, longDate } from '@/pages/invoices/components/ob';
 
@@ -131,7 +133,7 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.put('/settings/invoice-numbering', {
+        form.put(companyUrl('/settings/invoice-numbering'), {
             preserveScroll: true,
             onSuccess: () => {
                 form.setDefaults();
@@ -155,9 +157,9 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                         {!hasCompany && (
                             <p className="rounded-2xl border border-ob-wait/40 bg-ob-wait/10 px-4 py-3 text-[13px] text-ob-ink">
                                 Profil perusahaan belum diisi. Pengaturan penomoran disimpan di profil perusahaan,{' '}
-                                <Link href="/settings/company" className="font-semibold text-ob-act hover:underline">
+                                <AppLink href="/settings/company" className="font-semibold text-ob-act hover:underline">
                                     isi profil perusahaan
-                                </Link>{' '}
+                                </AppLink>{' '}
                                 dulu.
                             </p>
                         )}

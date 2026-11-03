@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class PermissionController extends Controller
@@ -62,8 +62,8 @@ class PermissionController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         $validated = $request->validate([
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
-            'permission_id' => ['required', 'integer', 'exists:permissions,id'],
+            'role_id' => ['required', 'integer', 'exists:mysql.roles,id'],
+            'permission_id' => ['required', 'integer', 'exists:mysql.permissions,id'],
         ]);
 
         $role = Role::findOrFail($validated['role_id']);
@@ -85,7 +85,7 @@ class PermissionController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         $validated = $request->validate([
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'role_id' => ['required', 'integer', 'exists:mysql.roles,id'],
             'module' => ['required', 'string'],
             'action' => ['required', 'in:grant,revoke'],
         ]);
@@ -122,7 +122,7 @@ class PermissionController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         $validated = $request->validate([
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'role_id' => ['required', 'integer', 'exists:mysql.roles,id'],
             'action' => ['required', 'in:grant,revoke'],
         ]);
 

@@ -5,15 +5,38 @@ namespace Tests\Feature;
 use App\Models\PdfTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class TemplateBuilderControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Route sandbox kini dijaga `can:manage pdf templates`, sama seperti grup
+     * settings/pdf-templates yang sah. Fixture lama memakai User::factory()
+     * polos — pengguna tanpa izin apa pun — sehingga test ini menguji keadaan
+     * yang di produksi justru HARUS ditolak. QC 2026-11-03 membuktikan celah itu
+     * nyata: staff menimpa template PDF bawaan perusahaan lewat route ini.
+     */
+    private function berwenang(): User
+    {
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        Permission::firstOrCreate(['name' => 'manage pdf templates']);
+        Role::firstOrCreate(['name' => 'admin'])->givePermissionTo('manage pdf templates');
+
+        $user = User::factory()->create();
+        $user->assignRole('admin');
+
+        return $user;
+    }
+
     public function test_saves_layout_to_database(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
 
         $this->actingAs($user)
             ->post('/template-builder-test', [
@@ -29,7 +52,7 @@ class TemplateBuilderControllerTest extends TestCase
 
     public function test_save_upserts_single_template(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
 
         $payload = fn (string $text) => [
             'layout' => [['id' => 1, 'type' => 'text', 'x' => 0, 'y' => 0, 'content' => $text]],
@@ -44,7 +67,7 @@ class TemplateBuilderControllerTest extends TestCase
 
     public function test_save_rejects_invalid_element_type(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
 
         $this->actingAs($user)
             ->post('/template-builder-test', [
@@ -55,7 +78,7 @@ class TemplateBuilderControllerTest extends TestCase
 
     public function test_pdf_renders_with_resolved_tokens(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
         PdfTemplate::query()->create([
             'name' => 'Sandbox',
             'layout' => [
@@ -71,7 +94,7 @@ class TemplateBuilderControllerTest extends TestCase
 
     public function test_pdf_renders_base64_image(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
         // 1x1 transparent PNG data URI.
         $png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
         PdfTemplate::query()->create([
@@ -89,7 +112,7 @@ class TemplateBuilderControllerTest extends TestCase
 
     public function test_pdf_renders_with_off_canvas_elements(): void
     {
-        $user = User::factory()->create();
+        $user = $this->berwenang();
         // Negatif (lewat kiri/atas) & jauh melewati kanan/bawah → harus tetap 1 dokumen, tak crash.
         PdfTemplate::query()->create([
             'name' => 'Sandbox',

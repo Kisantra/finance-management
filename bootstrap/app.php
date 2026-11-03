@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetPermissionsTeam;
 use App\Services\ErrorReportService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,9 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
-        // Add SetLocale and HandleInertiaRequests to web group
+        // SetPermissionsTeam wajib sebelum HandleInertiaRequests:
+        // share() memanggil getAllPermissions() yang butuh konteks team.
         $middleware->web(append: [
             SetLocale::class,
+            SetPermissionsTeam::class,
             HandleInertiaRequests::class,
         ]);
     })

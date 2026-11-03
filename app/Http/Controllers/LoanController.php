@@ -10,8 +10,11 @@ use App\Models\BankTransaction;
 use App\Models\Loan;
 use App\Models\LoanPayment;
 use App\Models\TransactionCategory;
+use App\Services\JadwalAngsuranService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -46,8 +49,19 @@ class LoanController extends Controller
             COUNT(*) as total,
             SUM(principal_amount) as total_principal,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as active_principal
+            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as active_principal,
+            MIN(CASE WHEN status = 'active' THEN maturity_date END) as next_maturity
         ")->first();
+
+        // Dicakup ke pinjaman AKTIF, bukan seluruh pembayaran: sisa pokok hanya punya arti
+        // untuk utang yang masih berjalan, dan pinjaman yang ditandai lunas secara manual
+        // (pembayarannya tidak genap) akan menggeser angkanya kalau ikut dijumlah.
+        $terbayarAktif = LoanPayment::whereHas('loan', fn ($q) => $q->where('status', 'active'))
+            ->selectRaw('COALESCE(SUM(principal_paid), 0) as pokok, COALESCE(SUM(interest_paid), 0) as bunga')
+            ->first();
+
+        $activePrincipal = (int) ($statsRow->active_principal ?? 0);
+        $paidPrincipal = (int) ($terbayarAktif->pokok ?? 0);
 
         $rows = $paginator->map(fn (Loan $l) => [
             'id' => $l->id,
@@ -62,7 +76,7 @@ class LoanController extends Controller
             'maturity_date' => $l->maturity_date?->format('Y-m-d'),
             'status' => $l->status,
             'purpose' => $l->purpose,
-            'contract_attachment_url' => $l->contract_attachment ? Storage::url($l->contract_attachment) : null,
+            'contract_attachment_url' => $l->contract_attachment ? Storage::disk('public')->url($l->contract_attachment) : null,
             'paid_principal' => (int) ($l->payments_sum_principal_paid ?? 0),
             'paid_interest' => (int) ($l->payments_sum_interest_paid ?? 0),
             'remaining_principal' => $l->principal_amount - (int) ($l->payments_sum_principal_paid ?? 0),
@@ -92,7 +106,13 @@ class LoanController extends Controller
                 'total' => (int) ($statsRow->total ?? 0),
                 'total_principal' => (int) ($statsRow->total_principal ?? 0),
                 'active_count' => (int) ($statsRow->active_count ?? 0),
-                'active_principal' => (int) ($statsRow->active_principal ?? 0),
+                'active_principal' => $activePrincipal,
+                'outstanding_principal' => max(0, $activePrincipal - $paidPrincipal),
+                'paid_principal' => $paidPrincipal,
+                'paid_interest' => (int) ($terbayarAktif->bunga ?? 0),
+                'next_maturity' => $statsRow->next_maturity
+                    ? Carbon::parse($statsRow->next_maturity)->toDateString()
+                    : null,
             ],
             'filters' => [
                 'search' => $search,
@@ -148,6 +168,15 @@ class LoanController extends Controller
 
     public function update(UpdateLoanRequest $request, Loan $loan): RedirectResponse
     {
+        // Nominal pokok dan tanggal mulai sudah tercermin di mutasi bank.
+        // Mengubahnya tanpa menyinkronkan transaksi membuat saldo dan riwayat
+        // pinjaman bercerita berbeda, jadi keduanya dikunci begitu pencairan
+        // tercatat. Kolom lain (nama pemberi pinjaman, catatan, lampiran)
+        // tetap dapat disunting.
+        $adaPencairan = BankTransaction::where('reference_number', $loan->loan_number)
+            ->where('transaction_type', 'credit')
+            ->exists();
+
         abort_if($loan->status !== 'active', 403, 'Pinjaman yang sudah lunas tidak dapat diedit');
 
         $validated = $request->validated();
@@ -168,12 +197,14 @@ class LoanController extends Controller
 
         $loan->update([
             'lender_name' => $validated['lender_name'],
-            'principal_amount' => $validated['principal_amount'],
+            // Nominal pokok & tanggal mulai dipertahankan bila pencairannya
+            // sudah tercatat di bank (lihat catatan di awal metode).
+            'principal_amount' => $adaPencairan ? $loan->principal_amount : $validated['principal_amount'],
             'interest_type' => $validated['interest_type'],
             'interest_amount' => $validated['interest_type'] === 'fixed' ? $validated['interest_amount'] : null,
             'interest_rate' => $validated['interest_type'] === 'percentage' ? $validated['interest_rate'] : null,
             'term_months' => $validated['term_months'],
-            'start_date' => $validated['start_date'],
+            'start_date' => $adaPencairan ? $loan->start_date : $validated['start_date'],
             'maturity_date' => $validated['maturity_date'],
             'purpose' => $validated['purpose'] ?? null,
             'contract_attachment' => $attachmentPath,
@@ -186,13 +217,26 @@ class LoanController extends Controller
     {
         abort_if($loan->payments()->exists(), 403, 'Pinjaman yang sudah memiliki pembayaran tidak dapat dihapus');
 
-        if ($loan->contract_attachment) {
-            Storage::disk('public')->delete($loan->contract_attachment);
-        }
+        DB::transaction(function () use ($loan) {
+            // Pencairan pinjaman membentuk transaksi masuk di bank, ditautkan
+            // lewat `reference_number` = nomor pinjaman. Menghapus pinjamannya
+            // saja meninggalkan dana masuk yatim yang menggelembungkan saldo
+            // tanpa dokumen pendukung. Karena penghapusan hanya diizinkan
+            // selama belum ada pembayaran, membalik pencairannya aman.
+            BankTransaction::where('reference_number', $loan->loan_number)
+                ->where('transaction_type', 'credit')
+                ->get()
+                ->each
+                ->delete();
 
-        $loan->delete();
+            if ($loan->contract_attachment) {
+                Storage::disk('public')->delete($loan->contract_attachment);
+            }
 
-        return back()->with('success', 'Pinjaman berhasil dihapus');
+            $loan->delete();
+        });
+
+        return back()->with('success', 'Pinjaman berhasil dihapus beserta mutasi pencairannya');
     }
 
     public function pay(PayLoanRequest $request, Loan $loan): RedirectResponse
@@ -202,9 +246,10 @@ class LoanController extends Controller
         $paidPrincipal = (int) $loan->payments()->sum('principal_paid');
         $remainingPrincipal = $loan->principal_amount - $paidPrincipal;
 
-        $totalInterest = $loan->interest_type === 'fixed'
-            ? (int) ($loan->interest_amount ?? 0)
-            : (int) round($loan->principal_amount * ($loan->interest_rate ?? 0) / 100 / 12 * $loan->term_months);
+        // Satu definisi rumus bunga, dipakai bersama jadwal angsuran yang
+        // ditampilkan di layar. Dua salinan akan menyimpang, dan yang menyimpang
+        // berarti layar menjanjikan angka yang ditolak server ini.
+        $totalInterest = app(JadwalAngsuranService::class)->totalBungaPinjaman($loan);
         $paidInterest = (int) $loan->payments()->sum('interest_paid');
         $remainingInterest = $totalInterest - $paidInterest;
 
@@ -215,6 +260,20 @@ class LoanController extends Controller
 
         if ($principalPaid === 0 && $interestPaid === 0) {
             return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
+        }
+
+        // Pembayaran tidak boleh melampaui sisa. Tanpa batas ini kas terdebit
+        // penuh dan sisa pokok/bunga menjadi negatif.
+        if ($principalPaid > $remainingPrincipal) {
+            return back()->withErrors([
+                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+            ]);
+        }
+
+        if ($interestPaid > $remainingInterest) {
+            return back()->withErrors([
+                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+            ]);
         }
 
         DB::transaction(function () use ($loan, $validated, $principalPaid, $interestPaid, $remainingPrincipal) {
@@ -266,9 +325,45 @@ class LoanController extends Controller
 
     private function generateLoanNumber(): string
     {
-        $latest = Loan::latest('id')->first();
-        $nextId = $latest ? $latest->id + 1 : 1;
+        // Diturunkan dari NOMOR terbesar yang sudah dipakai, bukan dari id
+        // terakhir. `loan_number` boleh diketik manual dan barisnya boleh
+        // dihapus, sehingga urutan id dan urutan nomor bisa berbeda — prefill
+        // berbasis id lalu menawarkan nomor yang sudah terpakai.
+        $terbesar = Loan::query()
+            ->pluck('loan_number')
+            ->map(fn ($n) => (int) preg_replace('/\D/', '', (string) $n))
+            ->max() ?? 0;
 
-        return 'LOAN-'.str_pad($nextId, 5, '0', STR_PAD_LEFT);
+        $urut = $terbesar + 1;
+
+        do {
+            $nomor = 'LOAN-'.str_pad((string) $urut, 5, '0', STR_PAD_LEFT);
+            $urut++;
+        } while (Loan::where('loan_number', $nomor)->exists());
+
+        return $nomor;
+    }
+
+    /**
+     * Jadwal angsuran satu loan, dihitung saat panel detail dibuka.
+     *
+     * Tidak ikut di payload daftar: penyusunannya menjumlahkan pembayaran per
+     * baris, jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function schedule(Loan $loan, JadwalAngsuranService $jadwal): JsonResponse
+    {
+        $this->authorize('view loans');
+
+        return response()->json([
+            'rows' => $jadwal->untukPinjaman($loan),
+            'summary' => [
+                'principal' => (int) $loan->principal_amount,
+                'interest' => $jadwal->totalBungaPinjaman($loan),
+                'terms' => (int) $loan->term_months,
+                'start_date' => $loan->start_date?->toDateString(),
+                'principal_paid' => (int) $loan->payments()->sum('principal_paid'),
+                'interest_paid' => (int) $loan->payments()->sum('interest_paid'),
+            ],
+        ]);
     }
 }

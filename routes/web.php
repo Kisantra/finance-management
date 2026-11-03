@@ -7,6 +7,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BankTransactionController;
 use App\Http\Controllers\CashFlowController;
 use App\Http\Controllers\CashFlowExportController;
+use App\Http\Controllers\ChooseCompanyController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
@@ -27,7 +28,11 @@ use App\Http\Controllers\Settings\PasswordController as SettingsPasswordControll
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\TemplateBuilderController;
+use App\Http\Controllers\TenantStorageController;
 use App\Http\Controllers\TransactionCategoryController;
+use App\Http\Middleware\EnsureUserBelongsToCompany;
+use App\Http\Middleware\SetCompanyUrlDefaults;
+use App\Http\Middleware\SetPermissionsTeam;
 use App\Models\BankAccount;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -35,16 +40,19 @@ use App\Models\PdfTemplate;
 use App\Models\TransactionCategory;
 use App\Services\BuilderInvoicePrinter;
 use App\Services\FundRequestExportService;
+use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 
 // ============================================================================
 // PUBLIC ROUTES
 // ============================================================================
 
-Route::redirect('/', '/login')->name('home');
+Route::redirect('/', '/choose-company')->name('home');
 
 // Panduan (dokumentasi + video tutorial per modul; isi di video/<modul>/guide.ts) sengaja publik:
 // calon pengguna mempelajari sistem sebelum punya akun. Isinya data contoh, bukan data perusahaan.
@@ -53,60 +61,107 @@ Route::get('/panduan/{slug?}', fn (?string $slug = null) => Inertia::render('gui
     ->name('guide');
 
 // ============================================================================
-// AUTHENTICATED ROUTES
+// CENTRAL ROUTES (tanpa konteks perusahaan)
 // ============================================================================
 
-Route::get('/api/transaction-categories', function (Request $request) {
-    $type = $request->input('type');
-
-    $categoryTypes = match ($type) {
-        'credit' => ['income', 'adjustment', 'transfer'],
-        'debit' => ['expense', 'adjustment', 'transfer'],
-        'income' => ['income'],
-        'expense' => ['expense'],
-        'adjustment' => ['adjustment'],
-        'transfer' => ['transfer'],
-        default => ['income', 'expense', 'adjustment', 'transfer'],
-    };
-
-    return TransactionCategory::whereNull('parent_id')
-        ->whereIn('type', $categoryTypes)
-        ->with('children')
-        ->orderBy('type')
-        ->orderBy('label')
-        ->get()
-        ->flatMap(function ($parent) {
-            $items = [];
-            $items[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
-            foreach ($parent->children as $child) {
-                $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
-            }
-
-            return $items;
-        })
-        ->values();
-})->name('api.transaction-categories');
-
-Route::get('/api/bank-accounts', function () {
-    return BankAccount::orderBy('bank_name')
-        ->orderBy('account_name')
-        ->get()
-        ->map(fn ($account) => [
-            'label' => $account->account_name.' ('.$account->bank_name.')',
-            'value' => $account->id,
-        ]);
-})->name('api.bank-accounts');
-
-Route::get('/api/clients', function () {
-    return Client::orderBy('name')
-        ->get(['id', 'name'])
-        ->map(fn ($client) => [
-            'label' => $client->name,
-            'value' => $client->id,
-        ]);
-})->name('api.clients');
-
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/choose-company', ChooseCompanyController::class)->name('choose-company');
+});
+
+// ============================================================================
+// AUTHENTICATED ROUTES — konteks perusahaan aktif (/c/{company}/...)
+// Urutan middleware group: tenancy path → cek keanggotaan → team Spatie → URL defaults
+// ============================================================================
+
+$companyMiddleware = [
+    'auth',
+    'verified',
+    InitializeTenancyByPath::class,
+    EnsureUserBelongsToCompany::class,
+    SetPermissionsTeam::class,
+    SetCompanyUrlDefaults::class,
+];
+
+Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
+
+    Route::get('/api/transaction-categories', function (Request $request) {
+        $type = $request->input('type');
+
+        $categoryTypes = match ($type) {
+            'credit' => ['income', 'adjustment', 'transfer'],
+            'debit' => ['expense', 'adjustment', 'transfer'],
+            'income' => ['income'],
+            'expense' => ['expense'],
+            'adjustment' => ['adjustment'],
+            'transfer' => ['transfer'],
+            default => ['income', 'expense', 'adjustment', 'transfer'],
+        };
+
+        return TransactionCategory::whereNull('parent_id')
+            ->whereIn('type', $categoryTypes)
+            ->with('children')
+            ->orderBy('type')
+            ->orderBy('label')
+            ->get()
+            ->flatMap(function ($parent) {
+                $items = [];
+                $items[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
+                foreach ($parent->children as $child) {
+                    $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
+                }
+
+                return $items;
+            })
+            ->values();
+    })->middleware('can:view categories')->name('api.transaction-categories');
+
+    Route::get('/api/bank-accounts', function () {
+        return BankAccount::orderBy('bank_name')
+            ->orderBy('account_name')
+            ->get()
+            ->map(fn ($account) => [
+                'label' => $account->account_name.' ('.$account->bank_name.')',
+                'value' => $account->id,
+            ]);
+    })->middleware('can:view bank-accounts')->name('api.bank-accounts');
+
+    Route::get('/api/clients', function () {
+        return Client::orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($client) => [
+                'label' => $client->name,
+                'value' => $client->id,
+            ]);
+    })->middleware('can:view clients')->name('api.clients');
+
+    // Urutan nomor invoice bergantung pada BULAN TANGGAL INVOICE, bukan bulan
+    // hari ini. Halaman Buat Invoice dulu menerima satu angka yang dihitung dari
+    // now(), lalu menyusun preview dengan bulan romawi dari tanggal yang dipilih
+    // pengguna — untuk invoice bertanggal September pada hari kerja Agustus,
+    // preview menampilkan urutan Agustus dengan label September.
+    Route::get('/api/invoices/next-sequence', function (Request $request) {
+        $tanggal = $request->query('date');
+        $tanggal = $tanggal ? Carbon::parse($tanggal) : Carbon::now();
+
+        // Invoice::getMaxSequenceFromDb() TIDAK PERNAH ADA — endpoint ini selalu
+        // melempar BadMethodCallException (HTTP 500) sejak ditulis, dan tidak
+        // ketahuan karena belum ada pemanggilnya di frontend. nextSequence()
+        // sudah menambahkan satu sendiri dan sudah memakai periode reset dari
+        // pengaturan, jadi JANGAN tambahkan "+ 1" lagi di sini.
+        return ['sequence' => app(InvoiceNumberService::class)->nextSequence($tanggal)];
+    })->middleware('can:create invoices')->name('api.invoices.next-sequence');
+});
+
+Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {
+
+    // ------------------------------------------------------------------------
+    // BERKAS PERUSAHAAN (lampiran, logo, tanda tangan, stempel)
+    // Storage per-tenant: root disk `public` ada di storage/tenant{slug}/app/public,
+    // jadi symlink public/storage (milik DB pusat) tidak bisa melayaninya.
+    // ------------------------------------------------------------------------
+    Route::get('/storage/{path}', TenantStorageController::class)
+        ->where('path', '.*')
+        ->name('tenant.storage');
 
     // ------------------------------------------------------------------------
     // DASHBOARD
@@ -114,9 +169,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     // ponytail: redirect sandbox GET to new module; keep save/pdf routes for test backward-compat.
+    //
+    // `can:manage pdf templates` WAJIB, sama seperti grup settings/pdf-templates
+    // yang sah (lihat bawah). Tanpa itu, dua route ini adalah pintu belakang:
+    // QC 2026-11-03 membuktikan staff yang dijawab 403 di /settings/pdf-templates
+    // tetap bisa MENIMPA template PDF bawaan perusahaan lewat sini — namanya
+    // berubah jadi "Sandbox", kop suratnya hilang, dan is_default tetap 1,
+    // sehingga setiap invoice berikutnya tercetak dengan template rusak itu.
+    // TemplateBuilderController sendiri tidak punya pemeriksaan izin apa pun.
     Route::get('/template-builder-test', fn () => redirect()->route('settings.pdf-templates.index'))->name('template-builder-test');
-    Route::post('/template-builder-test', [TemplateBuilderController::class, 'save'])->name('template-builder-test.save');
-    Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->name('template-builder-test.pdf');
+    Route::middleware('can:manage pdf templates')->group(function () {
+        Route::post('/template-builder-test', [TemplateBuilderController::class, 'save'])->name('template-builder-test.save');
+        Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->name('template-builder-test.pdf');
+    });
 
     // ------------------------------------------------------------------------
     // CLIENTS & SERVICES
@@ -150,6 +215,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');
         Route::put('/{invoice}', [InvoiceController::class, 'update'])->middleware('can:edit invoices')->name('update');
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->middleware('can:delete invoices')->name('destroy');
+        // Menerbitkan nomor resmi dan mencabutnya kembali bukan aksi baca.
+        // Sebelumnya keduanya hanya terlindung `can:view invoices`, sehingga
+        // pemegang hak baca saja bisa mengirim invoice bernomor ke klien lalu
+        // menarik nomornya lagi.
         Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->middleware('can:edit invoices')->name('send');
         Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->middleware('can:edit invoices')->name('rollback');
         Route::post('/{invoice}/payments', [PaymentController::class, 'store'])->middleware('can:create invoices')->name('payments.store');
@@ -175,6 +244,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
                 $filename = $printer->filename($invoice, $dpAmount, $pelunasanAmount);
             } else {
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
@@ -201,6 +271,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $printer = new BuilderInvoicePrinter;
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
             } else {
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
             }
@@ -472,6 +543,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/loans/{loan}', [LoanController::class, 'update'])->middleware('can:edit loans')->name('loans.update');
         Route::delete('/loans/{loan}', [LoanController::class, 'destroy'])->middleware('can:delete loans')->name('loans.destroy');
         Route::post('/loans/{loan}/pay', [LoanController::class, 'pay'])->middleware('can:pay loans')->name('loans.pay');
+        // Jadwal dihitung saat panel detail dibuka, bukan ikut di payload daftar:
+        // penyusunannya menjumlahkan pembayaran per pinjaman, jadi menaruhnya di
+        // daftar berarti 2 query dikali jumlah baris.
+        Route::get('/loans/{loan}/schedule', [LoanController::class, 'schedule'])->name('loans.schedule');
     });
 
     Route::middleware('can:view receivables')->group(function () {
@@ -480,6 +555,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/receivables/{receivable}', [ReceivableController::class, 'update'])->middleware('can:edit receivables')->name('receivables.update');
         Route::delete('/receivables/{receivable}', [ReceivableController::class, 'destroy'])->middleware('can:delete receivables')->name('receivables.destroy');
         Route::post('/receivables/{receivable}/submit', [ReceivableController::class, 'submit'])->name('receivables.submit');
+        Route::get('/receivables/{receivable}/schedule', [ReceivableController::class, 'schedule'])->name('receivables.schedule');
         Route::post('/receivables/{receivable}/approve', [ReceivableController::class, 'approve'])->middleware('can:approve receivables')->name('receivables.approve');
         Route::post('/receivables/{receivable}/pay', [ReceivableController::class, 'pay'])->middleware('can:pay receivables')->name('receivables.pay');
     });
@@ -524,6 +600,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
             Route::post('/users/bulk-delete', [UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
         });
+
+        Route::middleware('can:manage companies')->group(function () {
+            Route::get('/companies', [App\Http\Controllers\Admin\CompanyController::class, 'index'])->name('companies.index');
+            Route::post('/companies', [App\Http\Controllers\Admin\CompanyController::class, 'store'])->name('companies.store');
+            Route::post('/companies/{targetCompany}/retry', [App\Http\Controllers\Admin\CompanyController::class, 'retry'])->name('companies.retry');
+        });
     });
 
     // Legacy redirect to support old "admin.users" route name from sidebar
@@ -533,6 +615,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // SETTINGS
     // ------------------------------------------------------------------------
     Route::prefix('settings')->name('settings.')->group(function () {
+        // JANGAN pakai Route::redirect di sini: ia menulis path LITERAL, dan di
+        // dalam grup ber-prefix /c/{company} target itu tidak ikut mendapat
+        // prefix sehingga /c/{slug}/settings melempar ke /settings/profile yang
+        // 404. Route::inertia aman — ia tidak menulis path tujuan.
         Route::inertia('/', 'settings/index')->name('index');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
@@ -542,9 +628,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/password', [SettingsPasswordController::class, 'edit'])->name('password');
         Route::put('/password', [SettingsPasswordController::class, 'update'])->name('password.update');
 
-        Route::get('/company', [CompanyController::class, 'edit'])->name('company');
-        Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
-        Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+        // Profil perusahaan — digate permission: identitasnya (nama, NPWP, PKP,
+        // logo, tanda tangan) tampil di setiap PDF invoice dan singkatannya
+        // menggerakkan penomoran dokumen. Sebelumnya terbuka untuk SEMUA user
+        // login, sehingga staff pun bisa menimpanya.
+        Route::middleware('can:manage company profile')->group(function () {
+            Route::get('/company', [CompanyController::class, 'edit'])->name('company');
+            Route::post('/company', [CompanyController::class, 'update'])->name('company.update');
+            Route::delete('/company/assets/{asset}', [CompanyController::class, 'deleteAsset'])->name('company.delete-asset');
+        });
 
         Route::middleware('can:manage invoice settings')->group(function () {
             Route::get('/invoice-numbering', [InvoiceSettingsController::class, 'edit'])->name('invoice-numbering');

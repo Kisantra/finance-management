@@ -1,0 +1,9 @@
+slug,total_ms,insert_plus_create_db_ms,migrate_ms,seed_ms,mark_active_ms,grant_access_ms,tabel,migrasi,kategori,kategori_sistem,profil,status
+perfb,12779.1,,12538.9,172.5,7.8,23.2,22,52,28,6,1,active
+perfd,9313.2,29.9,9110.1,148.7,4.6,19.8,22,52,28,6,1,active
+perfe,9148,12.3,8979.9,141.9,4.4,9.5,22,52,28,6,1,active
+perff,6096.2,14.4,5926.4,139.8,4.4,11.3,22,52,28,6,1,active
+perfg,12334.3,12.4,12126.2,181.7,4.6,9.4,22,52,28,6,1,active
+perfh,6437.8,14.6,6244.9,162.8,4.9,10.6,22,52,28,6,1,active
+perfi,12259,12.4,11218.4,1014.8,4.6,8.8,22,52,28,6,1,active
+perfj,13555,10.7,13382.3,148.2,4.4,9.5,22,52,28,6,1,active

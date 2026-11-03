@@ -42,7 +42,7 @@ class AuthenticatedSessionController extends Controller
         RateLimiter::clear($this->throttleKey($request));
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('choose-company', absolute: false));
     }
 
     public function destroy(Request $request): RedirectResponse

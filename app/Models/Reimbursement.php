@@ -186,6 +186,10 @@ class Reimbursement extends Model
         }
 
         // Selain admin: hanya pemilik, dan hanya selama belum diproses (draft/ditolak).
+        // Cek kepemilikan WAJIB — tanpa `user_id`, setiap pemegang permission
+        // "delete reimbursements" (termasuk role staff) bisa menghapus pengajuan
+        // milik orang lain. Komentar lama menjanjikan "owner only" padahal
+        // kepemilikannya tidak pernah diperiksa.
         return $user !== null
             && $this->user_id === $user->id
             && in_array($this->status, ['draft', 'rejected']);
@@ -296,7 +300,7 @@ class Reimbursement extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? Storage::url($this->attachment_path) : null;
+        return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null;
     }
 
     public function getAttachmentTypeAttribute(): ?string

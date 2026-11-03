@@ -78,7 +78,7 @@ class ReimbursementControllerTest extends TestCase
     /** Redesign 8 Okt 2026: form buat ada di sheet halaman daftar; route lama mengarah ke sana. */
     public function test_create_route_opens_the_form_on_the_list(): void
     {
-        $this->actingAs($this->staff)->get('/reimbursements/create')->assertRedirect('/reimbursements?create=1');
+        $this->actingAs($this->staff)->get('/reimbursements/create')->assertRedirect($this->prefixCompanyUri('/reimbursements?create=1'));
     }
 
     public function test_edit_route_opens_the_detail_drawer(): void
@@ -88,7 +88,7 @@ class ReimbursementControllerTest extends TestCase
 
         $this->actingAs($this->staff)
             ->get("/reimbursements/{$reimbursement->id}/edit")
-            ->assertRedirect('/reimbursements#reimbursement/'.$reimbursement->id);
+            ->assertRedirect($this->prefixCompanyUri('/reimbursements#reimbursement/'.$reimbursement->id));
     }
 
     public function test_detail_data_is_available_to_owner_and_reviewers_only(): void
@@ -314,7 +314,7 @@ class ReimbursementControllerTest extends TestCase
             'expense_date' => '2026-10-08',
             'category' => 'other',
             'action' => 'draft',
-        ])->assertRedirect('/reimbursements');
+        ])->assertRedirect($this->prefixCompanyUri('/reimbursements'));
 
         $this->assertDatabaseHas('reimbursements', ['title' => 'Kurir dokumen', 'description' => null]);
     }

@@ -1,6 +1,7 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Building2, ChevronRight, FileText, Hash, KeyRound, User, type LucideIcon } from 'lucide-react';
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
@@ -90,7 +91,7 @@ export default function SettingsIndex() {
                                 const Icon = row.icon;
                                 return (
                                     <li key={row.href} className="border-b border-ob-line-soft last:border-b-0">
-                                        <Link
+                                        <AppLink
                                             href={row.href}
                                             className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-ob-hover focus-visible:bg-ob-hover focus-visible:outline-none"
                                         >
@@ -108,7 +109,7 @@ export default function SettingsIndex() {
                                                 aria-hidden="true"
                                                 className="h-4 w-4 shrink-0 text-ob-ink-3 transition-transform group-hover:translate-x-0.5"
                                             />
-                                        </Link>
+                                        </AppLink>
                                     </li>
                                 );
                             })}

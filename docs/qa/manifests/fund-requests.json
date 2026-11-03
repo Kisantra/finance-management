@@ -1,0 +1,559 @@
+{
+  "module": "fund-requests",
+  "title": "Modul Permintaan Dana",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/fund-requests.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/fund-requests",
+  "report_out": "../report/Laporan-QA-fund-requests.pdf",
+  "summary": [
+    "49 test case dirancang untuk modul ini; 49 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "7 temuan tercatat (BUG-FR-01, BUG-FR-02, BUG-FR-03, BUG-FR-04, BUG-FR-05, BUG-FR-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-FR-01",
+      "title": "Pengajuan ulang setelah `rejected` gagal diam-diam sambil menampilkan flash sukses",
+      "sifat": "Cacat state machine + pesan menyesatkan (alur bisnis buntu).",
+      "cases": "C02.",
+      "gejala": "Pengajuan `002/TIG/VIII/2026` berstatus `rejected`. Pemilik mengirim `PUT /c/qa-tiga/fund-requests/2` dengan `action=submit`. Respons 302 dan halaman berikutnya menampilkan flash `success: \"Permintaan dana berhasil diajukan untuk persetujuan\"`, tetapi DB tetap `status=rejected` (item & `total_amount` memang ikut berubah menjadi Rp 120.000, jadi bagian ∗edit∗-nya berhasil). Jalur alternatif `POST /fund-requests/2/submit` menolak dengan flash `error: \"Permintaan dana tidak dapat diajukan (pastikan ada item dengan jumlah valid)\"` — pesan yang juga menyesatkan karena itemnya valid; masalahnya status.",
+      "sebab": "`app/Models/FundRequest.php:169-172` `canEdit()` menerima `draft` dan `rejected`, tetapi `canSubmit()` (baris 184-190) hanya menerima `draft`. `app/Http/Controllers/FundRequestController.php:318-362` — di dalam `DB::transaction` dipanggil `$fundRequest-›submit()` tanpa memeriksa nilai kembaliannya, sedangkan `FundRequest::submit()` (baris 108-118) `return false` diam-diam bila `canSubmit()` gagal. Pesan flash disusun di baris 364-368 semata-mata dari `$validated['action']`, bukan dari hasil `submit()`. `update()` juga tidak pernah mereset status `rejected` → `draft`.",
+      "cakupan": "Semua pemohon yang pengajuannya ditolak, di semua perusahaan. Dampak: pengajuan yang ditolak tidak bisa diajukan ulang sama sekali lewat UI, dan pemohon percaya sudah mengajukan sehingga tidak menindaklanjuti.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-02",
+      "title": "Siapa pun ber-permission `delete fund requests` bisa menghapus pengajuan milik orang lain",
+      "sifat": "Celah otorisasi (kepemilikan tidak dicek) → kehilangan data.",
+      "cases": "A22.",
+      "gejala": "`manager@gmail.com` (user id 2) membuat draft `005/TIG/VIII/2026`. `staff@gmail.com` (user id 3, bukan admin, bukan pemilik) mengirim `DELETE /c/qa-tiga/fund-requests/5` → 302 dengan flash `success: \"Permintaan dana berhasil dihapus\"` dan baris hilang dari DB.",
+      "sebab": "`app/Http/Controllers/FundRequestController.php:371-380` — `destroy()` hanya memanggil `$fundRequest-›canDelete()`, yang di `app/Models/FundRequest.php:174-182` hanya memeriksa role admin dan status (`draft`/`rejected`) — tidak pernah `user_id`. Bandingkan `update()` (baris 308-310) dan `submit()` (baris 384-386) yang memang memeriksa kepemilikan dengan `abort(403)`. Asimetri ini juga tercermin di prop baris: `'can_edit' =› canEdit() && (pemilik // admin)` tetapi `'can_delete' =› canDelete()` saja, jadi tombol hapus pun muncul untuk milik orang lain.",
+      "cakupan": "Role `staff` di aplikasi ini memiliki `delete fund requests`, sehingga setiap staff bisa menghapus draft/pengajuan ditolak milik rekan kerjanya (termasuk milik manajer). Berlaku di semua perusahaan.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-03",
+      "title": "Menghapus pengajuan `disbursed` meninggalkan pengeluaran yatim di bank",
+      "sifat": "Inkonsistensi data lintas modul (invarian terdokumentasi, terbukti).",
+      "cases": "A24, C03.",
+      "gejala": "Admin menghapus `001/TIG/VIII/2026` yang berstatus `disbursed`. Baris `fund_requests` hilang, tetapi `bank_transactions` id 16 (Rp 1.500.000) dan id 17 (Rp 350.000) tetap ada dengan deskripsi `\"Pencairan Dana: QA3 Pengajuan Operasional Lapangan - …\"` merujuk pengajuan yang sudah tidak ada. Saldo rekening 1 tetap `90.610.500` — tidak dikembalikan, dan tidak ada jejak untuk merekonsiliasi.",
+      "sebab": "`app/Http/Controllers/FundRequestController.php:371-380` `destroy()` hanya memanggil `$fundRequest-›delete()`. `canDelete()` (`app/Models/FundRequest.php:174-182`) memberi admin izin pada status apa pun, termasuk `disbursed`. Tidak ada hook maupun relasi terbalik yang membereskan transaksi: `fund_requests.bank_transaction_id` bahkan hanya menunjuk transaksi pertama (`FundRequestController::disburse()` menyimpan `$transactionIds[0]`), sehingga transaksi item ke-2 dan seterusnya tidak terjangkau dari fund request sama sekali.",
+      "cakupan": "Semua role `admin`. Efeknya paling terasa di Cash Flow → Pengeluaran dan Laporan Laba Rugi: beban tetap tercatat tanpa dokumen sumber. - DIPERBAIKI dengan opsi paling aman: penghapusan status `disbursed` ditolak. Menyimpan seluruh id transaksi lalu membalikkannya memang lebih fleksibel, tetapi menambah jalur pembatalan keuangan baru yang belum ada padanannya di modul lain — itu perubahan produk, bukan perbaikan bug. Saran asli: tolak penghapusan pengajuan berstatus `disbursed` (paling aman), atau — jika penghapusan tetap diizinkan — simpan seluruh id transaksi (tabel pivot atau kolom `fund_request_id` di `bank_transactions`) lalu hapus/balik semuanya dalam satu `DB::transaction` dan tampilkan konfirmasi yang menyebut nominal yang akan ikut dihapus.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-04",
+      "title": "Pratinjau nomor (`nextNumber`) berbasis COUNT bisa bentrok dengan nomor yang masih ada",
+      "sifat": "Cacat generator / kegunaan.",
+      "cases": "A23, C03.",
+      "gejala": "Dengan 4 pengajuan di Agustus 2026, `nextNumber = \"005/TIG/VIII/2026\"`. Setelah `001` dihapus, `nextNumber` menjadi `004/TIG/VIII/2026` — nomor yang masih dipakai pengajuan id 4. Form yang disubmit apa adanya ditolak `422 \"The request number has already been taken.\"`",
+      "sebab": "`app/Models/FundRequest.php` `generateRequestNumber()` menghitung `COUNT` pengajuan pada bulan+tahun berjalan lalu `+1`, bukan mengambil nomor urut terbesar yang sudah dipakai. Rule `unique:fund_requests,request_number` di `StoreFundRequestRequest` menahan duplikasi sehingga tidak terjadi korupsi data — tetapi alur pembuatan jadi buntu sampai user mengetik nomor manual.",
+      "cakupan": "Setiap perusahaan yang pernah menghapus pengajuan pada bulan berjalan. Ada juga potensi race pada submit bersamaan (dua request membaca COUNT yang sama).",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-05",
+      "title": "Kategori item tidak divalidasi bertipe `expense`, pencairannya jadi tak terlihat di Cash Flow",
+      "sifat": "Celah validasi dengan dampak pelaporan.",
+      "cases": "A19, C04.",
+      "gejala": "Pengajuan `004/TIG/VIII/2026` dibuat dengan `items[0][category_id]=5` (`Penghasilan`, type `income`) dan diterima. Setelah disetujui dan dicairkan ke rekening 2, terbentuk `bank_transactions id=18 debit Rp 100.000 category_id=5`. Baris itu tidak muncul di halaman Expenses (kategori bukan `expense`) dan tidak di Income (arah `debit`) — daftar Expenses berisi id `17,16,10,13,6,2` saja — sementara saldo rekening 2 tetap turun dari `109.667.000` ke `109.567.000`.",
+      "sebab": "`app/Http/Requests/StoreFundRequestRequest.php` / `UpdateFundRequestRequest.php` memvalidasi `items.∗.category_id` tanpa membatasi `type`. Pembatasan hanya di frontend: controller mengirim prop `categories` dari `TransactionCategory::selectOptions('expense')` (terverifikasi: 18 opsi, tidak memuat id 5). Kategori item lalu diteruskan apa adanya ke `BankTransaction::create()` di `FundRequestController::disburse()`, dan halaman Cash Flow menyaring berdasarkan tipe kategori (lihat `docs/module/cash-flow.md` — \"Klasifikasi halaman bergantung tipe kategori\").",
+      "cakupan": "Siapa pun yang bisa membuat pengajuan dan memanggil endpoint langsung; juga kategori yang tipenya diubah admin setelah pengajuan dibuat. Dampak: beban yang benar-benar mengurangi kas tetapi tidak pernah tampil di laporan pengeluaran operasional.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-06",
+      "title": "Kartu statistik tidak mengikuti filter yang sedang aktif",
+      "sifat": "Inkonsistensi UI/laporan (ringan).",
+      "cases": "A26.",
+      "gejala": "Dengan filter apa pun — `?status=disbursed` (1 baris), `?month=2026-07` (0 baris), `?search=ATK` (1 baris) — prop `stats` selalu `{\"total\":2,\"total_amount\":220000,\"pending_count\":0,\"approved_count\":0,\"disbursed_count\":1}`. Pengguna melihat \"2 pengajuan / Rp 220.000\" di atas tabel yang kosong.",
+      "sebab": "`app/Http/Controllers/FundRequestController.php:68-78` — `$statsQuery = FundRequest::query()` dibuat dari nol dan hanya menerapkan filter `tab`; seluruh filter `search`/`status`/`priority`/`user_id`/`month` yang sudah dibangun di `$query` tidak ikut. Bandingkan `CashFlowController` yang mengklon query terfilter sebelum menghitung `stats` — di sana statistik memang ikut menyaring (terverifikasi di `cash-flow.md` N15/N16).",
+      "cakupan": "Semua pengguna halaman Fund Requests. Tidak merusak data, tetapi angka ringkasan menyesatkan saat filter dipakai.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-FR-07",
+      "title": "`userOptions` membocorkan nama pengguna dari perusahaan lain",
+      "sifat": "Kebocoran data lintas tenant (informasi, bukan finansial).",
+      "cases": "A25.",
+      "gejala": "Prop `userOptions` pada `/c/qa-tiga/fund-requests` (sesi manager) berisi 9 user, termasuk `QA5 Pelapor` (id 8) dan `QA5 Tanpa Dashboard` (id 9). Pemeriksaan `finance_central.company_user` menunjukkan kedua user itu hanya anggota `qa-lima`, bukan `qa-tiga`. Nama-nama itu tampil di dropdown filter \"Pemohon\".",
+      "sebab": "`app/Http/Controllers/FundRequestController.php:131-133` — `User::orderBy('name')-›get()` tanpa pembatasan keanggotaan perusahaan, padahal `users` tinggal di database pusat yang dipakai bersama semua tenant.",
+      "cakupan": "Semua user dengan `approve fund requests` di perusahaan mana pun. Yang bocor adalah nama (dan id) pengguna organisasi/perusahaan lain — bukan data transaksi. Perlu dicek apakah pola `User::…-›get()` tanpa scope juga dipakai modul lain (di luar cakupan pengujian ini).",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat pengajuan draft + total dihitung dari item",
+      "verdict": "Pass",
+      "note": "302. DB: `id=1 status=draft total_amount=1850000`; item id 1 `amount=1500000`, item id 2 `amount=350000`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Form pengajuan dengan rincian item; total dihitung otomatis dari kuantitas × harga satuan."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Penomoran otomatis",
+      "verdict": "Pass",
+      "note": "`\"001/TIG/VIII/2026\"` (abbreviation `TIG` dari profil perusahaan \"QA Tiga\", bulan VIII, tahun 2026)",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Submit oleh pemilik",
+      "verdict": "Pass",
+      "note": "302; `status=pending total_amount=1850000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Approve oleh reviewer",
+      "verdict": "Pass",
+      "note": "`status=approved reviewed_by=2 reviewed_at=2026-08-19 14:43:54 review_notes=\"Disetujui untuk operasional lapangan\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Reject oleh reviewer",
+      "verdict": "Pass",
+      "note": "`id=2 status=rejected review_notes=\"Anggaran ATK sudah habis bulan ini\" reviewed_by=2`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Pencairan: satu transaksi debit per item",
+      "verdict": "Pass",
+      "note": "302. `bank_transactions` id 16 `1.500.000 debit cat 19` + id 17 `350.000 debit cat 15`; keduanya `reference_number=REF-CAIR-QA3-001` dan `attachment_path=transaction-attachments/hkI8PTYOdIrRvidwq6QtguC6XBuuF7mOVBswieEK.png` (path identik). `fund_requests.id=1`: `status=disbursed bank_transaction_id=16 disbursed_by=2 disbursement_date=2026-08-19`. Saldo rek 1: `92.460.500 → 90.610.500` (−1.850.000)",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Edit draft = hapus semua item lalu buat ulang",
+      "verdict": "Pass",
+      "note": "Item `id=3 amount=300000` hilang; muncul `id=4 quantity=2 amount=120000`; `total_amount=120000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Buat langsung dengan `action=submit`",
+      "verdict": "Pass",
+      "note": "`id=2 status=pending total_amount=300000`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Tombol Ajukan pada form yang sama mengirim langsung tanpa melewati draft."
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Hapus draft milik sendiri",
+      "verdict": "Pass",
+      "note": "302; baris `id=3` hilang; `COUNT(fund_request_items WHERE fund_request_id=3) = 0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Admin boleh mengedit draft milik user lain",
+      "verdict": "Pass",
+      "note": "302; `title=\"QA3 Pengajuan Perjalanan Dinas (admin edit)\" total_amount=1200000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Tab default per permission",
+      "verdict": "Pass",
+      "note": "staff: `tab=\"my\" rows=2 canApprove=false`; manager: `tab=\"all\" rows=2 canApprove=true canDisburse=true`; `?tab=my` untuk manager → `rows=0` (manager tidak punya pengajuan sendiri)",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Filter daftar",
+      "verdict": "Pass",
+      "note": "rows berturut-turut: 1, 1, 2, 2, 0, 1, 2 — semuanya sesuai. (Catatan: `stats` tidak ikut tersaring, lihat BUG-FR-06)",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Export PDF rekap (tanpa filter)",
+      "verdict": "Pass",
+      "note": "200 `application/pdf` (3.847 byte), `filename=Rekap-Pengajuan-Dana-all.pdf`; teks: `Periode: Semua Periode`, `Total Pengajuan : 2 pengajuan`, `Dicetak oleh : Manager Demo`, `TOTAL Rp 220.000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Export PDF terfilter",
+      "verdict": "Pass",
+      "note": "`filename=Rekap-Pengajuan-Dana-2026-08.pdf`; teks: `Periode: Agustus 2026`, `Filter Status : Dicairkan`, `Total Pengajuan : 1 pengajuan`, `004/TIG/VIII/2026 … 100.000`, `TOTAL Rp 100.000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N15",
+      "title": "Preview PDF inline",
+      "verdict": "Pass",
+      "note": "200, `Content-Disposition: inline`",
+      "attempts": "p"
+    },
+    {
+      "id": "N16",
+      "title": "Lampiran pengajuan disimpan & ikut terhapus",
+      "verdict": "Pass",
+      "note": "`attachment_path=fund-requests/kukGdanW453It1BuhhmsnOYb10gmE5Y888nT7ylT.png attachment_name=bukti.png`, file ada di `storage/tenantqa-tiga/app/public/fund-requests/`. Setelah `DELETE`: folder kosong (hook `deleting` bekerja — berbeda dengan `BankTransaction`, lihat BUG-CF-02 di `cash-flow.md`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N17",
+      "title": "Prop detail pencairan pada baris",
+      "verdict": "Pass",
+      "note": "`\"disbursement_account_name\":\"QA3 Rek 1 — Bank QA3\"`, `\"disbursement_attachment_name\":\"bukti.png\"`, `\"disbursement_attachment_url\":\"/storage/transaction-attachments/hkI8PT….png\"` — isi prop benar (rekening & nama berkas diambil dari `BankTransaction` tertaut), tetapi URL-nya tidak bisa dibuka; kegagalan URL dilacak terpisah di A21",
+      "attempts": "p"
+    },
+    {
+      "id": "N18",
+      "title": "Ajukan permintaan dana lewat form, nomor ter-generate otomatis",
+      "verdict": "Pass",
+      "note": "Nomor `001/SAT/VIII/2026`; total Rp 1.200.000; status Pending Review; badge sidebar menampilkan 1",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar permintaan dana kosong dengan kartu status per tahap."
+        },
+        {
+          "img": "N02-1",
+          "cap": "Form pengajuan: nomor ter-generate otomatis per perusahaan (001/SAT/VIII/2026) dan total item terhitung Rp 1.200.000."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Pengajuan masuk berstatus Pending Review; badge sidebar menampilkan 1 item menunggu."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "`total_amount` palsu dari client",
+      "verdict": "Pass",
+      "note": "Tersimpan `total_amount=1850000` — nilai palsu tidak dipakai sama sekali",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Tanpa item",
+      "verdict": "Pass",
+      "note": "422 `\"The items field is required.\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Minimal satu item wajib ada — form selalu menyediakan baris pertama."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Kuantitas 0",
+      "verdict": "Pass",
+      "note": "422 `\"The items.0.quantity field must be at least 1.\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Kuantitas minimal 1 pada kolom Qty."
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "`needed_by_date` di masa lalu",
+      "verdict": "Pass",
+      "note": "422 `\"The needed by date field must be a date after or equal to today.\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Tanggal Dibutuhkan Sebelum tidak menerima tanggal yang sudah lewat."
+        }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Prioritas tidak dikenal",
+      "verdict": "Pass",
+      "note": "422 `\"The selected priority is invalid.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Nomor pengajuan duplikat",
+      "verdict": "Pass",
+      "note": "422 `\"The request number has already been taken.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "`review_notes` › 500 karakter",
+      "verdict": "Pass",
+      "note": "422 `\"The review notes field must not be greater than 500 characters.\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Dialog review tempat catatan ditulis; panjangnya dibatasi di server."
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "title": "Aksi review tidak dikenal",
+      "verdict": "Pass",
+      "note": "422 `\"The selected action is invalid.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Tanggal pencairan di masa depan",
+      "verdict": "Pass",
+      "note": "422 `\"The disbursement date field must be a date before or equal to today.\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-3",
+          "cap": "Dialog pencairan dengan pemilih tanggal."
+        }
+      ]
+    },
+    {
+      "id": "A10",
+      "title": "Rekening pencairan tidak ada",
+      "verdict": "Pass",
+      "note": "422 `\"The selected bank account id is invalid.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Submit pengajuan milik orang lain",
+      "verdict": "Pass",
+      "note": "403; `status` tetap `draft`",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "Staff mencoba review",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "Staff mencoba mencairkan",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "Cairkan pengajuan yang belum `approved`",
+      "verdict": "Pass",
+      "note": "302 + flash `error: \"Permintaan dana tidak dapat dicairkan\"`; `COUNT(bank_transactions WHERE description LIKE 'Pencairan%') = 0`; status tetap `pending`",
+      "attempts": "p"
+    },
+    {
+      "id": "A15",
+      "title": "Review pengajuan yang sudah `disbursed`",
+      "verdict": "Pass",
+      "note": "302 + flash `error: \"Permintaan dana tidak dapat ditinjau\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A16",
+      "title": "Edit pengajuan `disbursed` (oleh admin)",
+      "verdict": "Pass",
+      "note": "302 + flash `error: \"Permintaan dana tidak dapat diedit\"`; `title`/`total_amount` id 4 tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A17",
+      "title": "Non-pemilik non-admin mengedit draft",
+      "verdict": "Pass",
+      "note": "403 (`FundRequestController::update()` baris 308-310)",
+      "attempts": "p"
+    },
+    {
+      "id": "A18",
+      "title": "User tanpa `view fund requests`",
+      "verdict": "Pass",
+      "note": "403 & 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A19",
+      "title": "Item memakai kategori bertipe income",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kategori item non-`expense` diterima, pencairannya lalu tak terlihat di halaman Cash Flow mana pun. Setelah BUG-FR-05 diperbaiki: `items.∗.category_id` dibatasi tipe `expense` di server",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Modul Permintaan Dana; kategori item kini dibatasi bertipe pengeluaran di server, sehingga pencairannya selalu terlihat di halaman Cash Flow."
+        }
+      ]
+    },
+    {
+      "id": "A20",
+      "title": "Staff menghapus pengajuan `disbursed`",
+      "verdict": "Pass",
+      "note": "302 + flash `error: \"Permintaan dana tidak dapat dihapus\"`; `id=4` tetap `disbursed`",
+      "attempts": "p"
+    },
+    {
+      "id": "A21",
+      "title": "URL bukti bayar pencairan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama. Setelah BUG-FR-01 diperbaiki: hasil `submit()` kini dipakai untuk memilih pesan — bila gagal, yang tampil flash error, bukan sukses",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "C01-5",
+          "cap": "Bukti bayar pencairan terbuka lewat URL storage per-perusahaan."
+        }
+      ]
+    },
+    {
+      "id": "A22",
+      "title": "Staff menghapus draft milik MANAGER",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pemegang `delete fund requests` bisa menghapus pengajuan orang lain. Setelah BUG-FR-02 diperbaiki: `canDelete()` memeriksa kepemilikan, penghapusan ditolak dan barisnya tetap ada",
+      "attempts": "fp"
+    },
+    {
+      "id": "A23",
+      "title": "Nomor berbasis COUNT bentrok setelah penghapusan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: nomor berbasis COUNT bentrok dengan nomor yang masih ada setelah satu pengajuan dihapus. Setelah BUG-FR-04 diperbaiki: sequence diturunkan dari nomor urut TERBESAR, lalu dinaikkan sampai menemukan nomor yang benar-benar bebas",
+      "attempts": "fp"
+    },
+    {
+      "id": "A24",
+      "title": "Admin menghapus pengajuan `disbursed`",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: menghapus pengajuan `disbursed` meninggalkan pengeluaran yatim di bank. Setelah BUG-FR-03 diperbaiki: penghapusan status `disbursed` ditolak dengan pesan yang menyebut alasannya",
+      "attempts": "fp"
+    },
+    {
+      "id": "A25",
+      "title": "`userOptions` pada filter pemohon",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `userOptions` memuat pengguna dari perusahaan lain (tabel `users` ada di database pusat bersama). Setelah BUG-FR-07 diperbaiki: dibatasi anggota perusahaan aktif",
+      "attempts": "fp"
+    },
+    {
+      "id": "A26",
+      "title": "Kartu statistik saat filter aktif",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kartu statistik memakai query baru tanpa filter, sehingga menampilkan angka global sementara tabel di bawahnya sudah tersaring. Setelah BUG-FR-06 diperbaiki: statistik dihitung dari klon query terfilter",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Filter status Approved menghasilkan 0 baris, dan keempat kartu statistik ikut menunjukkan 0 — sebelumnya kartu tetap menampilkan angka global (TOTAL 1, DICAIRKAN 1) sementara tabelnya kosong."
+        }
+      ]
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Siklus penuh lintas aktor & lintas modul",
+      "verdict": "Pass",
+      "note": "Semua langkah sesuai. Cash Flow `?search=Pencairan` → `stats={\"total_amount\":1850000,\"total_count\":2}`, baris 16 `1.500.000 / OPERASIONAL` dan 17 `350.000 / MAKAN MINUM`, `reference_number=REF-CAIR-QA3-001`. Saldo rek 1 `92.460.500 → 90.610.500`",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Jebakan terdokumentasi: pengajuan ulang setelah `rejected`",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pengajuan ulang setelah ditolak gagal diam-diam sambil menampilkan flash sukses. Setelah BUG-FR-01 diperbaiki: status `rejected` direset ke `draft` (beserta jejak review) sebelum `submit()`, dan status akhir benar-benar menjadi `pending`. Ditutup tes regresi",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N01-2",
+          "cap": "Pengajuan ulang setelah ditolak memakai form yang sama; statusnya kini benar-benar berpindah ke Pending."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Hapus pengajuan `disbursed` → pengeluaran yatim + nomor bentrok",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (gabungan BUG-FR-03 & BUG-FR-04). Setelah keduanya diperbaiki: pengajuan tercairkan tidak dapat dihapus, dan penomoran tidak lagi bentrok",
+      "attempts": "fp"
+    },
+    {
+      "id": "C04",
+      "title": "Pencairan dengan kategori item bertipe `income`",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pencairan berkategori non-expense menjadi transaksi yang tak tampil di halaman mana pun. Setelah BUG-FR-05 + BUG-CF-04 diperbaiki: keduanya ditolak sejak pengajuan maupun saat pencatatan transaksi",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A26-1",
+          "cap": "Pencairan tidak lagi bisa memakai kategori non-pengeluaran, sehingga transaksi hasil pencairan tidak menjadi transaksi hantu."
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "title": "Siklus penuh lewat layar: ajukan → setujui → cairkan + bukti bayar",
+      "verdict": "Pass",
+      "note": "Pending → Approved → Disbursed tanpa catatan diisi. DB: `bank_transactions id=2` Rp 1.200.000 debit dengan `attachment_path` terisi. Berkas terbuka di `/c/qa-satu/storage/transaction-attachments/…` — BUG-02 tertutup end-to-end lewat UI",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Dialog persetujuan menampilkan pemohon dan nominal sebelum keputusan diambil."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Status berpindah ke Approved dan tombol aksi berganti menjadi Cairkan."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Dialog pencairan: catatan opsional (perbaikan nullable) dan bukti bayar terunggah lewat drag & drop."
+        },
+        {
+          "img": "C01-4",
+          "cap": "Status akhir Disbursed tanpa catatan pencairan diisi."
+        },
+        {
+          "img": "C01-5",
+          "cap": "Berkas bukti bayar terbuka lewat URL storage per-perusahaan — bukti BUG-02 tertutup."
+        }
+      ]
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Cara eksekusi. Semua case dijalankan lewat HTTP ke `http://127.0.0.1:8000` dengan cookie sesi hasil login sungguhan + `X-XSRF-TOKEN`; prop Inertia dibaca dari `‹script data-page=\"app\"›` pada respons HTML; efek samping diverifikasi langsung ke `tenant_qa-tiga` dan `finance_central` lewat PDO. Tidak ada case yang dijalankan lewat klik di browser. Kolom `FE+BE` diisi hanya bila penegakan sisi frontend juga terbaca di kode/prop (mis. prop `categories` yang hanya berisi kategori `expense` pada A19, atau flag `can_∗` per baris); bukti eksekusi yang dilampirkan selalu dari sisi BE. Yang dibuktikan lewat eksekusi vs lewat baca kode. Seluruh baris \"Hasil Aktual\" adalah hasil eksekusi nyata (status HTTP, isi flash, isi prop, isi tabel). Rujukan file:baris pada blok Temuan adalah hasil pembacaan kode untuk menjelaskan sebab — bukan sumber klaim gejalanya. Tidak ada perubahan kode aplikasi. Bug dilaporkan, tidak diperbaiki. Batasan yang jujur diakui. (a) Tampilan dialog detail/review/disburse, Sheet create/edit, dan tab di UI tidak diuji secara visual — hanya kontrak data. (b) Jalur `GET /fund-requests/create` dan `/fund-requests/{id}/edit` (halaman penuh) tidak dirender-uji; seluruh create/update diuji lewat endpoint `POST`/`PUT` yang sama. (c) Perilaku badge sidebar (`getActionCounts`) dan seksi Dashboard \"Pengajuan Dana\" Belum diuji — di luar cakupan yang diminta. (d) Race condition penomoran pada submit bersamaan Belum diuji (butuh permintaan paralel; hanya dianalisis dari kode). (e) `show_requestor=1` pada export menghasilkan susunan teks yang terlihat janggal saat diekstrak dengan `pdftotext` (baris \"Pengaju:\" muncul sebelum judul pada satu baris dan tidak muncul pada baris lain) — tidak saya laporkan sebagai bug karena bisa jadi artefak ekstraksi teks, bukan tampilan PDF sesungguhnya; perlu dicek manusia secara visual. Kegagalan tooling (bukan cacat aplikasi). Berkas respons sementara helper QA (`/tmp/qa_body.txt`) dipakai bersama oleh sesi agent lain sehingga sempat menampilkan respons milik perusahaan `qa-lima`; helper diubah agar menulis ke direktori khusus (`/tmp/qa3/`) sebelum satu pun hasil dicatat. Tidak ada hasil di dokumen ini yang berasal dari berkas bersama itu. Sisa data uji di `tenant_qa-tiga`: 2 fund request (`002` rejected, `004` disbursed) dan transaksi pencairan yatim id 16 & 17 — sengaja ditinggal sebagai bukti BUG-FR-03. Satu-satunya aktor tambahan yang dipakai di modul ini (`qa3.income@example.test`, hanya untuk A18) dibuat khusus untuk QA dan sudah dihapus setelah pengujian; rinciannya di [`cash-flow.md`](cash-flow.md) bagian ∗Catatan pelaksanaan∗. Role bersama `admin`/`finance manager`/`staff` tidak diubah."
+    }
+  ]
+}

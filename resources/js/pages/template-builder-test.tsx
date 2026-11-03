@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { AppLayout } from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { companyUrl } from '@/lib/company';
 import { Type, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Bold as BoldIcon, GripVertical, Copy, Undo2, Redo2, Eye, Pencil, Plus, Save, FileDown, Lock, Unlock, RotateCcw } from 'lucide-react';
 
 // ponytail: sandbox throwaway. Drag native (tanpa lib), koordinat px @96dpi.
@@ -207,7 +208,7 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
     const save = () => {
         setSaving(true);
         router.post(
-            '/template-builder-test',
+            companyUrl('/template-builder-test'),
             { layout: els },
             {
                 preserveScroll: true,
@@ -218,7 +219,7 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
             },
         );
     };
-    const openPdf = () => window.open('/template-builder-test/pdf', '_blank');
+    const openPdf = () => window.open(companyUrl('/template-builder-test/pdf'), '_blank');
 
     // Posisi drop pada kertas (dibagi zoom karena kertas di-scale), di-clamp ke dalam A4.
     const dropPos = (e: React.DragEvent) => {

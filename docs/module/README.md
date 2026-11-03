@@ -64,6 +64,26 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.
   Komponen wajib pakai katalog di CLAUDE.md (Combobox, DatePicker, CurrencyInput, FileUpload, dll.).
 - **Workflow status**: state machine hidup di model (`canSubmit()`, `approve()`, dst.), bukan controller.
+- **Kategori sistem Loans/Receivables** (bug `code` SUDAH DIPERBAIKI 2026-08-11): kategori sistem
+  kini diidentifikasi lewat kolom `system_key` (`FIN-LOAN-IN` dst.) via
+  `TransactionCategory::findSystem()`; kategori ber-`system_key` tidak bisa diedit/dihapus dari UI.
+  Detail di [transaction-categories.md](transaction-categories.md), [loans.md](loans.md),
+  [receivables.md](receivables.md).
+- **Multi-tenancy (Tahap 1–2 selesai)**: satu database per perusahaan (stancl/tenancy v3).
+  Semua route aplikasi ber-prefix **`/c/{company}`** (slug); migration bisnis di
+  `database/migrations/tenant/` (jalankan `tenants:migrate`, bukan `migrate`); Spatie teams
+  (`company_id` string) dengan role global + assignment per perusahaan; model central
+  (User/Role/Permission/Organization/AppNotification/Feedback) memakai trait `CentralConnection`;
+  session/cache/queue di koneksi central. **Berkas** (lampiran, logo, ttd, stempel)
+  disimpan per perusahaan di `storage/tenant{slug}/app/public` dan dilayani route
+  `/c/{company}/storage/{path}` (`TenantStorageController`) — bukan symlink
+  `public/storage`; URL-nya di-set oleh `SetCompanyUrlDefaults` sehingga
+  `Storage::url()` otomatis benar. Konsekuensi keamanan: berkas hanya bisa diambil
+  anggota perusahaan tersebut (dulu symlink melayani siapa pun tanpa login).
+  Frontend: literal path WAJIB lewat `companyUrl()`
+  (`@/lib/company`), pencocokan URL aktif lewat `appPath()`. Test: 1 database, URL auto-prefix
+  di `tests/TestCase.php`. Rencana & status: `docs/multi-tenancy-runbook-eksekusi.md`.
+
 - **Kategori sistem Loans/Receivables** (diperbaiki 2026-09-17): kategori sistem diidentifikasi
   lewat kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `FIN-RCV-OUT`, `FIN-RCV-IN`,
   `EXP-INTEREST`, `REV-INTEREST`) via `TransactionCategory::findSystem()`. Kolom `code` sudah
@@ -91,6 +111,16 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
     sebelum middleware `web`, dan pengguna yang login tampil sebagai tamu di halaman error.
   - Tombol logout wajib lewat klien Inertia (`router.post('/logout')`), bukan `<form>` dengan token dari
     `<meta>`: meta dirender sekali saat halaman pertama dimuat dan basi begitu sesi berganti.
+  - Multi-tenancy: tombol "Laporkan ke Tim IT" dan tautan Dashboard hanya muncul bila tenancy sudah
+    ter-inisialisasi (error di dalam `/c/{company}` setelah cek keanggotaan). Di luar itu — mis. 419,
+    `/choose-company`, atau slug tak dikenal — tautan kembali ke `/choose-company`, tanpa tombol laporan.
+    Tenancy ter-inisialisasi **tidak** berarti keanggotaan sudah dicek; keamanannya datang dari izin
+    Spatie yang per tim. Pada 404 route model binding, `SubstituteBindings` gagal sebelum
+    `SetPermissionsTeam` mana pun, sehingga tim masih `null` — `ErrorReportService` memasang tim
+    perusahaan yang dibuka selama pengecekan izin lalu mengembalikannya. Jangan menulis ke
+    `storage_path()` dari penanganan error: di dalam tenancy path itu diarahkan ke folder tenant.
+  - Uji: `tests/Feature/ErrorPageTest.php`.
+
   - **Lapisan cadangan** (`resources/views/errors/*.blade.php`): dipakai ketika halaman Inertia
     sendiri gagal dirender (database mati, manifest Vite hilang). Berkas itu HARAM menyentuh
     database, session, auth, atau Vite — semuanya bisa jadi penyebab error yang sedang

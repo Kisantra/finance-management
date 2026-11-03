@@ -16,9 +16,11 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { FileUpload } from '@/components/shared/file-upload';
+import { api } from '@/lib/api';
+import { companyUrl } from '@/lib/company';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
-import { BTN, dateTime, dueInfo, FIELD, getCsrfToken, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
+import { BTN, dateTime, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
 import { PrintInvoiceDialog, type CustomTemplate } from './print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
@@ -77,16 +79,14 @@ export interface InvoiceDetail {
 
 type LoadState = { kind: 'loading' } | { kind: 'ready'; detail: InvoiceDetail } | { kind: 'missing' } | { kind: 'error'; message: string };
 
-const JSON_HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
-
 /**
  * Aksi invoice lewat fetch JSON, bukan kunjungan Inertia: redirect back akan mengganti halaman
  * di belakang modal dan membuang hash #invoice/{id}. Galat validasi 422 dikembalikan per field.
  */
 async function invoiceAction(url: string, method: 'POST' | 'DELETE', body?: Record<string, unknown>) {
-    const res = await fetch(url, {
+    const res = await api(url, {
         method,
-        headers: { ...JSON_HEADERS, 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfToken() },
+        headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
@@ -122,7 +122,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
 
     const load = React.useCallback(async (id: number, signal?: AbortSignal) => {
         try {
-            const res = await fetch(`/invoices/${id}/data`, { headers: JSON_HEADERS, signal });
+            const res = await api(`/invoices/${id}/data`, { signal });
             if (res.status === 404) return setState({ kind: 'missing' });
             if (!res.ok) throw new Error(`Server membalas ${res.status}.`);
             setState({ kind: 'ready', detail: await res.json() });
@@ -175,7 +175,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
         if (!deletePayment) return;
         setBusy(true);
         try {
-            const res = await fetch(`/payments/${deletePayment.id}`, { method: 'DELETE', headers: { ...JSON_HEADERS, 'X-CSRF-TOKEN': getCsrfToken() } });
+            const res = await api(`/payments/${deletePayment.id}`, { method: 'DELETE' });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) return toastError(data.message ?? `Pembayaran gagal dihapus (${res.status}).`);
             toast.success('Pembayaran dihapus.');
@@ -246,7 +246,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-52">
-                                            <DropdownMenuItem onClick={() => router.visit(`/invoices/${detail.id}/edit`)}>
+                                            <DropdownMenuItem onClick={() => router.visit(companyUrl(`/invoices/${detail.id}/edit`))}>
                                                 <Pencil className="h-4 w-4" /> Edit invoice
                                             </DropdownMenuItem>
                                             {rollbackable && (
@@ -415,7 +415,7 @@ function DrawerBody({
                     </div>
                     <div className="rounded-2xl bg-ob-inner p-3">
                         {/* updated_at ikut di URL agar PDF dirender ulang setelah invoice berubah */}
-                        <InvoicePaper src={`/invoice/${detail.id}/preview?v=${encodeURIComponent(detail.updated_at ?? '')}`} zoom={zoom} />
+                        <InvoicePaper src={companyUrl(`/invoice/${detail.id}/preview?v=${encodeURIComponent(detail.updated_at ?? '')}`)} zoom={zoom} />
                     </div>
                 </div>
             ) : (
@@ -723,7 +723,7 @@ function PaymentDialog({
                   }
                 : blankPayment(remaining),
         );
-        fetch('/api/bank-accounts', { headers: JSON_HEADERS })
+        api('/api/bank-accounts')
             .then((r) => r.json())
             .then(setAccounts)
             .catch((e) => console.error('[BankAccounts]', e));
@@ -758,9 +758,8 @@ function PaymentDialog({
         if (payment && form.remove_attachment) fd.append('remove_attachment', '1');
 
         try {
-            const res = await fetch(payment ? `/payments/${payment.id}` : `/invoices/${detail.id}/payments`, {
+            const res = await api(payment ? `/payments/${payment.id}` : `/invoices/${detail.id}/payments`, {
                 method: 'POST',
-                headers: { ...JSON_HEADERS, 'X-CSRF-TOKEN': getCsrfToken() },
                 body: fd,
             });
             const data = await res.json().catch(() => ({}));

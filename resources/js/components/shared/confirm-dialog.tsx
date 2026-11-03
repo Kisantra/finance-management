@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -65,10 +66,13 @@ export function ConfirmDialog({
                             <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
                                 {title}
                             </DialogTitle>
+                            {/* DialogDescription, bukan <p>: Radix memakainya untuk memasang
+                                aria-describedby. Tanpa itu pembaca layar hanya mengumumkan judulnya,
+                                sehingga kalimat soal akibat penghapusan tidak pernah terdengar. */}
                             {description && (
-                                <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">
+                                <DialogDescription className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">
                                     {description}
-                                </p>
+                                </DialogDescription>
                             )}
                         </div>
                     </div>

@@ -22,12 +22,24 @@ class TranslationService
             return $text;
         }
 
+        // Test tidak boleh bergantung pada jaringan. Tanpa penjaga ini satu test yang
+        // menyentuh teks belum ter-cache akan memanggil API terjemahan sungguhan dan
+        // menggantung sampai batas waktu eksekusi PHP.
+        if (app()->runningUnitTests()) {
+            return $text;
+        }
+
         // Cache key to avoid repeated API calls
         $cacheKey = "translation.{$sourceLang}.{$targetLang}." . md5($text);
 
         return Cache::remember($cacheKey, now()->addMonths(6), function () use ($text, $targetLang, $sourceLang) {
             try {
-                $tr = new GoogleTranslate($targetLang, $sourceLang);
+                // Timeout WAJIB. Tanpa ini request yang menggantung tidak melempar
+                // exception apa pun — `catch` di bawah tidak kena — dan request web
+                // ikut menggantung sampai max_execution_time PHP. Lebih baik teks
+                // asli tampil dalam 3 detik daripada halaman mati dalam 300.
+                $tr = (new GoogleTranslate($targetLang, $sourceLang))
+                    ->setOptions(['timeout' => 3, 'connect_timeout' => 2]);
 
                 return $tr->translate($text) ?? $text;
             } catch (\Exception $e) {

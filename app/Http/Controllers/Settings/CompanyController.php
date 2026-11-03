@@ -18,7 +18,14 @@ class CompanyController extends Controller
         $company = CompanyProfile::first();
 
         return Inertia::render('settings/company', [
-            'company' => $company ? [
+            // Dinamai companyProfile, BUKAN company. Prop bersama bernama
+            // `company` dikirim HandleInertiaRequests dan berisi identitas
+            // tenant ({slug, name, abbreviation}); prop halaman dengan nama
+            // yang sama MENIMPANYA. Akibatnya activeCompanySlug jadi null,
+            // lalu companyUrl() dan jaring pengaman installCompanyUrlPrefix()
+            // mati bersamaan — setiap tautan dan form di halaman ini kehilangan
+            // prefiks /c/{slug} dan menjawab 404/405. Ditemukan QC 2026-11-03.
+            'companyProfile' => $company ? [
                 'id' => $company->id,
                 'name' => $company->name,
                 'address' => $company->address,

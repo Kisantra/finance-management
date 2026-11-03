@@ -1,0 +1,677 @@
+{
+  "module": "invoices",
+  "title": "Modul Invoice & Pembayaran",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/invoices.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/invoices",
+  "report_out": "../report/Laporan-QA-invoices.pdf",
+  "summary": [
+    "73 test case dirancang untuk modul ini; 72 lolos, 1 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "9 temuan tercatat (I-01, I-02, I-03, I-04, I-05, I-06, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "I-01",
+      "title": "Nomor invoice sepenuhnya ditentukan klien: format & urutan tidak ditegakkan di mana pun",
+      "sifat": "Aturan bisnis inti tidak ditegakkan; integritas dokumen penagihan. Keparahan: tinggi.",
+      "cases": "A18, A21; melemahkan N06, N07; menjelaskan C02.",
+      "gejala": "`POST /c/qa-satu/invoices/4/send` dengan `invoice_number=NOMOR-ASAL-SAJA-999` mengembalikan 302 dan menyimpan nomor itu apa adanya dengan `status=sent`. Akibat lanjutan (A21): invoice tersebut tidak bisa di-rollback selamanya — `Flash: \"Hanya invoice terbaru di bulan ini yang bisa di-rollback.\"` — karena `isInvoiceLatestInMonth()` mensyaratkan pola `/INV/`.",
+      "sebab": "Tiga hal berlapis. 1. `app/Http/Requests/SendInvoiceRequest.php` hanya memvalidasi `['required','string','max:100', \"unique:invoices,invoice_number,{$invoice-›id}\"]` — tidak ada `regex` format, tidak ada pemeriksaan sequence. 2. `app/Http/Controllers/InvoiceController.php::send()` menyimpan `$request-›invoice_number` langsung; tidak pernah memanggil `Invoice::generateInvoiceNumber()`. Penelusuran pemanggil menunjukkan metode itu hanya dipakai `tests/Feature/InvoiceNumberAssignmentTest.php` (baris 45, 66) dan versi terpisah milik `app/Models/RecurringInvoice.php:107` — tidak ada satu pun controller yang memakainya. 3. Di sisi FE, dialog \"Kirim Invoice\" pada `resources/js/pages/invoices/index.tsx:293` & `:306` mengisi field dengan `data.invoice_number ?? ''` — untuk draft nilainya selalu NULL, jadi kolom kosong dan pengguna mengetik nomor secara bebas. Props `nextSeq`/`companyInitials` hanya dikirim ke halaman ∗create∗ (`InvoiceController.php:388-391`), bukan ke dialog kirim.",
+      "cakupan": "Seluruh penomoran invoice manual. Aspek terkait (C02): `$nextSeq = Invoice::getMaxSequenceFromDb(now()) + 1` memakai bulan berjalan, sedangkan `create.tsx:83` menyusun preview dengan bulan romawi dari `issue_date` yang dipilih pengguna — untuk invoice bertanggal September pada hari uji Agustus preview berbunyi `004/INV/QS-RP/IX/2026` padahal sequence September yang benar adalah `001`. Terpisah tetapi searah: `Invoice::getCompanyInitials()` memakai `extractInitials(CompanyProfile-›name)` → `\"QA Satu\"` menjadi `QS`, bukan kolom `abbreviation` (`SAT`) yang tersimpan di profil — dokumentasi modul menyebut \"inisial perusahaan/abbrev\", implementasinya inisial nama.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-02",
+      "title": "`update()` invoice tidak memanggil `updateStatus()`; invoice bisa terkunci `paid` padahal masih ada sisa",
+      "sifat": "Bug status/keuangan yang mengunci penagihan. Keparahan: tinggi.",
+      "cases": "A31.",
+      "gejala": "Invoice `id=11` berstatus `paid` (total `5.100.000`, dibayar `5.100.000`). Setelah PUT yang menaikkan total menjadi `40.000.000`, `show` mengembalikan `{\"status\":\"paid\",\"total\":40000000,\"paid\":5100000,\"remaining\":34900000}`. Karena statusnya `paid`, `PaymentController::store()` menolak pembayaran lanjutan dengan `\"Invoice tidak dapat menerima pembayaran.\"` — sisa Rp 34.900.000 tidak bisa ditagih lewat aplikasi.",
+      "sebab": "`app/Http/Controllers/InvoiceController.php::update()` menghitung ulang `subtotal`/`discount_amount`/`total_amount` lalu `$invoice-›update([...])` dan membuat ulang item, tetapi tidak memanggil `$invoice-›updateStatus()` — berbeda dengan `PaymentController::store/update/destroy` yang selalu memanggilnya. Konsekuensinya status menjadi basi terhadap `total_amount` yang baru.",
+      "cakupan": "Setiap perubahan invoice yang mengubah `total_amount` ke atas maupun ke bawah. Arah sebaliknya juga salah: invoice `partially_paid` yang totalnya diturunkan di bawah `amount_paid` akan tetap `partially_paid` meski sebenarnya lunas (`RecurringInvoice::publish()` tidak terdampak karena membuat invoice baru).",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "I-03",
+      "title": "Pembayaran melebihi sisa tagihan diterima tanpa batas",
+      "sifat": "Tidak ada penjagaan nilai keuangan. Keparahan: sedang.",
+      "cases": "A29.",
+      "gejala": "Invoice `id=3` bersisa `15.299.999`; POST pembayaran `99.000.000` → 200. `show` mengembalikan `\"remaining\": -83700001`. Saldo bank ikut naik penuh `99.000.000`.",
+      "sebab": "`app/Http/Requests/StorePaymentRequest.php` hanya menetapkan `'amount' =› ['required','integer','min:1']` — tidak ada batas atas terhadap `$invoice-›amount_remaining`. `PaymentController::store()` hanya memeriksa status (`draft`/`paid`), bukan nominal. `Invoice::getAmountRemainingAttribute()` melakukan pengurangan biasa sehingga menghasilkan angka negatif.",
+      "cakupan": "Juga berlaku pada `PaymentController::update()` (memakai `UpdatePaymentRequest extends StorePaymentRequest`). Angka negatif merambat ke `show`, kolom \"sisa\" di daftar invoice (`amount_remaining` di `InvoiceController::index()`), `total_outstanding`, dan kolom sisa pada rekap Excel/PDF (`buildRecapData()`), selain menggelembungkan saldo bank terhitung.",
+      "perbaikan": "Tambahkan aturan `max:` dinamis pada `amount` yang membaca `$invoice-›amount_remaining` (memperhitungkan pembayaran yang sedang diedit), atau penolakan eksplisit di controller dengan pesan Indonesia. Bila kelebihan bayar sah secara bisnis, catat sebagai saldo lebih/uang muka, jangan sebagai sisa negatif.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "I-04",
+      "title": "Menghapus semua pembayaran menjatuhkan invoice bernomor ke `draft` dan mengunci pembayaran berikutnya",
+      "sifat": "Status tidak konsisten yang menghambat operasi. Keparahan: sedang.",
+      "cases": "A30 (invarian yang menyebabkannya sendiri lolos di N13).",
+      "gejala": "Setelah dua pembayaran invoice 1 dihapus, DB menunjukkan `status=draft` dengan `invoice_number=001/INV/QS-RP/VIII/2026`. Pada kondisi itu POST pembayaran baru ditolak 422 `\"Invoice tidak dapat menerima pembayaran.\"`, dan rollback juga ditolak karena statusnya bukan `sent`.",
+      "sebab": "`app/Models/Invoice.php::updateStatus()` hanya mengenal tiga keluaran — `draft` bila `amount_paid == 0`, `paid` bila `›= total_amount`, selain itu `partially_paid`. Status `sent` hanya diset manual oleh `send()`, sehingga tidak ada jalan kembali ke `sent`. `PaymentController::store()` lalu menolak status `draft`.",
+      "cakupan": "Setiap penghapusan/penurunan pembayaran hingga nol pada invoice yang sudah dikirim — lewat `DELETE /payments/{payment}` maupun `POST /payments/{payment}`. Juga memengaruhi statistik: invoice yang jatuh ke `draft` langsung dikeluarkan dari omzet/HPP/laba di index dan rekap export, sehingga pendapatan yang sudah ditagih menghilang dari laporan.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-05",
+      "title": "Diskon boleh melebihi subtotal (persentase › 100% dan fixed › subtotal)",
+      "sifat": "Validasi bisnis kurang. Keparahan: rendah–sedang.",
+      "cases": "A12, A13.",
+      "gejala": "`discount_type=percentage, discount_value=150` atas subtotal `1.000.000` → tersimpan `discount_amount=1.500.000`, `total_amount=0`. `discount_type=fixed, discount_value=5.000.000` atas subtotal `1.000.000` → `discount_amount=5.000.000`, `total_amount=0`.",
+      "sebab": "`app/Http/Requests/StoreInvoiceRequest.php` menetapkan `'discount_value' =› ['nullable','numeric','min:0']` — tidak ada `max`. Controller hanya melindungi total akhir dengan `max(0, $subtotal - $discountAmount)` (`InvoiceController::store()`), sehingga `discount_amount` yang mustahil tetap tersimpan di DB dan akan tercetak di PDF/rekap.",
+      "cakupan": "`store()` dan `update()` (aturan diwarisi `UpdateInvoiceRequest`). Invoice bertotal `0` yang dikirim juga membuat `updateStatus()` menandai `paid` begitu ada pembayaran sekecil apa pun (`amount_paid ›= 0`).",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-06",
+      "title": "Diskon persentase pecahan dipotong diam-diam menjadi bilangan bulat",
+      "sifat": "Kehilangan presisi tanpa pemberitahuan. Keparahan: rendah–sedang.",
+      "cases": "A14.",
+      "gejala": "`discount_type=percentage, discount_value=12.5` atas subtotal `1.000.000` → DB menyimpan `discount_value=12`, `discount_amount=120.000`, `total_amount=880.000`. Diskon yang benar `125.000`; selisih Rp 5.000 hilang dan tidak ada pesan apa pun kepada pengguna.",
+      "sebab": "Validasi mengizinkan pecahan (`'discount_value' =› ['nullable','numeric','min:0']`) tetapi `InvoiceController::store()`/`update()` melakukan `$discountValue = (int) ($validated['discount_value'] ?? 0);` sebelum menghitung, dan `app/Models/Invoice.php` men-cast `'discount_value' =› 'integer'`. Pemotongan terjadi dua kali dan diam-diam.",
+      "cakupan": "Store dan update invoice. Diskon `fixed` tidak terdampak karena rupiah memang integer; diskon persentase pecahan (12,5%, 7,5%, 2,5%) adalah kasus nyata dalam praktik penagihan. - DIPERBAIKI dengan opsi (a): `discount_value` kini `integer`, disertai pesan yang menjelaskan bahwa diskon persen pecahan belum didukung dan menyarankan diskon nominal. Opsi (b) sengaja tidak diambil: kolomnya berkomentar \"value ∗ 100 (1500 = 15.00%)\" sedangkan controller memperlakukannya sebagai persen biasa — mengubahnya ke desimal tanpa memastikan makna data lama justru berisiko salah tafsir. Ketidakcocokan komentar skema vs implementasi itu sendiri layak dirapikan terpisah.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-07",
+      "title": "Staff dapat mengirim dan me-rollback invoice hanya dengan izin `view invoices`",
+      "sifat": "Kebocoran pemisahan wewenang. Keparahan: sedang–tinggi.",
+      "cases": "A36, A37.",
+      "gejala": "Sebagai `staff@gmail.com` (izin invoice hanya `view invoices` + `create invoices`): `POST /c/qa-satu/invoices/2/send` dengan `003/INV/QS-RP/VIII/2026` → 302, DB `status=sent` dengan nomor tersebut; lalu `POST /c/qa-satu/invoices/2/rollback` → 302, nomor dicabut kembali menjadi NULL. Sebaliknya `PUT /invoices/1`, `DELETE /invoices/1`, `GET /invoices/1/edit`, dan `DELETE /payments/3` semuanya benar-benar 403 untuk staff.",
+      "sebab": "`routes/web.php:180-181` mendaftarkan `send` dan `rollback` di dalam grup `Route::prefix('invoices')-›middleware('can:view invoices')` tanpa middleware per-aksi, berbeda dengan `store`/`update`/`destroy` yang masing-masing memakai `can:create/edit/delete invoices`. Controller juga tidak melakukan otorisasi tambahan — `InvoiceController::send()` hanya memeriksa status.",
+      "cakupan": "Semua pengguna dengan izin `view invoices` — termasuk peran apa pun yang hanya diberi hak baca. Dampaknya bukan sekadar baca: nomor invoice resmi adalah dokumen berurutan, dan rollback mencabut nomor yang mungkin sudah dikirim ke klien.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-08",
+      "title": "Semua unduhan/preview PDF invoice gagal 500 pada perusahaan yang `bank_accounts`-nya belum diisi",
+      "sifat": "Fitur inti mati total pada tenant baru. Keparahan: tinggi.",
+      "cases": "A39, A40, A41.",
+      "gejala": "`GET /c/qa-satu/invoice/11/download` dan `/preview` mengembalikan HTTP 500 `text/html`, isi: `ErrorException — foreach() argument must be of type array/object, null given`, jejak teratas `resources\\views\\pdf\\kisantra-invoice.blade.php:577`. Per template: `kisantra-invoice` (default) 500, `invoice` 500, `semesta-invoice` 200, `agsa-invoice` 200.",
+      "sebab": "`company_profiles.bank_accounts` bernilai NULL pada perusahaan `qa-satu` yang baru diprovisioning (`SELECT bank_accounts IS NULL` → `1`). `app/Services/InvoicePrintService.php:111` meneruskan `'bank_accounts' =› $company-›bank_accounts` apa adanya (cast `array`, NULL tetap NULL), lalu `resources/views/pdf/kisantra-invoice.blade.php:577` melakukan `@foreach ($company['bank_accounts'] as $index =› $bank)` tanpa penjaga. `resources/views/pdf/invoice.blade.php:380` dan `resources/views/pdf/single-invoice.blade.php:438` memakai pola yang sama. `semesta-invoice.blade.php:493` selamat karena membungkusnya dengan `@if(isset($company['bank_accounts']) && count(...) › 0)`. Jalur fallback `getFallbackCompanyInfo()` (baris 123-140) memang menyediakan array, tetapi hanya dipakai bila tidak ada baris `CompanyProfile` sama sekali — bukan kasus di sini.",
+      "cakupan": "Setiap perusahaan yang belum mengisi rekening di Pengaturan Perusahaan — yaitu kondisi bawaan tiap tenant yang baru dibuat. Template terdampak: `kisantra-invoice` (default sistem), `invoice`, dan `single-invoice`. Rekap Excel/PDF (`/invoices/export/∗`) tidak terdampak (keduanya 200) karena memakai view `pdf.invoice-recap`.",
+      "perbaikan": "Beri nilai bawaan array kosong di service (`'bank_accounts' =› $company-›bank_accounts ?? []`) dan tambahkan penjaga `@if(!empty($company['bank_accounts']))` di ketiga template. Sebagai pelengkap: isi `bank_accounts` dengan `[]` saat provisioning perusahaan agar kolom tidak pernah NULL. - DIPERBAIKI dua lapis: `InvoicePrintService` mengirim `$company-›bank_accounts ?? []` sehingga sumbernya tidak lagi NULL, dan `kisantra-invoice`, `invoice`, serta `single-invoice` membungkus `@foreach` dengan `?? []`. Diverifikasi pada tenant `qa-satu` yang kolomnya memang masih NULL: unduhan default, `invoice`, dan `semesta-invoice` semuanya 200. Ditutup tes regresi yang membuat profil perusahaan tanpa rekening lalu mengunduh PDF-nya.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "I-09",
+      "title": "Nama template PDF dari query string dipakai langsung sebagai nama view (500, bukan 404)",
+      "sifat": "Penanganan input tidak tepat. Keparahan: rendah.",
+      "cases": "A42.",
+      "gejala": "`GET /c/qa-satu/invoice/11/download?template=tidak-ada` → HTTP 500 `InvalidArgumentException: View [pdf.tidak-ada] not found.`",
+      "sebab": "Closure route (`routes/web.php`, blok `invoice.download`) mengambil `$request-›query('template', 'kisantra-invoice')` dan meneruskannya ke `InvoicePrintService::generateSingleInvoicePdf(...)` yang merender `view(\"pdf.{$template}\")` tanpa memvalidasi terhadap daftar template yang sah.",
+      "cakupan": "Route `invoice.download` dan `invoice.preview`. Nilai `builder:{id}` sudah aman karena memakai `PdfTemplate::findOrFail()` (404). Tidak ditemukan indikasi path traversal ke luar folder `pdf.` dalam pengujian ini (tidak diuji khusus), tetapi 500 dari input pengguna tetap tidak semestinya.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat invoice draft 2 item, item kedua atas nama klien lain",
+      "verdict": "Pass",
+      "note": "302. DB `id=1`: `invoice_number` kosong/NULL, `status=draft`, `subtotal=3800000`, `total_amount=3800000`. Item `id=1 amount=3000000 client_id=2`, `id=2 amount=800000 client_id=6`",
+      "attempts": "p"
+    },
+    {
+      "id": "N02",
+      "title": "`quantity` pecahan → `amount = round(unit_price × quantity)`",
+      "verdict": "Pass",
+      "note": "DB item `id=3`: `quantity=2.500`, `amount=6250003`, header `subtotal=6250003`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Diskon percentage dihitung dari subtotal dan disimpan dua bentuk",
+      "verdict": "Pass",
+      "note": "DB `id=3`: `subtotal=17000000 discount_type=percentage discount_value=10 discount_amount=1700000 total_amount=15300000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Diskon fixed dipakai apa adanya",
+      "verdict": "Pass",
+      "note": "DB `id=4`: `discount_amount=250000 total_amount=750000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Item `is_tax_deposit` tersimpan sebagai boolean",
+      "verdict": "Pass",
+      "note": "DB item `id=5`: `is_tax_deposit=1`, `cogs_amount=5000000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Kirim invoice draft — nomor terpasang, status jadi `sent`",
+      "verdict": "Pass (dengan catatan berat)",
+      "note": "DB `id=1`: `invoice_number=001/INV/QS-RP/VIII/2026`, `status=sent`. Nomor ini diketik pada payload uji, bukan dihasilkan server — lihat TEMUAN I-01",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Sequence bertambah dalam bulan yang sama",
+      "verdict": "Pass (dengan catatan berat)",
+      "note": "Semua diterima 302; DB menyimpan `001`, `002`, `003`, `004` untuk Agustus. Urutan ditentukan oleh nilai yang dikirim klien, server tidak menghitungnya",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Sequence reset per bulan `issue_date`",
+      "verdict": "Pass",
+      "note": "DB `id=12`: `001/INV/QS-RP/IX/2026`, `issue_date=2026-09-02`. `getMaxSequenceFromDb()` menyaring per bulan `issue_date`, terbukti lewat `rollbackableIds` di N09",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "`rollbackableIds` = sequence tertinggi per bulan, khusus status `sent`",
+      "verdict": "Pass",
+      "note": "Saat Agustus max = `002` (inv 3) dan September `001` (inv 12) → prop `[11,12]` (inv 11 = `003` Agustus, inv 12 = September). Pada pemeriksaan sebelumnya `[3]` saat inv 3 satu-satunya. Pengelompokan per `Y-m` benar; invoice `sent` bernomor tanpa pola `/INV/` (inv 4) tidak masuk daftar",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Rollback invoice dengan sequence tertinggi di bulannya",
+      "verdict": "Pass",
+      "note": "Flash `{\"success\":\"Invoice berhasil dikembalikan ke draft.\"}`. DB `id=3`: `invoice_number` NULL, `status=draft`",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Pembayaran sebagian → `partially_paid`, saldo bank naik",
+      "verdict": "Pass",
+      "note": "200, JSON `{\"id\":1,\"amount\":1000000,…,\"bank_account_name\":\"QA Kas Utama (Bank QA)\"}`. DB `id=1 status=partially_paid`. Prop saldo `10000000` → `11000000`",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Pelunasan → `paid`, saldo naik lagi",
+      "verdict": "Pass",
+      "note": "200. DB `id=1 status=paid`. Saldo prop `13800000`. Saldo memang terhitung (`initial_balance + Σ payments + credit − debit`), tidak ada kolom saldo yang ditulis",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Hapus semua pembayaran → invoice jatuh ke `draft` (invarian yang didokumentasikan)",
+      "verdict": "Pass (invarian terbukti)",
+      "note": "Setelah hapus pembayaran 1 → `partially_paid`; setelah hapus pembayaran 2 → `status=draft`, `invoice_number=001/INV/QS-RP/VIII/2026` masih ada. Konsekuensi berbahaya di A20 & TEMUAN I-04",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Update invoice menghapus & membuat ulang seluruh item; status & nomor tidak berubah",
+      "verdict": "Pass",
+      "note": "Item `id=4,5` → hilang; muncul `id=13`. Header: `subtotal=9000000 discount_amount=500000 total_amount=8500000 billed_to_id=6 due_date=2026-09-01`, `invoice_number=002/INV/QS-RP/VIII/2026` & `status=paid` tetap. Pembayaran `id=3,4` masih ada. ID item tidak stabil — terbukti",
+      "attempts": "p"
+    },
+    {
+      "id": "N15",
+      "title": "Endpoint detail `show` merespons JSON lengkap (bukan halaman Inertia)",
+      "verdict": "Pass",
+      "note": "200 `{\"status\":\"paid\",\"number\":\"002/INV/QS-RP/VIII/2026\",\"total\":8500000,\"paid\":99000001,\"remaining\":-90500001,\"client\":\"Klien Dibuat Staff\",\"items\":1,\"payments\":2}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N16",
+      "title": "Statistik index mengecualikan `draft` + `cancelled`",
+      "verdict": "Pass",
+      "note": "Prop `{\"invoice_count\":3,\"total_revenue\":13050000,…}`; SQL `cnt=3 rev=13050000` — identik. `total_outstanding=4450000` cocok dengan (3.800.000 + 750.000) − 100.000",
+      "attempts": "p"
+    },
+    {
+      "id": "N17",
+      "title": "Item `is_tax_deposit` dikecualikan dari HPP di stats index",
+      "verdict": "Pass",
+      "note": "`total_cogs` `2.700.000` → `3.700.000` (+1.000.000). Item titipan (cogs `1.100.000`) diabaikan. Sesuai `SUM(CASE WHEN is_tax_deposit = 0 …)`",
+      "attempts": "p"
+    },
+    {
+      "id": "N18",
+      "title": "Ubah pembayaran (`POST /payments/{id}`) memicu hitung ulang status",
+      "verdict": "Pass",
+      "note": "Naik ke `40.000.000` → DB `id=11 status=paid`; turun ke `5.100.000` → `status=partially_paid`. `updateStatus()` dipanggil di kedua arah",
+      "attempts": "p"
+    },
+    {
+      "id": "N19",
+      "title": "Export rekap Excel & PDF terfilter",
+      "verdict": "Pass (isi belum diperiksa)",
+      "note": "Excel: `200`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 7.665 byte. PDF: `200`, `application/pdf`, 15.212 byte, magic `%PDF-1.7`. Isi baris tidak dibuka/diperiksa — pengecualian draft/cancelled hanya diverifikasi lewat baca kode (`buildRecapData()` `whereNotIn(['draft','cancelled'])`) dan lewat N16 yang memakai aturan sama",
+      "attempts": "p"
+    },
+    {
+      "id": "N20",
+      "title": "`date_from`/`date_to` menimpa filter `month`",
+      "verdict": "Pass",
+      "note": "`month=2026-08` → `count=2 rev=43.800.000`; ditambah range September → `count=1 rev=2.000.000` (hanya invoice `id=12`). Presedens range atas bulan terbukti",
+      "attempts": "p"
+    },
+    {
+      "id": "N21",
+      "title": "Alur berantai izin: staff membuat, admin mengirim, manager mencatat pembayaran",
+      "verdict": "Pass",
+      "note": "Staff store 302 → DB `id=13 subtotal=3000000 discount_amount=150000 total_amount=2850000 status=draft`. Admin send 302 → `004/INV/QS-RP/VIII/2026 status=sent`. Manager payment 200 → `status=partially_paid`",
+      "attempts": "p"
+    },
+    {
+      "id": "N22",
+      "title": "Staff boleh membuka form buat invoice",
+      "verdict": "Pass",
+      "note": "200",
+      "attempts": "p"
+    },
+    {
+      "id": "N23",
+      "title": "Staff boleh mencatat pembayaran (route digate `can:create invoices`)",
+      "verdict": "Pass",
+      "note": "200 JSON `{\"id\":5,\"amount\":100000,…}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N24",
+      "title": "Daftar invoice terbuka dengan tab status, filter periode, dan kartu statistik",
+      "verdict": "Pass",
+      "note": "Ketiganya tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar invoice dengan tab status, filter periode, dan kartu statistik pendapatan/laba kotor/outstanding."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "`items` dihilangkan sama sekali",
+      "verdict": "Pass",
+      "note": "422 `{\"items\":[\"The items field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "`items` array kosong (batas `min:1`)",
+      "verdict": "Pass",
+      "note": "422 `{\"items\":[\"The items field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "`due_date` satu hari sebelum `issue_date`",
+      "verdict": "Pass",
+      "note": "422 `{\"due_date\":[\"The due date field must be a date after or equal to issue date.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "`due_date` sama dengan `issue_date` (batas `after_or_equal`)",
+      "verdict": "Pass",
+      "note": "302, invoice `id=5` terbuat",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "`quantity = 0`",
+      "verdict": "Pass",
+      "note": "422 `{\"items.0.quantity\":[\"The items.0.quantity field must be at least 0.001.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "`quantity = 0.0009` (satu langkah di bawah batas)",
+      "verdict": "Pass",
+      "note": "422 `{\"items.0.quantity\":[\"… must be at least 0.001.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "`quantity = 0.001` (batas)",
+      "verdict": "Pass",
+      "note": "302, invoice `id=6`, `amount=1000` (`round(1.000.000 × 0,001)`)",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "`unit_price` desimal — invarian integer rupiah",
+      "verdict": "Pass",
+      "note": "422 `{\"items.0.unit_price\":[\"The items.0.unit_price field must be an integer.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "`client_id` tidak ada di DB",
+      "verdict": "Pass",
+      "note": "422 `{\"client_id\":[\"The selected client id is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "`items.∗.client_id` tidak ada di DB",
+      "verdict": "Pass",
+      "note": "422 `{\"items.0.client_id\":[\"The selected items.0.client_id is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Invoice untuk klien Inactive lewat request langsung",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: invoice terbit untuk klien nonaktif. Setelah TEMUAN C-04 (clients.md) diperbaiki: `StoreInvoiceRequest` menolak 422 untuk `client_id` maupun `items.∗.client_id`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A11-1",
+          "cap": "Pemilih klien pada Buat Invoice hanya memuat klien aktif; penegakan sebenarnya ada di server (StoreInvoiceRequest), layar ini hanya lapis pertamanya."
+        }
+      ]
+    },
+    {
+      "id": "A12",
+      "title": "Diskon persentase `150%` (tanpa batas atas)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: diskon 150% tersimpan `discount_amount=1.500.000`. Setelah TEMUAN I-05 diperbaiki: server menolak 422 \"Diskon persen tidak boleh melebihi 100%\", dan layar menjepit ketikan 150 menjadi 100 sebelum sempat dikirim",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A12-1",
+          "cap": "Ketikan diskon 150% dijepit menjadi 100 di layar, dengan keterangan \"Bilangan bulat, maksimal 100%\"; server menolak nilai di atas 100 secara terpisah."
+        }
+      ]
+    },
+    {
+      "id": "A13",
+      "title": "Diskon fixed melebihi subtotal",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: diskon nominal Rp 5.000.000 atas subtotal Rp 1.000.000 tersimpan. Setelah diperbaiki: ditolak 422 dengan menyebut batas subtotalnya; input nominal di layar juga dijepit ke subtotal",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A12-1",
+          "cap": "Panel diskon yang sama membatasi diskon nominal ke subtotal, sehingga TOTAL tidak lagi bisa dipaksa menjadi Rp 0 oleh diskon yang mustahil."
+        }
+      ]
+    },
+    {
+      "id": "A14",
+      "title": "Diskon persentase pecahan `12,5%`",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 12,5% dipotong diam-diam menjadi 12 (selisih Rp 5.000 hilang tanpa pesan). Setelah TEMUAN I-06 diperbaiki: pecahan ditolak dengan pesan yang menjelaskan alasannya, dan input layar hanya menerima bilangan bulat",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A12-1",
+          "cap": "Kolom persen hanya menerima bilangan bulat; pecahan tidak lagi dipotong diam-diam menjadi angka yang lebih kecil."
+        }
+      ]
+    },
+    {
+      "id": "A15",
+      "title": "`discount_value` negatif",
+      "verdict": "Pass",
+      "note": "422 `{\"discount_value\":[\"The discount value field must be at least 0.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A16",
+      "title": "`discount_type` di luar enum",
+      "verdict": "Pass",
+      "note": "422 `{\"discount_type\":[\"The selected discount type is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A17",
+      "title": "Kirim invoice dengan nomor duplikat",
+      "verdict": "Pass",
+      "note": "422 `{\"invoice_number\":[\"The invoice number has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A18",
+      "title": "Kirim invoice dengan nomor berformat sembarang",
+      "verdict": "Fail (disengaja — lihat TEMUAN I-01)",
+      "note": "Nomor berformat sembarang tetap diterima. Bukan diperbaiki, melainkan keputusan produk: penomoran manual dipertahankan untuk sekarang, pengaturan pola nomor per perusahaan direncanakan menyusul. Akibat lanjutannya (A21: invoice terkunci tak bisa rollback) sudah ditutup",
+      "attempts": "f"
+    },
+    {
+      "id": "A19",
+      "title": "Rollback invoice yang bukan sequence tertinggi di bulannya",
+      "verdict": "Pass",
+      "note": "Flash `{\"error\":\"Hanya invoice terbaru di bulan ini yang bisa di-rollback.\"}`; nomor & status invoice 1 tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A20",
+      "title": "Rollback invoice ber-status `draft`",
+      "verdict": "Pass",
+      "note": "Flash `{\"error\":\"Hanya invoice yang sudah terkirim yang bisa di-rollback.\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A21",
+      "title": "Rollback invoice `sent` yang nomornya tidak mengandung pola `/INV/`",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: invoice bernomor di luar pola `/INV/` tidak pernah bisa di-rollback. Setelah diperbaiki: `isInvoiceLatestInMonth()` jatuh ke penilaian urutan penerbitan bila pola tidak dikenali, sehingga invoice terakhir pada bulannya tetap dapat di-rollback",
+      "attempts": "fp"
+    },
+    {
+      "id": "A22",
+      "title": "Pembayaran pada invoice `draft`",
+      "verdict": "Pass",
+      "note": "422 `\"Invoice tidak dapat menerima pembayaran.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A23",
+      "title": "Pembayaran pada invoice `paid`",
+      "verdict": "Pass",
+      "note": "422 `\"Invoice tidak dapat menerima pembayaran.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A24",
+      "title": "Pembayaran `amount = 0`",
+      "verdict": "Pass",
+      "note": "422 `{\"amount\":[\"The amount field must be at least 1.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A25",
+      "title": "Pembayaran `amount = 1` (batas bawah)",
+      "verdict": "Pass",
+      "note": "200; invoice `id=3` jadi `partially_paid`",
+      "attempts": "p"
+    },
+    {
+      "id": "A26",
+      "title": "`bank_account_id` dihilangkan sama sekali",
+      "verdict": "Pass",
+      "note": "422 `{\"bank_account_id\":[\"Rekening tujuan wajib dipilih.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A27",
+      "title": "`bank_account_id` tidak ada di DB",
+      "verdict": "Pass",
+      "note": "422 `{\"bank_account_id\":[\"Rekening yang dipilih tidak valid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A28",
+      "title": "`payment_method` di luar enum",
+      "verdict": "Pass",
+      "note": "422 `{\"payment_method\":[\"The selected payment method is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A29",
+      "title": "Pembayaran melebihi sisa tagihan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pembayaran Rp 99.000.000 atas sisa Rp 15.299.999 diterima, `remaining` menjadi −83.700.001. Setelah TEMUAN I-03 diperbaiki: `StorePaymentRequest` menghitung `max:` dinamis dari sisa tagihan (menambahkan kembali nominal pembayaran yang sedang diedit), permintaan ditolak 422",
+      "attempts": "fp"
+    },
+    {
+      "id": "A30",
+      "title": "Invoice `draft` yang masih bernomor (hasil N13) tidak bisa dibayar",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: invoice bernomor jatuh ke `draft` setelah pembayarannya dihapus, lalu menolak pembayaran baru dan rollback. Setelah TEMUAN I-04 diperbaiki: `updateStatus()` mengembalikannya ke `sent` karena nomornya ada, sehingga penagihan berlanjut normal",
+      "attempts": "fp"
+    },
+    {
+      "id": "A31",
+      "title": "Update invoice `paid` yang menaikkan total — status tidak dihitung ulang",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: invoice `paid` yang totalnya dinaikkan tetap `paid`, sisa Rp 34.900.000 tak bisa ditagih. Setelah TEMUAN I-02 diperbaiki: `update()` memanggil `updateStatus()` untuk invoice yang sudah pernah dibayar",
+      "attempts": "fp"
+    },
+    {
+      "id": "A32",
+      "title": "Staff mengubah invoice lewat URL langsung (tanpa `edit invoices`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A33",
+      "title": "Staff menghapus invoice lewat URL langsung",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A34",
+      "title": "Staff membuka halaman edit invoice",
+      "verdict": "Pass",
+      "note": "403",
+      "attempts": "p"
+    },
+    {
+      "id": "A35",
+      "title": "Staff menghapus pembayaran (tanpa `edit invoices`)",
+      "verdict": "Pass",
+      "note": "403 `\"This action is unauthorized.\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "A36",
+      "title": "Staff mengirim invoice (memberi nomor resmi) lewat URL langsung",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: staff ber-izin baca berhasil `POST /invoices/{id}/send`. Setelah TEMUAN I-07 diperbaiki: route memakai `can:edit invoices`, staff menerima 403. Ditutup tes regresi",
+      "attempts": "fp"
+    },
+    {
+      "id": "A37",
+      "title": "Staff me-rollback invoice (mencabut nomor resmi)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: staff berhasil me-rollback dan mencabut nomor invoice. Setelah diperbaiki: 403, nomor tetap utuh",
+      "attempts": "fp"
+    },
+    {
+      "id": "A38",
+      "title": "ID invoice tidak ada",
+      "verdict": "Pass",
+      "note": "404 pada keduanya",
+      "attempts": "p"
+    },
+    {
+      "id": "A39",
+      "title": "Unduh PDF invoice dengan template default (`kisantra-invoice`)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 karena `company_profiles.bank_accounts` NULL. Setelah TEMUAN I-08 diperbaiki: 200 — diverifikasi ulang pada tenant `qa-satu` yang kolomnya memang masih NULL",
+      "attempts": "fp"
+    },
+    {
+      "id": "A40",
+      "title": "Preview PDF invoice (inline)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: template `invoice` juga 500. Setelah diperbaiki: 200",
+      "attempts": "fp"
+    },
+    {
+      "id": "A41",
+      "title": "Semua template Blade bawaan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama. Setelah diperbaiki: 200. Penjagaan dipasang dua lapis — `InvoicePrintService` mengirim `[]` alih-alih NULL, dan ketiga template Blade membungkus `@foreach` dengan `?? []`",
+      "attempts": "fp"
+    },
+    {
+      "id": "A42",
+      "title": "Nama template PDF yang tidak dikenal (dari query string)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `?template=tidak-ada` → 500 `View [pdf.tidak-ada] not found`. Setelah TEMUAN I-09 diperbaiki: 404 lewat allowlist `InvoicePrintService::TEMPLATE_SAH`",
+      "attempts": "fp"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Siklus penuh: buat → kirim → bayar sebagian → lunas, saldo bank mengikuti",
+      "verdict": "Pass",
+      "note": "Persis seperti diharapkan pada tiap langkah (lihat N06, N11, N12). Saldo memang accessor terhitung — tidak ada kolom saldo yang ditulis",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Preview nomor pada halaman create memakai bulan sekarang, bukan `issue_date` yang dipilih",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: memilih tanggal September pada hari kerja Agustus menampilkan urutan Agustus (`004`) dengan label September. Setelah diperbaiki: endpoint `/api/invoices/next-sequence?date=` menghitung urutan per bulan tanggal invoice; layar menampilkan `002/INV/QS-XXX/IX/2026` untuk 5 Sep 2026 (Agustus 4, September 2, Oktober 1)",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "Tanggal invoice 5 September 2026 menghasilkan preview 002/INV/QS-XXX/IX/2026 — urutan September, bukan urutan Agustus berlabel September seperti sebelumnya."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Pemulihan invoice yang jatuh ke `draft` karena semua pembayarannya dihapus",
+      "verdict": "Pass (pemulihan manual)",
+      "note": "302; DB `id=1` kembali `status=sent` dengan nomor sama. Pemulihan mungkin, tetapi menuntut pengguna mengetik ulang nomor persis sama — tidak ada bantuan dari sistem",
+      "attempts": "p"
+    },
+    {
+      "id": "C04",
+      "title": "Snapshot layanan: ubah harga & hapus layanan tidak menyentuh invoice historis",
+      "verdict": "Pass",
+      "note": "Item `id=1`, `id=6`, `id=13` tidak berubah sama sekali; header invoice 1/3/4 tidak berubah. Detail di `services.md` C01/C02",
+      "attempts": "p"
+    },
+    {
+      "id": "C05",
+      "title": "Hapus klien meruntuhkan invoice, item, dan pembayarannya",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama. Setelah TEMUAN C-02 (clients.md) diperbaiki: penghapusan klien ditolak selama masih ada invoice/item, dan FK diubah menjadi `restrictOnDelete`",
+      "attempts": "fp"
+    },
+    {
+      "id": "C06",
+      "title": "Hapus invoice yang punya pembayaran → pembayaran ikut hilang, saldo bank turun",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: pembayaran ikut hilang dan saldo bank turun Rp 1.000.000 tanpa konfirmasi. Setelah diperbaiki: `InvoiceController::destroy()` menolak penghapusan invoice yang punya pembayaran, menyebut jumlah dan nilai rupiahnya",
+      "attempts": "fp"
+    },
+    {
+      "id": "C07",
+      "title": "Pemisahan wewenang lintas aktor pada satu invoice",
+      "verdict": "Pass (dengan kebocoran di A36/A37)",
+      "note": "Semua langkah berhasil sesuai permission (N21, C06). Namun A36/A37 menunjukkan staff juga bisa mengirim & me-rollback — pemisahan wewenang bocor pada dua aksi tersebut",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Semua case dieksekusi lewat HTTP ke `http://127.0.0.1:8000` dengan cookie sesi Verifikasi hasil ke database `tenant_qa-satu` lewat PDO (hanya SELECT) di setiap Saldo bank dibaca dari prop `accounts[].balance` pada `/c/qa-satu/bank-accounts` Prop Inertia (`stats`, `rollbackableIds`, `flash`, `nextSeq`, `companyInitials`, Diverifikasi lewat baca kode, bukan eksekusi (disebut eksplisit di baris terkait): Tidak bisa diuji dalam sesi ini: template builder (`template=builder:{id}`) — Kegagalan tooling (bukan cacat aplikasi): file body respons bawaan helper"
+    }
+  ]
+}

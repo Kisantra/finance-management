@@ -242,7 +242,7 @@ DB::transaction(function () use (...) {
 
 1. Semua form transaksi memakai komponen `FileUpload` (`resources/js/components/shared/file-upload.tsx`) berbasis react-dropzone — drag-and-drop, klik pilih file, **atau paste gambar dari clipboard** (listener global `document paste` mengubah `clipboardData.items` bertipe image menjadi `File` bernama `clipboard-{timestamp}.png`).
 2. File dikirim multipart, divalidasi `mimes:pdf,jpg,jpeg,png|max:5120` (5 MB).
-3. Disimpan ke disk `public` (`transaction-attachments/` untuk income/expense, `bank-transactions/` untuk transfer); URL publik dihasilkan `Storage::url()` (butuh `php artisan storage:link`).
+3. Disimpan ke disk `public` (`transaction-attachments/` untuk income/expense, `bank-transactions/` untuk transfer). **Multi-tenancy:** root disk `public` ada di `storage/tenant{slug}/app/public`, dan `Storage::url()` menghasilkan `/c/{company}/storage/{path}` — dilayani `TenantStorageController` di dalam grup auth + cek keanggotaan, **bukan** symlink `public/storage`. Symlink lama tidak bisa melayani berkas tenant (dulu menyebabkan semua lampiran 403).
 4. Edit non-transfer bisa mengganti (`attachment`) atau menghapus (`remove_attachment: true`) — file lama dihapus dari disk.
 5. Saat model dihapus, hook `static::deleting` di `BankTransaction` menghapus file fisiknya.
 

@@ -1,26 +1,57 @@
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import { installCompanyUrlPrefix, setActiveCompany } from '@/lib/company';
 import { trackNavigation } from './lib/navigation';
 import { installResourceModal } from './lib/resource-modal';
 
 const appName = document.querySelector<HTMLMetaElement>('meta[name="app-name"]')?.content
     ?? 'Finance Management';
 
+function syncActiveCompany(props: unknown): void {
+    const company = (props as { company?: { slug?: string } | null })?.company;
+    setActiveCompany(company?.slug ?? null);
+}
+
+// Prefix /c/{slug} diterapkan di satu tempat untuk SEMUA kunjungan router, bukan
+// di tiap titik panggil. Dipasang sebelum createInertiaApp supaya kunjungan
+// pertama pun sudah lewat.
+installCompanyUrlPrefix(router);
+
 trackNavigation();
 // Harus sebelum createInertiaApp: listener popstate-nya perlu berjalan lebih dulu dari milik Inertia.
 installResourceModal();
 
+/** Bentuk modul halaman: komponen default, dengan `layout` opsional yang dipasang padanya. */
+type ModulHalaman = {
+    default: React.ComponentType<Record<string, never>> & {
+        layout?: (page: React.ReactNode) => React.ReactNode;
+    };
+};
+
 createInertiaApp({
     title: (title) => (title ? `${title} — ${appName}` : appName),
 
-    resolve: (name) =>
-        resolvePageComponent(
+    /*
+     * `.default` dibuka di sini, bukan diserahkan ke Inertia. `resolvePageComponent`
+     * mengembalikan MODUL-nya, dan tipe resolver Inertia tidak memuat
+     * `Promise<{ default: ... }>` — padahal runtime-nya menerimanya. Membukanya sendiri
+     * membuat tipenya jujur tanpa cast, dan hasilnya identik: `layout` di repo ini
+     * selalu dipasang pada komponennya (`Halaman.layout = ...`), bukan diekspor terpisah.
+     */
+    resolve: async (name) => {
+        const modul = await resolvePageComponent(
             `./pages/${name}.tsx`,
-            import.meta.glob('./pages/**/*.tsx'),
-        ),
+            import.meta.glob<ModulHalaman>('./pages/**/*.tsx'),
+        );
+
+        return modul.default;
+    },
 
     setup({ el, App, props }) {
+        syncActiveCompany(props.initialPage.props);
+        router.on('navigate', (event) => syncActiveCompany(event.detail.page.props));
+
         const root = createRoot(el);
         root.render(<App {...props} />);
     },

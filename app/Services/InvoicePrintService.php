@@ -8,7 +8,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoicePrintService
 {
-    /** Template Blade bawaan yang boleh dirender. */
+    /**
+     * Template Blade bawaan yang boleh dirender.
+     *
+     * Daftar putih ini WAJIB: nama template datang dari query string dan dulu dipakai
+     * langsung sebagai nama view, sehingga `?template=tidak-ada` menghasilkan 500
+     * `View [pdf.tidak-ada] not found` alih-alih 404.
+     */
     public const BLADE_TEMPLATES = ['kisantra-invoice', 'semesta-invoice', 'agsa-invoice', 'invoice'];
 
     public function generateSingleInvoicePdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice')

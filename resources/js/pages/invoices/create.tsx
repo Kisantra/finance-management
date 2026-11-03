@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
 import * as React from 'react';
@@ -12,12 +12,15 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { AppLink } from '@/components/app-link';
 import { AppLayout } from '@/layouts/app-layout';
+import { api } from '@/lib/api';
+import { companyUrl } from '@/lib/company';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import { parseQty } from './components/item-table-helpers';
-import { BTN, CARD, FIELD, FIELD_SM, getCsrfToken, rp, SumRow, SURFACE } from './components/ob';
+import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE } from './components/ob';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -159,14 +162,9 @@ function useLivePreview(payload: unknown, enabled: boolean) {
         setState((s) => ({ ...s, loading: true }));
         const timer = window.setTimeout(async () => {
             try {
-                const res = await fetch('/invoices/preview', {
+                const res = await api('/invoices/preview', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/pdf',
-                        'X-CSRF-TOKEN': getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/pdf' },
                     body,
                     signal: controller.signal,
                 });
@@ -299,8 +297,8 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
             onError: (errs) => toastErrors(errs as Record<string, string>, isEdit ? 'UpdateInvoice' : 'CreateInvoice'),
             onFinish: () => setSubmitting(null),
         };
-        if (isEdit) form.put(`/invoices/${invoice.id}`, options);
-        else form.post('/invoices', options);
+        if (isEdit) form.put(companyUrl(`/invoices/${invoice.id}`), options);
+        else form.post(companyUrl('/invoices'), options);
     };
 
     React.useEffect(() => {
@@ -354,9 +352,9 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-4">
                         <Button asChild variant="outline" className={BTN.icon}>
-                            <Link href={isEdit ? `/invoices/${invoice.id}` : '/invoices'} aria-label="Kembali">
+                            <AppLink href={isEdit ? `/invoices/${invoice.id}` : '/invoices'} aria-label="Kembali">
                                 <ArrowLeft className="h-4 w-4" />
-                            </Link>
+                            </AppLink>
                         </Button>
                         <div className="min-w-0">
                             <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">

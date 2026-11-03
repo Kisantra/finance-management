@@ -78,7 +78,17 @@ class PdfTemplateController extends Controller
 
     public function destroy(PdfTemplate $pdfTemplate): RedirectResponse
     {
+        $adalahDefault = (bool) $pdfTemplate->is_default;
+
         $pdfTemplate->delete();
+
+        // Menghapus template default dulu menyisakan keadaan "tidak ada default
+        // sama sekali" — invarian "hanya satu default" tidak dilanggar, tetapi
+        // keadaan itu juga tidak pernah dibahas dan membuat unduhan invoice
+        // kehilangan acuan. Promosikan template tertua yang tersisa.
+        if ($adalahDefault) {
+            PdfTemplate::query()->orderBy('id')->first()?->update(['is_default' => true]);
+        }
 
         return redirect()->route('settings.pdf-templates.index')
             ->with('success', 'Template berhasil dihapus.');

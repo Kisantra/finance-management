@@ -520,7 +520,7 @@ class InvoiceController extends Controller
                 'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
                 'rate' => (float) ($company?->ppn_rate ?? 0),
             ],
-            'clients' => Client::where('status', 'Active')
+            'clients' => Client::where('status', Client::STATUS_ACTIVE)
                 ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
                 ->orderBy('name')
                 ->get(['id', 'name', 'email', 'NPWP', 'type'])
@@ -746,6 +746,15 @@ class InvoiceController extends Controller
                 $this->publish($invoice);
             }
         });
+
+        // Total berubah → status harus dihitung ulang. Tanpa ini invoice yang sudah
+        // "paid" lalu totalnya dinaikkan tetap berstatus lunas padahal masih ada sisa,
+        // dan justru terkunci: pembayaran lanjutan ditolak 422 karena statusnya paid.
+        // Hanya untuk invoice yang sudah pernah dibayar — draft/sent tanpa pembayaran
+        // tidak boleh ikut berubah statusnya.
+        if ($invoice->fresh()->payments()->exists()) {
+            $invoice->fresh()->updateStatus();
+        }
 
         return redirect()->route('invoices.show', $invoice)->with('success', $publish
             ? 'Invoice diterbitkan: '.$invoice->invoice_number

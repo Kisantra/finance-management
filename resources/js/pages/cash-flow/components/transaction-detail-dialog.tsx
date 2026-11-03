@@ -166,7 +166,14 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
         if (!data || data.kind === 'payment') return;
 
         // PUT + multipart/form-data is unparseable by PHP, so POST with _method spoofing.
-        post(bankTransactionsRoutes.update.url(data.id), {
+        //
+        // Argumennya WAJIB objek bernama, bukan skalar telanjang: route ini punya
+        // dua parameter ({company?} dan {bankTransaction}), dan pembangun URL
+        // Wayfinder membaca `args.bankTransaction`. Diberi angka polos, nilai itu
+        // undefined lalu `.toString()` melemparkan TypeError — tombol Simpan
+        // Perubahan mati total di Pemasukan, Pengeluaran, dan Transfer sekaligus.
+        // Ditemukan QC 2026-11-03; ada juga di bundel produksi, bukan artefak dev.
+        post(bankTransactionsRoutes.update.url({ bankTransaction: data.id }), {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -196,7 +203,9 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
                     />
                 ) : data.kind === 'payment' ? (
                     <PaymentDetailContent data={data} onClose={() => onOpenChange(false)} />
-                ) : (
+                ) : data.kind === 'transfer' ? (
+                    /* Dipersempit secara positif, bukan lewat cabang `else`: kalau suatu saat
+                       ada jenis baru, ia tidak ikut dirender sebagai transfer. */
                     <TransferEditContent
                         data={data}
                         form={form}
@@ -206,7 +215,7 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
                         onSubmit={handleSubmit}
                         onClose={() => onOpenChange(false)}
                     />
-                )}
+                ) : null}
             </DialogContent>
         </Dialog>
     );

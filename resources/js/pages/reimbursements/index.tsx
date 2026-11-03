@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Pagination } from '@/components/shared/pagination';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
+import { companyUrl } from '@/lib/company';
 import { openResource, useResource } from '@/lib/resource-modal';
 import { cn, toLocalIso } from '@/lib/utils';
 import { BTN, CARD, FIELD, longDate, rp } from '@/pages/invoices/components/ob';
@@ -67,7 +68,7 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
     const navigate = (patch: Partial<ReimbursementFilters>) => {
         const next = { ...filters, page: 1, ...patch };
         router.get(
-            '/reimbursements',
+            companyUrl('/reimbursements'),
             {
                 tab: next.tab,
                 search: next.search || undefined,

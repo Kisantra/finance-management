@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -17,6 +18,10 @@ class MasterPermissionSeeder extends Seeder
     {
         // Clear cache
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Role dibuat GLOBAL (company_id NULL) — definisi sama untuk semua
+        // perusahaan; assignment ke user tetap per perusahaan (Spatie teams).
+        setPermissionsTeamId(null);
 
         $this->command->info('🚀 Starting Master Permission Seeder...');
         $this->command->newLine();
@@ -174,6 +179,9 @@ class MasterPermissionSeeder extends Seeder
             // User Management
             'manage users',
 
+            // Company Management (provisioning perusahaan — admin only)
+            'manage companies',
+
             // Feedbacks
             'view feedbacks',
             'create feedbacks',
@@ -188,6 +196,10 @@ class MasterPermissionSeeder extends Seeder
             // PDF Templates
             'manage pdf templates',
 
+            // Company Profile — identitas perusahaan tampil di setiap PDF invoice
+            // dan computed_abbreviation menggerakkan penomoran dokumen, jadi
+            // penyuntingannya tidak boleh terbuka untuk semua user login.
+            'manage company profile',
             // Invoice Settings (format penomoran)
             'manage invoice settings',
         ];
@@ -348,6 +360,10 @@ class MasterPermissionSeeder extends Seeder
             // Reports
             'view profit-loss',
 
+            // Company Profile — NPWP/PKP/tarif PPN adalah urusan perpajakan
+            // sehari-hari finance manager. Tetap berupa permission biasa,
+            // jadi bisa dicabut lewat matriks Izin & Peran kapan saja.
+            'manage company profile',
             // Invoice Settings
             'manage invoice settings',
         ];
@@ -415,13 +431,19 @@ class MasterPermissionSeeder extends Seeder
         if ($adminUsers->isEmpty()) {
             $this->command->warn('  ⚠ No admin users found!');
 
-            // Option 1: Assign first user as admin
+            // Assign first user as admin — dalam konteks perusahaan pertamanya
+            // (Spatie teams: assignment butuh company_id)
             $firstUser = User::first();
-            if ($firstUser) {
+            $companyId = $firstUser?->companies()->value('companies.id')
+                ?? Company::query()->value('id');
+
+            if ($firstUser && $companyId) {
+                setPermissionsTeamId($companyId);
                 $firstUser->assignRole('admin');
-                $this->command->info("  ✓ Assigned admin role to: {$firstUser->email}");
+                setPermissionsTeamId(null);
+                $this->command->info("  ✓ Assigned admin role to: {$firstUser->email} (company: {$companyId})");
             } else {
-                $this->command->error('  ✗ No users in database to assign admin role!');
+                $this->command->error('  ✗ No users/companies in database to assign admin role!');
             }
         } else {
             $this->command->line("  ✓ Admin users: {$adminUsers->count()}");

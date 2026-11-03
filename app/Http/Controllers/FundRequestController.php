@@ -25,7 +25,13 @@ class FundRequestController extends Controller
     {
         $canApprove = auth()->user()->can('approve fund requests');
         $canDisburse = auth()->user()->can('disburse fund requests');
-        $tab = $request->input('tab', $canApprove ? 'all' : 'my');
+        // Izin menentukan tab apa yang BOLEH dibuka, bukan sekadar tab bawaannya.
+        // Bentuk lama — `$request->input('tab', $canApprove ? 'all' : 'my')` —
+        // memakai nilai dari URL apa adanya, sehingga staff cukup menambahkan
+        // ?tab=all untuk membaca permintaan dana milik orang lain. Dibuktikan QC
+        // 2026-11-03: staff melihat permintaan Rp 777.000 milik Finance Manager.
+        // Modul reimbursement sudah memakai bentuk yang benar ini sejak awal.
+        $tab = $canApprove ? $request->input('tab', 'all') : 'my';
 
         $search = $request->input('search');
         $status = $request->input('status');
@@ -65,7 +71,15 @@ class FundRequestController extends Controller
         $paginator = $query->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $statsQuery = FundRequest::query();
+        // Statistik dihitung dari query yang SUDAH difilter. Sebelumnya ia
+        // dibangun dari nol dan hanya menerapkan filter tab, sehingga kartu
+        // ringkasan tetap menampilkan angka global sementara tabel di bawahnya
+        // sudah tersaring — dua angka berbeda pada satu layar.
+        // Eager load dan withCount dilepas: keduanya bertabrakan dengan agregat
+        // (`only_full_group_by`), dan tidak diperlukan untuk menghitung.
+        $statsQuery = (clone $query)->withoutEagerLoads()->setQuery(
+            (clone $query->getQuery())->cloneWithout(['columns'])
+        );
         if ($tab === 'my') {
             $statsQuery->where('user_id', auth()->id());
         }
@@ -94,7 +108,7 @@ class FundRequestController extends Controller
             'disbursed_by_name' => $r->disburser?->name,
             'disbursement_date' => $r->disbursement_date?->format('Y-m-d'),
             'disbursement_notes' => $r->disbursement_notes,
-            'attachment_url' => $r->attachment_path ? Storage::url($r->attachment_path) : null,
+            'attachment_url' => $r->attachment_path ? Storage::disk('public')->url($r->attachment_path) : null,
             'attachment_name' => $r->attachment_name,
             'items_count' => $r->items_count,
             'items' => $r->items->map(fn ($i) => [
@@ -109,7 +123,7 @@ class FundRequestController extends Controller
                 ? $r->bankTransaction->bankAccount->account_name.' — '.$r->bankTransaction->bankAccount->bank_name
                 : null,
             'disbursement_attachment_url' => $r->bankTransaction?->attachment_path
-                ? Storage::url($r->bankTransaction->attachment_path)
+                ? Storage::disk('public')->url($r->bankTransaction->attachment_path)
                 : null,
             'disbursement_attachment_name' => $r->bankTransaction?->attachment_name,
             'can_edit' => $r->canEdit() && ($r->user_id === auth()->id() || auth()->user()->hasRole('admin')),
@@ -129,7 +143,9 @@ class FundRequestController extends Controller
             ]);
 
         $userOptions = $canApprove
-            ? User::orderBy('name')->get()->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])
+            ? User::whereHas('companies', fn ($q) => $q->whereKey(tenant()->getTenantKey()))
+                ->orderBy('name')
+                ->get()->map(fn ($u) => ['value' => $u->id, 'label' => $u->name])
             : collect();
 
         $categories = TransactionCategory::selectOptions('expense');
@@ -148,7 +164,7 @@ class FundRequestController extends Controller
                     'purpose' => $fr->purpose,
                     'priority' => $fr->priority,
                     'needed_by_date' => $fr->needed_by_date?->format('Y-m-d'),
-                    'attachment_url' => $fr->attachment_path ? Storage::url($fr->attachment_path) : null,
+                    'attachment_url' => $fr->attachment_path ? Storage::disk('public')->url($fr->attachment_path) : null,
                     'attachment_name' => $fr->attachment_name,
                     'status' => $fr->status,
                     'items' => $fr->items->map(fn ($i) => [
@@ -294,7 +310,7 @@ class FundRequestController extends Controller
                 'purpose' => $fundRequest->purpose,
                 'priority' => $fundRequest->priority,
                 'needed_by_date' => $fundRequest->needed_by_date?->format('Y-m-d'),
-                'attachment_url' => $fundRequest->attachment_path ? Storage::url($fundRequest->attachment_path) : null,
+                'attachment_url' => $fundRequest->attachment_path ? Storage::disk('public')->url($fundRequest->attachment_path) : null,
                 'attachment_name' => $fundRequest->attachment_name,
                 'status' => $fundRequest->status,
                 'items' => $items,
@@ -315,7 +331,9 @@ class FundRequestController extends Controller
 
         $validated = $request->validated();
 
-        DB::transaction(function () use ($validated, $request, $fundRequest) {
+        $berhasil = false;
+
+        DB::transaction(function () use ($validated, $request, $fundRequest, &$berhasil) {
             $attachmentPath = $fundRequest->attachment_path;
             $attachmentName = $fundRequest->attachment_name;
 
@@ -357,9 +375,28 @@ class FundRequestController extends Controller
             }
 
             if ($validated['action'] === 'submit') {
-                $fundRequest->submit();
+                // Pengajuan yang pernah ditolak boleh diedit (canEdit menerima
+                // `rejected`) tetapi tidak boleh langsung disubmit (canSubmit
+                // hanya menerima `draft`). Tanpa reset ini, submit() diam-diam
+                // mengembalikan false sementara pengguna melihat flash sukses —
+                // pengajuannya tidak pernah sampai ke pe-review.
+                if ($fundRequest->status === 'rejected') {
+                    $fundRequest->update([
+                        'status' => 'draft',
+                        'reviewed_by' => null,
+                        'reviewed_at' => null,
+                        'review_notes' => null,
+                    ]);
+                }
+
+                $berhasil = $fundRequest->submit();
             }
         });
+
+        if (($validated['action'] ?? null) === 'submit' && ! ($berhasil ?? false)) {
+            return redirect()->route('fund-requests.index')
+                ->with('error', 'Perubahan tersimpan, tetapi pengajuan tidak dapat dikirim untuk persetujuan pada status saat ini.');
+        }
 
         $msg = $validated['action'] === 'submit'
             ? 'Permintaan dana berhasil diajukan untuk persetujuan'
@@ -370,6 +407,16 @@ class FundRequestController extends Controller
 
     public function destroy(FundRequest $fundRequest): RedirectResponse
     {
+        // Pencairan sudah membentuk transaksi pengeluaran di bank. Menghapus
+        // pengajuannya meninggalkan pengeluaran yatim yang tidak bisa ditelusuri
+        // balik ke asalnya — dan `fund_requests.bank_transaction_id` hanya
+        // menyimpan transaksi PERTAMA, sehingga item ke-2 dst. tak terjangkau.
+        if ($fundRequest->status === 'disbursed') {
+            return redirect()->back()->withErrors([
+                'delete' => 'Pengajuan yang sudah dicairkan tidak dapat dihapus karena pencairannya sudah tercatat sebagai pengeluaran bank.',
+            ]);
+        }
+
         if (! $fundRequest->canDelete()) {
             return back()->with('error', 'Permintaan dana tidak dapat dihapus');
         }

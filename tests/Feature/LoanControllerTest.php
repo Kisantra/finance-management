@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\BankAccount;
 use App\Models\Loan;
+use App\Models\TransactionCategory;
 use App\Models\User;
+use Database\Seeders\TransactionCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -22,6 +25,8 @@ class LoanControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(TransactionCategorySeeder::class);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -94,6 +99,7 @@ class LoanControllerTest extends TestCase
             'bank_account_id' => $this->bankAccount->id,
             'amount' => 5000000,
             'transaction_type' => 'credit',
+            'category_id' => TransactionCategory::findSystem('FIN-LOAN-IN')->id,
         ]);
 
         $this->assertSame($initialBalance + 5000000, $this->bankAccount->fresh()->balance);
@@ -139,6 +145,15 @@ class LoanControllerTest extends TestCase
         $this->assertDatabaseHas('bank_transactions', [
             'bank_account_id' => $this->bankAccount->id,
             'transaction_type' => 'debit',
+            'amount' => 1000000,
+            'category_id' => TransactionCategory::findSystem('FIN-LOAN-OUT')->id,
+        ]);
+
+        $this->assertDatabaseHas('bank_transactions', [
+            'bank_account_id' => $this->bankAccount->id,
+            'transaction_type' => 'debit',
+            'amount' => 50000,
+            'category_id' => TransactionCategory::findSystem('EXP-INTEREST')->id,
         ]);
 
         $this->assertLessThan($initialBalance, $this->bankAccount->fresh()->balance);
@@ -194,5 +209,113 @@ class LoanControllerTest extends TestCase
             'id' => $loan->id,
             'lender_name' => 'Bank BCA',
         ]);
+    }
+
+    /**
+     * Endpoint jadwal angsuran: dipanggil saat panel detail dibuka, bukan ikut
+     * di payload daftar — penyusunannya menjumlahkan pembayaran per pinjaman,
+     * jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function test_endpoint_jadwal_mengembalikan_termin_dan_ringkasannya(): void
+    {
+        $loan = $this->makeLoan();
+
+        $isi = $this->actingAs($this->admin)
+            ->getJson("/loans/{$loan->id}/schedule")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount((int) $loan->term_months, $isi['rows'], 'Jumlah termin harus sama dengan tenor.');
+        $this->assertSame((int) $loan->principal_amount, $isi['summary']['principal']);
+
+        $this->assertSame(
+            (int) $loan->principal_amount + $isi['summary']['interest'],
+            array_sum(array_column($isi['rows'], 'angsuran')),
+            'Total jadwal yang dikirim ke layar meleset dari nilai utangnya.'
+        );
+    }
+
+    public function test_endpoint_jadwal_ditolak_tanpa_izin_view_loans(): void
+    {
+        $loan = $this->makeLoan();
+
+        $tanpaIzin = User::factory()->create();
+
+        $this->actingAs($tanpaIzin)
+            ->getJson("/loans/{$loan->id}/schedule")
+            ->assertForbidden();
+    }
+
+    /**
+     * Ringkasan halaman Pinjaman dicakup ke pinjaman AKTIF.
+     *
+     * Kalau pembayaran pinjaman yang sudah lunas ikut dijumlah, "sisa pokok" di layar
+     * menyusut oleh utang yang sudah selesai — dan angka itu dipakai orang untuk
+     * memutuskan membayar. Pinjaman yang ditandai lunas secara manual (pembayarannya
+     * tidak genap) membuat selisihnya makin melebar tanpa gejala.
+     */
+    public function test_ringkasan_sisa_pokok_hanya_mencakup_pinjaman_aktif(): void
+    {
+        $aktif = $this->makeLoan([
+            'loan_number' => 'LN-AKTIF',
+            'principal_amount' => 10_000_000,
+            'status' => 'active',
+            'maturity_date' => '2027-06-01',
+        ]);
+        $aktif->payments()->create([
+            'bank_account_id' => $this->bankAccount->id,
+            'payment_date' => '2026-02-01',
+            'principal_paid' => 2_000_000,
+            'interest_paid' => 150_000,
+            'total_paid' => 2_150_000,
+        ]);
+
+        // Lunas, dan pembayarannya SENGAJA tidak genap: kalau ikut dijumlah, sisa pokok
+        // pinjaman aktif akan terlihat 3.000.000 lebih kecil daripada yang sebenarnya.
+        $lunas = $this->makeLoan([
+            'loan_number' => 'LN-LUNAS',
+            'principal_amount' => 5_000_000,
+            'status' => 'paid_off',
+            'maturity_date' => '2026-03-01',
+        ]);
+        $lunas->payments()->create([
+            'bank_account_id' => $this->bankAccount->id,
+            'payment_date' => '2026-03-01',
+            'principal_paid' => 3_000_000,
+            'interest_paid' => 900_000,
+            'total_paid' => 3_900_000,
+        ]);
+
+        $this->actingAs($this->admin)->get('/loans')->assertOk()->assertInertia(
+            fn (Assert $page) => $page
+                ->where('stats.active_principal', 10_000_000)
+                ->where('stats.paid_principal', 2_000_000)
+                ->where('stats.outstanding_principal', 8_000_000)
+                ->where('stats.paid_interest', 150_000)
+        );
+    }
+
+    /** Jatuh tempo terdekat mengabaikan pinjaman lunas, meski tanggalnya lebih awal. */
+    public function test_jatuh_tempo_terdekat_mengabaikan_pinjaman_lunas(): void
+    {
+        $this->makeLoan(['loan_number' => 'LN-LUNAS-AWAL', 'status' => 'paid_off', 'maturity_date' => '2026-01-15']);
+        $this->makeLoan(['loan_number' => 'LN-AKTIF-AKHIR', 'status' => 'active', 'maturity_date' => '2026-09-30']);
+        $this->makeLoan(['loan_number' => 'LN-AKTIF-AWAL', 'status' => 'active', 'maturity_date' => '2026-05-20']);
+
+        $this->actingAs($this->admin)->get('/loans')->assertOk()->assertInertia(
+            fn (Assert $page) => $page->where('stats.next_maturity', '2026-05-20')
+        );
+    }
+
+    /** Tanpa pinjaman aktif, jatuh tempo terdekat null — bukan tanggal pinjaman lunas. */
+    public function test_jatuh_tempo_terdekat_null_bila_tidak_ada_yang_aktif(): void
+    {
+        $this->makeLoan(['status' => 'paid_off', 'maturity_date' => '2026-01-15']);
+
+        $this->actingAs($this->admin)->get('/loans')->assertOk()->assertInertia(
+            fn (Assert $page) => $page
+                ->where('stats.next_maturity', null)
+                ->where('stats.outstanding_principal', 0)
+        );
     }
 }

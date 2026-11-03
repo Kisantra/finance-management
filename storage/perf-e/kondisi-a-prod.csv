@@ -1,0 +1,15 @@
+kondisi,halaman,mode,status,queries,duplikat,pola_terulang,db_ms_median,handle_ms_median,handle_ms_dingin,boot_ms_median,total_ms_median,peak_mb,bytes,props_bytes,q_central,q_tenant
+a-prod,login,html,200,0,0,0,0,110.85,139.28,499.52,777.24,28,2029,,0,0
+a-prod,dashboard,inertia,200,50,4,14,29.5,203.95,212.55,478.33,868.76,32,6682,6471,8,42
+a-prod,invoices,inertia,200,27,1,3,14.85,166.05,186.82,501.36,870.93,32,5785,5569,8,19
+a-prod,bank-accounts,inertia,200,22,0,2,16.82,202.2,1252.13,489.35,891.35,32,4549,4323,8,14
+a-prod,cash-flow,inertia,302,4,0,0,2.27,116.86,114.41,461.64,789.47,30,430,,4,0
+a-prod,cash-flow-income,inertia,200,19,0,2,19.71,167.2,186,491.36,843.91,32,13545,13318,8,11
+a-prod,cash-flow-expenses,inertia,200,19,1,3,13.54,162.33,159.7,457.9,814.61,32,11392,11161,8,11
+a-prod,cash-flow-transfers,inertia,200,18,1,3,10.48,152.07,162.16,497.96,861.98,30,3568,3335,8,10
+a-prod,reimbursements,inertia,200,17,0,2,10.7,159.29,150.76,476.41,829.48,32,7929,7701,9,8
+a-prod,fund-requests,inertia,200,34,0,6,20.49,193.5,206.61,473.88,861.91,32,18469,18243,11,23
+a-prod,clients,inertia,200,19,1,4,10.77,158.04,149.56,468.02,834.2,32,7425,7211,8,11
+a-prod,profit-loss,inertia,200,297,0,278,128.11,357.83,341.38,500.97,1052.54,34,4637,4355,8,289
+a-prod,choose-company,inertia,200,7,0,0,4.58,113.03,116.93,488.13,800.85,30,2549,2338,7,0
+a-prod,dashboard-html,html,200,50,4,14,32.32,238.68,251.42,494.28,931.54,34,8286,,8,42

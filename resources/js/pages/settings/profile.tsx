@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -39,7 +40,7 @@ export default function ProfileSettings() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        patch('/settings/profile', {
+        patch(companyUrl('/settings/profile'), {
             preserveScroll: true,
             onSuccess: () => toast.success('Profil berhasil diperbarui.'),
             onError: () => toast.error('Periksa kembali isian form.'),
@@ -138,7 +139,7 @@ function DeleteAccountSection() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        destroy('/settings/profile', {
+        destroy(companyUrl('/settings/profile'), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Akun berhasil dihapus.');

@@ -15,7 +15,7 @@ class BulkDestroyUserRequest extends FormRequest
     {
         return [
             'ids' => ['required', 'array'],
-            'ids.*' => ['integer', 'exists:users,id'],
+            'ids.*' => ['integer', 'exists:mysql.users,id'],
         ];
     }
 }

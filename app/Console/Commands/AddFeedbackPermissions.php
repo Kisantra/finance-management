@@ -2,13 +2,15 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Console\Command;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AddFeedbackPermissions extends Command
 {
     protected $signature = 'permissions:add-feedback';
+
     protected $description = 'Add feedback permissions to existing roles (safe for production)';
 
     public function handle(): int
@@ -17,7 +19,7 @@ class AddFeedbackPermissions extends Command
         $this->newLine();
 
         // Clear cache
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Step 1: Create permissions if not exists
         $this->info('📋 Creating permissions...');

@@ -15,13 +15,26 @@ use Inertia\Response;
 
 class TransactionCategoryController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan.
+     *
+     * Nilai `sort` dari URL tidak boleh langsung masuk orderBy(): `?sort=ngawur`
+     * menjatuhkan halaman dengan 500 — input pengguna yang menjadi SQL.
+     * Ditemukan QC 2026-11-03 di /services, lalu ternyata berulang di sini.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['label', 'type', 'pl_group', 'created_at'];
+
     public function index(Request $request): Response
     {
         $search = $request->input('search');
         $type = $request->input('type');
         $plStatus = $request->input('pl_status');
         $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'type');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'type';
         $direction = $request->input('direction', 'asc');
 
         $categories = TransactionCategory::with(['parent'])
@@ -108,6 +121,10 @@ class TransactionCategoryController extends Controller
 
     public function update(UpdateTransactionCategoryRequest $request, TransactionCategory $transactionCategory): RedirectResponse
     {
+        if ($transactionCategory->isSystem()) {
+            return redirect()->back()->withErrors(['update' => 'Kategori sistem tidak dapat diubah karena dipakai otomatis oleh modul Pinjaman/Piutang.']);
+        }
+
         $transactionCategory->update($request->validated());
 
         return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
@@ -123,6 +140,16 @@ class TransactionCategoryController extends Controller
             'pl_group' => ['nullable', Rule::in(TransactionCategory::PL_GROUPS)],
         ]);
 
+        // Laporan Laba Rugi hanya menyusun kategori pemasukan dan pengeluaran.
+        // Memberi grup L/R pada kategori `financing`/`transfer` menghasilkan
+        // baris yang tidak pernah muncul di laporan mana pun, tetapi terlihat
+        // sudah terklasifikasi pada matriks kategori — menyesatkan.
+        if ($validated['pl_group'] !== null && ! in_array($transactionCategory->type, ['income', 'expense'], true)) {
+            return back()->withErrors([
+                'pl_group' => 'Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori '.$transactionCategory->type.'.',
+            ]);
+        }
+
         $transactionCategory->update(['pl_group' => $validated['pl_group'] ?? null]);
 
         return back();
@@ -130,6 +157,10 @@ class TransactionCategoryController extends Controller
 
     public function destroy(Request $request, TransactionCategory $transactionCategory): RedirectResponse
     {
+        if ($transactionCategory->isSystem()) {
+            return redirect()->back()->withErrors(['delete' => 'Kategori sistem tidak dapat dihapus karena dipakai otomatis oleh modul Pinjaman/Piutang.']);
+        }
+
         if ($transactionCategory->children()->exists()) {
             return redirect()->back()->withErrors(['delete' => 'Kategori ini memiliki sub-kategori. Hapus sub-kategori terlebih dahulu.']);
         }
@@ -152,6 +183,17 @@ class TransactionCategoryController extends Controller
 
         if ($inUse && ! $reassignTo) {
             return redirect()->back()->withErrors(['delete' => 'Kategori ini masih digunakan. Pilih kategori pengganti untuk memindahkan data yang terhubung.']);
+        }
+
+        // Kategori yang punya anak hanya berfungsi sebagai judul grup; transaksi
+        // tidak pernah boleh menunjuk padanya. Dialog reassign dulu menerimanya,
+        // sehingga penghapusan satu kategori justru membuat data melanggar
+        // invarian yang ditegakkan di tempat lain. Kategori datar tanpa anak
+        // tetap pengganti yang sah.
+        if ($inUse && $reassignTo->children()->exists()) {
+            return redirect()->back()->withErrors([
+                'reassign_to_id' => 'Kategori pengganti tidak boleh kategori induk. Pilih kategori yang tidak memiliki sub-kategori.',
+            ]);
         }
 
         if ($inUse && $reassignTo->type !== $transactionCategory->type) {

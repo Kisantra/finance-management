@@ -29,6 +29,7 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { FormSection } from '@/components/shared/form-section';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -55,7 +56,7 @@ interface Company {
 }
 
 interface Props extends SharedProps {
-    company: Company | null;
+    companyProfile: Company | null;
 }
 
 interface CompanyFormData {
@@ -91,7 +92,7 @@ const COLOR_MAP: Record<string, { bg: string; text: string }> = {
 };
 
 export default function CompanySettings() {
-    const { company } = usePage<Props>().props;
+    const { companyProfile: company } = usePage<Props>().props;
 
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm<CompanyFormData>({
         name: company?.name ?? '',
@@ -115,7 +116,7 @@ export default function CompanySettings() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/settings/company', {
+        post(companyUrl('/settings/company'), {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
@@ -135,7 +136,7 @@ export default function CompanySettings() {
     const confirmDeleteAsset = () => {
         if (!deletingAsset) return;
         setDeleteProcessing(true);
-        router.delete(`/settings/company/assets/${deletingAsset}`, {
+        router.delete(companyUrl(`/settings/company/assets/${deletingAsset}`), {
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('File berhasil dihapus.');

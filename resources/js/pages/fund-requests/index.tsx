@@ -196,7 +196,12 @@ export default function FundRequestsIndex({
         setDeleteProcessing(true);
         router.delete(fundRequestRoutes.destroy.url({ fundRequest: row.id }), {
             preserveScroll: true,
-            onSuccess: () => {
+            // Redirect `back()->with('error')` adalah respons SUKSES bagi Inertia,
+            // jadi onSuccess tetap berjalan saat server MENOLAK. Tanpa memeriksa
+            // flash, toast hijau "berhasil dihapus" muncul berbarengan dengan
+            // toast merah yang benar. Pola ini sudah dipakai invoices/index.tsx.
+            onSuccess: (page) => {
+                if ((page.props.flash as { error?: string } | undefined)?.error) return;
                 toast.success('Permintaan dana berhasil dihapus');
                 setDeleteRow(null);
                 setDetailRow(null);
@@ -213,7 +218,10 @@ export default function FundRequestsIndex({
             {},
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    // Jalur submit juga punya penolakan ber-flash: "Perubahan
+                    // tersimpan, tetapi pengajuan tidak dapat dikirim ...".
+                    if ((page.props.flash as { error?: string } | undefined)?.error) return;
                     toast.success('Permintaan dana berhasil diajukan');
                     setSubmitRow(null);
                     setDetailRow(null);

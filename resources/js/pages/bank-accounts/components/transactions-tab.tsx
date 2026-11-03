@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
 import { useCan } from '@/hooks/use-can';
+import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
@@ -73,7 +74,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
     /* Load categories once. */
     React.useEffect(() => {
         axios
-            .get('/api/transaction-categories')
+            .get(companyUrl('/api/transaction-categories'))
             .then((res) => setCategories(res.data ?? []))
             .catch(() => setCategories([]));
     }, []);

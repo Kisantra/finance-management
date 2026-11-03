@@ -1,0 +1,243 @@
+{
+  "module": "admin-users-permissions",
+  "title": "Modul Admin — Users & Permissions",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/admin-users-permissions.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/admin-users-permissions",
+  "report_out": "../report/Laporan-QA-admin-users-permissions.pdf",
+  "summary": [
+    "26 test case dirancang untuk modul ini; 26 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "1 temuan tercatat (BUG-ADM-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-ADM-01",
+      "title": "Manajemen user & role sepenuhnya rusak di konteks perusahaan",
+      "sifat": "Blocker rilis — admin tidak bisa membuat, mengubah, atau mengelola user dan role sama sekali selama berada di konteks perusahaan (yaitu selalu, karena seluruh route aplikasi ber-prefix `/c/{company}`). /",
+      "cases": "N04, N05, N07, N08, N10, N11, N12, A07, A08, A09 /",
+      "gejala": "`POST /c/{company}/admin/users` → HTTP 500. Log: `SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tenant_qa-satu.roles' doesn't exist (Connection: tenant, SQL: select count(∗) as aggregate from `roles` ...)`. Validasi apa pun gagal lebih dulu, sehingga A07–A09 ikut 500 alih-alih 422. /",
+      "sebab": "Aturan validasi `exists:`/`unique:` memakai koneksi default, yang di dalam konteks perusahaan menunjuk database tenant. Tabel `roles`/`permissions`/`users` hidup di database pusat. `StoreUserRequest.php:22` memakai `exists:roles,name`; `PermissionController.php:65,66,88,125` memakai `exists:roles,id` / `exists:permissions,id`; `RoleController.php:31,51` memakai `Rule::unique('roles','name')`. Dokumentasi modul sudah memperingatkan invarian ini (\"rule yang menunjuk tabel CENTRAL WAJIB diprefix koneksi\") dan sebagian sudah diperbaiki (`unique:mysql.users`), tetapi 7 titik ini terlewat. /",
+      "cakupan": "Seluruh modul Admin: tambah/ubah user, CRUD role, toggle permission, sync per modul, sync semua. Tidak terdeteksi test suite karena test berjalan pada satu database (bootstrapper tenancy dinonaktifkan), sehingga `roles` selalu ada di koneksi yang sama. /",
+      "perbaikan": "Ketujuh rule diprefix koneksi central (`exists:mysql.roles,name`, `exists:mysql.roles,id`, `exists:mysql.permissions,id`, `Rule::unique('mysql.roles','name')`). Diverifikasi ulang: seluruh N04–N13 dan A07–A09 lolos, termasuk role ter-assign dengan `company_id` yang benar. /",
+      "status": "SUDAH DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Admin membuka daftar user",
+      "verdict": "Pass",
+      "note": "HTTP 200",
+      "attempts": "p"
+    },
+    {
+      "id": "N02",
+      "title": "Admin membuka matriks permission",
+      "verdict": "Pass",
+      "note": "HTTP 200",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Finance manager membuka matriks (read-only)",
+      "verdict": "Pass",
+      "note": "HTTP 200",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Tambah user baru",
+      "verdict": "Pass (percobaan ke-2, setelah BUG-ADM-01 diperbaiki)",
+      "note": "302; user id 12 `status=active`; `model_has_roles` → `role=staff, company_id=qa-satu`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Matriks izin & peran; pembuatan user dilakukan dari modul Pengguna yang tunduk pada matriks ini."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Ubah user (role & status)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "302; `status=inactive`, role `finance manager`; hash password tidak berubah",
+      "attempts": "fp"
+    },
+    {
+      "id": "N06",
+      "title": "Hapus user",
+      "verdict": "Pass",
+      "note": "302, `COUNT=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Buat role baru + icon",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "302; `name=qa-uji-role, icon=shield-check, guard_name=web`",
+      "attempts": "fp"
+    },
+    {
+      "id": "N08",
+      "title": "Toggle permission ON",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "302; `role_has_permissions` 0 → 1",
+      "attempts": "fp"
+    },
+    {
+      "id": "N09",
+      "title": "Toggle permission OFF (idempoten dua arah)",
+      "verdict": "Pass",
+      "note": "302; 1 → 0",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Sync per modul (grant)",
+      "verdict": "Pass",
+      "note": "302; jumlah = 4 (view/create/edit/delete invoices) — `recurring-invoices` tidak ikut",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Sync semua (grant)",
+      "verdict": "Pass",
+      "note": "302; 75 dari 75",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Sync semua (revoke)",
+      "verdict": "Pass",
+      "note": "302; 0",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Hapus role non-default",
+      "verdict": "Pass",
+      "note": "302, `COUNT=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Matriks izin per peran terbaca di layar",
+      "verdict": "Pass",
+      "note": "Matriks tampil; dipakai memverifikasi keputusan produk #4",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Matriks izin per peran — sumber kebenaran permission yang menggate seluruh modul."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Staff membuka daftar user lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Finance manager membuka daftar user",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Staff membuka matriks permission",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Staff mencoba membuat user",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Finance manager mencoba toggle permission",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Admin menghapus akunnya sendiri",
+      "verdict": "Pass",
+      "note": "302; `COUNT=1` — akun tidak terhapus",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Email duplikat",
+      "verdict": "Pass",
+      "note": "HTTP 422",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Password terlalu pendek",
+      "verdict": "Pass",
+      "note": "HTTP 422",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Role tidak dikenal",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "HTTP 422",
+      "attempts": "fp"
+    },
+    {
+      "id": "A10",
+      "title": "Hapus role bawaan `admin`",
+      "verdict": "Pass",
+      "note": "302; role `admin` masih ada",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Role ter-scope per perusahaan (Spatie teams)",
+      "verdict": "Pass",
+      "note": "`role=staff, company_id=qa-satu`",
+      "attempts": "p"
+    },
+    {
+      "id": "C02",
+      "title": "Integritas data bersama setelah seluruh QA",
+      "verdict": "Pass",
+      "note": "`users=3`; `roles=admin,finance manager,staff`; `permissions=75`; admin 75, staff 21; ketiga akun → dashboard 200",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli dan Mutasi permission dilakukan pada role sekali-pakai `qa-uji-role`, bukan role Case yang tidak diuji dan dinyatakan demikian: bulk delete user (berisiko Kegagalan tooling penguji (bukan cacat aplikasi): skrip pembantu sempat DIPERBAIKI: tujuh aturan validasi diberi prefix koneksi `mysql.` agar menunjuk database pusat tempat `users`/`roles`/`permissions` benar-benar berada."
+    }
+  ]
+}

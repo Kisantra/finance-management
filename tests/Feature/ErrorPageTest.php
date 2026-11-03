@@ -2,18 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureUserBelongsToCompany;
+use App\Http\Middleware\SetCompanyUrlDefaults;
+use App\Http\Middleware\SetPermissionsTeam;
 use App\Models\Feedback;
+use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+use Stancl\Tenancy\Middleware\InitializeTenancyByPath;
 use Tests\TestCase;
 
 /**
@@ -57,13 +63,35 @@ class ErrorPageTest extends TestCase
         $this->staff = User::factory()->create();
         $this->staff->assignRole('staff');
 
-        Route::middleware('web')->get('/_uji/meledak', function () {
-            throw new RuntimeException('SQLSTATE rahasia: password=hunter2');
+        // TestCase menambahkan /c/test-company ke setiap URL, jadi rute uji didaftarkan
+        // di grup perusahaan dengan rantai middleware yang sama seperti routes/web.php.
+        Route::middleware([
+            'web', 'auth', 'verified',
+            InitializeTenancyByPath::class,
+            EnsureUserBelongsToCompany::class,
+            SetPermissionsTeam::class,
+            SetCompanyUrlDefaults::class,
+        ])->prefix('c/{company}')->group(function () {
+            Route::get('/_uji/meledak', function () {
+                throw new RuntimeException('SQLSTATE rahasia: password=hunter2');
+            });
+
+            Route::post('/_uji/token-basi', fn () => 'tidak pernah sampai');
+
+            Route::get('/_uji/query-rusak', fn () => DB::table('tabel_yang_tidak_pernah_ada')->get());
+
+            Route::get('/_uji/invoice/{invoice}', fn (Invoice $invoice) => 'tidak pernah sampai');
+
+            Route::get('/_uji/ditolak-dengan-alasan', fn () => abort(403, 'Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.'));
+
+            Route::get('/_uji/ditolak-tanpa-alasan', fn () => abort(403));
+
+            Route::get('/_uji/bocor-namespace', fn () => abort(403, 'Gagal memuat App\Models\Invoice milik tenant rahasia'));
+
+            Route::get('/_uji/tabel-pusat-hilang', fn () => DB::table('companies')->get());
+
+            Route::get('/_uji/tabel-tenant-hilang', fn () => DB::table('invoices_yang_belum_dimigrasi')->get());
         });
-
-        Route::middleware('web')->post('/_uji/token-basi', fn () => 'tidak pernah sampai');
-
-        Route::middleware('web')->get('/_uji/query-rusak', fn () => DB::table('tabel_yang_tidak_pernah_ada')->get());
     }
 
     /**
@@ -177,6 +205,54 @@ class ErrorPageTest extends TestCase
             'QueryException dilempar di vendor/laravel; developer perlu baris kode yang memicunya.');
     }
 
+    public function test_error_di_dalam_perusahaan_mengarah_ke_dashboard_perusahaan_itu(): void
+    {
+        $props = $this->actingAs($this->staff)->get('/_uji/meledak')->viewData('page')['props'];
+
+        $this->assertStringEndsWith('/c/'.self::TEST_COMPANY.'/dashboard', $props['home_url']);
+        $this->assertStringEndsWith('/c/'.self::TEST_COMPANY.'/feedbacks', $props['report_url']);
+        $this->assertContains(
+            ['label' => 'Perusahaan', 'value' => self::TEST_COMPANY],
+            $props['report']['fields'],
+            'Tim IT perlu tahu database tenant mana yang harus diperiksa.'
+        );
+    }
+
+    public function test_error_di_luar_konteks_perusahaan_mengarah_ke_pilih_perusahaan_tanpa_tombol_laporan(): void
+    {
+        $props = $this->actingAs($this->staff)
+            ->get('/sama-sekali-tidak-ada-rutenya')
+            ->assertNotFound()
+            ->viewData('page')['props'];
+
+        $this->assertSame('Pilih Perusahaan', $props['home_label']);
+        $this->assertStringEndsWith('/choose-company', $props['home_url']);
+        $this->assertFalse($props['can_report'],
+            'Rute /feedbacks ada di dalam /c/{company}; tanpa tenancy tidak ada tujuan laporan yang sah.');
+        $this->assertNull($props['report_url']);
+    }
+
+    /**
+     * Route model binding (SubstituteBindings) berjalan di grup web SEBELUM
+     * SetPermissionsTeam mana pun, sehingga pada 404 binding konteks tim Spatie belum
+     * pernah diset. Izin lalu dicek tanpa tim dan admin kehilangan tombol laporan.
+     * TestCase::setUp() memasang tim secara global, jadi di sini dikosongkan agar
+     * kondisinya sama dengan server sungguhan — tanpa itu tes ini lulus palsu.
+     * Ditemukan saat diuji di browser terhadap data dev.
+     */
+    public function test_404_binding_tetap_memeriksa_izin_di_perusahaan_yang_dibuka(): void
+    {
+        setPermissionsTeamId(null);
+
+        $props = $this->actingAs($this->admin)
+            ->get('/_uji/invoice/999999')
+            ->assertNotFound()
+            ->viewData('page')['props'];
+
+        $this->assertTrue($props['can_report'],
+            'Admin perusahaan yang sedang dibuka harus tetap bisa melapor dari halaman 404.');
+    }
+
     public function test_id_referensi_tercatat_di_log_agar_bisa_dicari(): void
     {
         $log = storage_path('logs/uji-halaman-error.log');
@@ -241,5 +317,144 @@ class ErrorPageTest extends TestCase
             ->assertJsonStructure(['id']);
 
         $this->assertSame('bug', Feedback::sole()->type);
+    }
+
+    /**
+     * Pesan yang ditulis di `abort(403, '...')` harus sampai ke pengguna.
+     *
+     * Ada 10+ panggilan abort berpesan khusus di aplikasi ini — semuanya kalimat
+     * yang memang disusun untuk menjelaskan situasinya. Sebelum perbaikan,
+     * ErrorReportService membuang semuanya dan menggantinya dengan teks tetap per
+     * kode status. Yang paling merugikan ada di onboarding: pengguna baru yang
+     * belum ditautkan ke perusahaan membaca "tidak memiliki izin", lalu
+     * menyimpulkan akunnya rusak.
+     */
+    public function test_pesan_abort_khusus_ditampilkan_apa_adanya(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/ditolak-dengan-alasan')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.')
+            );
+    }
+
+    /** Tanpa pesan khusus, teks tetap per kode status tetap dipakai. */
+    public function test_tanpa_pesan_khusus_memakai_teks_bawaan(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/ditolak-tanpa-alasan')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.')
+            );
+    }
+
+    /**
+     * GERBANG KEBOCORAN. Pesan yang memuat nama kelas ber-namespace tidak boleh
+     * lolos ke pengguna biasa — detail teknis di kelas ini memang sengaja dibatasi
+     * ke role admin saja.
+     */
+    public function test_pesan_yang_memuat_detail_internal_tidak_ditampilkan(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/bocor-namespace')
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.')
+            );
+    }
+
+    /**
+     * Pesan exception 5xx bisa memuat SQL beserta datanya, jadi ia TIDAK boleh
+     * dipakai sebagai deskripsi — rute /_uji/meledak sengaja melempar pesan
+     * "SQLSTATE rahasia: password=hunter2".
+     */
+    public function test_pesan_exception_5xx_tidak_pernah_jadi_deskripsi(): void
+    {
+        $respons = $this->actingAs($this->staff)->get('/_uji/meledak');
+
+        $respons->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('description', 'Ini bukan kesalahan Anda. Tim IT dapat menelusurinya dengan ID referensi di bawah.')
+            );
+
+        $this->assertStringNotContainsString('hunter2', $respons->getContent());
+    }
+
+    /**
+     * "Table 'x.companies' doesn't exist" harus berubah jadi petunjuk yang bisa
+     * diikuti, bukan sekadar laporan teknis.
+     *
+     * Terjadi sungguhan 2026-11-03: `.env` masih menunjuk database pra-tenancy,
+     * dan 500-nya terbaca seolah fiturnya yang rusak. Kesalahan yang sama akan
+     * berulang tiap kali aplikasi diarahkan ke database yang belum disiapkan —
+     * berpindah branch, site baru untuk pelanggan lain, atau satu langkah
+     * cutover yang terlewat.
+     */
+    public function test_tabel_pusat_hilang_memberi_petunjuk_setup_bukan_pesan_mentah(): void
+    {
+        // actingAs() mendaftarkan keanggotaan lewat company_user, yang ber-FK ke
+        // companies — jadi ia HARUS dijalankan sebelum tabelnya dihapus.
+        $sesi = $this->actingAs($this->staff);
+
+        // FK dimatikan sebentar: yang ditiru di sini adalah database yang memang
+        // BELUM punya tabel itu, bukan penghapusan yang rapi.
+        Schema::disableForeignKeyConstraints();
+        Schema::drop('companies');
+        Schema::enableForeignKeyConstraints();
+
+        $respons = $sesi->get('/_uji/tabel-pusat-hilang');
+
+        $respons->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('title', 'Database pusat belum disiapkan')
+                ->where('description', fn (string $d) => str_contains($d, 'central:bootstrap')
+                    && str_contains($d, 'DB_DATABASE'))
+            );
+    }
+
+    public function test_tabel_tenant_hilang_mengarahkan_ke_tenants_migrate(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/tabel-tenant-hilang')
+            ->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('title', 'Database perusahaan belum dimigrasi')
+                ->where('description', fn (string $d) => str_contains($d, 'tenants:migrate'))
+            );
+    }
+
+    /**
+     * GERBANG. Petunjuk setup tidak boleh ikut membocorkan isi pesan exception —
+     * pesan 5xx bisa memuat SQL beserta datanya.
+     */
+    public function test_petunjuk_setup_tidak_membocorkan_nama_database(): void
+    {
+        // actingAs() mendaftarkan keanggotaan lewat company_user, yang ber-FK ke
+        // companies — jadi ia HARUS dijalankan sebelum tabelnya dihapus.
+        $sesi = $this->actingAs($this->staff);
+
+        // FK dimatikan sebentar: yang ditiru di sini adalah database yang memang
+        // BELUM punya tabel itu, bukan penghapusan yang rapi.
+        Schema::disableForeignKeyConstraints();
+        Schema::drop('companies');
+        Schema::enableForeignKeyConstraints();
+
+        $respons = $sesi->get('/_uji/tabel-pusat-hilang');
+        $props = $respons->viewData('page')['props'];
+
+        $this->assertStringNotContainsString('SQLSTATE', $props['description']);
+        $this->assertStringNotContainsString(
+            config('database.connections.mysql.database'),
+            $props['description'],
+            'Nama database ikut tampil di deskripsi yang dibaca pengguna biasa.'
+        );
     }
 }

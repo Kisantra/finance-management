@@ -35,6 +35,7 @@ import { DataTable } from '@/components/shared/data-table';
 import { EmptyState } from '@/components/shared/empty-state';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
 
 interface PdfTemplate {
@@ -81,7 +82,7 @@ export default function PdfTemplatesIndex() {
         if (!createName.trim()) return;
         setCreating(true);
         router.post(
-            '/settings/pdf-templates',
+            companyUrl('/settings/pdf-templates'),
             { name: createName.trim(), description: createDescription.trim() || null },
             {
                 onSuccess: () => {
@@ -106,7 +107,7 @@ export default function PdfTemplatesIndex() {
         if (!renameTemplate || !renameName.trim()) return;
         setRenaming(true);
         router.put(
-            `/settings/pdf-templates/${renameTemplate.id}`,
+            companyUrl(`/settings/pdf-templates/${renameTemplate.id}`),
             { name: renameName.trim(), description: renameDescription.trim() || null },
             {
                 preserveScroll: true,
@@ -122,7 +123,7 @@ export default function PdfTemplatesIndex() {
 
     const handleSetDefault = (t: PdfTemplate) => {
         router.post(
-            `/settings/pdf-templates/${t.id}/set-default`,
+            companyUrl(`/settings/pdf-templates/${t.id}/set-default`),
             {},
             {
                 preserveScroll: true,
@@ -134,7 +135,7 @@ export default function PdfTemplatesIndex() {
 
     const handleDuplicate = (t: PdfTemplate) => {
         router.post(
-            `/settings/pdf-templates/${t.id}/duplicate`,
+            companyUrl(`/settings/pdf-templates/${t.id}/duplicate`),
             {},
             {
                 onSuccess: () => toast.success(`Template "${t.name}" berhasil diduplikat.`),
@@ -146,7 +147,7 @@ export default function PdfTemplatesIndex() {
     const handleDelete = () => {
         if (!deleteTemplate) return;
         setDeleting(true);
-        router.delete(`/settings/pdf-templates/${deleteTemplate.id}`, {
+        router.delete(companyUrl(`/settings/pdf-templates/${deleteTemplate.id}`), {
             onSuccess: () => {
                 toast.success('Template berhasil dihapus.');
                 setDeleteTemplate(null);
@@ -205,7 +206,7 @@ export default function PdfTemplatesIndex() {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.visit(`/settings/pdf-templates/${t.id}/edit`)}
+                            onClick={() => router.visit(companyUrl(`/settings/pdf-templates/${t.id}/edit`))}
                         >
                             <Edit2 className="w-3.5 h-3.5" />
                             Edit

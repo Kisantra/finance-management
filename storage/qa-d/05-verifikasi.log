@@ -1,0 +1,30 @@
+==================== V1  SAPU PENANDA LAWAN DI SELURUH KOLOM TEKS ====================
+  tenant_qaalpha: 90 kolom teks diperiksa, 0 baris memuat 'BETA-'
+  tenant_qabeta: 90 kolom teks diperiksa, 0 baris memuat 'ALPHA-'
+  RINGKASAN V1: 180 kolom teks, 0 temuan penanda lawan
+
+==================== V2  NOMOR INVOICE INDEPENDEN PER PERUSAHAAN ====================
+  invoice KEDUA di /c/qaalpha: nomor=002/INV/AQ-A/XI/2026 invoice_sequence=2 (POST store status=302)
+  invoice KEDUA di /c/qabeta: nomor=002/INV/BQ-B/XI/2026 invoice_sequence=2 (POST store status=302)
+  seluruh nomor invoice per database:
+    tenant_qaalpha  id=1  nomor=ALPHA-INV-0001  seq=NULL  status=partially_paid
+    tenant_qaalpha  id=2  nomor=001/INV/AQ-A/XI/2026  seq=1  status=partially_paid
+    tenant_qaalpha  id=3  nomor=002/INV/AQ-A/XI/2026  seq=2  status=sent
+    tenant_qabeta  id=501  nomor=BETA-INV-0001  seq=NULL  status=partially_paid
+    tenant_qabeta  id=502  nomor=001/INV/BQ-B/XI/2026  seq=1  status=partially_paid
+    tenant_qabeta  id=503  nomor=002/INV/BQ-B/XI/2026  seq=2  status=sent
+  KESIMPULAN V2: urutan qaalpha=2, qabeta=2 — INDEPENDEN (kalau dibagi, qabeta akan dapat 3)
+
+==================== V3  LAMPIRAN MENDARAT DI FOLDER PERUSAHAAN YANG BENAR ====================
+  storage/tenantqaalpha/app/public — 4 berkas:
+    fund-requests\TzSGIayDbHfwmnnUnw84PGqa35iXd2vO02YfRqKn.png
+    payments\x0ZA8OkNJxkoCHf0obmRjc6qcz71rJcP91OBKuDL.png
+    reimbursements\OHQFzkt4T8JOdWtmPtW5VvpAHYEYtXkPiCdUq9f7.png
+    reimbursements\alpha-lampiran-01.txt
+    berkas milik qabeta yang ada di folder qaalpha: 0
+  storage/tenantqabeta/app/public — 4 berkas:
+    fund-requests\LrKed3TprdyKZ70AcGAhhhzSsdn5Q6CmtQlw4Lfu.png
+    payments\haKbthO7qxY4FxkaVJ4XDGQnFYMF4NgaBEZDQwzU.png
+    reimbursements\beta-lampiran-01.txt
+    reimbursements\ofGDc3P8xdLdDAfM8tKLgGJEKNg15eMlbUTnERra.png
+    berkas milik qaalpha yang ada di folder qabeta: 0

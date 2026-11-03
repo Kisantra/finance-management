@@ -36,9 +36,8 @@ class DashboardController extends Controller
 
     public function __invoke(DashboardChartRequest $request): Response|RedirectResponse
     {
-        // Dashboard is a togglable permission; roles without it land on Pengeluaran.
         if (! auth()->user()?->can('view dashboard')) {
-            return redirect()->route('cash-flow.expenses');
+            return $this->redirectToFirstAllowedModule();
         }
 
         $today = Carbon::today();
@@ -70,6 +69,47 @@ class DashboardController extends Controller
     }
 
     /**
+     * Antar user tanpa `view dashboard` ke modul pertama yang benar-benar boleh
+     * ia buka.
+     *
+     * Sebelumnya redirect dipatok ke Pengeluaran. Kombinasi permission yang sah —
+     * tanpa `view dashboard` dan tanpa `view expense` — membuat user terkunci
+     * total setelah login berhasil: setiap jalur pendaratan berakhir 403, bahkan
+     * saat ia berhak membuka modul lain. Urutan di bawah menentukan prioritas
+     * pendaratan; bila tidak ada satu pun yang cocok, barulah 403 muncul — dan
+     * kali itu memang benar, karena user itu tidak berhak atas apa pun.
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    private const MODUL_PENDARATAN = [
+        ['view expense', 'cash-flow.expenses'],
+        ['view income', 'cash-flow.income'],
+        ['view invoices', 'invoices.index'],
+        ['view clients', 'clients'],
+        ['view services', 'services'],
+        ['view bank-accounts', 'bank-accounts.index'],
+        ['view reimbursements', 'reimbursements.index'],
+        ['view fund-requests', 'fund-requests.index'],
+        ['view receivables', 'receivables.index'],
+        ['view loans', 'loans.index'],
+        ['view profit-loss', 'reports.profit-loss'],
+        ['view feedbacks', 'feedbacks.index'],
+    ];
+
+    private function redirectToFirstAllowedModule(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        foreach (self::MODUL_PENDARATAN as [$permission, $route]) {
+            if ($user?->can($permission)) {
+                return redirect()->route($route);
+            }
+        }
+
+        abort(403, 'Akun Anda belum memiliki akses ke modul mana pun. Hubungi administrator.');
+    }
+
+    /**
      * Invarian pemasukan (docs/module/dashboard.md): kredit bank + pembayaran invoice,
      * konsisten dengan rumus saldo rekening. Pengeluaran = debit bank.
      */
@@ -90,6 +130,9 @@ class DashboardController extends Controller
         $pendingTotal = Invoice::whereIn('status', self::PENDING)->sum('total_amount');
         $pendingPaid = Payment::whereHas('invoice', fn ($q) => $q->whereIn('status', self::PENDING))->sum('amount');
 
+        // Agregat SQL kembali sebagai string sedangkan hasil aritmetika PHP sebagai
+        // integer; tanpa cast, satu objek yang sama mengirim dua tipe berbeda dan
+        // perbandingan ketat di TypeScript berperilaku beda antar-field.
         return [
             'total_balance' => $totalBalance,
             'income_this_month' => (int) $income,
@@ -300,7 +343,7 @@ class DashboardController extends Controller
                 'name' => $a->account_name,
                 'bank' => $a->bank_name,
                 'account_number' => $a->account_number,
-                'balance' => $a->balance,
+                'balance' => (int) $a->balance,
             ])
             ->sortByDesc('balance')
             ->values()

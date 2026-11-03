@@ -1,0 +1,94 @@
+{
+    "qaalpha": {
+        "invoice": {
+            "id": 2,
+            "nomor": "001\/INV\/AQ-A\/XI\/2026",
+            "sequence": 1,
+            "total": 15000000
+        },
+        "pembayaran": {
+            "delta_saldo": 3000000,
+            "lampiran": "payments\/x0ZA8OkNJxkoCHf0obmRjc6qcz71rJcP91OBKuDL.png"
+        },
+        "reimbursement": {
+            "id": 2,
+            "status": "paid\/paid"
+        },
+        "fund_request": {
+            "id": 2,
+            "nomor": "001\/ALP\/XI\/2026",
+            "status": "disbursed"
+        },
+        "transfer": {
+            "kaki_terbentuk": 2,
+            "hilang_setelah_hapus": 2,
+            "kaki_tersisa": 0,
+            "saldo_bank1_pulih": true,
+            "saldo_bank2_pulih": true
+        },
+        "loan": {
+            "id": 2,
+            "angsuran": 1
+        },
+        "receivable": {
+            "id": 2,
+            "nomor": "RCV-00002",
+            "status": "active",
+            "angsuran": 1
+        },
+        "saldo_akhir_db": {
+            "bank1": 108183333,
+            "bank2": 50000000
+        },
+        "saldo_akhir_http": {
+            "ALPHA-REKENING-01": 108183333,
+            "ALPHA-REKENING-02": 50000000
+        }
+    },
+    "qabeta": {
+        "invoice": {
+            "id": 502,
+            "nomor": "001\/INV\/BQ-B\/XI\/2026",
+            "sequence": 1,
+            "total": 15000000
+        },
+        "pembayaran": {
+            "delta_saldo": 3000000,
+            "lampiran": "payments\/haKbthO7qxY4FxkaVJ4XDGQnFYMF4NgaBEZDQwzU.png"
+        },
+        "reimbursement": {
+            "id": 502,
+            "status": "paid\/paid"
+        },
+        "fund_request": {
+            "id": 502,
+            "nomor": "001\/BTA\/XI\/2026",
+            "status": "disbursed"
+        },
+        "transfer": {
+            "kaki_terbentuk": 2,
+            "hilang_setelah_hapus": 2,
+            "kaki_tersisa": 0,
+            "saldo_bank1_pulih": true,
+            "saldo_bank2_pulih": true
+        },
+        "loan": {
+            "id": 502,
+            "angsuran": 1
+        },
+        "receivable": {
+            "id": 502,
+            "nomor": "RCV-00502",
+            "status": "active",
+            "angsuran": 1
+        },
+        "saldo_akhir_db": {
+            "bank1": 108183333,
+            "bank2": 50000000
+        },
+        "saldo_akhir_http": {
+            "BETA-REKENING-01": 108183333,
+            "BETA-REKENING-02": 50000000
+        }
+    }
+}

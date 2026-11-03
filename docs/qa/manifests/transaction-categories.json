@@ -1,0 +1,445 @@
+{
+  "module": "transaction-categories",
+  "title": "Modul Transaction Categories",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/transaction-categories.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/transaction-categories",
+  "report_out": "../report/Laporan-QA-transaction-categories.pdf",
+  "summary": [
+    "43 test case dirancang untuk modul ini; 42 lolos, 0 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "5 temuan tercatat (BUG-TC-01, BUG-TC-02, BUG-TC-03, BUG-TC-04, BUG-TC-05). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-TC-01",
+      "title": "Invarian \"parent bukan untuk transaksi\" hanya ditegakkan di frontend",
+      "sifat": "Aturan bisnis tidak ditegakkan di server (FE-only).",
+      "cases": "A16, C03.",
+      "gejala": "`POST /c/qa-dua/bank-transactions` dengan `category_id=29` (kategori induk, `parent_id=NULL`) dijawab 302 sukses; DB mencatat `bank_transactions id=3 category_id=29`. Di UI hal ini mustahil karena picker memberi `disabled:true` pada parent (terbukti N05), tetapi siapa pun yang memanggil endpoint langsung bisa melewatinya.",
+      "sebab": "`app/Http/Requests/StoreBankTransactionRequest.php` hanya memvalidasi `'category_id' =› ['required', 'exists:transaction_categories,id']` — tidak ada syarat `parent_id` harus terisi. Perlindungan satu-satunya ada di `TransactionCategory::selectOptions()` (`app/Models/TransactionCategory.php:101`) yang menandai parent `disabled`, yaitu murni lapisan tampilan.",
+      "cakupan": "Semua endpoint yang menerima `category_id`: `bank-transactions` (store/update), `fund_request_items`, `reimbursements` (review/approve). `docs/module/transaction-categories.md` menyebut bug serupa \"pernah terjadi di Fund Request/Reimbursement, sudah diperbaiki\" — perbaikan itu tampaknya dilakukan di picker, bukan di validasi server.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-TC-02",
+      "title": "Tidak ada pemeriksaan kecocokan `type` kategori dengan arah transaksi",
+      "sifat": "Data integrity / laporan menyesatkan.",
+      "cases": "A17, C03.",
+      "gejala": "`POST /bank-transactions` `transaction_type=debit` dengan `category_id=32` (kategori bertipe income) diterima (302). Akibatnya `detail.category_breakdown` akun 1 — yang menurut dokumen adalah \"top 6 kategori debit\" — menampilkan `{\"name\":\"QA Pendapatan Lain\",\"total\":222000}`, sebuah kategori pendapatan, di dalam grafik donat pengeluaran.",
+      "sebab": "`StoreBankTransactionRequest`/`UpdateBankTransactionRequest` tidak membandingkan `transaction_type` dengan `TransactionCategory::type`. Pemetaan yang benar sudah ada di `routes/web.php:79-88` (`credit` → income/adjustment/ transfer, `debit` → expense/adjustment/transfer) tapi hanya dipakai untuk menyusun opsi picker, tidak untuk memvalidasi.",
+      "cakupan": "Seluruh transaksi bank; berdampak ke breakdown kategori Bank Accounts, halaman Cash Flow (yang memfilter berdasar tipe kategori), dan klasifikasi Laba Rugi lewat `pl_group`.",
+      "perbaikan": "Tambahkan `Rule` kustom / `after` validation hook yang menolak bila `category-›type` tidak ada dalam daftar hasil `match($transaction_type)` yang sudah dipakai `routes/web.php` — jadikan pemetaan itu satu helper bersama (mis. `TransactionCategory::typesFor(string $direction): array`) agar picker dan validator memakai sumber yang sama.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-TC-03",
+      "title": "Dialog reassign menerima kategori PARENT sebagai pengganti",
+      "sifat": "Aturan bisnis tidak ditegakkan; memperluas dampak BUG-TC-01.",
+      "cases": "A18 (terlihat pula di C02).",
+      "gejala": "`DELETE /c/qa-dua/transaction-categories/34` dengan `reassign_to_id=29` (kategori induk) berhasil (302). Transaksi `QA Sementara Trx` sekarang `category_id=29`. Breakdown pengeluaran akun 1 menampilkan `QA Induk Beban 166.000` — angka yang menempel pada sebuah parent.",
+      "sebab": "`app/Http/Controllers/TransactionCategoryController.php:145-167` — validasi `reassign_to_id` hanya `exists` + `notIn(self)`, lalu satu cek kesamaan `type`. Tidak ada cek `parent_id`. Frontend memfilter `reassignOptions` (`resources/js/pages/transaction-categories/index.tsx` ±baris 280) hanya berdasarkan tipe & bukan-dirinya-sendiri, sehingga parent pun ikut ditawarkan.",
+      "cakupan": "Setiap penghapusan kategori yang memakai reassign. Bisa memindahkan data ke parent secara massal (satu request memindahkan `bank_transactions` + `fund_request_items` + `reimbursements` sekaligus), jadi dampaknya lebih besar daripada BUG-TC-01 yang per-transaksi.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-TC-04",
+      "title": "`selectOptions()` menyaring tipe hanya pada parent, mengabaikan tipe anak",
+      "sifat": "Kebenaran picker / data bisa masuk ke halaman yang salah.",
+      "cases": "A20.",
+      "gejala": "Setelah `type` kategori 31 diubah menjadi `income` (A19) sementara parent-nya (29) tetap `expense`: - `GET /api/transaction-categories?type=expense` masih menampilkan `↳ QA Anak Beban 2 =› 31`; - `GET /api/transaction-categories?type=income` tidak menampilkannya. Artinya kategori pendapatan tetap bisa dipilih untuk pengeluaran, dan hilang dari picker yang seharusnya.",
+      "sebab": "`app/Models/TransactionCategory.php:91-108` — `self::whereNull('parent_id')-›where('type', $type)-›with('children')` lalu `foreach ($parent-›children as $child)` tanpa filter tipe pada anak. Closure `routes/web.php:77-105` memakai pola identik.",
+      "cakupan": "Semua picker kategori lintas modul (Cash Flow, Fund Request, Reimbursement). Memburuk karena `update()` tidak melarang perubahan `type` pada kategori terpakai (jebakan yang sudah tercatat di dokumen modul).",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-TC-05",
+      "title": "`PATCH pl-group` menerima kategori bertipe `financing`/`transfer`",
+      "sifat": "Data menyesatkan (severity rendah).",
+      "cases": "A21.",
+      "gejala": "`PATCH /c/qa-dua/transaction-categories/9/pl-group` `pl_group=revenue` pada kategori `Setoran Modal` (tipe `financing`) berhasil; DB menyimpan `type=financing pl_group=revenue`. Dokumen modul menyatakan \"`pl_group` hanya bermakna untuk `type` income/expense\".",
+      "sebab": "`TransactionCategoryController::updatePlGroup()` (baris 124-133) hanya memvalidasi nilai `pl_group`, tanpa memeriksa `type` kategori.",
+      "cakupan": "Panel klasifikasi P&L. Laporan Laba Rugi mengeluarkan baris financing/transfer berdasarkan `type`, sehingga angkanya tidak salah — yang salah adalah data master yang jadi membingungkan saat diaudit, dan filter `pl_status=unclassified` bisa memberi gambaran keliru.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Buat kategori induk (parent)",
+      "verdict": "Pass",
+      "note": "HTTP 201 `{\"id\":29,\"label\":\"QA Induk Beban\",\"type\":\"expense\",\"parent_id\":null}`; DB cocok",
+      "attempts": "p"
+    },
+    {
+      "id": "N02",
+      "title": "Buat sub-kategori (child) + `pl_group`",
+      "verdict": "Pass",
+      "note": "HTTP 201 `{\"id\":30,...,\"parent_id\":\"29\"}`; DB `id=30 parent_id=29 pl_group=opex`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Buat anak kedua + kategori income di bawah induk seeder",
+      "verdict": "Pass",
+      "note": "id=31 (`expense`, parent 29) dan id=32 (`income`, parent 5)",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Mode respons ganda `store()` (redirect vs JSON 201)",
+      "verdict": "Pass",
+      "note": "HTTP 201 dengan payload persis 4 field tersebut (N01–N03). Kompatibilitas \"buat kategori inline\" dari modul lain terjaga",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "Picker hanya membolehkan ANAK; parent disabled",
+      "verdict": "Pass (untuk lapisan picker)",
+      "note": "Terbukti, mis.: `[DISABLED] Operational Expenses =› 1`, lalu `↳ KASBON =› 16`, `↳ MAKAN MINUM =› 15`, …; `[DISABLED] QA Induk Beban =› 29`, `↳ QA Anak Beban 1 =› 30`, `↳ QA Anak Beban 2 =› 31`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "`PATCH pl-group` mengisi klasifikasi P&L",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB `id=31 pl_group=cogs`",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "`PATCH pl-group` tanpa nilai = batalkan klasifikasi",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB `id=31 pl_group=` (NULL)",
+      "attempts": "p"
+    },
+    {
+      "id": "N08",
+      "title": "Update label kategori biasa",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB `id=31 type=expense parent_id=29`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Index: filter `pl_status=unclassified` + `stats`",
+      "verdict": "Pass",
+      "note": "`stats={\"total\":33,\"parents\":17,\"children\":16,\"unclassified\":26}`, `categories.total=26`. Baris teratas: `Operational Expenses (expense, pl=null)`, `PENGELUARAN LAIN-LAIN`, `HPP`",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Index: filter `search` + `type` beserta `withCount` untuk keputusan dialog delete",
+      "verdict": "Pass",
+      "note": "`total=3`: `QA Induk Beban trx=2 anak=1 fri=0 rb=0`; `QA Anak Beban 2 trx=1 anak=0 fri=1 rb=1`; `QA Kategori Manager trx=0 anak=0 fri=0 rb=0`",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Delete + reassign memindahkan KETIGA relasi dalam satu transaksi",
+      "verdict": "Pass",
+      "note": "PRA: `bt=1 fri=1 rb=1` di kategori 30. PASCA: kategori 30 di kategori 30: bt=0 fri=0 rb=0; di kategori 31: bt=1 fri=1 rb=1; `transaction_categories id=30` hilang, id=29 & 31 tetap",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Hapus kategori yang tidak dipakai, tanpa `reassign_to_id` (cabang `$inUse === false`)",
+      "verdict": "Pass",
+      "note": "HTTP 302; DB `SELECT COUNT(∗) WHERE id=35` → 0. Cabang `$inUse === false` dieksekusi sungguhan",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Manager (finance manager) boleh mengelola kategori",
+      "verdict": "Pass",
+      "note": "HTTP 201 `{\"id\":35,\"label\":\"QA Kategori Manager\",\"type\":\"expense\",\"parent_id\":null}`",
+      "attempts": "p"
+    },
+    {
+      "id": "N14",
+      "title": "Batas `label` 255 karakter",
+      "verdict": "Pass",
+      "note": "HTTP 201 `id=33` — tersimpan penuh 255 karakter",
+      "attempts": "p"
+    },
+    {
+      "id": "N15",
+      "title": "Daftar kategori hierarkis terbaca di layar",
+      "verdict": "Pass",
+      "note": "Tampil; 28 kategori, 21 belum diklasifikasi",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Daftar kategori hierarkis dengan kolom \"Digunakan\" dan penanda belum diklasifikasi untuk laporan laba rugi."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "`type` di luar daftar",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"type\":[\"The selected type is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Field wajib `label` dihilangkan total",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"label\":[\"The label field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "`pl_group` di luar `PL_GROUPS`",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"pl_group\":[\"The selected pl group is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "`parent_id` tidak ada di tabel",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"parent_id\":[\"The selected parent id is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "`label` melewati batas (256 karakter)",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"label\":[\"The label field must not be greater than 255 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "`PATCH pl-group` dengan nilai ngawur",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"pl_group\":[\"The selected pl group is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Hapus parent yang punya anak — selalu ditolak",
+      "verdict": "Pass",
+      "note": "HTTP 302; `props.errors` = `{\"delete\":\"Kategori ini memiliki sub-kategori. Hapus sub-kategori terlebih dahulu.\"}`; kategori 29 masih ada",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Hapus parent yang punya anak sambil mengirim `reassign_to_id`",
+      "verdict": "Pass",
+      "note": "HTTP 302; error identik A07. Kategori & anak-anaknya utuh",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Hapus kategori yang masih dipakai tanpa `reassign_to_id`",
+      "verdict": "Pass",
+      "note": "HTTP 302; `{\"delete\":\"Kategori ini masih digunakan. Pilih kategori pengganti untuk memindahkan data yang terhubung.\"}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "Reassign wajib setipe",
+      "verdict": "Pass",
+      "note": "HTTP 302; `{\"delete\":\"Kategori pengganti harus bertipe sama.\"}`; tidak ada data yang berpindah",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Reassign ke diri sendiri",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"reassign_to_id\":[\"The selected reassign to id is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "Reassign ke id yang tidak ada",
+      "verdict": "Pass",
+      "note": "HTTP 422 `{\"reassign_to_id\":[\"The selected reassign to id is invalid.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "Kategori ber-`system_key` tidak boleh diedit",
+      "verdict": "Pass",
+      "note": "HTTP 302; `{\"update\":\"Kategori sistem tidak dapat diubah karena dipakai otomatis oleh modul Pinjaman/Piutang.\"}`; DB `id=7 label=Penerimaan Pinjaman system_key=FIN-LOAN-IN` — tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "Kategori ber-`system_key` tidak boleh dihapus",
+      "verdict": "Pass",
+      "note": "HTTP 302; `{\"delete\":\"Kategori sistem tidak dapat dihapus karena dipakai otomatis oleh modul Pinjaman/Piutang.\"}`; kategori 7 masih ada",
+      "attempts": "p"
+    },
+    {
+      "id": "A15",
+      "title": "Staff (tanpa permission) mengakses halaman & endpoint mutasi lewat URL langsung",
+      "verdict": "Pass",
+      "note": "GET 403, POST 403, PATCH 403, DELETE 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A16",
+      "title": "Backend tidak melarang parent dipakai sebagai kategori transaksi",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kategori induk diterima sebagai tujuan transaksi lewat panggilan langsung. Setelah BUG-TC-01 diperbaiki: 422 dengan pesan yang menyebut nama kategorinya. Koreksi saat memperbaiki: aturan pertama menolak setiap kategori tanpa `parent_id`, dan itu keliru — kategori datar tanpa anak (mis. `Beban Bunga Pinjaman` yang dipakai modul Pinjaman) sah dipakai langsung. Invarian yang benar adalah \"kategori yang PUNYA ANAK tidak dapat dipilih\"; tiga tes lama yang gagal-lah yang membongkar kekeliruan ini",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "Daftar kategori dengan hierarki induk/anak; permintaan transaksi yang menunjuk kategori induk kini ditolak 422 di server, bukan hanya dinonaktifkan di layar."
+        }
+      ]
+    },
+    {
+      "id": "A17",
+      "title": "Tidak ada pengecekan tipe kategori vs arah transaksi",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: tipe kategori tidak dicocokkan dengan arah transaksi. Setelah BUG-TC-02/BUG-CF-04 diperbaiki: 422 dengan pesan yang menyebut arah yang benar",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "Tipe kategori kini dicocokkan dengan arah transaksi di server; kombinasi yang tidak searah ditolak."
+        }
+      ]
+    },
+    {
+      "id": "A18",
+      "title": "Reassign boleh menargetkan kategori PARENT",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: dialog reassign menerima kategori induk sebagai pengganti, sehingga penghapusan justru melanggar invarian. Setelah BUG-TC-03 diperbaiki: 422 \"Kategori pengganti tidak boleh kategori induk. Pilih kategori yang tidak memiliki sub-kategori.\"",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Dialog reassign yang sama kini menolak kategori induk sebagai pengganti — pengganti wajib sub-kategori."
+        }
+      ]
+    },
+    {
+      "id": "A19",
+      "title": "Mengubah `type` kategori terpakai tidak diguard (jebakan terdokumentasi)",
+      "verdict": "Pass (sesuai dokumen)",
+      "note": "HTTP 302 diterima; DB `id=31 type=income parent_id=29`. Dampaknya diukur di A20",
+      "attempts": "p"
+    },
+    {
+      "id": "A20",
+      "title": "Picker mengabaikan `type` anak, hanya menyaring `type` parent",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `selectOptions()` menyaring tipe hanya pada induk, sehingga anak bertipe income muncul di daftar pengeluaran. Setelah BUG-TC-04 diperbaiki: anak ikut disaring, dan induk yang tidak punya anak cocok tidak lagi tampil sebagai judul kosong",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "Daftar pilihan kategori menyaring tipe pada anak, bukan hanya induk, sehingga anak bertipe lain tidak lagi bocor ke daftar yang salah."
+        }
+      ]
+    },
+    {
+      "id": "A21",
+      "title": "`PATCH pl-group` pada kategori `financing` (di luar cakupan P&L)",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: kategori `financing`/`transfer` bisa diberi grup L/R padahal tidak pernah muncul di laporan. Setelah BUG-TC-05 diperbaiki: ditolak dengan pesan yang menyebut tipe kategorinya",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "Kolom Grup L/R hanya dapat diisi untuk kategori pemasukan/pengeluaran; kategori transfer ditolak."
+        }
+      ]
+    },
+    {
+      "id": "A22",
+      "title": "Parent tanpa anak sama sekali tidak bisa dipilih di picker mana pun",
+      "verdict": "Pass (catatan)",
+      "note": "Tampil sebagai `[DISABLED] Beban Bunga Pinjaman =› 13` tanpa anak → tidak bisa dipilih. Untuk kategori sistem ini memang benar (hanya dipakai program). Dicatat sebagai perilaku, bukan bug",
+      "attempts": "p"
+    },
+    {
+      "id": "A23",
+      "title": "Helper picker `/api/transaction-categories` untuk user tanpa `view categories`",
+      "verdict": "Pass (catatan)",
+      "note": "HTTP 200 — seluruh daftar kategori terbaca meski halaman `/transaction-categories` 403. Route hanya di belakang `auth`+tenancy (`routes/web.php:77`). Kemungkinan disengaja: staff punya `create fund requests` yang butuh picker kategori. Dicatat sebagai keputusan yang perlu ditegaskan, bukan cacat pasti",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Siapkan kategori yang dipakai tiga tabel sekaligus, lalu reassign",
+      "verdict": "fri=1 \\",
+      "note": "PRA `bt=1 \\"
+    },
+    {
+      "id": "C02",
+      "title": "Reassign berdampak langsung ke breakdown kategori pada modul Bank Accounts",
+      "verdict": "Pass (perpindahan)",
+      "note": "Sebelum: `QA Induk Beban 111.000`. Sesudah: `QA Induk Beban 166.000` (111.000 + 55.000). Konsisten. Efek samping: transaksi kini menempel di parent → BUG-TC-03",
+      "attempts": "p"
+    },
+    {
+      "id": "C03",
+      "title": "Kategori bertipe salah merusak breakdown pengeluaran rekening",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama (gabungan BUG-TC-01 & BUG-TC-02). Setelah keduanya diperbaiki: kategori induk maupun tipe yang tidak searah sama-sama ditolak di server",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A16-1",
+          "cap": "Kedua invarian kategori — bukan induk, dan tipe searah — kini ditegakkan di server."
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "Kategori sistem tetap utuh setelah semua percobaan mutasi",
+      "verdict": "Pass",
+      "note": "`id=7 label=Penerimaan Pinjaman type=financing system_key=FIN-LOAN-IN` — utuh. Modul Loans terbukti masih menemukan kategorinya: pembayaran pinjaman membuat `bank_transactions id=8 category_id=8` (`FIN-LOAN-OUT`) secara otomatis",
+      "attempts": "p"
+    },
+    {
+      "id": "C05",
+      "title": "Pindahkan-lalu-hapus kategori yang masih dipakai, lewat dialog",
+      "verdict": "Pass",
+      "note": "Kategori hilang dari daftar. DB: `MAKAN MINUM` 0 baris; transaksi `id=1` kini bertaut `OPERASIONAL LUAR KOTA`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Kategori yang masih dipakai 1 transaksi: dialog menawarkan pemindahan, bukan menolak mentah-mentah."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Kategori pengganti dipilih; tombol \"Pindahkan & Hapus\" baru aktif setelah pilihan terisi."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Setelah operasi kategori hilang dari daftar; verifikasi DB menunjukkan tidak ada baris yatim."
+        }
+      ]
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Cakupan: 14 case Normal (N01–N14), 23 case Abnormal (A01–A23), 4 case Skor: Pass 35, Fail 6 (A16, A17, A18, A20, A21, C03). Semua case dieksekusi lewat HTTP dengan sesi login sungguhan. Yang Verifikasi database pada setiap mutasi, termasuk efek samping yang Invarian utama modul terbukti benar: hierarki parent→child (N01–N03); Invarian yang terbukti TIDAK ditegakkan di server: \"parent bukan untuk Kegagalan tooling saya sendiri (bukan cacat aplikasi): pesan `withErrors()` Di luar cakupan modul ini: saat menyiapkan data C01, `POST /c/qa-dua/reimbursements` Data uji ditinggalkan di `tenant_qa-dua`: kategori id 29, 31, 32, 33"
+    }
+  ]
+}

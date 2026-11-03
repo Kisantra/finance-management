@@ -73,7 +73,12 @@ return [
     |
     */
 
-    'connection' => env('SESSION_CONNECTION'),
+    // Sesi harus hidup di database PUSAT, bukan database tenant — karena itu
+    // default 'mysql' (koneksi central). Tetapi nilai ini juga dipakai driver
+    // redis sebagai NAMA KONEKSI REDIS: memaksanya 'mysql' pada instalasi yang
+    // memakai Redis menghasilkan "Redis connection [mysql] not configured" dan
+    // aplikasi mati total. Default hanya berlaku untuk driver database.
+    'connection' => env('SESSION_CONNECTION', env('SESSION_DRIVER', 'database') === 'database' ? 'mysql' : null),
 
     /*
     |--------------------------------------------------------------------------

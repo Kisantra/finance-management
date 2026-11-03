@@ -1,0 +1,601 @@
+{
+  "module": "settings",
+  "title": "Modul Settings",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/settings.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/settings",
+  "report_out": "../report/Laporan-QA-settings.pdf",
+  "summary": [
+    "53 test case dirancang untuk modul ini; 53 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "7 temuan tercatat (BUG-SET-01, BUG-SET-02, BUG-SET-03, BUG-SET-07, CATATAN-SET-04, CATATAN-SET-05, …). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-SET-01",
+      "title": "`/c/{company}/settings` melempar ke URL tanpa prefix perusahaan lalu 404",
+      "sifat": "Cacat routing multi-tenancy — jalan pintas yang wajar dari menu/URL berakhir di halaman tidak ditemukan.",
+      "cases": "A19.",
+      "gejala": "`GET /c/qa-lima/settings` menjawab `302` dengan `Location: /settings/profile` — tanpa segmen `/c/qa-lima`. Mengikuti redirect menghasilkan 404 (`GET /settings/profile` = 404, diverifikasi terpisah).",
+      "sebab": "`routes/web.php:567` — `Route::redirect('/', '/settings/profile');` menuliskan path literal. Di dalam grup ber-prefix `/c/{company}`, target redirect tidak ikut mendapat prefix. Bandingkan dengan `routes/web.php:145` (`/template-builder-test`) yang memakai `redirect()-›route(...)` dan benar menghasilkan `/c/qa-lima/settings/pdf-templates` (dibuktikan N24) — jadi polanya sudah ada di file yang sama, hanya baris ini yang tertinggal.",
+      "cakupan": "Siapa pun yang membuka `/settings` tanpa sub-halaman: tautan lama, bookmark, atau menu yang menunjuk root pengaturan. Bukan kehilangan data, tetapi jalan buntu yang terlihat seperti aplikasi rusak.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-SET-02",
+      "title": "Profil perusahaan (identitas, NPWP, tarif PPN) dapat ditimpa oleh user mana pun yang login",
+      "sifat": "Cacat otorisasi. Dokumentasi modul menyebut halaman ini \"terbuka untuk semua user login\", jadi mungkin disengaja — tetapi konsekuensinya perlu keputusan sadar, bukan diwariskan diam-diam.",
+      "cases": "A20.",
+      "gejala": "`staff@gmail.com` — role `staff`, tanpa `manage companies`, tanpa `manage pdf templates` — mengirim `POST /c/qa-lima/settings/company` dan menerima 302 sukses. Isi tabel `company_profiles` berubah menjadi `name=\"Diambil Staff\"`, `is_pkp=0`, `npwp=NULL`, `ppn_rate=0.00`, menimpa data yang sah. (Penguji memulihkannya segera setelah pembuktian.)",
+      "sebab": "`routes/web.php` — `Route::get('/company', …)` dan `Route::post('/company', …)` berada di dalam grup `settings` yang tidak memasang middleware `can:` apa pun, berbeda dari sub-grup `pdf-templates` yang digate `can:manage pdf templates` (`routes/web.php:581`). `CompanyController::update()` juga tidak memuat otorisasi sendiri, dan `UpdateCompanyRequest::authorize()` mengembalikan `true`.",
+      "cakupan": "Setiap user yang bisa login ke perusahaan. Dampaknya menjalar keluar modul Settings: `ppn_rate`, `is_pkp`, dan `npwp` dipakai `InvoicePrintService` serta seluruh template PDF invoice, dan `computed_abbreviation` dipakai penomoran Fund Request (`001/KSN/I/2026`). Satu user tanpa niat jahat pun bisa membuat seluruh invoice terbit dengan identitas dan tarif pajak yang salah — dan tidak ada jejak audit siapa yang mengubahnya.",
+      "perbaikan": "Pasang gate pada dua route company (mis. `can:manage companies`, permission yang sudah ada dan hanya dimiliki admin), atau perkenalkan permission khusus `manage company profile`. Bila keterbukaan ini memang keputusan produk, catat alasannya secara eksplisit di `docs/module/settings.md` — jangan biarkan tersirat.",
+      "status": "SUDAH DIPERBAIKI"
+    },
+    {
+      "id": "BUG-SET-03",
+      "title": "Unduh invoice dengan template PDF bawaan gagal 500 pada perusahaan yang profilnya diisi lewat Settings",
+      "sifat": "Cacat fungsional — fitur inti (unduh invoice) mati total pada perusahaan yang baru dikonfigurasi.",
+      "cases": "A21.",
+      "gejala": "`GET /c/qa-lima/invoice/1/download` (tanpa parameter `template`, sehingga memakai default `kisantra-invoice`) menjawab HTTP 500. `storage/logs/laravel.log` mencatat: `foreach() argument must be of type array/object, null given (View: D:\\Laravel\\finance-management\\resources\\views\\pdf\\kisantra-invoice.blade.php)`. Jalur `template=builder:{id}` berhasil (N23), jadi kegagalan spesifik pada template Blade bawaan.",
+      "sebab": "`resources/views/pdf/kisantra-invoice.blade.php:577` — `@foreach ($company['bank_accounts'] as $index =› $bank)` tanpa pengaman null. Kolom `company_profiles.bank_accounts` bernilai NULL, dan tidak ada cara mengisinya dari modul Settings: `app/Http/Requests/Settings/UpdateCompanyRequest.php` sama sekali tidak memuat aturan untuk `bank_accounts` (diverifikasi: nol kemunculan kata itu di file tersebut), sehingga form profil perusahaan tidak pernah menuliskannya. Pola `foreach` tanpa pengaman yang sama ada di `resources/views/pdf/invoice.blade.php`, `semesta-invoice.blade.php`, dan `single-invoice.blade.php`.",
+      "cakupan": "Setiap perusahaan yang profilnya dibuat/diisi lewat Settings dan bukan lewat seeder — yaitu semua perusahaan baru hasil provisioning. Bukan kasus buatan: log aplikasi menunjukkan galat identik terjadi pada perusahaan lain (`tenant_qa-dua`) di sesi terpisah pada hari yang sama, jadi ini reproducible lintas tenant.",
+      "perbaikan": "(1) Beri pengaman di keempat template Blade: `@foreach (($company['bank_accounts'] ?? []) as …)`. (2) Sediakan pengisian `bank_accounts` di form Profil Perusahaan (tambahkan aturannya di `UpdateCompanyRequest`), karena tanpa itu blok rekening pada invoice memang tidak akan pernah terisi. (3) Beri default `[]` alih-alih NULL pada kolom tersebut.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-SET-07",
+      "title": "Menu aplikasi mengantar staff ke halaman 403 yang dibuatnya sendiri",
+      "sifat": "Cacat UI turunan dari perbaikan BUG-SET-02/06. Hanya terlihat dari layar.",
+      "cases": "A25.",
+      "gejala": "Staff membuka menu user di sidebar, mengklik \"Profil Perusahaan\" yang aplikasi sendiri tawarkan, dan mendapat halaman hitam 403 THIS ACTION IS UNAUTHORIZED. Jalur menuju kegagalan itu disediakan aplikasi, bukan diketik pengguna.",
+      "sebab": "Gate `can:manage company profile` dipasang di route, tetapi dua tempat yang menampilkan tautannya tidak ikut disaring: `resources/js/layouts/sidebar.tsx` merender `‹Link›` Profil Perusahaan tanpa syarat, dan `resources/js/layouts/settings-layout.tsx` menandai item itu `permission: null` padahal daftar navigasinya sudah punya mekanisme penyaringan (dipakai benar untuk Template PDF).",
+      "cakupan": "Setiap user tanpa izin tersebut — yaitu seluruh role `staff`. Bukan kebocoran data (server menolak dengan benar), tetapi pengalaman yang membuat aplikasi terlihat rusak, dan persis kelas cacat yang tidak akan pernah tertangkap pengujian lewat HTTP.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "CATATAN-SET-04",
+      "title": "Validasi custom font menerima berkas `.ttf` berisi data sembarang",
+      "sifat": "Pengamatan (perilaku terdokumentasi), risiko rendah–sedang.",
+      "gejala": "Berkas 3.000 byte acak bernama `palsu.ttf` diterima (302) dan masuk pustaka font. Sebaliknya PNG asli bernama `.ttf` ditolak dengan benar (A15).",
+      "sebab": "Daftar `mimetypes` di `CustomFontController::store` menyertakan `application/octet-stream` — sengaja, agar TTF yang tidak terdeteksi tetap bisa diunggah. Byte acak juga terdeteksi sebagai `application/octet-stream`, sehingga lolos.",
+      "cakupan": "Font rusak dapat masuk pustaka global dan dipilih di editor; teks yang memakainya akan jatuh ke font default DomPDF (atau menggagalkan render) tanpa pesan yang menjelaskan sebabnya.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "CATATAN-SET-05",
+      "title": "Menghapus template default menyisakan nol template default",
+      "sifat": "Pengamatan, risiko rendah.",
+      "gejala": "Setelah `DELETE .../pdf-templates/1` yang saat itu `is_default=1`, `SUM(is_default)` menjadi 0. Invarian yang didokumentasikan (\"hanya satu `is_default`\") tidak dilanggar, tetapi keadaan \"tidak ada default sama sekali\" juga tidak pernah dibahas.",
+      "sebab": "`PdfTemplateController::destroy()` menghapus baris tanpa mempromosikan template lain. - DIPERBAIKI dengan opsi promosi: template tertua yang tersisa naik menjadi default. Menolak penghapusan ditolak sebagai opsi karena memaksa pengguna memindahkan default lebih dulu hanya untuk membuang template yang tidak dipakai. Invarian yang kini berlaku: selama masih ada template, tepat satu di antaranya adalah default.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "BUG-SET-06",
+      "title": "Gate `manage company profile` mengunci Profil Perusahaan untuk semua orang, termasuk admin, sampai seeder izin dijalankan ulang",
+      "sifat": "Regresi rilis — konsekuensi langsung dari perbaikan BUG-SET-02. Ditemukan lewat UI, bukan lewat HTTP.",
+      "gejala": "Admin membuka `/c/qa-satu/settings/company` di peramban dan mendapat halaman Forbidden, padahal role `admin` seharusnya memegang seluruh izin.",
+      "sebab": "Perbaikan BUG-SET-02 memasang `can:manage company profile` pada grup route dan menambahkan nama izin itu ke `MasterPermissionSeeder`. Namun izinnya belum ada di database — seeder tidak dijalankan ulang setelah perubahan kode. `finance_central.permissions` berisi 75 baris tanpa `manage company profile`, sehingga gate menolak semua orang: bukan hanya staff, tetapi juga admin dan finance manager.",
+      "cakupan": "Setiap lingkungan yang memutakhirkan kode tanpa menjalankan seeder izin — termasuk production saat merge ke `main`. Halaman Profil Perusahaan mati total, dan bersamanya penyuntingan NPWP/PKP/tarif PPN yang menggerakkan seluruh PDF invoice.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Halaman pengaturan pribadi terbuka untuk user biasa",
+      "verdict": "Pass",
+      "note": "200 dan 200",
+      "attempts": "p"
+    },
+    {
+      "id": "N02",
+      "title": "Ubah nama profil",
+      "verdict": "Pass",
+      "note": "302; DB `id=10 name=\"QA5 Ganti Sandi (Baru)\"`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Form profil pribadi: nama dan email dapat disunting dari layar ini."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Ganti email me-null-kan `email_verified_at`",
+      "verdict": "Pass",
+      "note": "302; DB `email=qa5-sandi2@qa.test email_verified_at=NULL` (sebelumnya `2026-08-19 14:50:41`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Ganti kata sandi dengan `current_password` benar",
+      "verdict": "Pass",
+      "note": "302; hash DB berubah dari `$2y$12$IWSZ35Tg8CY.Q…` menjadi `$2y$12$B0.3aijZxG5/E…`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Halaman ganti kata sandi dengan tiga kolom terpisah — sandi lama wajib benar sebelum perubahan diterima."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Kata sandi lama tidak lagi berlaku, yang baru berlaku",
+      "verdict": "Pass",
+      "note": "Login sandi lama → request berikutnya 302 (tidak terautentikasi); login sandi baru → `GET .../settings/profile` 200",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Layar yang sama menegakkan pergantian sandi; verifikasi bahwa sandi lama tidak lagi berlaku dilakukan lewat login ulang."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Hapus akun dengan kata sandi benar",
+      "verdict": "Pass",
+      "note": "302; sesi mati (`GET .../settings/profile` → 302). DB: `users id=11` 0 baris, `company_user user_id=11` 0 baris, `model_has_permissions model_id=11` 0 baris — cascade bersih",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Blok Hapus Akun tersedia di bawah form profil, terpisah dan bertanda bahaya."
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "`CompanyProfile` tetap singleton",
+      "verdict": "Pass",
+      "note": "3× 302; `SELECT COUNT(∗) FROM company_profiles` → 1",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Profil Perusahaan tetap satu baris meski disimpan berulang kali."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Field profil perusahaan tersimpan lengkap",
+      "verdict": "Pass",
+      "note": "DB `name=\"PT. Quality Assurance Lima\" is_pkp=1 npwp=99.888.777.6-555.000 ppn_rate=11.00`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "`computed_abbreviation` melewati kata PT/CV/TBK",
+      "verdict": "Pass",
+      "note": "Persis seperti diharapkan, kelimanya. Titik pada `PT.` tertangani. Ketika kolom `abbreviation` terisi, nilai kolom yang dipakai (`abbreviation='LIM'` → `computed='LIM'`)",
+      "attempts": "p"
+    },
+    {
+      "id": "N10",
+      "title": "Grup PDF Template Builder digate `manage pdf templates`",
+      "verdict": "Pass",
+      "note": "admin 200; manager 403; staff 403; `.../custom-fonts` untuk manager juga 403 (route memang berada di dalam prefix yang tergate)",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Buat template",
+      "verdict": "Pass",
+      "note": "3× 302; DB `1,2,3` semuanya `is_default=0`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Daftar Template PDF pada perusahaan yang belum punya template — titik awal siklus hidup template."
+        }
+      ]
+    },
+    {
+      "id": "N12",
+      "title": "Hanya satu `is_default`",
+      "verdict": "Pass",
+      "note": "Setelah tiap langkah: `1:1,2:0,3:0` → `1:0,2:1,3:0` → `1:0,2:0,3:1` → `1:0,2:1,3:0`; `SUM(is_default)` selalu 1",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penetapan default dikelola dari daftar ini; invarian \"tepat satu default\" kini juga bertahan saat template default dihapus."
+        }
+      ]
+    },
+    {
+      "id": "N13",
+      "title": "Jalur kedua penetapan default juga aman",
+      "verdict": "Pass",
+      "note": "302; state `1:1,2:0,3:0`, `SUM(is_default)=1`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Jalur kedua penetapan default (lewat PUT) tunduk pada invarian yang sama."
+        }
+      ]
+    },
+    {
+      "id": "N14",
+      "title": "Duplikasi template",
+      "verdict": "Pass",
+      "note": "302; DB `id=4 name=\"QA5 Template C (Salinan)\" is_default=0`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Duplikasi template dilakukan dari daftar ini."
+        }
+      ]
+    },
+    {
+      "id": "N15",
+      "title": "Simpan layout banded (bentuk yang benar-benar dikirim editor)",
+      "verdict": "Pass",
+      "note": "302; DB `layout={\"bands\": {\"header\": {\"height\": 180, \"elements\": []}, …}`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Layout banded disimpan dari editor yang dibuka dari daftar ini."
+        }
+      ]
+    },
+    {
+      "id": "N16",
+      "title": "Simpan layout legacy flat-array",
+      "verdict": "Pass",
+      "note": "302; DB `layout=[{\"x\": 5, \"y\": 5, \"text\": \"legacy\", \"type\": \"text\"}]`",
+      "attempts": "p"
+    },
+    {
+      "id": "N17",
+      "title": "Render PDF template",
+      "verdict": "Pass",
+      "note": "200 semua; ukuran 1.069 / 1.117 / 1.069 byte; magic `%PDF`",
+      "attempts": "p"
+    },
+    {
+      "id": "N18",
+      "title": "Render PDF dengan invoice tertentu & parameter `items`",
+      "verdict": "Pass",
+      "note": "200, 200, 200 — `items=999` tidak menimbulkan error",
+      "attempts": "p"
+    },
+    {
+      "id": "N19",
+      "title": "Halaman editor terbuka",
+      "verdict": "Pass",
+      "note": "200",
+      "attempts": "p"
+    },
+    {
+      "id": "N20",
+      "title": "Unggah custom font `.ttf`",
+      "verdict": "Pass",
+      "note": "302; DB `id=2 name=\"QA5 Arial\" filename=qa5-arial_0f4bf19d.ttf`; berkas ada di `storage/tenantqa-lima/app/public/fonts/custom/`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Pustaka custom font diakses dari halaman Template PDF; unggahan kini juga diperiksa magic number SFNT."
+        }
+      ]
+    },
+    {
+      "id": "N21",
+      "title": "Daftar font (JSON)",
+      "verdict": "Pass",
+      "note": "`[{\"id\":2,\"name\":\"QA5 Arial\",\"url\":\"http://127.0.0.1:8000/c/qa-lima/storage/fonts/custom/qa5-arial_0f4bf19d.ttf\"}, …]`",
+      "attempts": "p"
+    },
+    {
+      "id": "N22",
+      "title": "Hapus font juga menghapus berkasnya",
+      "verdict": "Pass",
+      "note": "302; DB tersisa 1 baris; berkas `qa5-font_d3127558.ttf` hilang dari disk",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penghapusan font ikut membuang berkasnya dari disk."
+        }
+      ]
+    },
+    {
+      "id": "N23",
+      "title": "Invoice produksi dirender lewat template builder",
+      "verdict": "Pass",
+      "note": "200, 1.069 byte, magic `%PDF`",
+      "attempts": "p"
+    },
+    {
+      "id": "N24",
+      "title": "Redirect sandbox lama",
+      "verdict": "Pass",
+      "note": "302 `Location: http://127.0.0.1:8000/c/qa-lima/settings/pdf-templates` — benar",
+      "attempts": "p"
+    },
+    {
+      "id": "N25",
+      "title": "Hapus template",
+      "verdict": "Pass",
+      "note": "302 keduanya; DB tersisa id 2 & 3",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Penghapusan template dilakukan dari daftar ini; bila yang dihapus adalah default, template tertua tersisa dipromosikan."
+        }
+      ]
+    },
+    {
+      "id": "N26",
+      "title": "Halaman pengaturan pribadi terbuka di layar",
+      "verdict": "Pass",
+      "note": "Tampil",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Pengaturan profil pribadi: empat sub-halaman di panel kiri."
+        }
+      ]
+    },
+    {
+      "id": "N27",
+      "title": "Profil Perusahaan dapat dibuka admin setelah izin di-seed",
+      "verdict": "Pass",
+      "note": "GAGAL pada percobaan pertama: Forbidden untuk admin sekalipun — izin `manage company profile` belum ada di `finance_central` (BUG-SET-06). Setelah `MasterPermissionSeeder` dijalankan: halaman terbuka",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Profil Perusahaan terbuka kembali untuk admin setelah seeder izin dijalankan — lihat BUG-SET-06."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Email profil bentrok dengan user lain",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Email profil tidak valid",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email field must be a valid email address.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "`current_password` salah",
+      "verdict": "Pass",
+      "note": "422 `{\"current_password\":[\"The password is incorrect.\"]}`; hash DB tetap `$2y$12$IWSZ35Tg8CY.Q…`",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Konfirmasi sandi tidak cocok",
+      "verdict": "Pass",
+      "note": "422 `{\"password\":[\"The password field confirmation does not match.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Sandi baru terlalu pendek",
+      "verdict": "Pass",
+      "note": "422 `{\"password\":[\"The password field must be at least 8 characters.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Hapus akun dengan kata sandi salah",
+      "verdict": "Pass",
+      "note": "422 `{\"password\":[\"The password is incorrect.\"]}`; DB `id=11 email=qa5-hapus@qa.test` masih ada",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Hapus akun tanpa kata sandi",
+      "verdict": "Pass",
+      "note": "422 `{\"password\":[\"The password field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "`ppn_rate` di luar 0–100",
+      "verdict": "Pass",
+      "note": "422 `{\"ppn_rate\":[\"The ppn rate field must not be greater than 100.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A09",
+      "title": "Email perusahaan tidak valid",
+      "verdict": "Pass",
+      "note": "422 `{\"email\":[\"The email field must be a valid email address.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A10",
+      "title": "Nama aset di luar whitelist",
+      "verdict": "Pass",
+      "note": "404 (whitelist `logo, letter_head, signature, stamp` ditegakkan)",
+      "attempts": "p"
+    },
+    {
+      "id": "A11",
+      "title": "Simpan layout banded tanpa `paper.margins`",
+      "verdict": "Pass",
+      "note": "422 `{\"layout.paper\":[…],\"layout.paper.margins\":[…],\"layout.paper.margins.top\":[…], …}` (10 error)",
+      "attempts": "p"
+    },
+    {
+      "id": "A12",
+      "title": "Margin negatif",
+      "verdict": "Pass",
+      "note": "422 `{\"layout.paper.margins.top\":[\"The layout.paper.margins.top field must be at least 0.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A13",
+      "title": "Band bukan array",
+      "verdict": "Pass",
+      "note": "422 `{\"layout.bands.header\":[\"The layout.bands.header field must be an array.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A14",
+      "title": "Template tanpa nama",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name field is required.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A15",
+      "title": "Font: berkas PNG diberi ekstensi `.ttf`",
+      "verdict": "Pass",
+      "note": "422 `{\"file\":[\"The file field must be a file of type: font/ttf, font/sfnt, application/x-font-ttf, application/x-font-truetype, application/octet-stream.\"]}` — validasi membaca isi, bukan nama",
+      "attempts": "p"
+    },
+    {
+      "id": "A16",
+      "title": "Font: nama duplikat",
+      "verdict": "Pass",
+      "note": "422 `{\"name\":[\"The name has already been taken.\"]}`",
+      "attempts": "p"
+    },
+    {
+      "id": "A17",
+      "title": "Font: berkas `.ttf` berisi byte acak",
+      "verdict": "Pass (lihat CATATAN-SET-04)",
+      "note": "302, tersimpan sebagai `qa5-font_d3127558.ttf`. Sesuai desain yang didokumentasikan (\"validasi double-layer: mimetypes longgar, ekstensi wajib `.ttf`\"), tetapi berarti berkas rusak bisa masuk pustaka font",
+      "attempts": "p"
+    },
+    {
+      "id": "A18",
+      "title": "Template `builder:` yang tidak ada",
+      "verdict": "Pass",
+      "note": "404",
+      "attempts": "p"
+    },
+    {
+      "id": "A19",
+      "title": "Root pengaturan kehilangan prefix perusahaan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: `/c/{company}/settings` melempar ke `/settings/profile` tanpa prefix, lalu 404. Setelah BUG-SET-01 diperbaiki: redirect berbasis nama route membentuk prefix sendiri. Diverifikasi lewat layar — membuka `/c/qa-satu/settings` mendarat di halaman Pengaturan yang terbuka penuh",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A19-1",
+          "cap": "Membuka /c/qa-satu/settings kini mendarat di halaman Pengaturan yang terbuka penuh; sebelumnya redirect kehilangan prefix perusahaan dan berakhir 404."
+        }
+      ]
+    },
+    {
+      "id": "A20",
+      "title": "Profil perusahaan dapat ditimpa user tanpa hak kelola",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: staff dapat menimpa profil perusahaan. Setelah BUG-SET-02 diperbaiki: route digate `can:manage company profile`; menu yang menawarkannya juga disaring (BUG-SET-07)",
+      "attempts": "fp"
+    },
+    {
+      "id": "A21",
+      "title": "Unduh invoice dengan template PDF bawaan",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "GAGAL pada percobaan pertama: 500 pada template PDF bawaan karena `bank_accounts` NULL. Setelah BUG-SET-03/TEMUAN I-08 diperbaiki: service mengirim `[]` dan ketiga template Blade diberi penjaga; diverifikasi 200 pada tenant yang kolomnya memang masih NULL",
+      "attempts": "fp"
+    },
+    {
+      "id": "A22",
+      "title": "Menghapus template yang sedang menjadi default",
+      "verdict": "Pass (percobaan ke-2)",
+      "note": "Menghapus template default kini mempromosikan template tertua yang tersisa, sehingga selalu ada tepat satu default selama masih ada template. Ditutup tes regresi",
+      "attempts": "fp"
+    },
+    {
+      "id": "A25",
+      "title": "Menu tidak boleh menawarkan halaman yang akan menolak",
+      "verdict": "Pass",
+      "note": "GAGAL pada percobaan pertama: item tetap tampil dan mengantar staff ke halaman 403 THIS ACTION IS UNAUTHORIZED. Setelah diperbaiki (`sidebar.tsx` + `settings-layout.tsx`): menu staff hanya berisi \"Profil Saya\" dan \"Keluar\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A25-1",
+          "cap": "Sebelum perbaikan: staff mengklik \"Profil Perusahaan\" yang ditawarkan menu sendiri dan mendapat halaman 403."
+        },
+        {
+          "img": "A25-2",
+          "cap": "Sesudah perbaikan: menu staff hanya berisi \"Profil Saya\" dan \"Keluar\"."
+        }
+      ]
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Siklus penuh ganti kredensial",
+      "verdict": "Pass",
+      "note": "(1) 302; (2) `email_verified_at=NULL`; (3) 422; (4) hash berubah; (5) login lama gagal / baru 200",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Siklus ganti kredensial berpangkal pada layar ini."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Siklus hidup template PDF",
+      "verdict": "Pass",
+      "note": "Seluruh tahap 302/200 seperti pada N11–N25; `SUM(is_default)` = 1 di setiap pemeriksaan, kecuali menjadi 0 setelah template default dihapus (A22)",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Siklus hidup template PDF berpangkal pada daftar ini."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Siklus pustaka font",
+      "verdict": "Pass",
+      "note": "Unggah 302 → daftar memuat 2 font → `DELETE` 302 → berkas `qa5-font_d3127558.ttf` hilang dari `storage/tenantqa-lima/app/public/fonts/custom/`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N11-1",
+          "cap": "Siklus pustaka font berpangkal pada halaman yang sama."
+        }
+      ]
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli; verifikasi Case destruktif (ganti sandi, hapus akun) sengaja hanya dijalankan pada akun N09 (`computed_abbreviation`) diuji lewat instansiasi model di memori dengan 5 A20 bersifat destruktif terhadap data perusahaan: profil segera dipulihkan A21 (BUG-SET-03) menyentuh modul Invoice/PDF yang di luar cakupan tugas ini, Uji awal penyimpanan layout banded sempat menghasilkan 422 karena penguji Pembersihan: `qa5-hapus@qa.test` terhapus oleh case N09 itu sendiri; Editor WYSIWYG (drag-and-drop elemen, band resize, picker token & font)"
+    }
+  ]
+}

@@ -19,6 +19,17 @@ use Inertia\Response;
 
 class FeedbackController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan.
+     *
+     * Nilai `sort` dari URL tidak boleh langsung masuk orderBy(): `?sort=ngawur`
+     * menjatuhkan halaman dengan 500 — input pengguna yang menjadi SQL.
+     * Ditemukan QC 2026-11-03 di /services, lalu ternyata berulang di sini.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['title', 'type', 'priority', 'status', 'created_at', 'responded_at'];
+
     public function index(Request $request): Response
     {
         $user = auth()->user();
@@ -30,12 +41,17 @@ class FeedbackController extends Controller
         $type = $request->input('type');
         $priority = $request->input('priority');
         $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'created_at');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'created_at';
         $direction = $request->input('direction', 'desc');
 
-        $baseQuery = ($canManage && $tab === 'all')
+        // forCurrentCompany() dipasang pada KEDUA cabang. Cabang `canManage`
+        // memakai Feedback::query() yang terbuka, dan tabel ini central — tanpa
+        // cakupan itu, admin PT A membaca isi feedback PT B.
+        $baseQuery = (($canManage && $tab === 'all')
             ? Feedback::query()
-            : Feedback::forUser($user->id);
+            : Feedback::forUser($user->id))->forCurrentCompany();
 
         $rows = $baseQuery
             ->with(['user', 'responder'])
@@ -53,9 +69,9 @@ class FeedbackController extends Controller
             ->through(fn (Feedback $f) => $this->mapFeedback($f));
 
         // Stats are scoped to user view
-        $statsQuery = $canManage && $tab === 'all'
+        $statsQuery = ($canManage && $tab === 'all'
             ? Feedback::query()
-            : Feedback::forUser($user->id);
+            : Feedback::forUser($user->id))->forCurrentCompany();
 
         $stats = $this->computeStats($statsQuery);
 
@@ -96,6 +112,7 @@ class FeedbackController extends Controller
 
             $feedback = Feedback::create([
                 'user_id' => auth()->id(),
+                'company_id' => tenant()?->getTenantKey(),
                 'title' => $validated['title'],
                 'description' => $validated['description'],
                 'type' => $validated['type'],
@@ -120,8 +137,27 @@ class FeedbackController extends Controller
         return redirect()->back()->with('success', 'Feedback berhasil dikirim. Terima kasih atas masukannya.');
     }
 
+    /**
+     * Feedback milik perusahaan lain tidak boleh disentuh, bahkan oleh pemegang
+     * izin `manage feedbacks`.
+     *
+     * Route-model binding memuat baris apa pun berdasarkan id, dan `feedbacks`
+     * hidup di database CENTRAL — jadi memeriksa izin saja tidak cukup, konteks
+     * perusahaannya harus ikut diperiksa. Dijawab 404, bukan 403: keberadaan
+     * feedback perusahaan lain bukan informasi yang perlu dibocorkan.
+     *
+     * `company_id` NULL dibiarkan lolos, sejalan dengan scopeForCurrentCompany().
+     */
+    private function pastikanMilikPerusahaanAktif(Feedback $feedback): void
+    {
+        $slug = tenant()?->getTenantKey();
+
+        abort_if($slug !== null && $feedback->company_id !== null && $feedback->company_id !== $slug, 404);
+    }
+
     public function update(UpdateFeedbackRequest $request, Feedback $feedback): RedirectResponse
     {
+        $this->pastikanMilikPerusahaanAktif($feedback);
         abort_unless($feedback->user_id === auth()->id() && $feedback->canEdit(), 403);
 
         $validated = $request->validated();
@@ -133,6 +169,7 @@ class FeedbackController extends Controller
 
     public function destroy(Feedback $feedback): RedirectResponse
     {
+        $this->pastikanMilikPerusahaanAktif($feedback);
         abort_unless($feedback->user_id === auth()->id() || auth()->user()->can('manage feedbacks'), 403);
 
         if ($feedback->user_id === auth()->id() && ! $feedback->canDelete()) {
@@ -146,6 +183,7 @@ class FeedbackController extends Controller
 
     public function respond(RespondFeedbackRequest $request, Feedback $feedback): RedirectResponse
     {
+        $this->pastikanMilikPerusahaanAktif($feedback);
         abort_unless(auth()->user()->can('respond feedbacks'), 403);
         abort_unless($feedback->canRespond(), 403);
 
@@ -166,6 +204,7 @@ class FeedbackController extends Controller
 
     public function changeStatus(ChangeStatusFeedbackRequest $request, Feedback $feedback): RedirectResponse
     {
+        $this->pastikanMilikPerusahaanAktif($feedback);
         abort_unless(auth()->user()->can('manage feedbacks'), 403);
 
         $validated = $request->validated();
@@ -177,7 +216,11 @@ class FeedbackController extends Controller
 
     private function notifyAdmins(Feedback $feedback): void
     {
-        $admins = User::role(['admin', 'finance manager'])->get();
+        // Hanya admin perusahaan ini. `User::role()` sendirian mengembalikan
+        // admin SEMUA perusahaan — judul feedback ikut terkirim sebagai isi
+        // notifikasi, jadi tanpa cakupan ini satu feedback membocorkan dirinya
+        // ke setiap admin di seluruh grup.
+        $admins = User::role(['admin', 'finance manager'])->memberOfCurrentCompany()->get();
 
         foreach ($admins as $admin) {
             AppNotification::notify(
@@ -215,7 +258,7 @@ class FeedbackController extends Controller
 
     private function loadFeedback(int $id, $user, bool $canManage): ?array
     {
-        $query = $canManage ? Feedback::query() : Feedback::forUser($user->id);
+        $query = ($canManage ? Feedback::query() : Feedback::forUser($user->id))->forCurrentCompany();
         $feedback = $query->with(['user', 'responder'])->find($id);
 
         return $feedback ? $this->mapFeedback($feedback, true) : null;

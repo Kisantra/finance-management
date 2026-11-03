@@ -15,6 +15,7 @@ import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmente
 import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/shared/file-upload';
 import { FormSection } from '@/components/shared/form-section';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 
 const TYPE_OPTIONS: SegmentedOption<'bug' | 'feature' | 'feedback'>[] = [
@@ -63,7 +64,7 @@ export function FloatingFeedbackButton() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/feedbacks', {
+        post(companyUrl('/feedbacks'), {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {

@@ -1,0 +1,221 @@
+{
+  "module": "notifications",
+  "title": "Modul Notifications",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/notifications.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/notifications",
+  "report_out": "../report/Laporan-QA-notifications.pdf",
+  "summary": [
+    "23 test case dirancang untuk modul ini; 22 lolos, 0 gagal, 1 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "Tidak ada temuan bug pada modul ini."
+  ],
+  "bugs": [],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Shared prop bell: 10 terbaru dari 30 hari terakhir",
+      "verdict": "Pass",
+      "note": "`recent_count=10`, id `45,44,43,42,41,40,39,38,37,36` — id 46 (40 hari) tidak ada. Cap 10 dan scope `recent(30)` keduanya bekerja",
+      "attempts": "p"
+    },
+    {
+      "id": "N02",
+      "title": "Badge unread count",
+      "verdict": "Pass",
+      "note": "`unread_count=46`",
+      "attempts": "p"
+    },
+    {
+      "id": "N03",
+      "title": "Daftar JSON halaman 1",
+      "verdict": "Pass",
+      "note": "`200 items=20 total=46 unread=46 has_more=true first=\"QA5 Notifikasi #45\" last=\"QA5 Notifikasi #26\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "N04",
+      "title": "Pagination kumulatif — `page=2` mengembalikan 40 item pertama",
+      "verdict": "Pass",
+      "note": "`items=40 total=46 has_more=true first=\"QA5 Notifikasi #45\" last=\"QA5 Notifikasi #6\"` — jelas kumulatif (\"load more\"), bukan offset",
+      "attempts": "p"
+    },
+    {
+      "id": "N05",
+      "title": "`page=3` menghabiskan daftar",
+      "verdict": "Pass",
+      "note": "`items=46 total=46 has_more=false first=\"QA5 Notifikasi #45\" last=\"QA5 Notifikasi Lama\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "N06",
+      "title": "Notifikasi lama terlihat di drawer walau tidak di bell",
+      "verdict": "Pass",
+      "note": "Bell: tidak ada. Index page 3: hadir sebagai item terakhir",
+      "attempts": "p"
+    },
+    {
+      "id": "N07",
+      "title": "Tandai satu notifikasi dibaca (milik sendiri)",
+      "verdict": "Pass",
+      "note": "302; DB `id=45 read_at=2026-08-19 14:43:42`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Drawer notifikasi berisi 4 item belum dibaca dengan penanda biru; mengklik satu item menandainya terbaca."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "`markAsRead` idempoten",
+      "verdict": "Pass",
+      "note": "302; DB `read_at` tetap `2026-08-19 14:43:42`",
+      "attempts": "p"
+    },
+    {
+      "id": "N09",
+      "title": "Tandai semua dibaca",
+      "verdict": "Pass",
+      "note": "302; DB `user_id=8 total=46 unread=0`, `user_id=9 total=1 unread=1` (tetap belum dibaca)",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Tombol \"Tandai semua\" tersedia di kepala drawer."
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "title": "Konvensi `data.url` terisi & ber-prefix perusahaan",
+      "verdict": "Pass",
+      "note": "Semua 10 notifikasi feedback membawa `{\"url\": \"http://127.0.0.1:8000/c/qa-lima/feedbacks\", \"feedback_id\": N}` — prefix `/c/qa-lima` benar",
+      "attempts": "p"
+    },
+    {
+      "id": "N11",
+      "title": "Integrasi: feedback baru menotifikasi admin + finance manager",
+      "verdict": "Pass",
+      "note": "Per feedback lahir 2 baris: `user_id=1` (Admin) & `user_id=2` (Manager), `type=feedback_submitted`, pesan `\"Staff Demo mengirim Bug Report: QA5 Bug laporan tidak muncul\"`",
+      "attempts": "p"
+    },
+    {
+      "id": "N12",
+      "title": "Integrasi: tanggapan admin menotifikasi pemilik feedback",
+      "verdict": "Pass",
+      "note": "Satu baris: `id=54 user_id=3 type=feedback_responded message='Feedback \"QA5 Bug laporan (diedit)\" telah ditanggapi oleh Admin'` — admin/manager tidak ikut dinotifikasi",
+      "attempts": "p"
+    },
+    {
+      "id": "N13",
+      "title": "Drawer notifikasi terbuka dari lonceng header",
+      "verdict": "Pass",
+      "note": "Drawer terbuka dengan empty state (perusahaan `qa-satu` belum punya notifikasi) dan tautan \"Lihat semua notifikasi\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Drawer notifikasi terbuka dari lonceng header dengan empty state dan tautan ke daftar lengkap."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Membaca notifikasi milik orang lain",
+      "verdict": "Pass",
+      "note": "403; DB `id=47 user_id=9 read_at=NULL` — tidak berubah",
+      "attempts": "p"
+    },
+    {
+      "id": "A02",
+      "title": "Admin pun tidak bisa membaca notifikasi user lain",
+      "verdict": "Pass",
+      "note": "403; DB `id=44 read_at=NULL`",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Notifikasi tidak ada",
+      "verdict": "Pass",
+      "note": "404",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Guest menandai baca",
+      "verdict": "Pass",
+      "note": "419 (token CSRF/sesi kedaluwarsa) — ditolak sebelum sampai ke controller. Bukan 302 seperti request GET, tetapi tetap aman",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "Daftar hanya berisi notifikasi milik sendiri",
+      "verdict": "Pass",
+      "note": "User 8 `total=46`; staff `unread_count=2` dengan `recent` id `[55,54]` saja — tidak ada satu pun dari 46 notifikasi user 8 yang bocor",
+      "attempts": "p"
+    },
+    {
+      "id": "A06",
+      "title": "Badge unread menghitung notifikasi ›30 hari yang tidak dapat dijangkau dari bell",
+      "verdict": "Pass",
+      "note": "`unread_count=46` sementara bell hanya menampilkan 10 dan tidak pernah dapat menampilkan id 46. Sesuai dokumentasi (drawer yang menanganinya), dicatat sebagai perilaku yang dipahami — bukan kegagalan",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Notifikasi yatim setelah objek rujukannya dihapus",
+      "verdict": "Pass",
+      "note": "Baris notifikasi tetap ada dengan `data={\"url\": \".../c/qa-lima/feedbacks\", \"feedback_id\": 4}`. Karena `url` menunjuk halaman indeks (bukan `?show=4`), navigasi tetap aman. Dicatat sebagai catatan kebersihan data, bukan kegagalan",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "`cleanupOld()` belum dijadwalkan",
+      "verdict": "Belum diuji",
+      "note": "Belum diuji lewat eksekusi. Diverifikasi lewat pembacaan kode/dokumen: tidak ada `Schedule::call(AppNotification::cleanupOld ...)`; hanya `invoices:notify-due-dates` yang terjadwal. Tabel akan tumbuh tanpa intervensi"
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Rantai lengkap feedback → notifikasi → baca → badge turun",
+      "verdict": "Pass",
+      "note": "(2) `unread=2 recent=2 ids=[55,54]`; (3) 302; (4) `unread=1`; (5) 302; (6) `unread=0`. DB akhir: `user_id=3 total=2 unread=0`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Rantai feedback → notifikasi terlihat utuh: keempat notifikasi berasal dari feedback yang dikirim aktor lain, dan badge lonceng menunjukkan angka 4."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "`mark-all-read` tidak menular ke user lain",
+      "verdict": "Pass",
+      "note": "`user_id=1 total=4 unread=4` · `user_id=2 total=4 unread=4` · `user_id=3 total=2 unread=0` · `user_id=8 total=46 unread=0` · `user_id=9 total=1 unread=1` — dua operasi `mark-all-read` (user 8 dan user 3) hanya mengenai pemiliknya masing-masing",
+      "attempts": "p"
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "Seluruh case dieksekusi lewat request HTTP dengan cookie sesi asli. Endpoint Verifikasi database dilakukan langsung ke `finance_central` untuk setiap Notifikasi sintetis dibuat untuk user milik QA sendiri (id 8 & 9) agar tidak Pengujian tidak menghapus notifikasi milik siapa pun selain user QA sendiri. A08 jujur dinyatakan Belum diuji lewat eksekusi — diverifikasi lewat Alur UI React (klik bell → popover → drawer → load more) tidak diuji lewat Pembersihan: seluruh 47 notifikasi sintetis (`qa5_seed`, `qa5_old`,"
+    }
+  ]
+}

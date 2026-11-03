@@ -16,6 +16,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
+import { companyUrl } from '@/lib/company';
 import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import type { AccountPickerItem, CategoryOption } from '../types';
@@ -77,7 +78,7 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId }: 
     React.useEffect(() => {
         if (!open) return;
         axios
-            .get('/api/transaction-categories', { params: { type: 'transfer' } })
+            .get(companyUrl('/api/transaction-categories'), { params: { type: 'transfer' } })
             .then((res) => setCategories(res.data ?? []))
             .catch(() => setCategories([]));
     }, [open]);
@@ -260,7 +261,7 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId }: 
     );
 }
 
-function FlowChip({ account, label, tone }: { account?: AccountListItem; label: string; tone: 'red' | 'green' }) {
+function FlowChip({ account, label, tone }: { account?: AccountPickerItem; label: string; tone: 'red' | 'green' }) {
     const toneMap = {
         red: 'border-red-200 dark:border-red-900/40 bg-red-50/60 dark:bg-red-900/10',
         green: 'border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10',

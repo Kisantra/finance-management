@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -71,6 +73,105 @@ class ErrorReportService
     }
 
     /**
+     * Tabel yang HANYA ada di database pusat. Hilangnya salah satu berarti
+     * langkah penyiapan pusat belum dijalankan, bukan kerusakan data.
+     *
+     * @var list<string>
+     */
+    private const TABEL_PUSAT = ['organizations', 'companies', 'company_user'];
+
+    /**
+     * Ubah "Table 'x.companies' doesn't exist" menjadi petunjuk yang bisa diikuti.
+     *
+     * Pesan bawaannya benar secara teknis tetapi tidak memberi tahu apa pun:
+     * pembacanya tahu ada tabel yang hilang, bukan bahwa ia melewatkan satu
+     * perintah penyiapan. Ini BUKAN kasus langka — ia muncul setiap kali
+     * aplikasi multi-perusahaan diarahkan ke database yang belum disiapkan:
+     * saat berpindah branch, saat site baru dibuat untuk pelanggan lain, atau
+     * ketika satu langkah cutover terlewat. Terjadi sungguhan pada 2026-11-03:
+     * `.env` masih menunjuk database pra-tenancy, dan 500-nya terbaca seperti
+     * fiturnya yang rusak.
+     *
+     * Jalur ini hanya hidup saat SUDAH terjadi error, jadi tidak ada biaya
+     * per-request. Pesannya ditulis tetap di sini, bukan diambil dari
+     * exception — pesan exception 5xx bisa memuat SQL beserta datanya, dan
+     * nama database tidak perlu ditampilkan ke pengguna biasa. Detail aslinya
+     * tetap ada di bagian teknis yang hanya terlihat oleh admin.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    private static function pesanSetupBelumSelesai(Throwable $e): ?array
+    {
+        if (! $e instanceof QueryException) {
+            return null;
+        }
+
+        if (! preg_match("/Table '[^.']*\.([^']+)' doesn't exist/", $e->getMessage(), $cocok)) {
+            return null;
+        }
+
+        if (in_array($cocok[1], self::TABEL_PUSAT, true)) {
+            return [
+                'Database pusat belum disiapkan',
+                'Database yang dipakai aplikasi ini belum memiliki tabel perusahaan. '
+                .'Biasanya karena DB_DATABASE di .env masih menunjuk database lama '
+                .'(sebelum multi-perusahaan), atau langkah penyiapan belum dijalankan. '
+                .'Jalankan: php artisan migrate, lalu php artisan central:bootstrap. '
+                .'Setelah mengubah .env, server harus di-restart — nilainya dibaca sekali saat server start.',
+            ];
+        }
+
+        return [
+            'Database perusahaan belum dimigrasi',
+            'Perusahaan ini sudah terdaftar tetapi tabel datanya belum dibuat. '
+            .'Jalankan: php artisan tenants:migrate. '
+            .'Periksa juga php artisan central:tenants-status untuk melihat perusahaan mana yang tertinggal.',
+        ];
+    }
+
+    /**
+     * Pesan yang SENGAJA ditulis di `abort(403, '...')`, bila aman ditampilkan.
+     *
+     * Tanpa ini, setiap pesan yang disusun khusus dibuang dan diganti teks tetap
+     * per kode status — ada 10+ di aplikasi ini, dan semuanya kalimat yang memang
+     * ditulis untuk menjelaskan situasinya. Akibat paling terasa ada di onboarding:
+     * pengguna baru yang belum ditautkan ke perusahaan mana pun membaca "Akun Anda
+     * tidak memiliki izin untuk membuka halaman ini", bukan "Akun Anda belum
+     * terdaftar di perusahaan mana pun. Hubungi administrator." — lalu ia
+     * menyimpulkan akunnya rusak dan membuka tiket yang tidak perlu.
+     *
+     * Tiga syarat, dan ketiganya soal keamanan, bukan kerapian:
+     *
+     * 1. Hanya HttpExceptionInterface — artinya exception ini memang dibuat oleh
+     *    `abort()` di kode kita, bukan kecelakaan runtime yang kebetulan punya pesan.
+     * 2. Hanya status < 500. Pesan exception 5xx bisa memuat SQL beserta datanya;
+     *    itu sebabnya detail teknis di kelas ini pun hanya dikirim ke role admin.
+     * 3. Pesan yang berbau internal ditolak: backslash (nama kelas ber-namespace),
+     *    "SQLSTATE", dan "No query results for model" — yang terakhir dihasilkan
+     *    route-model binding pada 404 dan membocorkan nama model beserta id-nya.
+     */
+    private static function pesanKhusus(Throwable $e, int $status): ?string
+    {
+        if (! $e instanceof HttpExceptionInterface || $status >= 500) {
+            return null;
+        }
+
+        $pesan = trim($e->getMessage());
+
+        if ($pesan === '' || mb_strlen($pesan) > 300) {
+            return null;
+        }
+
+        foreach (['\\', 'SQLSTATE', 'No query results for model'] as $penanda) {
+            if (str_contains($pesan, $penanda)) {
+                return null;
+            }
+        }
+
+        return $pesan;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function props(int $status, Throwable $e, Request $request): array
@@ -78,12 +179,50 @@ class ErrorReportService
         [$title, $description] = self::MESSAGES[$status]
             ?? ($status >= 500 ? self::MESSAGES[500] : ['Permintaan tidak dapat diproses', 'Terjadi kendala saat memproses permintaan Anda.']);
 
+        [$title, $description] = self::pesanSetupBelumSelesai($e) ?? [$title, $description];
+
+        $description = self::pesanKhusus($e, $status) ?? $description;
+
         $user = $request->user();
 
+        // Rute perusahaan butuh {company}, jadi hanya dipakai bila tenancy sudah
+        // ter-inisialisasi. Itu TIDAK menjamin keanggotaan sudah dicek — keamanannya
+        // datang dari izin Spatie yang per tim: bukan anggota = tanpa role di tim itu.
+        $company = tenancy()->initialized ? tenant()->getTenantKey() : null;
+
+        // Pada 404 route model binding, SubstituteBindings gagal SEBELUM SetPermissionsTeam
+        // mana pun berjalan, sehingga tim Spatie masih null dan semua izin terbaca false.
+        $previousTeam = getPermissionsTeamId();
+
+        if ($company !== null) {
+            setPermissionsTeamId($company);
+            $user?->unsetRelation('roles')->unsetRelation('permissions');
+        }
+
+        try {
+            return $this->propsForTeam($status, $title, $description, $user, $company, $e, $request);
+        } finally {
+            setPermissionsTeamId($previousTeam);
+            $user?->unsetRelation('roles')->unsetRelation('permissions');
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function propsForTeam(int $status, string $title, string $description, ?User $user, ?string $company, Throwable $e, Request $request): array
+    {
         $canReport = $user !== null
+            && $company !== null
             && $status !== 419
             && $user->can('view feedbacks')
             && $user->can('create feedbacks');
+
+        [$homeUrl, $homeLabel] = match (true) {
+            $user === null => [route('login'), 'Masuk'],
+            $company !== null => [route('dashboard', ['company' => $company]), 'Ke Dashboard'],
+            default => [route('choose-company'), 'Pilih Perusahaan'],
+        };
 
         return [
             'status' => $status,
@@ -92,12 +231,13 @@ class ErrorReportService
             // Dikirim eksplisit: pada 404 dari route model binding, prop bersama `auth`
             // belum sempat dibagikan HandleInertiaRequests sehingga tidak bisa diandalkan.
             'is_guest' => $user === null,
-            'home_url' => $user ? route('dashboard') : route('login'),
+            'home_url' => $homeUrl,
+            'home_label' => $homeLabel,
             // Setelah POST gagal, address bar menunjuk URL POST — memuat ulang di sana
             // bisa berujung 405. Hanya GET yang aman untuk "Coba lagi".
             'can_retry' => $request->isMethod('GET'),
             'can_report' => $canReport,
-            'report_url' => $canReport ? route('feedbacks.store') : null,
+            'report_url' => $canReport ? route('feedbacks.store', ['company' => $company]) : null,
             'report' => $this->report($status, $title, $e, $request),
         ];
     }
@@ -118,6 +258,7 @@ class ErrorReportService
             ['label' => 'Halaman', 'value' => $page],
             ['label' => 'Rute', 'value' => $request->route()?->getName() ?? '—'],
             ['label' => 'Pengguna', 'value' => $user ? "#{$user->id} {$user->name} <{$user->email}>" : 'Belum masuk'],
+            ['label' => 'Perusahaan', 'value' => tenancy()->initialized ? tenant()->getTenantKey() : '— (di luar konteks perusahaan)'],
             ['label' => 'Browser', 'value' => Str::limit((string) $request->userAgent(), 200) ?: '—'],
             ['label' => 'Aplikasi', 'value' => config('app.url').' · '.app()->environment()],
         ];

@@ -38,7 +38,7 @@ class FundRequest extends Model
 
     public static function generateRequestNumber(): string
     {
-        $companyProfile = \App\Models\CompanyProfile::current();
+        $companyProfile = CompanyProfile::current();
         // Use stored abbreviation if set, otherwise auto-generate from company name initials
         $companyAbbreviation = $companyProfile
             ? $companyProfile->computed_abbreviation
@@ -48,15 +48,27 @@ class FundRequest extends Model
         $month = now()->month;
         $romanMonth = self::toRoman($month);
 
-        // Count existing requests in current month
-        $count = self::whereYear('created_at', $year)
+        // Sequence diturunkan dari nomor urut TERBESAR yang sudah dipakai pada
+        // bulan berjalan, bukan dari COUNT. Dengan COUNT, menghapus satu
+        // pengajuan lama membuat nomor berikutnya bentrok dengan nomor yang
+        // masih ada — aturan unique menahan duplikasinya, tetapi alur pembuatan
+        // jadi buntu sampai pengguna mengetik nomor manual.
+        $terbesar = self::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
-            ->count();
+            ->pluck('request_number')
+            ->map(fn ($n) => (int) explode('/', (string) $n)[0])
+            ->max() ?? 0;
 
-        $sequence = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+        $urut = $terbesar + 1;
 
-        // Format: 001/KSN/I/2026
-        return sprintf('%s/%s/%s/%s', $sequence, $companyAbbreviation, $romanMonth, $year);
+        // Nomor bebas ketikan pengguna bisa saja sudah memakai urutan itu, jadi
+        // naikkan sampai menemukan yang benar-benar kosong.
+        do {
+            $nomor = sprintf('%s/%s/%s/%s', str_pad((string) $urut, 3, '0', STR_PAD_LEFT), $companyAbbreviation, $romanMonth, $year);
+            $urut++;
+        } while (self::where('request_number', $nomor)->exists());
+
+        return $nomor;
     }
 
     private static function toRoman(int $number): string
@@ -65,7 +77,7 @@ class FundRequest extends Model
             12 => 'XII', 11 => 'XI', 10 => 'X',
             9 => 'IX', 8 => 'VIII', 7 => 'VII',
             6 => 'VI', 5 => 'V', 4 => 'IV',
-            3 => 'III', 2 => 'II', 1 => 'I'
+            3 => 'III', 2 => 'II', 1 => 'I',
         ];
 
         return $map[$number] ?? 'I';
@@ -178,7 +190,13 @@ class FundRequest extends Model
             return true;
         }
 
-        return in_array($this->status, ['draft', 'rejected']);
+        // Cek kepemilikan WAJIB: tanpa ini setiap pemegang permission
+        // "delete fund requests" bisa menghapus pengajuan milik orang lain,
+        // padahal update() dan submit() sudah memeriksa user_id — asimetri
+        // yang membuat penghapusan menjadi celah.
+        return $user
+            && $this->user_id === $user->id
+            && in_array($this->status, ['draft', 'rejected']);
     }
 
     public function canSubmit(): bool

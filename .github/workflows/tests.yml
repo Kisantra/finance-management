@@ -15,6 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     environment: Testing
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: finance_management_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,16 +66,21 @@ jobs:
 
       # The Build Assets step runs `php artisan wayfinder:generate` via the Vite
       # plugin, which boots the app — and the app queries company_profiles during
-      # boot. There is no MySQL/Redis service in CI, so point the runtime at
-      # SQLite + driverless stores and migrate it so the boot query succeeds.
-      # (Tests themselves use phpunit.xml's own SQLite :memory: config.)
-      - name: Prepare CI runtime (SQLite + driverless stores)
+      # boot. Point the runtime at the MySQL service (same schema the tests use;
+      # tests themselves read the connection from phpunit.xml + job-level env).
+      - name: Prepare CI runtime (MySQL service)
         run: |
-          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+          {
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=3306"
+            echo "DB_DATABASE=finance_management_test"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=root"
+          } >> .env
           sed -i 's/^CACHE_STORE=.*/CACHE_STORE=array/' .env
           sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=array/' .env
           sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
-          touch database/database.sqlite
           php artisan migrate --force
 
       - name: Build Assets

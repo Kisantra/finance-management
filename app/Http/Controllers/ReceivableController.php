@@ -13,8 +13,11 @@ use App\Models\Receivable;
 use App\Models\ReceivablePayment;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use App\Services\JadwalAngsuranService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -54,8 +57,45 @@ class ReceivableController extends Controller
             COUNT(*) as total,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
             SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END) as pending_count,
-            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as total_principal_active
+            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as total_principal_active,
+            SUM(CASE WHEN status = 'pending_approval' THEN principal_amount ELSE 0 END) as pending_amount,
+            MIN(CASE WHEN status = 'active' THEN due_date END) as next_due,
+            SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_count,
+            SUM(CASE WHEN status = 'paid_off' THEN 1 ELSE 0 END) as paid_off_count,
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count
         ")->first();
+
+        // Dicakup ke piutang AKTIF, sama seperti modul Pinjaman: pembayaran piutang yang
+        // sudah lunas tidak boleh ikut menyusutkan sisa piutang yang masih berjalan.
+        $terbayarAktif = ReceivablePayment::whereHas('receivable', fn ($q) => $q->where('status', 'active'))
+            ->selectRaw('COALESCE(SUM(principal_paid), 0) as pokok, COALESCE(SUM(interest_paid), 0) as bunga')
+            ->first();
+
+        /*
+         * Lewat tempo: piutang aktif yang tanggal jatuh temponya sudah lewat DAN pokoknya
+         * belum tertutup. Di modul Pinjaman kita yang menentukan kapan membayar, jadi angka
+         * ini tidak ada di sana; di sini kita tidak mengendalikannya, dan inilah angka risiko
+         * yang dicari orang saat membuka halaman.
+         *
+         * Dihitung satu query lewat subquery agregat pembayaran, bukan menarik barisnya ke
+         * PHP: jumlah piutang lewat tempo tidak ada batas atasnya.
+         */
+        $lewatTempo = Receivable::query()
+            ->leftJoinSub(
+                ReceivablePayment::selectRaw('receivable_id, SUM(principal_paid) as pokok')->groupBy('receivable_id'),
+                'bayar',
+                'bayar.receivable_id',
+                '=',
+                'receivables.id',
+            )
+            ->where('receivables.status', 'active')
+            ->whereDate('receivables.due_date', '<', now()->toDateString())
+            ->whereRaw('receivables.principal_amount > COALESCE(bayar.pokok, 0)')
+            ->selectRaw('COUNT(*) as jumlah, COALESCE(SUM(receivables.principal_amount - COALESCE(bayar.pokok, 0)), 0) as nominal')
+            ->first();
+
+        $activePrincipal = (int) ($statsRow->total_principal_active ?? 0);
+        $paidPrincipal = (int) ($terbayarAktif->pokok ?? 0);
 
         $rows = $paginator->map(fn (Receivable $r) => [
             'id' => $r->id,
@@ -78,7 +118,7 @@ class ReceivableController extends Controller
             'approved_at' => $r->approved_at?->format('Y-m-d'),
             'review_notes' => $r->review_notes,
             'rejection_reason' => $r->rejection_reason,
-            'contract_attachment_url' => $r->contract_attachment_path ? Storage::url($r->contract_attachment_path) : null,
+            'contract_attachment_url' => $r->contract_attachment_path ? Storage::disk('public')->url($r->contract_attachment_path) : null,
             'contract_attachment_name' => $r->contract_attachment_name,
             'paid_principal' => (int) ($r->payments_sum_principal_paid ?? 0),
             'paid_interest' => (int) ($r->payments_sum_interest_paid ?? 0),
@@ -104,7 +144,7 @@ class ReceivableController extends Controller
             ->map(fn ($u) => ['value' => $u->id, 'label' => $u->name]);
 
         $companyOptions = Client::where('type', 'company')
-            ->where('status', 'Active')
+            ->where('status', Client::STATUS_ACTIVE)
             ->orderBy('name')
             ->get()
             ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name]);
@@ -125,7 +165,21 @@ class ReceivableController extends Controller
                 'total' => (int) ($statsRow->total ?? 0),
                 'active_count' => (int) ($statsRow->active_count ?? 0),
                 'pending_count' => (int) ($statsRow->pending_count ?? 0),
-                'total_principal_active' => (int) ($statsRow->total_principal_active ?? 0),
+                'total_principal_active' => $activePrincipal,
+                'outstanding_principal' => max(0, $activePrincipal - $paidPrincipal),
+                'paid_principal' => $paidPrincipal,
+                'paid_interest' => (int) ($terbayarAktif->bunga ?? 0),
+                'pending_amount' => (int) ($statsRow->pending_amount ?? 0),
+                'overdue_count' => (int) ($lewatTempo->jumlah ?? 0),
+                'overdue_amount' => (int) ($lewatTempo->nominal ?? 0),
+                'next_due' => $statsRow->next_due ? Carbon::parse($statsRow->next_due)->toDateString() : null,
+            ],
+            'statusCounts' => [
+                'draft' => (int) ($statsRow->draft_count ?? 0),
+                'pending_approval' => (int) ($statsRow->pending_count ?? 0),
+                'active' => (int) ($statsRow->active_count ?? 0),
+                'paid_off' => (int) ($statsRow->paid_off_count ?? 0),
+                'rejected' => (int) ($statsRow->rejected_count ?? 0),
             ],
             'filters' => [
                 'search' => $search,
@@ -155,11 +209,11 @@ class ReceivableController extends Controller
         }
 
         $principalAmount = $validated['principal_amount'];
-        $installmentMonths = $validated['installment_months'];
+        $installmentMonths = (int) $validated['installment_months'];
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
-            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 2) : 0;
+            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 4) : 0;
         } else {
             $interestRate = (float) ($validated['interest_rate'] ?? 0);
             $totalInterest = (int) round($principalAmount * $interestRate / 100);
@@ -182,7 +236,7 @@ class ReceivableController extends Controller
             'due_date' => $dueDate,
             'status' => 'draft',
             'purpose' => $validated['purpose'],
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
             'disbursement_account' => $validated['disbursement_account'],
             'contract_attachment_path' => $attachmentPath,
             'contract_attachment_name' => $attachmentName,
@@ -215,11 +269,11 @@ class ReceivableController extends Controller
         }
 
         $principalAmount = $validated['principal_amount'];
-        $installmentMonths = $validated['installment_months'];
+        $installmentMonths = (int) $validated['installment_months'];
 
         if ($validated['interest_type'] === 'fixed') {
             $totalInterest = (int) ($validated['interest_amount'] ?? 0);
-            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 2) : 0;
+            $interestRate = $principalAmount > 0 ? round($totalInterest / $principalAmount * 100, 4) : 0;
         } else {
             $interestRate = (float) ($validated['interest_rate'] ?? 0);
             $totalInterest = (int) round($principalAmount * $interestRate / 100);
@@ -240,12 +294,18 @@ class ReceivableController extends Controller
             'loan_date' => $validated['loan_date'],
             'due_date' => $dueDate,
             'purpose' => $validated['purpose'],
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
             'disbursement_account' => $validated['disbursement_account'],
             'contract_attachment_path' => $attachmentPath,
             'contract_attachment_name' => $attachmentName,
+            // Jejak persetujuan/penolakan lama harus ikut bersih. Tanpa ini,
+            // piutang yang direvisi setelah ditolak tetap membawa `approved_by`
+            // dan `approved_at` dari siklus sebelumnya — terbaca seolah revisi
+            // barunya sudah pernah disetujui orang.
             'status' => 'draft',
             'rejection_reason' => null,
+            'approved_by' => null,
+            'approved_at' => null,
         ]);
 
         return back()->with('success', 'Piutang berhasil diperbarui');
@@ -288,7 +348,10 @@ class ReceivableController extends Controller
                 BankTransaction::create([
                     'bank_account_id' => $validated['bank_account_id'],
                     'amount' => $receivable->principal_amount,
-                    'transaction_date' => now()->format('Y-m-d'),
+                    // Tanggal pinjam, bukan tanggal persetujuan: approval yang
+                    // terlambat sebelumnya membuat mutasi bank jatuh di bulan
+                    // buku yang berbeda dari tanggal piutangnya.
+                    'transaction_date' => $receivable->loan_date?->format('Y-m-d') ?? now()->format('Y-m-d'),
                     'transaction_type' => 'debit',
                     'description' => "Piutang diberikan: {$receivable->receivable_number} - {$receivable->debtor?->name}",
                     'reference_number' => $receivable->receivable_number,
@@ -299,7 +362,7 @@ class ReceivableController extends Controller
                     'status' => 'active',
                     'approved_by' => auth()->id(),
                     'approved_at' => now(),
-                    'review_notes' => $validated['notes'],
+                    'review_notes' => $validated['notes'] ?? null,
                 ]);
             });
 
@@ -310,7 +373,7 @@ class ReceivableController extends Controller
             'status' => 'rejected',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'rejection_reason' => $validated['notes'],
+            'rejection_reason' => $validated['notes'] ?? null,
         ]);
 
         return back()->with('success', 'Piutang telah ditolak');
@@ -337,6 +400,28 @@ class ReceivableController extends Controller
             return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
         }
 
+        // Cicilan tidak boleh melampaui sisa. Tanpa batas ini kas terkredit
+        // penuh dan sisa pokok/bunga menjadi negatif.
+        if ($principalPaid > $remainingPrincipal) {
+            return back()->withErrors([
+                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+            ]);
+        }
+
+        if ($interestPaid > $remainingInterest) {
+            return back()->withErrors([
+                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+            ]);
+        }
+
+        // Metode transfer wajib menyebut rekening — tanpa ini piutang berkurang
+        // sementara tidak ada mutasi bank yang tercatat sama sekali.
+        if ($validated['payment_method'] === 'bank_transfer' && empty($validated['bank_account_id'])) {
+            return back()->withErrors([
+                'bank_account_id' => 'Rekening bank wajib dipilih untuk metode transfer bank.',
+            ]);
+        }
+
         DB::transaction(function () use ($receivable, $validated, $principalPaid, $interestPaid, $remainingPrincipal) {
             ReceivablePayment::create([
                 'receivable_id' => $receivable->id,
@@ -345,11 +430,11 @@ class ReceivableController extends Controller
                 'interest_paid' => $interestPaid,
                 'total_paid' => $principalPaid + $interestPaid,
                 'payment_method' => $validated['payment_method'],
-                'reference_number' => $validated['reference_number'],
-                'notes' => $validated['notes'],
+                'reference_number' => $validated['reference_number'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
-            if ($validated['payment_method'] === 'bank_transfer' && $validated['bank_account_id']) {
+            if ($validated['payment_method'] === 'bank_transfer' && ($validated['bank_account_id'] ?? null)) {
                 if ($principalPaid > 0) {
                     $cat = TransactionCategory::findSystem('FIN-RCV-IN');
                     BankTransaction::create([
@@ -358,7 +443,7 @@ class ReceivableController extends Controller
                         'transaction_date' => $validated['payment_date'],
                         'transaction_type' => 'credit',
                         'description' => "Pembayaran piutang pokok: {$receivable->receivable_number} - {$receivable->debtor?->name}",
-                        'reference_number' => $validated['reference_number'],
+                        'reference_number' => $validated['reference_number'] ?? null,
                         'category_id' => $cat?->id,
                     ]);
                 }
@@ -371,7 +456,7 @@ class ReceivableController extends Controller
                         'transaction_date' => $validated['payment_date'],
                         'transaction_type' => 'credit',
                         'description' => "Pembayaran bunga piutang: {$receivable->receivable_number} - {$receivable->debtor?->name}",
-                        'reference_number' => $validated['reference_number'],
+                        'reference_number' => $validated['reference_number'] ?? null,
                         'category_id' => $cat?->id,
                     ]);
                 }
@@ -392,5 +477,28 @@ class ReceivableController extends Controller
         $nextId = $last ? $last->id + 1 : 1;
 
         return 'RCV-'.str_pad($nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Jadwal angsuran satu receivable, dihitung saat panel detail dibuka.
+     *
+     * Tidak ikut di payload daftar: penyusunannya menjumlahkan pembayaran per
+     * baris, jadi menaruhnya di daftar berarti dua query dikali jumlah baris.
+     */
+    public function schedule(Receivable $receivable, JadwalAngsuranService $jadwal): JsonResponse
+    {
+        $this->authorize('view receivables');
+
+        return response()->json([
+            'rows' => $jadwal->untukPiutang($receivable),
+            'summary' => [
+                'principal' => (int) $receivable->principal_amount,
+                'interest' => $jadwal->totalBungaPiutang($receivable),
+                'terms' => (int) $receivable->installment_months,
+                'start_date' => $receivable->loan_date?->toDateString(),
+                'principal_paid' => (int) $receivable->payments()->sum('principal_paid'),
+                'interest_paid' => (int) $receivable->payments()->sum('interest_paid'),
+            ],
+        ]);
     }
 }

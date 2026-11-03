@@ -44,9 +44,12 @@ Model: `app/Models/Loan.php` (relasi `payments()` hasMany), `app/Models/LoanPaym
 **Alur step-by-step:**
 1. User membuka `/loans` → `GET loans.index` → middleware `auth` + `can:view loans`.
 2. `LoanController::index` membangun query `Loan::withSum('payments','principal_paid')->withSum('payments','interest_paid')` dengan filter `search` (loan_number/lender_name LIKE), `status`, paginasi (`per_page` default 15), urut `start_date` desc.
-3. Stats agregat dihitung satu query `selectRaw` (total, total_principal, active_count, active_principal).
-4. Controller juga mengirim `bankAccountOptions` (semua rekening + saldo terformat) dan `nextLoanNumber` hasil `generateLoanNumber()`.
-5. Respons `Inertia::render('loans/index', ...)` → halaman React menampilkan StatsCard, filter, DataTable dengan kolom sisa pokok (`remaining_principal = principal_amount − Σprincipal_paid`), dan tombol aksi per baris.
+3. Stats agregat dihitung satu query `selectRaw` (total, total_principal, active_count, active_principal, `next_maturity` = jatuh tempo paling awal di antara pinjaman **aktif**).
+4. Satu query tambahan menjumlahkan pembayaran yang **dicakup ke pinjaman aktif** (`LoanPayment::whereHas('loan', status=active)`) → `paid_principal`, `paid_interest`, dan `outstanding_principal = active_principal − paid_principal`.
+   **Cakupan ini wajib.** Tanpanya, pembayaran pinjaman yang sudah lunas ikut terjumlah dan "sisa pokok" di layar menyusut oleh utang yang sudah selesai — makin melenceng pada pinjaman yang ditandai lunas manual (pembayarannya tidak genap). Dijaga `LoanControllerTest::test_ringkasan_sisa_pokok_hanya_mencakup_pinjaman_aktif`.
+5. Controller juga mengirim `bankAccountOptions` (semua rekening + saldo terformat) dan `nextLoanNumber` hasil `generateLoanNumber()`.
+6. Respons `Inertia::render('loans/index', ...)` → halaman React (gaya Obsidian) menampilkan ringkasan 4 angka (sisa pokok, pokok terbayar, bunga dibayar, jatuh tempo terdekat), pil status, dan tabel 6 kolom dengan sisa pokok (`remaining_principal = principal_amount − Σprincipal_paid`) + batang progres.
+   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian yang terbuka saat baris diklik (`components/loan-drawer.tsx`), berisi jadwal angsuran, Edit, Catat pembayaran, dan Hapus.
 
 **Penjelasan kode:**
 ```php
@@ -67,6 +70,8 @@ Nomor berikutnya diturunkan dari `id` terakhir + 1 (bukan dari nomor terbesar), 
 1. User klik "Tambah" di `resources/js/pages/loans/index.tsx` → dialog form (useForm Inertia, `forceFormData: true` karena ada upload file).
 2. `POST /loans` → middleware `can:create loans` → validasi `StoreLoanRequest` (`app/Http/Requests/StoreLoanRequest.php`): `loan_number` required+unique, `principal_amount` integer min:1, `interest_type` in:fixed,percentage, `maturity_date` after:start_date, `contract_attachment` mimes pdf/jpg/jpeg/png max 5 MB, dan **`bank_account_id` required** (rekening penampung dana).
 3. File kontrak (jika ada) disimpan ke `storage/app/public/loans/`.
+4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori sistem `FIN-LOAN-IN` via `TransactionCategory::findSystem()`.
+
 4. Dalam `DB::transaction`: (a) `Loan::create` dengan status `active`; hanya salah satu field bunga yang diisi sesuai `interest_type`; (b) dibuat **`BankTransaction` credit** sebesar pokok pada rekening terpilih, tanggal = `start_date`, kategori dicari lewat `system_key` `FIN-LOAN-IN`.
 5. Respons `back()->with('success')` → toast + tabel ter-refresh; saldo rekening naik otomatis (saldo bank = computed, bukan stored).
 
@@ -85,6 +90,8 @@ BankTransaction::create([
     'category_id' => $category?->id,
 ]);
 ```
+Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id` dan kolom `system_key` (lihat transaction-categories.md).
+
 Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id`. Kategori sistem diidentifikasi lewat kolom `system_key` (dulu `code`, sudah di-drop).
 
 ### Edit Pinjaman (Update)
@@ -114,8 +121,8 @@ Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kat
 4. Guard tambahan controller: minimal salah satu dari pokok/bunga harus > 0, kalau tidak `back()->withErrors(...)`.
 5. Dalam `DB::transaction`:
    - `LoanPayment::create` dengan `total_paid = principal + interest`.
-   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori code `FIN-LOAN-OUT` (pembayaran pokok).
-   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori code `EXP-INTEREST` (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
+   - Jika `principal_paid > 0` → `BankTransaction` **debit** kategori sistem `FIN-LOAN-OUT` (findSystem) (pembayaran pokok).
+   - Jika `interest_paid > 0` → `BankTransaction` **debit** kategori sistem `EXP-INTEREST` (findSystem) (beban bunga — inilah yang seharusnya mengalir ke baris "Beban Lain" di Laporan Laba Rugi).
    - Jika akumulasi pokok terbayar ≥ `principal_amount` → `$loan->update(['status' => 'paid_off'])`.
 6. Respons `back()` → dialog tertutup, status/sisa ter-update, saldo rekening berkurang.
 
@@ -137,6 +144,28 @@ if ($newRemaining <= 0) {
 ```
 Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada validasi yang mencegah bayar melebihi sisa pokok/bunga (lihat Jebakan).
 
+### Jadwal Angsuran (Schedule)
+
+**Alur step-by-step:**
+1. Panel rincian terbuka → React memanggil `GET /c/{company}/loans/{loan}/schedule` lewat `api()` (`resources/js/components/jadwal-angsuran.tsx`). Dihitung **saat panel dibuka**, bukan ikut payload daftar: 15 baris × 2 query agregat untuk data yang belum tentu dilihat.
+2. `LoanController::schedule` (`can:view loans`) memanggil `JadwalAngsuranService::untukPinjaman()` dan mengembalikan `{ rows, summary }`.
+3. Service menyusun jadwal **rencana** dari pokok, bunga, tenor, dan tanggal mulai, lalu mengalokasikan pembayaran **nyata** secara kumulatif dari termin paling awal → status per termin `lunas` / `sebagian` / `belum`, plus penanda `terlambat`.
+
+**Kenapa rencana-vs-realisasi, bukan "termin ke-3 lunas":** `loan_payments` menyimpan pecahan `principal_paid`/`interest_paid` **tanpa nomor termin**. Pengguna boleh membayar sebagian, menggabungkan dua termin, atau membayar bunga lebih dulu. Mengklaim termin tertentu lunas berarti mengarang keterkaitan yang tidak ada di database — karena itu panelnya memuat satu kalimat yang menyatakan cara alokasinya, dan satu-satunya klaim "termin mana" yang ditampilkan adalah *termin berikutnya yang harus dibayar* (= yang paling awal belum lunas).
+
+**Dua rumus bunga, sengaja tidak disatukan:**
+
+| | Rumus |
+|---|---|
+| Pinjaman | bunga TAHUNAN diprorata — `principal × rate/100/12 × term_months` |
+| Piutang | persentase atas SELURUH pokok — `principal × rate/100` |
+
+Keduanya sudah dipakai controller masing-masing sebelum service ini ada; menyeragamkannya akan mengubah angka pada data yang sudah berjalan.
+
+**Invarian:** jumlah seluruh termin PERSIS sama dengan pokok + bunga — sisa pembagian rupiah ditumpuk ke termin terakhir. Dijaga `JadwalAngsuranServiceTest` dan ditampilkan di baris total tabel supaya bisa dicek mata.
+
+Komponennya dipakai bersama modul Piutang (`/receivables/{id}/schedule` mengembalikan bentuk yang sama persis).
+
 ### Panduan & video tutorial (tombol **Tutorial** di header daftar)
 
 1. `<TutorialButton slug="loans" />` di samping **Tambah Pinjaman** membuka video per role; halaman `/panduan/loans` memuat panduan teks yang sama. Staff tidak punya `view loans`, jadi hanya ada video **Finance manager** (`LoansFinanceManager`: mencatat pinjaman, membayar angsuran) dan **Admin** (`LoansAdmin`: peran, dampak ke rekening/Arus Kas/Laba Rugi, isi transaksi dana masuk & angsuran, jejak di Rekening Bank & Arus Kas › Pengeluaran, peringatan, hapus pinjaman).
@@ -148,11 +177,15 @@ Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman.
+- **Transaction Categories** — transaksi diberi kategori sistem via `findSystem()` — kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
+
 - **Transaction Categories** — transaksi diberi kategori sistem via `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
 - **Profit & Loss** — pokok pinjaman (masuk/keluar) tidak boleh memengaruhi laba; hanya bunga (`EXP-INTEREST`) yang masuk P&L. Pemisahan ini bergantung sepenuhnya pada kategori transaksi.
 - **Permission System** — 5 permission (`view/create/edit/delete/pay loans`) di `database/seeders/MasterPermissionSeeder.php:156-160`; role `admin` dan `finance manager` mendapatkannya.
 
 ## Invarian & Jebakan
+
+- **[DIPERBAIKI 2026-08-11] Bug lookup kolom `code`.** Lookup kategori sistem kini memakai `TransactionCategory::findSystem()` (kolom `system_key`); test suite juga sudah berjalan di MySQL (bukan SQLite) dan `LoanControllerTest` meng-assert `category_id` terisi, sehingga regresi serupa akan tertangkap. Jangan menulis lookup kategori sistem dengan cara lain.
 
 - **[DIPERBAIKI 2026-09-17] Lookup kategori sistem pindah dari `code` ke `system_key`.** Migration `2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` men-drop kolom `code`, sehingga `TransactionCategory::where('code', 'FIN-LOAN-IN')` melempar `SQLSTATE[42S22] Unknown column 'code'` di MySQL → `DB::transaction` rollback → **create loan & pay loan gagal 500** (dilaporkan dari produksi, ERR-YWPSETE9FI). Sekarang dipakai `TransactionCategory::findSystem('FIN-LOAN-IN')` di atas kolom `system_key` (migration `2026_09_17_000000`, mengisi kategori lama berdasarkan type+label). **Jebakan yang tersisa:** suite memakai SQLite in-memory (`phpunit.xml`), yang mem-fallback identifier tak dikenal menjadi string literal — query salah kolom mengembalikan `null` diam-diam, bukan error. Karena itu tes wajib memeriksa `category_id` transaksi yang terbentuk, bukan sekadar status 302; lihat `tests/Feature/SystemTransactionCategoryTest.php`.
 - Status hanya dua nilai: `active → paid_off`; transisi satu arah dan otomatis (tidak ada tombol "tandai lunas" manual, tidak ada jalan kembali ke `active`).
@@ -170,6 +203,10 @@ Pelunasan otomatis: status berubah `paid_off` begitu sisa pokok ≤ 0. Tidak ada
 | `app/Http/Requests/StoreLoanRequest.php` / `UpdateLoanRequest.php` / `PayLoanRequest.php` | Validasi |
 | `app/Models/Loan.php`, `app/Models/LoanPayment.php` | Model + casts + relasi |
 | `routes/web.php` (baris 458-464) | Route + permission middleware |
-| `resources/js/pages/loans/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit/pay/detail/hapus |
+| `app/Services/JadwalAngsuranService.php` | Penyusun jadwal angsuran (dipakai Pinjaman & Piutang) + sumber tunggal rumus bunga |
+| `resources/js/pages/loans/index.tsx` (+ `types.ts`) | Halaman Inertia: ringkasan, pil status, tabel 6 kolom |
+| `resources/js/pages/loans/components/` | `loan-drawer.tsx` (rincian + jadwal), `loan-form-sheet.tsx`, `loan-pay-sheet.tsx`, `pjm.tsx` (status/bunga bersama) |
+| `resources/js/components/jadwal-angsuran.tsx` | Tabel jadwal angsuran, dipakai bersama modul Piutang |
 | `database/migrations/2026_02_05_041553_refactor_transaction_categories_remove_code_add_parent_id.php` | Migration yang menghapus kolom `code` (sumber bug lookup kategori) |
-| `tests/Feature/LoanControllerTest.php` | Tes feature (SQLite in-memory) |
+| `tests/Feature/LoanControllerTest.php` | Tes feature, termasuk cakupan ringkasan ke pinjaman aktif |
+| `tests/Feature/JadwalAngsuranServiceTest.php` | Invarian jadwal: total termin = pokok + bunga, alokasi kumulatif, jatuh tempo akhir bulan |

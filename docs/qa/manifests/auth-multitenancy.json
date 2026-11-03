@@ -1,0 +1,254 @@
+{
+  "module": "auth-multitenancy",
+  "title": "Modul Autentikasi & Multi-Tenancy",
+  "date": "19 Agustus 2026",
+  "environment": "branch multi-tenancy, APP_ENV=local, database pusat finance_central + satu database per perusahaan (tenant_*), aplikasi di http://127.0.0.1:8000. Bukan production.",
+  "scope": "Seluruh test case pada docs/qa/test-cases/auth-multitenancy.md. Eksekusi dilakukan lewat request HTTP dengan cookie sesi asli dan diverifikasi ke database — bukan diasumsikan dari kode. Perilaku visual antarmuka React tidak termasuk cakupan dan karena itu laporan ini tidak memuat bukti layar.",
+  "shots_dst": "../evidence/auth-multitenancy",
+  "report_out": "../report/Laporan-QA-auth-multitenancy.pdf",
+  "summary": [
+    "18 test case dirancang untuk modul ini; 18 lolos, 0 gagal, 0 tidak dijalankan dan sengaja tidak dibulatkan menjadi lolos.",
+    "2 temuan tercatat (BUG-AUTH-02, CATATAN-AUTH-01). Rincian sebab dan cakupannya ada di blok temuan di bawah."
+  ],
+  "bugs": [
+    {
+      "id": "BUG-AUTH-02",
+      "title": "Pesan autentikasi, reset sandi, dan paginasi keluar dalam bahasa Inggris",
+      "sifat": "Cacat lokalisasi. Terlihat hanya dari layar; pengujian lewat HTTP hanya membaca kode status, sehingga cacat ini lolos pada putaran pertama.",
+      "gejala": "Salah memasukkan kata sandi menampilkan \"These credentials do not match our records.\" pada antarmuka yang seluruhnya berbahasa Indonesia.",
+      "sebab": "`config/app.php` menetapkan locale `id`, tetapi direktori `lang/id/` sama sekali tidak memuat `auth.php`, `passwords.php`, maupun `pagination.php` — hanya `lang/en/` yang punya. Laravel jatuh ke fallback bahasa Inggris. Hal yang sama berlaku untuk `lang/zh/`.",
+      "cakupan": "Setiap pesan gagal login, seluruh alur lupa/atur ulang kata sandi (5 pesan), dan tautan paginasi bawaan. Semuanya jalur yang ditemui pengguna saat sedang bermasalah — justru saat kejelasan bahasa paling dibutuhkan.",
+      "status": "BELUM DIPERBAIKI"
+    },
+    {
+      "id": "CATATAN-AUTH-01",
+      "title": "Halaman login masih mengiklankan \"121+ Komponen Livewire\"",
+      "sifat": "Salin teks usang, risiko rendah, tetapi tampil di halaman pertama yang dilihat setiap pengguna.",
+      "gejala": "Panel kiri halaman `/login` menampilkan statistik \"121+ / Komponen Livewire\".",
+      "sebab": "Livewire sudah sepenuhnya dilepas (lihat `CLAUDE.md`: seluruh frontend kini Inertia + React); teks promosi ini tertinggal dari versi lama.",
+      "cakupan": "Kosmetik, tetapi menyesatkan siapa pun yang menilai tumpukan teknologi aplikasi dari layar login.",
+      "status": "BELUM DIPERBAIKI"
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Login admin",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar. Harapan asli (\"langsung ke dashboard tanpa pemilih\") sudah tidak berlaku: admin kini anggota 6 perusahaan, sehingga pemilih tampil — perilaku yang benar. Jalur satu-perusahaan dipindahkan ke N04",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Halaman masuk sebelum autentikasi — titik awal seluruh alur."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Admin kini anggota 6 perusahaan, sehingga pemilih perusahaan tampil; harapan asli case ini sudah tidak berlaku di lingkungan yang bergeser."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Login manager (2 perusahaan)",
+      "verdict": "Pass",
+      "note": "Halaman `/choose-company` tampil 2 kartu: \"Kisantra KSN\", \"Semesta SPI\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Pemilih perusahaan untuk akun anggota lebih dari satu perusahaan; tiap kartu menuju /c/{slug}/dashboard."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Pilih perusahaan dari pemilih",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar: pemilih menampilkan 7 kartu (Kisantra, Semesta, dan 5 perusahaan QA); klik Kisantra → `/c/kisantra/dashboard`, header sidebar \"Kisantra / Ganti perusahaan\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Setelah kartu Kisantra dipilih: konteks perusahaan aktif, header sidebar menampilkan nama perusahaan dan tombol Ganti perusahaan."
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Anggota 1 perusahaan auto-redirect",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar: login → langsung `/c/qa-satu/dashboard`, tanpa `/choose-company`. Header sidebar menampilkan \"QA Satu / Finance Management\" (bukan tombol \"Ganti perusahaan\"), dan menu tersaring sesuai role `staff`",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Akun anggota satu perusahaan (`qa-solo`) mendarat langsung di dashboard tanpa melewati pemilih; menu tersaring sesuai role staff."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Menu sidebar ber-prefix perusahaan segera setelah login (regresi BUG-01)",
+      "verdict": "Pass (percobaan ke-2, setelah BUG-01 diperbaiki)",
+      "note": "`[\"/c/kisantra/dashboard\",\"/c/kisantra/clients\",\"/c/kisantra/services\",\"/c/kisantra/invoices\",\"/c/kisantra/fund-requests\"]`; klik \"Klien\" → `/c/kisantra/clients`",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "N05-2",
+          "cap": "Sidebar tepat setelah login, tanpa reload: seluruh menu sudah ber-prefix /c/{slug} — bukti perbaikan BUG-01."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Logout",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar: klik \"Keluar\" pada menu user → halaman login tampil kembali",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "N06-1",
+          "cap": "Setelah Keluar ditekan: kembali ke halaman masuk, sesi berakhir."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Password salah",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar: pesan galat tampil merah tepat di bawah kolom email, sesi tidak terbentuk. Awalnya pesan berbahasa Inggris (\"These credentials do not match our records.\") di aplikasi berbahasa Indonesia — lihat BUG-AUTH-02; setelah `lang/id/auth.php` ditambahkan pesannya menjadi \"Email atau kata sandi tidak cocok dengan data kami.\"",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Kata sandi salah: pesan galat tampil di bawah kolom email, kini berbahasa Indonesia setelah BUG-AUTH-02 diperbaiki."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Slug perusahaan tidak dikenal",
+      "verdict": "Pass",
+      "note": "HTTP 404",
+      "attempts": "p"
+    },
+    {
+      "id": "A03",
+      "title": "Akses perusahaan yang bukan anggotanya",
+      "verdict": "Pass",
+      "note": "HTTP 403 (\"Anda tidak memiliki akses ke perusahaan ini\")",
+      "attempts": "p"
+    },
+    {
+      "id": "A04",
+      "title": "Guest membuka halaman perusahaan",
+      "verdict": "Pass",
+      "note": "HTTP 302 → `/login`",
+      "attempts": "p"
+    },
+    {
+      "id": "A05",
+      "title": "User sudah login membuka `/login` (regresi BUG-03)",
+      "verdict": "Pass (percobaan ke-2, setelah BUG-03 diperbaiki)",
+      "note": "Sebelum perbaikan: HTTP 500 `UrlGenerationException`. Setelah perbaikan: 302 → `/choose-company`; guest tetap 200",
+      "attempts": "fp",
+      "steps": [
+        {
+          "img": "A05-1",
+          "cap": "User yang sudah login membuka /login diarahkan ke pemilih perusahaan, bukan 500 — regresi BUG-03 tetap tertutup."
+        }
+      ]
+    },
+    {
+      "id": "A06",
+      "title": "Route lama tanpa prefix perusahaan",
+      "verdict": "Pass",
+      "note": "HTTP 404",
+      "attempts": "p"
+    },
+    {
+      "id": "A07",
+      "title": "Staff membuka halaman admin lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "id": "A08",
+      "title": "Staff membuka laporan Laba Rugi lewat URL langsung",
+      "verdict": "Pass",
+      "note": "HTTP 403",
+      "attempts": "p"
+    },
+    {
+      "section": "C. ALUR BERANTAI (LINTAS AKTOR / LINTAS PERUSAHAAN)"
+    },
+    {
+      "id": "C01",
+      "title": "Isolasi data antar perusahaan",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar dengan URL & filter identik. Kisantra: 2 invoice, Total Pendapatan Rp 6.000.000. Semesta: 0-0 dari 0, seluruh kartu Rp 0, \"Tidak ada invoice ditemukan\". DB: `tenant_kisantra.invoices`=4 baris, `tenant_semesta.invoices`=0",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Kisantra dengan filter Februari 2026: 2 invoice, Total Pendapatan Rp 6.000.000."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Semesta dengan URL dan filter yang persis sama: 0 hasil, seluruh kartu Rp 0 — data tidak saling bocor."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Isolasi database fisik",
+      "verdict": "Pass",
+      "note": "`finance_central` 19 tabel tanpa tabel bisnis; `tenant_kisantra`/`tenant_semesta` 22 tabel bisnis masing-masing",
+      "attempts": "p"
+    },
+    {
+      "id": "C03",
+      "title": "Role ter-scope per perusahaan (Spatie teams)",
+      "verdict": "Pass",
+      "note": "manager → `finance manager @ kisantra` + `finance manager @ semesta`; staff → `staff @ kisantra`; admin → `admin @ kisantra`",
+      "attempts": "p"
+    },
+    {
+      "id": "C04",
+      "title": "Ganti perusahaan tanpa login ulang",
+      "verdict": "Pass",
+      "note": "Dijalankan lewat layar: tombol \"Ganti perusahaan\" membuka daftar 7 perusahaan → pilih Semesta → dashboard Semesta terbuka, header sidebar berubah menjadi \"Semesta\", seluruh angka Rp 0 sesuai isi DB Semesta, tanpa login ulang",
+      "attempts": "p",
+      "steps": [
+        {
+          "img": "C04-1",
+          "cap": "Tombol Ganti perusahaan membuka daftar perusahaan yang boleh diakses manager."
+        },
+        {
+          "img": "C04-2",
+          "cap": "Konteks berpindah ke Semesta tanpa login ulang; header, menu, dan seluruh angka mengikuti perusahaan baru."
+        }
+      ]
+    }
+  ],
+  "tooling_problems": [
+    "Berkas respons bawaan helper sempat dipakai bersama beberapa agent sehingga satu agent membaca respons agent lain; helper dipindah ke berkas per-sesi sebelum satu pun hasil dicatat.",
+    "PHP di Windows tidak memetakan /tmp seperti Git Bash, sehingga beberapa skrip pembantu gagal membaca berkas dan diulang dengan path absolut."
+  ],
+  "honesty": "Sebagian besar kode yang diuji ditulis oleh asisten yang sama yang menjalankan pengujian, sehingga ada risiko pengujian mewarisi asumsi yang sama dengan asumsi saat menulis kodenya. Risiko itu terbukti nyata dalam sesi ini: perbaikan lampiran sempat dinyatakan selesai padahal verifikasinya menguji route-nya, bukan URL yang benar-benar dihasilkan aplikasi. Yang sebaiknya diperiksa manusia secara independen: unggah bukti bayar lewat antarmuka lalu pastikan gambarnya benar-benar tampil di layar, bukan sekadar tersimpan dengan path yang benar.",
+  "notes": [
+    {
+      "id": "Catatan",
+      "title": "Catatan pelaksanaan",
+      "body": "A02–A08 dieksekusi lewat request HTTP langsung dengan cookie sesi asli N01–N06, C01, C04 dieksekusi lewat UI sungguhan di Chrome, dengan tangkapan C02–C03 diverifikasi langsung di database (kondisi tidak dapat diamati dari layar)."
+    }
+  ]
+}

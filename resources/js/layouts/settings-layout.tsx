@@ -1,6 +1,6 @@
-import { Link } from '@inertiajs/react';
 import { ChevronLeft } from 'lucide-react';
 import * as React from 'react';
+import { AppLink } from '@/components/app-link';
 
 /*
  * Kerangka halaman detail pengaturan (gaya Obsidian). Navigasi antarpengaturan ada di hub
@@ -20,13 +20,13 @@ export function SettingsLayout({ children, title, description, action, bare }: S
     return (
         <div className="mx-auto flex w-full max-w-260 flex-col gap-5">
             <div className="flex flex-col gap-2">
-                <Link
+                <AppLink
                     href="/settings"
                     className="inline-flex w-fit items-center gap-1 rounded-full text-[13px] font-semibold text-ob-ink-2 hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                 >
                     <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                     Pengaturan
-                </Link>
+                </AppLink>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">
                         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{title}</h1>

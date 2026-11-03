@@ -57,6 +57,39 @@ class InvoiceControllerTest extends TestCase
         $this->get('/invoices')->assertRedirect('/login');
     }
 
+    /**
+     * GERBANG. Endpoint ini memanggil Invoice::getMaxSequenceFromDb() — metode
+     * yang TIDAK PERNAH ADA di codebase — sehingga ia menjawab 500 sejak baris
+     * itu ditulis. Tidak ketahuan karena belum ada pemanggilnya di frontend
+     * (satu-satunya rujukan adalah berkas route Wayfinder yang dibuat otomatis).
+     * Route yang selalu 500 tetap mengisi log error produksi dan akan meledak di
+     * wajah orang pertama yang memakainya.
+     *
+     * nextSequence() sudah menambahkan satu sendiri — kalau suatu saat ada yang
+     * menambahkan "+ 1" lagi di route-nya, angka di bawah yang akan menangkapnya.
+     */
+    public function test_endpoint_next_sequence_mengembalikan_urutan_berikutnya(): void
+    {
+        Invoice::factory()->create([
+            'billed_to_id' => $this->client->id,
+            'issue_date' => Carbon::parse('2026-03-10'),
+            'invoice_number' => 'INV/04/KSN/03.26',
+            'invoice_sequence' => 4,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->getJson('/api/invoices/next-sequence?date=2026-03-20')
+            ->assertOk()
+            ->assertExactJson(['sequence' => 5]);
+    }
+
+    public function test_endpoint_next_sequence_butuh_izin_create_invoices(): void
+    {
+        $this->actingAs($this->viewer)
+            ->getJson('/api/invoices/next-sequence')
+            ->assertForbidden();
+    }
+
     public function test_index_requires_view_invoices_permission(): void
     {
         $noPermUser = User::factory()->create();
@@ -483,7 +516,7 @@ class InvoiceControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->post('/invoices', $this->invoicePayload());
 
         $invoice = Invoice::latest('id')->first();
-        $response->assertRedirect("/invoices/{$invoice->id}");
+        $response->assertRedirect($this->prefixCompanyUri("/invoices/{$invoice->id}"));
         $this->assertNull($invoice->invoice_number);
     }
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
 import { BTN, FIELD, rp, SumRow, SURFACE } from './ob';
@@ -81,7 +82,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
 
     const download = () => {
         const link = document.createElement('a');
-        link.href = `/invoice/${invoiceId}/download?${query}`;
+        link.href = companyUrl(`/invoice/${invoiceId}/download?${query}`);
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -164,7 +165,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
 
                         <div className="mt-auto flex flex-wrap justify-end gap-2">
                             <Button asChild variant="outline" className={BTN.secondary}>
-                                <a href={`/invoice/${invoiceId}/preview?${query}`} target="_blank" rel="noreferrer" aria-disabled={!!dpError} onClick={(e) => dpError && e.preventDefault()}>
+                                <a href={companyUrl(`/invoice/${invoiceId}/preview?${query}`)} target="_blank" rel="noreferrer" aria-disabled={!!dpError} onClick={(e) => dpError && e.preventDefault()}>
                                     <ExternalLink className="h-4 w-4" /> Buka PDF
                                 </a>
                             </Button>
@@ -183,7 +184,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                             {dpError ? (
                                 <p className="flex h-full min-h-[320px] items-center justify-center text-center text-[13px] text-ob-ink-2">Isi nominal uang muka untuk melihat pratinjau.</p>
                             ) : (
-                                <InvoicePaper src={open ? `/invoice/${invoiceId}/preview?${debouncedQuery}` : null} zoom={zoom} title="Pratinjau cetak" />
+                                <InvoicePaper src={open ? companyUrl(`/invoice/${invoiceId}/preview?${debouncedQuery}`) : null} zoom={zoom} title="Pratinjau cetak" />
                             )}
                         </div>
                     </div>

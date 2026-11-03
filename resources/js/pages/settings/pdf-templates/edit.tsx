@@ -1,5 +1,6 @@
 ﻿import * as React from 'react';
 import { router, usePage } from '@inertiajs/react';
+import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
 import { AppLayout } from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,7 @@ import {
     Repeat2,
     Layers,
 } from 'lucide-react';
+import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
 
 // ponytail: koordinat px @96dpi. A4 = 794x1123.
@@ -219,7 +221,16 @@ type Band = {
     elements: BandEl[];
 };
 
-type HeaderBand = Band & { repeat: boolean };
+/*
+ * Ditulis utuh, bukan `Band & { repeat: boolean }`: tipe interseksi tidak
+ * mendapat index signature implisit, sehingga BandedLayout yang memuatnya
+ * ditolak sebagai payload `router.post`. Isinya sama persis dengan Band + repeat.
+ */
+type HeaderBand = {
+    height: number;
+    elements: BandEl[];
+    repeat: boolean;
+};
 
 type BandedLayout = {
     paper: { margins: { top: number; right: number; bottom: number; left: number } };
@@ -264,10 +275,20 @@ function makeDefaultTable(id: number, catalog: ItemColumnEntry[], x: number, y: 
     };
     const colWidths = defaults.map((c) => widths[c.key] ?? 100);
 
+    /*
+     * `kind` WAJIB ada. Dua hal bergantung padanya:
+     *   1. tinggi baris di editor (`row.kind === 'body' ? TABLE_ROW_H : TABLE_HEADER_H`);
+     *   2. deteksi di template PDF — `isset($rows[0]['kind'])` yang memilih antara
+     *      renderer row-band milik builder ini dan renderer legacy.
+     * Tanpa `kind`, setiap tabel yang dibuat lewat builder dirender PDF memakai jalur
+     * legacy, sehingga hasil cetaknya tidak sama dengan yang terlihat di editor.
+     */
     const headRow: TableRow = {
+        kind: 'head',
         cells: defaults.map((c) => ({ content: c.label, align: c.align, bold: true })),
     };
     const detailRow: TableRow = {
+        kind: 'body',
         repeat: 'items',
         cells: defaults.map((c) => ({ content: `{{item.${c.key}}}`, align: c.align })),
     };
@@ -1115,7 +1136,7 @@ export default function PdfTemplateEdit() {
         snapshot();
         updateTrb((el) => {
             const newCells: TableCell[] = el.colWidths.map(() => ({ content: '', align: 'left' as const }));
-            const newRow: TableRow = { cells: newCells };
+            const newRow: TableRow = { kind: 'body', cells: newCells };
             const rows = [...el.rows];
             const insertIdx = selectedCell != null ? selectedCell.row + 1 : rows.length;
             rows.splice(insertIdx, 0, newRow);
@@ -1362,13 +1383,19 @@ export default function PdfTemplateEdit() {
 
     const save = () => {
         setSaving(true);
-        const layout: BandedLayout = {
-            paper: { margins },
-            bands,
-        };
+        const layout: BandedLayout = { paper: { margins }, bands };
+        /*
+         * Penegasan tipe, bukan penyembunyian error. `FormDataConvertible` hanya
+         * menerima objek yang punya index signature implisit, dan itu tidak menurun
+         * ke tipe bernama bersarang (HeaderBand, TableEl, Band) — padahal isinya murni
+         * data polos: angka, string, boolean, null, dan array. Inertia
+         * menserialisasikannya tanpa masalah, dan itulah yang sudah berjalan selama ini.
+         * `as unknown as` dipakai alih-alih `@ts-expect-error` supaya kesalahan LAIN
+         * pada baris ini tetap tertangkap compiler.
+         */
         router.post(
-            `/settings/pdf-templates/${template.id}/save`,
-            { layout },
+            companyUrl(`/settings/pdf-templates/${template.id}/save`),
+            { layout: layout as unknown as FormDataConvertible },
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -1379,11 +1406,11 @@ export default function PdfTemplateEdit() {
         );
     };
 
-    const openPdf = () => window.open(`/settings/pdf-templates/${template.id}/pdf`, '_blank');
+    const openPdf = () => window.open(companyUrl(`/settings/pdf-templates/${template.id}/pdf`), '_blank');
 
     // B5: open PDF in a new tab with a fixed item count for pagination preview.
     const openPdfWithItems = (n: number) =>
-        window.open(`/settings/pdf-templates/${template.id}/pdf?items=${n}`, '_blank');
+        window.open(companyUrl(`/settings/pdf-templates/${template.id}/pdf?items=${n}`), '_blank');
 
     // â”€â”€ Drop on band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -1792,7 +1819,7 @@ export default function PdfTemplateEdit() {
             {/* â”€â”€ Top header bar â”€â”€ */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-900 shrink-0">
                 {/* Left: back + title */}
-                <Button variant="ghost" size="sm" onClick={() => router.visit('/settings/pdf-templates')} className="gap-1.5 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => router.visit(companyUrl('/settings/pdf-templates'))} className="gap-1.5 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 shrink-0">
                     <ArrowLeft className="w-4 h-4" />
                     Kembali
                 </Button>
@@ -2107,7 +2134,12 @@ export default function PdfTemplateEdit() {
                                             });
 
                                             // Row resize handle y positions (bottom of each row)
-                                            const rowYs: number[] = [];
+                                            // Isinya objek, bukan angka — konsumennya di bawah
+                                            // mem-destructure { y, rowIdx }. Anotasi lama `number[]`
+                                            // tidak membuat kodenya salah, ia membuat tipe-checker
+                                            // berbohong, dan error palsu itulah yang menenggelamkan
+                                            // error sungguhan di berkas lain.
+                                            const rowYs: { y: number; rowIdx: number }[] = [];
                                             let ry = 0;
                                             tableEl.rows.forEach((row, i) => {
                                                 ry += rowVisualH(row, TABLE_PLACEHOLDER_ROWS);
@@ -2588,7 +2620,7 @@ function TextInspector({
         const formData = new FormData();
         formData.append('name', uploadName.trim());
         formData.append('file', uploadFile);
-        router.post('/settings/pdf-templates/custom-fonts', formData, {
+        router.post(companyUrl('/settings/pdf-templates/custom-fonts'), formData, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -2742,7 +2774,7 @@ function TextInspector({
                                     </span>
                                     <button
                                         onClick={() =>
-                                            router.delete(`/settings/pdf-templates/custom-fonts/${f.id}`, {
+                                            router.delete(companyUrl(`/settings/pdf-templates/custom-fonts/${f.id}`), {
                                                 preserveScroll: true,
                                                 onSuccess: () => toast.success(`Font "${f.name}" dihapus.`),
                                             })

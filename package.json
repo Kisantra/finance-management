@@ -4,6 +4,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "types": "tsc --noEmit",
         "video": "remotion studio",
         "video:render": "remotion render"
     },

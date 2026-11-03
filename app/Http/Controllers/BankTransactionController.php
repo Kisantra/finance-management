@@ -21,6 +21,13 @@ use Illuminate\Support\Str;
 class BankTransactionController extends Controller
 {
     /**
+     * Kolom yang boleh dipakai mengurutkan daftar transaksi.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['transaction_date', 'amount', 'description', 'transaction_type', 'created_at'];
+
+    /**
      * Paginated transactions list for the selected account (JSON, called via Inertia router.reload).
      */
     public function indexTransactions(Request $request): JsonResponse
@@ -34,9 +41,15 @@ class BankTransactionController extends Controller
         $type = $request->input('transaction_type');
         $categoryId = $request->input('category_id');
         $month = $request->input('month');
-        $perPage = (int) $request->input('per_page', 15);
-        $sort = $request->input('sort', 'transaction_date');
-        $direction = $request->input('direction', 'desc');
+        // `sort`/`direction` dulu diteruskan mentah ke orderBy(): nilai sembarang
+        // menjatuhkan endpoint ke 500 beserta pesan SQL yang menyebut nama
+        // database, dan `per_page` tanpa batas atas menarik seluruh riwayat
+        // transaksi dalam satu permintaan.
+        $perPage = max(1, min(100, (int) $request->input('per_page', 15)));
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'transaction_date';
+        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
         $query = BankTransaction::with(['category.parent'])
             ->where('bank_account_id', $accountId)
@@ -67,7 +80,7 @@ class BankTransactionController extends Controller
                     'label' => $t->category->label,
                     'parent_label' => $t->category->parent?->label,
                 ] : null,
-                'attachment_url' => $t->attachment_path ? Storage::url($t->attachment_path) : null,
+                'attachment_url' => $t->attachment_path ? Storage::disk('public')->url($t->attachment_path) : null,
                 'attachment_name' => $t->attachment_name,
             ])->items(),
             'current_page' => $paginator->currentPage(),
@@ -140,7 +153,7 @@ class BankTransactionController extends Controller
                 'invoice_status' => $p->invoice_status,
                 'client_name' => $p->client_name,
                 'client_type' => $p->client_type,
-                'attachment_url' => $p->attachment_path ? Storage::url($p->attachment_path) : null,
+                'attachment_url' => $p->attachment_path ? Storage::disk('public')->url($p->attachment_path) : null,
                 'attachment_name' => $p->attachment_name,
             ])->items(),
             'current_page' => $paginator->currentPage(),
@@ -200,12 +213,37 @@ class BankTransactionController extends Controller
             return BankTransaction::where('transfer_group_id', $bankTransaction->transfer_group_id);
         }
 
-        if ($bankTransaction->reference_number && str_starts_with($bankTransaction->reference_number, 'TRF')) {
-            return BankTransaction::where('reference_number', $bankTransaction->reference_number)
-                ->whereNull('transfer_group_id');
+        if (! $bankTransaction->reference_number || ! str_starts_with($bankTransaction->reference_number, 'TRF')) {
+            return null;
         }
 
-        return null;
+        /*
+         * Cadangan untuk transfer LAMA, dari sebelum transfer_group_id ada.
+         *
+         * Awalan "TRF" saja TIDAK cukup menandai kaki transfer: Nomor Referensi
+         * adalah teks bebas yang diketik pengguna. QC 2026-11-03 membuktikan
+         * akibatnya — tiga biaya kantor biasa yang kebetulan diberi referensi
+         * berawalan "TRF" ikut terhapus semuanya saat satu dihapus.
+         *
+         * Jadi pasangan hanya diakui bila bentuknya memang bentuk transfer, dan
+         * syaratnya sengaja ketat: TEPAT dua baris, satu kredit satu debit,
+         * nominal sama, tanggal sama. Tiga biaya debit tidak lolos; transfer lama
+         * yang asli lolos. Kalau ragu, JANGAN pasangkan — menebak di sini berarti
+         * menghapus baris yang bukan pasangannya, dan itu tidak bisa dibatalkan.
+         */
+        $sekelompok = BankTransaction::where('reference_number', $bankTransaction->reference_number)
+            ->whereNull('transfer_group_id');
+
+        $baris = (clone $sekelompok)->get(['transaction_type', 'amount', 'transaction_date']);
+
+        $berbentukTransfer = $baris->count() === 2
+            && $baris->pluck('transaction_type')->sort()->values()->all() === ['credit', 'debit']
+            && $baris->pluck('amount')->unique()->count() === 1
+            && $baris->pluck('transaction_date')->map(
+                fn ($t) => $t instanceof \DateTimeInterface ? $t->format('Y-m-d') : (string) $t
+            )->unique()->count() === 1;
+
+        return $berbentukTransfer ? $sekelompok : null;
     }
 
     /**
@@ -268,8 +306,11 @@ class BankTransactionController extends Controller
         $kaki = $this->kakiTransfer($bankTransaction);
 
         if ($kaki !== null) {
-            // Delete the paired transfer transaction too
-            $kaki->delete();
+            // Kaki pasangan ikut dihapus. Iterasi, bukan mass-delete — hook `deleting`
+            // yang membuang berkas lampiran tidak berjalan pada mass-delete.
+            foreach ($kaki->get() as $trx) {
+                $trx->delete();
+            }
         } else {
             $bankTransaction->delete();
         }
@@ -292,8 +333,12 @@ class BankTransactionController extends Controller
 
         $groupIds = $transactions->pluck('transfer_group_id')->filter()->unique()->values()->all();
 
+        // Iterasi, BUKAN mass-delete: hook `deleting` yang membuang berkas lampiran
+        // tidak berjalan pada mass-delete, sehingga berkasnya jadi yatim di disk.
         if (! empty($groupIds)) {
-            BankTransaction::whereIn('transfer_group_id', $groupIds)->delete();
+            foreach (BankTransaction::whereIn('transfer_group_id', $groupIds)->get() as $trx) {
+                $trx->delete();
+            }
         }
 
         $refsWarisan = $transactions->filter($isKakiWarisan)
@@ -303,7 +348,9 @@ class BankTransactionController extends Controller
             ->all();
 
         if (! empty($refsWarisan)) {
-            BankTransaction::whereIn('reference_number', $refsWarisan)->whereNull('transfer_group_id')->delete();
+            foreach (BankTransaction::whereIn('reference_number', $refsWarisan)->whereNull('transfer_group_id')->get() as $trx) {
+                $trx->delete();
+            }
         }
 
         $nonTransferIds = $transactions
@@ -312,7 +359,9 @@ class BankTransactionController extends Controller
             ->all();
 
         if (! empty($nonTransferIds)) {
-            BankTransaction::whereIn('id', $nonTransferIds)->delete();
+            foreach (BankTransaction::whereIn('id', $nonTransferIds)->get() as $trx) {
+                $trx->delete();
+            }
         }
 
         return redirect()->back()->with('success', __('pages.bulk_delete_success', ['count' => count($validated['ids'])]));

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\Carbon;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\ServiceProvider;
@@ -13,6 +14,18 @@ class AppServiceProvider extends ServiceProvider
     {
         // Prevent lazy loading in non-production to catch N+1 queries
         Model::preventLazyLoading(! app()->isProduction());
+
+        // User yang sudah login membuka route guest (mis. /login) diarahkan ke
+        // pemilih perusahaan, BUKAN ke route('dashboard') bawaan Laravel —
+        // dashboard kini ber-parameter {company} sehingga tanpa konteks tenant
+        // pembuatan URL-nya melempar UrlGenerationException (HTTP 500).
+        RedirectIfAuthenticated::redirectUsing(fn () => route('choose-company'));
+
+        // Testing memakai SATU database: migration tenant ikut dimuat ke DB test
+        // (produksi/dev menjalankannya via tenants:migrate ke DB per perusahaan)
+        if ($this->app->environment('testing')) {
+            $this->loadMigrationsFrom(database_path('migrations/tenant'));
+        }
 
         // Set locale from session or user preference with fallback
         $availableLocales = config('app.available_locales', ['id', 'zh']);

@@ -81,7 +81,9 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
                         <div className="grid grid-cols-2 gap-5">
                             {[
-                                { value: '121+', label: 'Komponen Livewire' },
+                                // Livewire sudah sepenuhnya dilepas; angka lama menyesatkan
+                                // siapa pun yang menilai tumpukan teknologi dari layar login.
+                                { value: 'Multi', label: 'Perusahaan & Database' },
                                 { value: 'Multi', label: 'Role & Permission' },
                                 { value: 'Real-time', label: 'Notifikasi & Laporan' },
                                 { value: 'PDF', label: 'Invoice & Export' },

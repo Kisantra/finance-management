@@ -6,15 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
+use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
 class Feedback extends Model
 {
-    use HasFactory;
+    use CentralConnection, HasFactory;
 
     protected $table = 'feedbacks';
 
     protected $fillable = [
         'user_id',
+        'company_id',
         'title',
         'description',
         'type',
@@ -53,6 +55,26 @@ class Feedback extends Model
     public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Feedback milik perusahaan aktif, plus baris tanpa konteks perusahaan.
+     *
+     * Tabel `feedbacks` hidup di database CENTRAL (model ini memakai
+     * CentralConnection), jadi isolasi tingkat koneksi TIDAK melindunginya —
+     * satu-satunya pelindung adalah cakupan ini. Tanpa dipasang, pengguna
+     * dengan izin `manage feedbacks` di PT A membaca isi feedback PT B lewat
+     * `Feedback::query()` yang terbuka.
+     *
+     * `company_id` NULL ikut disertakan dengan sengaja: baris yang dibuat
+     * sebelum multi-perusahaan tidak punya penanda, dan pada deployment satu
+     * perusahaan hasil adopsi, baris itu memang milik perusahaan tersebut.
+     */
+    public function scopeForCurrentCompany($query)
+    {
+        return $query->when(tenant(), fn ($q) => $q->where(
+            fn ($sub) => $sub->whereNull('company_id')->orWhere('company_id', tenant()->getTenantKey())
+        ));
     }
 
     public function scopeByStatus($query, string $status)
@@ -154,7 +176,7 @@ class Feedback extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? Storage::url($this->attachment_path) : null;
+        return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null;
     }
 
     public function getAttachmentTypeAttribute(): ?string

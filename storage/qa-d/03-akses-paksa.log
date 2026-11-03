@@ -1,0 +1,30 @@
+Pengguna: alpha-admin@qa.test (admin HANYA di qaalpha)
+Id sasaran milik qabeta: {"invoice":501,"invoice_number":"BETA-INV-0001","reimbursement":501,"fundRequest":501,"template":501,"pdfTemplate":501,"client":501,"bankAccount":501,"bankTransaction":501,"payment":501,"loan":501,"receivable":501,"service":501,"transactionCategory":1,"attachment":"reimbursements\/beta-lampiran-01.txt","tabel":22}
+----------------------------------------------------------------------------------------------------
+GAGAL GET    /c/qaalpha/invoices/501                              status=200 harap=404 invoice (show)  <<< KEBOCORAN
+       body(200 byte pertama):  Finance Management (function () { var stored = localStorage.getItem('theme'); var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; if (stored === 'dark' || (!stored && prefers
+OK    GET    /c/qabeta/invoices/501                               status=403 harap=403 invoice (show)
+OK    GET    /c/qaalpha/invoices/501/data                         status=404 harap=404 invoice (data json)
+OK    GET    /c/qabeta/invoices/501/data                          status=403 harap=403 invoice (data json)
+OK    GET    /c/qaalpha/invoices/501/edit                         status=404 harap=404 invoice (edit)
+OK    GET    /c/qabeta/invoices/501/edit                          status=403 harap=403 invoice (edit)
+OK    GET    /c/qaalpha/invoice/501/download                      status=404 harap=404 invoice (pdf)
+OK    GET    /c/qabeta/invoice/501/download                       status=403 harap=403 invoice (pdf)
+OK    GET    /c/qaalpha/reimbursements/501/data                   status=404 harap=404 reimbursement (data json)
+OK    GET    /c/qabeta/reimbursements/501/data                    status=403 harap=403 reimbursement (data json)
+OK    GET    /c/qaalpha/reimbursements/501/edit                   status=404 harap=404 reimbursement (edit)
+OK    GET    /c/qabeta/reimbursements/501/edit                    status=403 harap=403 reimbursement (edit)
+OK    GET    /c/qaalpha/fund-requests/501/edit                    status=404 harap=404 fund request (edit)
+OK    GET    /c/qabeta/fund-requests/501/edit                     status=403 harap=403 fund request (edit)
+OK    PUT    /c/qaalpha/loans/501                                 status=404 harap=404 pinjaman (update)
+OK    PUT    /c/qabeta/loans/501                                  status=403 harap=403 pinjaman (update)
+OK    PUT    /c/qaalpha/receivables/501                           status=404 harap=404 piutang (update)
+OK    PUT    /c/qabeta/receivables/501                            status=403 harap=403 piutang (update)
+OK    PUT    /c/qaalpha/bank-accounts/501                         status=404 harap=404 rekening (update)
+OK    PUT    /c/qabeta/bank-accounts/501                          status=403 harap=403 rekening (update)
+OK    PUT    /c/qaalpha/clients/501                               status=404 harap=404 klien (update)
+OK    PUT    /c/qabeta/clients/501                                status=403 harap=403 klien (update)
+OK    GET    /c/qaalpha/storage/reimbursements/beta-lampiran-01.txt status=404 harap=404 lampiran beta
+OK    GET    /c/qabeta/storage/reimbursements/beta-lampiran-01.txt status=403 harap=403 lampiran beta
+----------------------------------------------------------------------------------------------------
+RINGKASAN: 24 probe, 23 sesuai harapan, 1 menyimpang

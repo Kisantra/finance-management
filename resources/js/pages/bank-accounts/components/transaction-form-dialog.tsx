@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
 import { QuickAddCategoryDialog, type QuickAddCategoryResult } from '@/components/shared/quick-add-category-dialog';
+import { companyUrl } from '@/lib/company';
 import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import type { AccountPickerItem, CategoryOption } from '../types';
@@ -95,7 +96,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
     React.useEffect(() => {
         if (!open) return;
         axios
-            .get('/api/transaction-categories', { params: { type } })
+            .get(companyUrl('/api/transaction-categories'), { params: { type } })
             .then((res) => setCategories(res.data ?? []))
             .catch(() => setCategories([]));
     }, [open, type]);

@@ -44,7 +44,7 @@ class Payment extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? Storage::url($this->attachment_path) : null;
+        return $this->attachment_path ? Storage::disk('public')->url($this->attachment_path) : null;
     }
 
     public function getAttachmentTypeAttribute(): ?string
