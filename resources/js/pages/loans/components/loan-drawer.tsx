@@ -26,7 +26,7 @@ export function LoanDrawer({ row, onOpenChange, onEdit, onPay, onDelete }: Props
     return (
         <Sheet open={!!row} onOpenChange={onOpenChange}>
             {/* 760, bukan 680: tabel jadwal butuh 680 px bersih, dan panelnya masih berpadding 24 px kiri-kanan. */}
-            <SheetContent hideClose className={cn(SURFACE, 'max-w-[760px] rounded-l-3xl border-l')}>
+            <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[760px] rounded-l-3xl border-l')}>
                 {row && <Isi row={row} onClose={() => onOpenChange(false)} onEdit={onEdit} onPay={onPay} onDelete={onDelete} />}
             </SheetContent>
         </Sheet>

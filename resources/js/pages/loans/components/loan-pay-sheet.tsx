@@ -65,7 +65,7 @@ export function LoanPaySheet({ row, onOpenChange, bankAccountOptions }: Props) {
 
     return (
         <Sheet open={!!row} onOpenChange={(o) => !processing && onOpenChange(o)}>
-            <SheetContent hideClose className={cn(SURFACE, 'max-w-[480px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
+            <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[480px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
                         <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">Catat pembayaran</SheetTitle>

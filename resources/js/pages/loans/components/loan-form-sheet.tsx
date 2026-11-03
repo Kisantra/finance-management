@@ -118,7 +118,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
 
     return (
         <Sheet open={open} onOpenChange={(o) => !processing && onOpenChange(o)}>
-            <SheetContent hideClose className={cn(SURFACE, 'max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
+            <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
                         <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit pinjaman' : 'Tambah pinjaman'}</SheetTitle>
@@ -246,7 +246,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                             value={data.purpose}
                             onChange={(e) => setData('purpose', e.target.value)}
                             error={errors.purpose}
-                            placeholder="Opsional — dipakai apa dananya"
+                            placeholder="Opsional: dipakai apa dananya"
                             rows={3}
                         />
                     </div>

@@ -131,7 +131,7 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
     return (
         <>
             <Head title="Pinjaman" />
-            <div className="flex flex-col gap-6 pt-1">
+            <div className="ob-motion flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>

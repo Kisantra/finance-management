@@ -169,7 +169,7 @@ export function JadwalAngsuran({ path, label }: Props) {
     const totalTerbayar = summary.principal_paid + summary.interest_paid;
 
     return (
-        <div className="flex flex-col gap-3">
+        <div className="ob-motion flex flex-col gap-3">
             <p className="text-xs leading-relaxed text-ob-ink-2">
                 Rencana {rows.length} termin. Pembayaran yang masuk ditutup dari termin paling awal, karena setiap pembayaran mencatat pokok dan bunga tanpa nomor termin.
             </p>
