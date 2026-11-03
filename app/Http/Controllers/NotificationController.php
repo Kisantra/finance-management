@@ -41,6 +41,22 @@ class NotificationController extends Controller
     public function markAsRead(AppNotification $notification): RedirectResponse
     {
         abort_unless($notification->user_id === auth()->id(), 403);
+
+        // Pemilik saja tidak cukup. `app_notifications` hidup di database PUSAT,
+        // jadi route-model binding menemukan notifikasi perusahaan MANA PUN dari
+        // id-nya — dan pengguna yang bekerja di dua perusahaan adalah pemilik
+        // notifikasi di keduanya. Tanpa pemeriksaan ini, satu-satunya PENULISAN
+        // tabel pusat di aplikasi ini berjalan tanpa cakupan perusahaan, dan
+        // notifikasi PT lain bisa ditandai terbaca dari PT yang sedang dibuka.
+        // Ditemukan QC 2026-11-03. Aturannya dibuat sama dengan pembacanya:
+        // company_id cocok, atau NULL (notifikasi tanpa konteks perusahaan).
+        $slug = tenant()?->getTenantKey();
+
+        abort_if(
+            $slug !== null && $notification->company_id !== null && $notification->company_id !== $slug,
+            404
+        );
+
         $notification->markAsRead();
 
         return redirect()->back();

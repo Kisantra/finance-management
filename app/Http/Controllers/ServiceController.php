@@ -12,6 +12,18 @@ use Inertia\Response;
 
 class ServiceController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan.
+     *
+     * Nilai `sort` dari URL dulu diteruskan langsung ke orderBy(), sehingga
+     * `?sort=kolom_ngawur` menjatuhkan halaman dengan 500 — input pengguna yang
+     * menjadi SQL. ClientController sudah memakai daftar putih seperti ini sejak
+     * awal; ServiceController tertinggal. Ditemukan QC 2026-11-03.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['name', 'type', 'price', 'created_at'];
+
     public const TYPES = [
         'Perizinan',
         'Administrasi Perpajakan',
@@ -24,8 +36,10 @@ class ServiceController extends Controller
         $search = $request->input('search');
         $type = $request->input('type');
         $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'created_at');
-        $direction = $request->input('direction', 'desc');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'created_at';
+        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
         $services = Service::query()
             ->select(['id', 'name', 'type', 'price', 'created_at'])

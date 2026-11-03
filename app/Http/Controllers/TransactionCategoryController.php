@@ -15,13 +15,26 @@ use Inertia\Response;
 
 class TransactionCategoryController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan.
+     *
+     * Nilai `sort` dari URL tidak boleh langsung masuk orderBy(): `?sort=ngawur`
+     * menjatuhkan halaman dengan 500 — input pengguna yang menjadi SQL.
+     * Ditemukan QC 2026-11-03 di /services, lalu ternyata berulang di sini.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['label', 'type', 'pl_group', 'created_at'];
+
     public function index(Request $request): Response
     {
         $search = $request->input('search');
         $type = $request->input('type');
         $plStatus = $request->input('pl_status');
         $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'type');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'type';
         $direction = $request->input('direction', 'asc');
 
         $categories = TransactionCategory::with(['parent'])

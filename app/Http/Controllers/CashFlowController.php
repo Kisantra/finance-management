@@ -18,6 +18,24 @@ use Inertia\Response;
 class CashFlowController extends Controller
 {
     /**
+     * Kolom yang boleh dipakai mengurutkan, per jenis query.
+     *
+     * Nilai `sort` dari URL tidak boleh langsung masuk orderBy(): `?sort=ngawur`
+     * menjatuhkan halaman dengan 500 — input pengguna yang menjadi SQL.
+     * Ditemukan QC 2026-11-03 di /services, lalu ternyata berulang di sini.
+     *
+     * Dua daftar karena dua query berbeda: UNION (pembayaran + transaksi) hanya
+     * punya alias hasil subquery-nya, sedangkan daftar transaksi memakai kolom
+     * tabel bank_transactions apa adanya.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT_GABUNGAN = ['date', 'amount', 'client_name', 'bank_name', 'category_label'];
+
+    /** @var list<string> */
+    private const KOLOM_URUT_TRANSAKSI = ['transaction_date', 'amount', 'description', 'reference_number'];
+
+    /**
      * INCOME page — UNION of Payments + credit BankTransactions (income category).
      */
     public function income(Request $request): Response
@@ -27,7 +45,9 @@ class CashFlowController extends Controller
         $categoryIds = $this->parseIntArray($request->input('categories'));
         $search = $request->input('search');
         $perPage = (int) $request->input('per_page', 25);
-        $sort = $request->input('sort', 'date');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT_GABUNGAN, true)
+            ? $request->input('sort')
+            : 'date';
         $direction = $request->input('direction', 'desc');
         $page = (int) $request->input('page', 1);
 
@@ -182,7 +202,9 @@ class CashFlowController extends Controller
         $bankAccountIds = $this->parseIntArray($request->input('bank_accounts'));
         $search = $request->input('search');
         $perPage = (int) $request->input('per_page', 25);
-        $sort = $request->input('sort', 'transaction_date');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT_TRANSAKSI, true)
+            ? $request->input('sort')
+            : 'transaction_date';
         $direction = $request->input('direction', 'desc');
         $page = (int) $request->input('page', 1);
 

@@ -19,6 +19,17 @@ use Inertia\Response;
 
 class FeedbackController extends Controller
 {
+    /**
+     * Kolom yang boleh dipakai mengurutkan.
+     *
+     * Nilai `sort` dari URL tidak boleh langsung masuk orderBy(): `?sort=ngawur`
+     * menjatuhkan halaman dengan 500 — input pengguna yang menjadi SQL.
+     * Ditemukan QC 2026-11-03 di /services, lalu ternyata berulang di sini.
+     *
+     * @var list<string>
+     */
+    private const KOLOM_URUT = ['title', 'type', 'priority', 'status', 'created_at', 'responded_at'];
+
     public function index(Request $request): Response
     {
         $user = auth()->user();
@@ -30,7 +41,9 @@ class FeedbackController extends Controller
         $type = $request->input('type');
         $priority = $request->input('priority');
         $perPage = (int) $request->input('per_page', 10);
-        $sort = $request->input('sort', 'created_at');
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT, true)
+            ? $request->input('sort')
+            : 'created_at';
         $direction = $request->input('direction', 'desc');
 
         // forCurrentCompany() dipasang pada KEDUA cabang. Cabang `canManage`

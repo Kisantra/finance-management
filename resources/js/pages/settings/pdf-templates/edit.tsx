@@ -2108,7 +2108,12 @@ export default function PdfTemplateEdit() {
                                             });
 
                                             // Row resize handle y positions (bottom of each row)
-                                            const rowYs: number[] = [];
+                                            // Isinya objek, bukan angka — konsumennya di bawah
+                                            // mem-destructure { y, rowIdx }. Anotasi lama `number[]`
+                                            // tidak membuat kodenya salah, ia membuat tipe-checker
+                                            // berbohong, dan error palsu itulah yang menenggelamkan
+                                            // error sungguhan di berkas lain.
+                                            const rowYs: { y: number; rowIdx: number }[] = [];
                                             let ry = 0;
                                             tableEl.rows.forEach((row, i) => {
                                                 ry += rowVisualH(row, TABLE_PLACEHOLDER_ROWS);

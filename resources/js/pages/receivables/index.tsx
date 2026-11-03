@@ -507,6 +507,10 @@ export default function ReceivablesIndex({
                 title="Ajukan Piutang?"
                 description={`Piutang ${submitRow?.receivable_number} akan diajukan untuk persetujuan.`}
                 variant="warning"
+                // WAJIB diisi: ConfirmDialog default-nya confirmLabel='Hapus',
+                // sehingga dialog pengajuan ini bertombol "Hapus" — mengajak
+                // pengguna mengira ia akan menghapus piutangnya.
+                confirmLabel="Ajukan"
             />
 
             {/* Delete Confirm */}
