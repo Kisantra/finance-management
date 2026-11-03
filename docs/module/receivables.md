@@ -53,7 +53,18 @@ Model: `app/Models/Receivable.php` — relasi `debtor(): MorphTo`, `payments(): 
 'can_edit' => in_array($r->status, ['draft', 'rejected']),
 'can_delete' => $r->status === 'draft' && ! $r->payments()->exists(),
 ```
-4. Props tambahan: stats (total, active, pending, total pokok aktif), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
+4. Ringkasan dihitung tiga query:
+   - satu `selectRaw` agregat status (total, per-status, `pending_amount`, `next_due` = jatuh tempo paling awal di antara yang **aktif**);
+   - satu agregat pembayaran yang **dicakup ke piutang aktif** → `paid_principal`, `paid_interest`, `outstanding_principal = total_principal_active − paid_principal`. Tanpa cakupan ini, pembayaran piutang yang sudah lunas ikut menyusutkan sisa piutang yang masih berjalan;
+   - satu query **lewat tempo** lewat `leftJoinSub` agregat pembayaran: aktif, `due_date` sudah lewat, DAN `principal_amount > COALESCE(bayar.pokok, 0)`. Syarat terakhir wajib — tanpanya, piutang yang tanggalnya lewat tapi pokoknya sudah kembali ikut terhitung sebagai tunggakan. Dijaga `ReceivableControllerTest::test_lewat_tempo_hanya_menghitung_piutang_aktif_yang_pokoknya_belum_tertutup`.
+
+   Dihitung di SQL, bukan dengan menarik baris ke PHP: jumlah piutang lewat tempo tidak punya batas atas.
+5. Props tambahan: `statusCounts` (hitungan per status untuk pil filter), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
+6. Halaman React (gaya Obsidian) menampilkan ringkasan 4 angka — **belum kembali, lewat tempo, menunggu persetujuan, jatuh tempo terdekat** — lalu pil status berhitung dan tabel 6 kolom.
+   Susunannya sengaja berbeda dari halaman Pinjaman: di Pinjaman kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
+   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian (`components/receivable-drawer.tsx`) yang terbuka saat baris diklik: jadwal angsuran, Ajukan, Proses pengajuan, Catat pembayaran, Edit, Hapus.
+   Untuk piutang **ditolak**, alasan penolakan tampil paling atas di panel, karena itulah yang harus diperbaiki pengajunya.
+   Jadwal angsuran tetap ditampilkan sebelum disetujui (itu yang dinilai penyetuju), tetapi penanda "termin berikutnya" dimatikan: menyorot termin yang harus dibayar duluan pada sesuatu yang belum berjalan menjanjikan aksi yang belum ada.
 5. React (`resources/js/pages/receivables/index.tsx`) merender tabel + tombol aksi per baris sesuai flag `can_*`.
 
 ### Buat Piutang (Store) — mulai dari `draft`
@@ -185,5 +196,8 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 | `app/Http/Requests/StoreReceivableRequest.php` / `UpdateReceivableRequest.php` / `ApproveReceivableRequest.php` / `PayReceivableRequest.php` | Validasi per endpoint |
 | `app/Models/Receivable.php`, `app/Models/ReceivablePayment.php` | Model, morph `debtor`, casts |
 | `routes/web.php` (baris 466-474) | Route + permission middleware |
+| `app/Services/JadwalAngsuranService.php` | Penyusun jadwal angsuran (dipakai Piutang & Pinjaman); rumus bunga piutang = persentase atas SELURUH pokok, tidak diprorata |
+| `resources/js/pages/receivables/components/` | `receivable-drawer.tsx` (rincian + jadwal), `-form-sheet`, `-approve-sheet`, `-pay-sheet`, `ptg.tsx` (status/bunga bersama) |
+| `resources/js/components/jadwal-angsuran.tsx` | Tabel jadwal angsuran, dipakai bersama modul Pinjaman |
 | `resources/js/pages/receivables/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
 | `database/seeders/MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |

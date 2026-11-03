@@ -313,7 +313,10 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                                       )}
                                                   </td>
                                                   <td className="py-3 pr-6 text-right">
-                                                      <span className={cn('block font-semibold tabular-nums', row.remaining_principal > 0 ? 'text-ob-neg' : 'text-ob-pos')}>
+                                                      {/* Tinta biasa, bukan merah: `ob-neg` di atas baris terpilih (bg-ob-hover) hanya 4,28:1,
+                                                          dan merah di kolom ini bersaing dengan penanda "lewat N hari" di kolom jatuh tempo.
+                                                          Satu halaman, satu makna merah. */}
+                                                      <span className={cn('block font-semibold tabular-nums', row.remaining_principal > 0 ? 'text-ob-ink' : 'text-ob-pos')}>
                                                           {row.remaining_principal > 0 ? rp(row.remaining_principal) : 'lunas'}
                                                       </span>
                                                       {/* Batang progres menggantikan kolom "dibayar" tersendiri. */}

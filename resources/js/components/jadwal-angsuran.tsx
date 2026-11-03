@@ -48,6 +48,12 @@ interface Props {
     path: string;
     /** Masuk ke aria-label tabel, mis. "Jadwal angsuran pinjaman PJM/2026/001". */
     label: string;
+    /**
+     * Tandai termin paling awal yang belum lunas sebagai "berikutnya".
+     * Dimatikan untuk utang/piutang yang BELUM berjalan: menyorot termin yang harus
+     * dibayar duluan pada sesuatu yang belum disetujui menjanjikan aksi yang belum ada.
+     */
+    tandaiBerikutnya?: boolean;
 }
 
 type Muat = { state: 'memuat' } | { state: 'gagal' } | { state: 'siap'; rows: BarisJadwal[]; summary: RingkasanJadwal };
@@ -88,7 +94,7 @@ function PenandaTerlambat({ iso }: { iso: string }) {
     );
 }
 
-export function JadwalAngsuran({ path, label }: Props) {
+export function JadwalAngsuran({ path, label, tandaiBerikutnya = true }: Props) {
     const [muat, setMuat] = React.useState<Muat>({ state: 'memuat' });
 
     const ambil = React.useCallback(() => {
@@ -164,7 +170,7 @@ export function JadwalAngsuran({ path, label }: Props) {
 
     // Termin yang perlu dibayar berikutnya = yang paling awal belum lunas. Ini satu-satunya
     // pertanyaan "termin mana" yang bisa dijawab jujur dari data yang ada.
-    const indeksBerikut = rows.findIndex((r) => r.status !== 'lunas');
+    const indeksBerikut = tandaiBerikutnya ? rows.findIndex((r) => r.status !== 'lunas') : -1;
     const totalAngsuran = summary.principal + summary.interest;
     const totalTerbayar = summary.principal_paid + summary.interest_paid;
 

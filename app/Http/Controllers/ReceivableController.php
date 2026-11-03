@@ -17,6 +17,7 @@ use App\Services\JadwalAngsuranService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -56,8 +57,45 @@ class ReceivableController extends Controller
             COUNT(*) as total,
             SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
             SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END) as pending_count,
-            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as total_principal_active
+            SUM(CASE WHEN status = 'active' THEN principal_amount ELSE 0 END) as total_principal_active,
+            SUM(CASE WHEN status = 'pending_approval' THEN principal_amount ELSE 0 END) as pending_amount,
+            MIN(CASE WHEN status = 'active' THEN due_date END) as next_due,
+            SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_count,
+            SUM(CASE WHEN status = 'paid_off' THEN 1 ELSE 0 END) as paid_off_count,
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count
         ")->first();
+
+        // Dicakup ke piutang AKTIF, sama seperti modul Pinjaman: pembayaran piutang yang
+        // sudah lunas tidak boleh ikut menyusutkan sisa piutang yang masih berjalan.
+        $terbayarAktif = ReceivablePayment::whereHas('receivable', fn ($q) => $q->where('status', 'active'))
+            ->selectRaw('COALESCE(SUM(principal_paid), 0) as pokok, COALESCE(SUM(interest_paid), 0) as bunga')
+            ->first();
+
+        /*
+         * Lewat tempo: piutang aktif yang tanggal jatuh temponya sudah lewat DAN pokoknya
+         * belum tertutup. Di modul Pinjaman kita yang menentukan kapan membayar, jadi angka
+         * ini tidak ada di sana; di sini kita tidak mengendalikannya, dan inilah angka risiko
+         * yang dicari orang saat membuka halaman.
+         *
+         * Dihitung satu query lewat subquery agregat pembayaran, bukan menarik barisnya ke
+         * PHP: jumlah piutang lewat tempo tidak ada batas atasnya.
+         */
+        $lewatTempo = Receivable::query()
+            ->leftJoinSub(
+                ReceivablePayment::selectRaw('receivable_id, SUM(principal_paid) as pokok')->groupBy('receivable_id'),
+                'bayar',
+                'bayar.receivable_id',
+                '=',
+                'receivables.id',
+            )
+            ->where('receivables.status', 'active')
+            ->whereDate('receivables.due_date', '<', now()->toDateString())
+            ->whereRaw('receivables.principal_amount > COALESCE(bayar.pokok, 0)')
+            ->selectRaw('COUNT(*) as jumlah, COALESCE(SUM(receivables.principal_amount - COALESCE(bayar.pokok, 0)), 0) as nominal')
+            ->first();
+
+        $activePrincipal = (int) ($statsRow->total_principal_active ?? 0);
+        $paidPrincipal = (int) ($terbayarAktif->pokok ?? 0);
 
         $rows = $paginator->map(fn (Receivable $r) => [
             'id' => $r->id,
@@ -127,7 +165,21 @@ class ReceivableController extends Controller
                 'total' => (int) ($statsRow->total ?? 0),
                 'active_count' => (int) ($statsRow->active_count ?? 0),
                 'pending_count' => (int) ($statsRow->pending_count ?? 0),
-                'total_principal_active' => (int) ($statsRow->total_principal_active ?? 0),
+                'total_principal_active' => $activePrincipal,
+                'outstanding_principal' => max(0, $activePrincipal - $paidPrincipal),
+                'paid_principal' => $paidPrincipal,
+                'paid_interest' => (int) ($terbayarAktif->bunga ?? 0),
+                'pending_amount' => (int) ($statsRow->pending_amount ?? 0),
+                'overdue_count' => (int) ($lewatTempo->jumlah ?? 0),
+                'overdue_amount' => (int) ($lewatTempo->nominal ?? 0),
+                'next_due' => $statsRow->next_due ? Carbon::parse($statsRow->next_due)->toDateString() : null,
+            ],
+            'statusCounts' => [
+                'draft' => (int) ($statsRow->draft_count ?? 0),
+                'pending_approval' => (int) ($statsRow->pending_count ?? 0),
+                'active' => (int) ($statsRow->active_count ?? 0),
+                'paid_off' => (int) ($statsRow->paid_off_count ?? 0),
+                'rejected' => (int) ($statsRow->rejected_count ?? 0),
             ],
             'filters' => [
                 'search' => $search,

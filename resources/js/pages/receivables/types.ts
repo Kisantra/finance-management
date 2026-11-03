@@ -53,9 +53,22 @@ export interface ReceivableFilters {
     page: number;
 }
 
+export type ReceivableStatus = 'draft' | 'pending_approval' | 'active' | 'paid_off' | 'rejected';
+
 export interface ReceivableStats {
     total: number;
     active_count: number;
     pending_count: number;
     total_principal_active: number;
+    /** Pokok piutang aktif yang belum kembali — angka utama halaman. */
+    outstanding_principal: number;
+    paid_principal: number;
+    paid_interest: number;
+    /** Nilai pokok yang sedang menunggu persetujuan. */
+    pending_amount: number;
+    /** Piutang aktif yang lewat jatuh tempo dan pokoknya belum tertutup. */
+    overdue_count: number;
+    overdue_amount: number;
+    /** Jatuh tempo terdekat di antara piutang aktif; null bila tidak ada yang aktif. */
+    next_due: string | null;
 }
