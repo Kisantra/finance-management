@@ -13,6 +13,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
@@ -86,6 +87,10 @@ class ErrorPageTest extends TestCase
             Route::get('/_uji/ditolak-tanpa-alasan', fn () => abort(403));
 
             Route::get('/_uji/bocor-namespace', fn () => abort(403, 'Gagal memuat App\Models\Invoice milik tenant rahasia'));
+
+            Route::get('/_uji/tabel-pusat-hilang', fn () => DB::table('companies')->get());
+
+            Route::get('/_uji/tabel-tenant-hilang', fn () => DB::table('invoices_yang_belum_dimigrasi')->get());
         });
     }
 
@@ -379,5 +384,77 @@ class ErrorPageTest extends TestCase
             );
 
         $this->assertStringNotContainsString('hunter2', $respons->getContent());
+    }
+
+    /**
+     * "Table 'x.companies' doesn't exist" harus berubah jadi petunjuk yang bisa
+     * diikuti, bukan sekadar laporan teknis.
+     *
+     * Terjadi sungguhan 2026-11-03: `.env` masih menunjuk database pra-tenancy,
+     * dan 500-nya terbaca seolah fiturnya yang rusak. Kesalahan yang sama akan
+     * berulang tiap kali aplikasi diarahkan ke database yang belum disiapkan —
+     * berpindah branch, site baru untuk pelanggan lain, atau satu langkah
+     * cutover yang terlewat.
+     */
+    public function test_tabel_pusat_hilang_memberi_petunjuk_setup_bukan_pesan_mentah(): void
+    {
+        // actingAs() mendaftarkan keanggotaan lewat company_user, yang ber-FK ke
+        // companies — jadi ia HARUS dijalankan sebelum tabelnya dihapus.
+        $sesi = $this->actingAs($this->staff);
+
+        // FK dimatikan sebentar: yang ditiru di sini adalah database yang memang
+        // BELUM punya tabel itu, bukan penghapusan yang rapi.
+        Schema::disableForeignKeyConstraints();
+        Schema::drop('companies');
+        Schema::enableForeignKeyConstraints();
+
+        $respons = $sesi->get('/_uji/tabel-pusat-hilang');
+
+        $respons->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('title', 'Database pusat belum disiapkan')
+                ->where('description', fn (string $d) => str_contains($d, 'central:bootstrap')
+                    && str_contains($d, 'DB_DATABASE'))
+            );
+    }
+
+    public function test_tabel_tenant_hilang_mengarahkan_ke_tenants_migrate(): void
+    {
+        $this->actingAs($this->staff)
+            ->get('/_uji/tabel-tenant-hilang')
+            ->assertStatus(500)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('error')
+                ->where('title', 'Database perusahaan belum dimigrasi')
+                ->where('description', fn (string $d) => str_contains($d, 'tenants:migrate'))
+            );
+    }
+
+    /**
+     * GERBANG. Petunjuk setup tidak boleh ikut membocorkan isi pesan exception —
+     * pesan 5xx bisa memuat SQL beserta datanya.
+     */
+    public function test_petunjuk_setup_tidak_membocorkan_nama_database(): void
+    {
+        // actingAs() mendaftarkan keanggotaan lewat company_user, yang ber-FK ke
+        // companies — jadi ia HARUS dijalankan sebelum tabelnya dihapus.
+        $sesi = $this->actingAs($this->staff);
+
+        // FK dimatikan sebentar: yang ditiru di sini adalah database yang memang
+        // BELUM punya tabel itu, bukan penghapusan yang rapi.
+        Schema::disableForeignKeyConstraints();
+        Schema::drop('companies');
+        Schema::enableForeignKeyConstraints();
+
+        $respons = $sesi->get('/_uji/tabel-pusat-hilang');
+        $props = $respons->viewData('page')['props'];
+
+        $this->assertStringNotContainsString('SQLSTATE', $props['description']);
+        $this->assertStringNotContainsString(
+            config('database.connections.mysql.database'),
+            $props['description'],
+            'Nama database ikut tampil di deskripsi yang dibaca pengguna biasa.'
+        );
     }
 }

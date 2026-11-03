@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -72,6 +73,63 @@ class ErrorReportService
     }
 
     /**
+     * Tabel yang HANYA ada di database pusat. Hilangnya salah satu berarti
+     * langkah penyiapan pusat belum dijalankan, bukan kerusakan data.
+     *
+     * @var list<string>
+     */
+    private const TABEL_PUSAT = ['organizations', 'companies', 'company_user'];
+
+    /**
+     * Ubah "Table 'x.companies' doesn't exist" menjadi petunjuk yang bisa diikuti.
+     *
+     * Pesan bawaannya benar secara teknis tetapi tidak memberi tahu apa pun:
+     * pembacanya tahu ada tabel yang hilang, bukan bahwa ia melewatkan satu
+     * perintah penyiapan. Ini BUKAN kasus langka — ia muncul setiap kali
+     * aplikasi multi-perusahaan diarahkan ke database yang belum disiapkan:
+     * saat berpindah branch, saat site baru dibuat untuk pelanggan lain, atau
+     * ketika satu langkah cutover terlewat. Terjadi sungguhan pada 2026-11-03:
+     * `.env` masih menunjuk database pra-tenancy, dan 500-nya terbaca seperti
+     * fiturnya yang rusak.
+     *
+     * Jalur ini hanya hidup saat SUDAH terjadi error, jadi tidak ada biaya
+     * per-request. Pesannya ditulis tetap di sini, bukan diambil dari
+     * exception — pesan exception 5xx bisa memuat SQL beserta datanya, dan
+     * nama database tidak perlu ditampilkan ke pengguna biasa. Detail aslinya
+     * tetap ada di bagian teknis yang hanya terlihat oleh admin.
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    private static function pesanSetupBelumSelesai(Throwable $e): ?array
+    {
+        if (! $e instanceof QueryException) {
+            return null;
+        }
+
+        if (! preg_match("/Table '[^.']*\.([^']+)' doesn't exist/", $e->getMessage(), $cocok)) {
+            return null;
+        }
+
+        if (in_array($cocok[1], self::TABEL_PUSAT, true)) {
+            return [
+                'Database pusat belum disiapkan',
+                'Database yang dipakai aplikasi ini belum memiliki tabel perusahaan. '
+                .'Biasanya karena DB_DATABASE di .env masih menunjuk database lama '
+                .'(sebelum multi-perusahaan), atau langkah penyiapan belum dijalankan. '
+                .'Jalankan: php artisan migrate, lalu php artisan central:bootstrap. '
+                .'Setelah mengubah .env, server harus di-restart — nilainya dibaca sekali saat server start.',
+            ];
+        }
+
+        return [
+            'Database perusahaan belum dimigrasi',
+            'Perusahaan ini sudah terdaftar tetapi tabel datanya belum dibuat. '
+            .'Jalankan: php artisan tenants:migrate. '
+            .'Periksa juga php artisan central:tenants-status untuk melihat perusahaan mana yang tertinggal.',
+        ];
+    }
+
+    /**
      * Pesan yang SENGAJA ditulis di `abort(403, '...')`, bila aman ditampilkan.
      *
      * Tanpa ini, setiap pesan yang disusun khusus dibuang dan diganti teks tetap
@@ -120,6 +178,8 @@ class ErrorReportService
     {
         [$title, $description] = self::MESSAGES[$status]
             ?? ($status >= 500 ? self::MESSAGES[500] : ['Permintaan tidak dapat diproses', 'Terjadi kendala saat memproses permintaan Anda.']);
+
+        [$title, $description] = self::pesanSetupBelumSelesai($e) ?? [$title, $description];
 
         $description = self::pesanKhusus($e, $status) ?? $description;
 
