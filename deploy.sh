@@ -484,7 +484,7 @@ main() {
             fail "--slug: 3-40 huruf kecil/angka/strip, mis. kisantra. PERMANEN: jadi alamat /c/<slug>, nama database, dan folder berkas."
         fi
         if [[ ! "$ABBR" =~ ^[A-Z]{2,10}$ ]]; then
-            fail "--singkatan wajib: 2-10 huruf, mis. KSN (dipakai di nomor invoice)."
+            fail "--singkatan wajib: 2-10 huruf, mis. KSN (label perusahaan di pemilih perusahaan; nomor invoice tidak berubah)."
         fi
         CENTRAL_DB=${CENTRAL_DB:-${SLUG//-/_}_central}
         check_db_name "$CENTRAL_DB"

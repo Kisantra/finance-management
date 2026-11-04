@@ -84,7 +84,7 @@ bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra --singkatan=KSN
 | Opsi | Arti |
 |---|---|
 | `--slug=` (wajib) | 3-40 huruf kecil/angka/strip. **Permanen**: jadi alamat `/c/<slug>`, nama database `tenant_<slug>`, dan folder berkas. |
-| `--singkatan=` (wajib) | 2-10 huruf, dipakai di nomor invoice (`{PT}`). |
+| `--singkatan=` (wajib) | 2-10 huruf. Label pendek perusahaan di halaman pilih perusahaan, pengalih perusahaan, dan daftar Perusahaan/Pengguna. **Nomor invoice tidak berubah**: `{PT}` tetap diambil dari inisial nama di Profil Perusahaan, sama seperti sekarang. Samakan saja dengan kode di nomor invoice Anda (mis. `KSN`) supaya konsisten. |
 | `--nama=` | Nama perusahaan. Bawaan: nama di profil perusahaan DB lama. |
 | `--organisasi=` | Nama grup. Bawaan: sama dengan nama perusahaan. |
 | `--db-pusat=` | Nama database pusat baru. Bawaan: `<slug>_central`. |
