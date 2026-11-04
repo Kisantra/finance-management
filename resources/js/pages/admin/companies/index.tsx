@@ -166,7 +166,8 @@ export default function CompaniesIndex({ organizationCompanies: companies, quota
                     <DialogHeader>
                         <DialogTitle>Perusahaan Baru</DialogTitle>
                         <DialogDescription>
-                            Provisioning membuat database baru dan memakan beberapa detik. Kode URL & singkatan bersifat permanen.
+                            Provisioning membuat database baru dan memakan beberapa detik. Kode URL bersifat permanen; singkatan dan sisa profil
+                            (alamat, kontak, penanggung jawab) dilengkapi di Profil Perusahaan saat perusahaan pertama kali dibuka.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
@@ -186,12 +187,12 @@ export default function CompaniesIndex({ organizationCompanies: companies, quota
                             hint="Huruf kecil, angka, strip — menjadi alamat /c/{kode} dan tidak bisa diubah"
                         />
                         <Input
-                            label="Singkatan Dokumen (permanen)"
+                            label="Singkatan"
                             value={form.data.abbreviation}
                             onChange={(e) => form.setData('abbreviation', e.target.value.toUpperCase())}
                             error={form.errors.abbreviation}
-                            placeholder="KNR"
-                            hint="Dipakai pada nomor invoice (mis. 001/INV/KNR-ABC/I/2026) — isi manual, jangan singkatan ambigu"
+                            placeholder="mis. KNR"
+                            hint="Kode perusahaan di nomor invoice (mis. 001/INV/KNR-ABC/I/2026). Bisa diubah nanti di Profil Perusahaan."
                         />
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>

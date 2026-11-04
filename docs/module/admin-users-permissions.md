@@ -31,14 +31,19 @@ Halaman **Perusahaan** (permission baru `manage companies`, admin only — migra
 baru di organization admin yang login:
 
 1. Form: nama, **kode URL/slug (permanen — menjadi `/c/{slug}`, nama DB `tenant_{slug}`,
-   path storage)**, **singkatan dokumen (permanen, manual — dipakai nomor invoice)**.
+   path storage)**, **singkatan** (kode `{PT}` nomor invoice; awal profil, bisa diubah di
+   Profil Perusahaan dan disamakan balik ke `companies.abbreviation`).
    Validasi slug: regex `^[a-z0-9]+(-[a-z0-9]+)*$`, unik. Kuota organization dicek
    (`Organization::hasReachedCompanyQuota()`).
 2. `Company::create()` → pipeline SINKRON: CreateDatabase → MigrateDatabase →
    SeedDatabase (`TenantDatabaseSeeder`) → **`App\Jobs\MarkCompanyActive`** (status → `active`).
    Gagal di tengah → status **`failed`** + tombol **Coba Ulang** (drop DB setengah jadi →
    hapus baris tanpa event → create ulang). Pembuat otomatis jadi anggota + role `admin`
-   di perusahaan baru (`grantCreatorAccess`).
+   di perusahaan baru (`grantCreatorAccess`). Profil perusahaan baru berisi nama & singkatan
+   dari form, sisanya `-`; gerbang `EnsureCompanyProfileComplete` memaksa admin
+   melengkapinya saat perusahaan pertama kali dibuka (lihat settings.md).
+4. Prasyarat server: user MySQL aplikasi boleh `CREATE` untuk `tenant\_%` (runbook §G.1);
+   tanpa itu provisioning gagal dan perusahaan berstatus `failed`.
 3. File: `app/Http/Controllers/Admin/CompanyController.php`,
    `app/Http/Requests/Admin/StoreCompanyRequest.php`,
    `resources/js/pages/admin/companies/index.tsx`;
