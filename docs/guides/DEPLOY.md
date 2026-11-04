@@ -111,7 +111,7 @@ Nama yang dipakai, semuanya diturunkan dari nama database lama (`<db_lama>`) sup
 ### Sesudahnya di website (segera, sebelum staff masuk)
 
 1. Login sebagai admin dengan sandi lama. Aplikasi langsung membuka **Profil Perusahaan**: lengkapi isian yang kosong, terutama **Singkatan** (kode di nomor invoice; form menampilkan nomor invoice terakhir sebagai rujukan).
-2. Bila ada invoice lama yang belum punya urutan nomor, aplikasi membuka **Penomoran invoice** dengan pratinjau: berapa nomor cocok dengan pola, mana yang tidak. Samakan pola dengan riwayat nomor Anda (Simpan), lalu klik **Isi urutan & selesai meninjau**. Nomor yang memang diketik manual boleh dibiarkan.
+2. Bila ada invoice lama yang belum punya urutan nomor, aplikasi membuka **Penomoran invoice** dengan pratinjau: berapa nomor cocok dengan pola, mana yang tidak. Pola menentukan nomor invoice **berikutnya**: ubah hanya bila nomor lama memakai format yang masih ingin dilanjutkan (Simpan). Nomor berformat lama yang sudah tidak dipakai atau diketik manual biarkan saja; nomornya tetap sah, dan nomor baru berformat lain tidak bisa sama (kolom nomor invoice unik). Lalu klik **Isi urutan & selesai meninjau**.
 3. Sampai kedua langkah itu selesai, user lain melihat halaman "perusahaan belum disiapkan". Bookmark lama staf (mis. `/invoices`) tetap jalan: alamat modul tanpa `/c/...` diarahkan ke perusahaan pengguna (tamu diminta login dulu; anggota beberapa perusahaan ke pemilih perusahaan).
 4. Cek: buat draft invoice → terbitkan → nomornya melanjutkan nomor terakhir → hapus draft itu; unduh satu PDF.
 5. **Salin `storage/app/cutover/utama/` ke luar server.** Isinya dump data lama dan rahasia `.env` lama. Biarkan database lama dan `storage/app/public` dulu seminggu.

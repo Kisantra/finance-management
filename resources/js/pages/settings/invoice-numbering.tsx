@@ -196,8 +196,9 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                         ` dan ${legacyReview.unmatchedCount - legacyReview.unmatched.length} lainnya`}
                                 </p>
                                 <p className="mt-2 text-ob-ink-2">
-                                    Bila itu nomor lama yang sah, ubah pola di bawah sampai cocok lalu Simpan; daftar ini ikut diperbarui.
-                                    Nomor yang memang diketik manual boleh dibiarkan.
+                                    Pola di bawah menentukan nomor invoice <strong>berikutnya</strong>. Ubah hanya bila nomor di atas memakai
+                                    format yang memang ingin dilanjutkan, lalu Simpan; daftar ini ikut diperbarui. Nomor berformat lama yang
+                                    sudah tidak dipakai, atau yang diketik manual, biarkan saja: nomornya tetap sah dan tidak akan terulang.
                                 </p>
                             </div>
                         )}

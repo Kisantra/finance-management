@@ -68,7 +68,7 @@ export const guide: ModuleGuide = {
                 'Susun **Pola nomor**: ketik teks/pemisah bebas, lalu klik chip token (mis. **{NO}**, **{PT}**, **{THN}**) untuk menyisipkannya di posisi kursor. **{NO}** wajib tepat satu kali.',
                 'Pilih **Jumlah digit nomor urut** dan kapan **Nomor kembali ke 1** (**Tiap bulan** / **Tiap tahun** / **Tidak pernah**). Tiap bulan wajib memuat bulan + tahun; tiap tahun wajib memuat tahun.',
                 'Periksa kartu **Pratinjau**, lalu klik **Simpan** (perlu profil perusahaan sudah diisi). Berlaku untuk invoice yang **dikirim** setelahnya; nomor yang sudah terbit tidak berubah.',
-                'Sesudah server lama dipindah ke versi baru, halaman ini terbuka **otomatis** bila ada invoice lama tanpa urutan nomor: samakan pola sampai nomor lama tercantum "cocok", **Simpan**, lalu klik **Isi urutan & selesai meninjau**. Nomor yang diketik manual boleh dibiarkan.',
+                'Sesudah server lama dipindah ke versi baru, halaman ini terbuka **otomatis** bila ada invoice lama tanpa urutan nomor. Bila nomor lama memakai format yang masih dipakai, samakan pola sampai tercantum "cocok" lalu **Simpan**. Nomor berformat lama yang sudah tidak dipakai atau diketik manual **biarkan saja**: pola menentukan nomor berikutnya. Lalu klik **Isi urutan & selesai meninjau**.',
             ],
         },
         {
