@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — terapkan versi terbaru dari GitHub ke server dengan aman.
+# deploy.sh — pasang atau perbarui aplikasi di server dengan aman. Satu perintah, tanpa
+# nilai apa pun; skrip memilih sendiri dari bentuk database di .env (DB_DATABASE):
 #
-# Deploy rutin (server multi-perusahaan):
-#   ./deploy.sh            tampilkan perubahan, minta konfirmasi, lalu deploy
+#   Database kosong          → INSTALASI BARU: struktur database disiapkan, lalu website
+#                              memandu pembuatan admin & perusahaan pertama (tautan dicetak).
+#   Database versi lama      → KONVERSI: perusahaan yang sudah berjalan dijadikan perusahaan
+#   (satu perusahaan)          utama (/c/utama); identitasnya dilengkapi admin di website.
+#   Database multi-perusahaan → PEMBARUAN rutin.
+#
+#   ./deploy.sh            tampilkan rencana, minta konfirmasi, lalu jalankan
 #   ./deploy.sh --yes      tanpa konfirmasi
-#   ./deploy.sh --force    ulangi semua langkah walau tidak ada commit baru (mis. build ulang)
+#   ./deploy.sh --force    pembaruan rutin walau tidak ada commit baru (mis. build ulang)
 #
-# Cutover sekali jalan (server yang masih satu-database, sebelum multi-perusahaan).
-# Jalankan versi BARU skrip ini dari folder aplikasi, JANGAN ./deploy.sh versi lama:
-#   git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra
-#     --nama="PT ..."             nama perusahaan (bawaan: nama di profil perusahaan DB lama)
-#     --organisasi="..."          nama grup (bawaan: sama dengan nama perusahaan)
-#     --db-pusat=NAMA             database pusat baru (bawaan: <slug>_central)
-#     --abaikan-nomor-tak-cocok   lanjut walau masih ada nomor invoice lama di luar pola
-#   Berhenti atau dijeda di tengah? Perintah yang sama melanjutkan dari langkah terakhir.
-#   Data database lama tidak pernah diubah (hanya sinyal restart antrean di tabel cache-nya).
-#
+# Server yang masih memakai deploy.sh lama: jalankan versi baru ini satu kali dari folder
+# aplikasi:  git fetch origin && bash <(git show origin/main:deploy.sh)
+# Konversi yang berhenti di tengah dilanjutkan dengan perintah yang sama.
 # Detail & jalan mundur: docs/guides/DEPLOY.md. Log tiap perintah: storage/logs/deploy-<waktu>.log
 #
 # Seluruh isi dibungkus main() dan dipanggil di baris terakhir: bash mem-parse fungsi utuh
@@ -26,18 +25,11 @@ main() {
     set -Eeuo pipefail
 
     local REMOTE=origin BRANCH=main
-    local ASSUME_YES=0 FORCE=0 CUTOVER=0 ACCEPT_MISMATCH=0 arg
-    local SLUG="" ABBR="" COMPANY_NAME="" ORG_NAME="" CENTRAL_DB="" LEGACY_DB="" SECRET=""
+    local ASSUME_YES=0 FORCE=0 arg
     for arg in "$@"; do
         case "$arg" in
             -y | --yes) ASSUME_YES=1 ;;
             -f | --force) FORCE=1 ;;
-            --cutover) CUTOVER=1 ;;
-            --slug=*) SLUG=${arg#*=} ;;
-            --nama=*) COMPANY_NAME=${arg#*=} ;;
-            --organisasi=*) ORG_NAME=${arg#*=} ;;
-            --db-pusat=*) CENTRAL_DB=${arg#*=} ;;
-            --abaikan-nomor-tak-cocok) ACCEPT_MISMATCH=1 ;;
             -h | --help)
                 sed -n '3,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
                 return 0
@@ -58,20 +50,19 @@ main() {
         echo "Jalankan dari folder aplikasi (berisi artisan dan .env)."
         return 1
     fi
-    if ((CUTOVER)) && [[ -z "$SLUG" ]]; then
-        echo "--cutover butuh --slug=<slug> (lihat --help)."
-        return 1
-    fi
 
     local TS LOG
     TS=$(date +%Y%m%d-%H%M%S)
     mkdir -p storage/logs
     LOG="storage/logs/deploy-$TS.log"
 
-    local TOTAL_STEPS=0 STEP=0 DEPLOY_START=$SECONDS CURRENT_PID=""
+    local MODE="" TOTAL_STEPS=0 STEP=0 DEPLOY_START=$SECONDS CURRENT_PID=""
     local IN_MAINTENANCE=0 PULLED=0 MIGRATE_STARTED=0
     local PREV_COMMIT="" TARGET_COMMIT="" BACKUP_DIR="" STATE_DIR=""
-    local -a PARAMS=(SLUG ABBR COMPANY_NAME ORG_NAME CENTRAL_DB LEGACY_DB PREV_COMMIT TARGET_COMMIT SECRET)
+    # Nilai konversi. Kode URL perusahaan utama selalu "utama"; nama database diturunkan dari
+    # database lama supaya unik walau server MySQL dipakai bersama instalasi lain.
+    local SLUG="utama" ABBR="" COMPANY_NAME="" CENTRAL_DB="" LEGACY_DB="" TENANT_PREFIX="" TENANT_DB=""
+    local -a PARAMS=(SLUG ABBR COMPANY_NAME CENTRAL_DB LEGACY_DB TENANT_PREFIX TENANT_DB PREV_COMMIT TARGET_COMMIT)
     local -a MYSQL_ARGS=()
 
     # ── Tampilan ────────────────────────────────────────────────────────────────
@@ -114,7 +105,7 @@ main() {
             say "${DIM}──────────────────────────────────────────────────────${RESET}"
         fi
         say ""
-        if ((CUTOVER)); then cutover_recovery; else routine_recovery; fi
+        if [[ "$MODE" == konversi ]]; then conversion_recovery; else routine_recovery; fi
         say "Log lengkap: ${LOG}"
         exit 1
     }
@@ -140,11 +131,11 @@ main() {
         fi
     }
 
-    cutover_recovery() {
-        local resume="./deploy.sh --cutover --slug=${SLUG}"
-        if ((!PULLED)); then resume="git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=${SLUG}"; fi
+    conversion_recovery() {
+        local resume="./deploy.sh"
+        if ((!PULLED)); then resume="git fetch origin && bash <(git show origin/main:deploy.sh)"; fi
         if ((IN_MAINTENANCE)); then
-            say "${YELLOW}Situs MASIH maintenance.${RESET} Data database lama (${LEGACY_DB:-?}) TIDAK diubah oleh cutover."
+            say "${YELLOW}Situs MASIH maintenance.${RESET} Data database lama (${LEGACY_DB:-?}) TIDAK diubah oleh konversi."
         else
             say "Situs tetap online; database lama (${LEGACY_DB:-?}) tidak disentuh."
         fi
@@ -160,7 +151,7 @@ main() {
             say "     php artisan optimize:clear && php artisan optimize && php artisan up"
         fi
         if done_has pulih; then
-            say "  Database ${CENTRAL_DB} dan tenant_${SLUG} hanya salinan baru. Mengulang dari NOL = hapus keduanya"
+            say "  Database ${CENTRAL_DB} dan ${TENANT_DB} hanya salinan baru. Mengulang dari NOL = hapus keduanya"
             say "  dan folder ${STATE_DIR} secara manual, setelah yakin."
         fi
     }
@@ -218,7 +209,7 @@ main() {
         say "${DIM}[${STEP}/${TOTAL_STEPS}] $1 · sudah selesai sebelumnya${RESET}"
     }
 
-    # Langkah cutover yang dicatat: dilewati bila sudah selesai pada percobaan sebelumnya.
+    # Langkah konversi yang dicatat: dilewati bila sudah selesai pada percobaan sebelumnya.
     done_has() { [[ -n "$STATE_DIR" && -f "$STATE_DIR/langkah" ]] && grep -qx "$1" "$STATE_DIR/langkah"; }
     kstep() {
         local key=$1 label=$2
@@ -238,6 +229,18 @@ main() {
     load_params() {
         local k
         for k in "${PARAMS[@]}"; do printf -v "$k" '%s' "$(<"$STATE_DIR/param-$k")"; done
+    }
+
+    confirm() {
+        if ((ASSUME_YES)); then return 0; fi
+        if [[ ! -t 0 ]]; then fail "Tidak ada terminal untuk konfirmasi; jalankan dengan --yes."; fi
+        local answer
+        say ""
+        read -r -p "$1 [y/N] " answer
+        if [[ ! "$answer" =~ ^[yY]$ ]]; then
+            say "Dibatalkan, tidak ada yang diubah."
+            exit 0
+        fi
     }
 
     # ── .env & MySQL ────────────────────────────────────────────────────────────
@@ -274,17 +277,23 @@ main() {
     # Nama database disisipkan ke kueri. Panggil di konteks utama, bukan di dalam $(...):
     # fail di subshell hanya menghentikan subshell itu.
     check_db_name() {
-        if [[ ! "$1" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then fail "Nama database \"$1\" hanya boleh huruf, angka, _ dan -."; fi
+        if [[ ! "$1" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then fail "Nama database \"$1\" hanya boleh huruf, angka, _ dan - (maks. 64)."; fi
     }
 
-    # Bentuk database: pusat (multi-perusahaan), lama (satu-database), atau kosong.
+    # Bentuk database: lama (satu-database), pusat (multi-perusahaan berjalan), kosong (belum
+    # terpasang, termasuk instalasi yang terputus atau walkthrough-nya belum dituntaskan),
+    # atau asing (berisi tabel lain: ditolak, jangan sampai migrate menulis ke database lain).
     db_arch() {
-        if table_exists "$1" companies; then
-            echo pusat
-        elif table_exists "$1" invoices; then
+        local users=0
+        if table_exists "$1" users; then users=$(sql "SELECT COUNT(*) FROM users" "$1"); fi
+        if table_exists "$1" invoices; then
             echo lama
-        else
+        elif ((users > 0)); then
+            if table_exists "$1" companies; then echo pusat; else echo asing; fi
+        elif [[ "$(db_table_count "$1")" == 0 ]] || table_exists "$1" migrations; then
             echo kosong
+        else
+            echo asing
         fi
     }
 
@@ -318,10 +327,6 @@ main() {
                 missing=1
                 ;;
         esac
-        if ! sql "SELECT 1" >/dev/null; then
-            echo "Tidak bisa terhubung ke MySQL dengan kredensial DB_* di .env."
-            missing=1
-        fi
         return "$missing"
     }
 
@@ -376,28 +381,16 @@ main() {
         npm run build
     }
 
-    # ── Deploy rutin ────────────────────────────────────────────────────────────
+    # ── Pembaruan rutin (server multi-perusahaan) ──────────────────────────────
     run_routine() {
         TOTAL_STEPS=14
         step "Memeriksa prasyarat server" check_prerequisites
         step "Mengambil info perubahan dari GitHub (${REMOTE}/${BRANCH})" git fetch --prune "$REMOTE" "$BRANCH"
         guard_worktree
 
-        local d database
-        for d in storage/app/cutover/*/; do
-            if [[ -f "${d}langkah" && ! -f "${d}selesai" ]]; then
-                fail "Cutover $(basename "$d") belum selesai. Lanjutkan: ./deploy.sh --cutover --slug=$(basename "$d")"
-            fi
-        done
-        database=$(env_get DB_DATABASE)
-        check_db_name "$database"
-        case "$(db_arch "$database")" in
-            lama) fail "Server ini masih satu-database (sebelum multi-perusahaan). Rilis ini butuh cutover sekali jalan, baca docs/guides/DEPLOY.md: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug>" ;;
-            kosong) fail "Database ${database} kosong. Instalasi baru: ikuti Jalur A di docs/multi-tenancy-runbook-eksekusi.md." ;;
-        esac
-
         resolve_commits
-        local incoming
+        local incoming database
+        database=$(env_get DB_DATABASE)
         incoming=$(git rev-list --count "${PREV_COMMIT}..${TARGET_COMMIT}")
         if ((incoming == 0 && !FORCE)); then
             say ""
@@ -414,17 +407,7 @@ main() {
             canary=$(sql "SELECT id FROM companies WHERE status = 'active' ORDER BY created_at, id LIMIT 1" "$database")
         fi
         say "  Canary migrasi: ${canary:-(belum ada perusahaan)}"
-
-        if ((!ASSUME_YES)); then
-            if [[ ! -t 0 ]]; then fail "Tidak ada terminal untuk konfirmasi; jalankan dengan --yes."; fi
-            local answer
-            say ""
-            read -r -p "Lanjutkan deploy? Situs akan maintenance selama proses. [y/N] " answer
-            if [[ ! "$answer" =~ ^[yY]$ ]]; then
-                say "Dibatalkan, tidak ada yang diubah."
-                return 0
-            fi
-        fi
+        confirm "Lanjutkan deploy? Situs akan maintenance selama proses."
 
         BACKUP_DIR="storage/app/backups/deploy-${TS}"
         step "Backup database pusat + semua perusahaan" php artisan central:backup --dir="$BACKUP_DIR"
@@ -454,7 +437,88 @@ main() {
         php artisan central:tenants-status 2>&1 | tee -a "$LOG" | sed 's/^/  /' || true
     }
 
-    # ── Cutover satu-database → multi-perusahaan (sekali jalan) ─────────────────
+    # ── Instalasi baru (database kosong) ───────────────────────────────────────
+    prepare_install_env() {
+        if [[ -z "$(env_get APP_KEY)" ]]; then php artisan key:generate --force; fi
+        # Awalan database perusahaan unik per instalasi (server MySQL bisa dipakai bersama).
+        if [[ -z "$(env_get TENANCY_DB_PREFIX)" ]]; then env_set TENANCY_DB_PREFIX "${TENANT_PREFIX}"; fi
+        php artisan config:clear
+        echo "TENANCY_DB_PREFIX=$(env_get TENANCY_DB_PREFIX)"
+    }
+
+    setup_fresh_central() {
+        php artisan migrate --force
+        php artisan db:seed --class=MasterPermissionSeeder --force
+        php artisan central:sync-admin-permissions
+        php artisan permission:cache-reset
+        php artisan storage:link
+    }
+
+    # Tautan sekali pakai untuk walkthrough di website; berkasnya dihapus begitu admin pertama dibuat.
+    # Instalasi yang dilanjutkan memakai tautan yang sama.
+    arm_setup_wizard() {
+        if [[ ! -s storage/app/setup-token ]]; then php -r 'echo bin2hex(random_bytes(16));' >storage/app/setup-token; fi
+        chmod 600 storage/app/setup-token
+        echo "tautan pemasangan disiapkan"
+    }
+
+    # Tiap perusahaan = satu database baru berawalan TENANT_PREFIX. User MySQL buatan panel hosting
+    # (mis. CloudPanel) biasanya hanya berhak atas satu database: walkthrough lalu gagal di akhir.
+    # Database uji bernama acak; CREATE tanpa IF NOT EXISTS, jadi yang dihapus pasti buatan sendiri.
+    check_create_privilege() {
+        local probe="${TENANT_PREFIX}cek$$" user
+        if sql "CREATE DATABASE \`${probe}\`" >/dev/null 2>&1; then
+            sql "DROP DATABASE \`${probe}\`"
+            return 0
+        fi
+        user=$(env_get DB_USERNAME)
+        say ""
+        say "${RED}User MySQL ${user} tidak boleh membuat database ${TENANT_PREFIX}…${RESET} (satu per perusahaan)."
+        say "  Jalankan sekali sebagai root MySQL (host disesuaikan dengan user itu), lalu ulangi ./deploy.sh:"
+        say "  GRANT ALL PRIVILEGES ON \`${1}\_%\`.* TO '${user}'@'localhost';"
+        fail "Hak membuat database perusahaan belum ada."
+    }
+
+    run_install() {
+        TOTAL_STEPS=11
+        local database
+        database=$(env_get DB_DATABASE)
+        TENANT_PREFIX="${database}_tenant_"
+        step "Memeriksa prasyarat server" check_prerequisites
+        step "Mengambil info perubahan dari GitHub (${REMOTE}/${BRANCH})" git fetch --prune "$REMOTE" "$BRANCH"
+        guard_worktree
+        resolve_commits
+        check_create_privilege "$database"
+
+        say ""
+        say "${BOLD}Instalasi baru${RESET}: database ${database} belum terpasang."
+        say "  Sesudah ini website memandu pembuatan akun admin dan perusahaan pertama."
+        confirm "Siapkan instalasi baru?"
+
+        step "Menarik kode ${TARGET_COMMIT:0:7}" pull_code
+        PULLED=1
+        step "Memasang paket PHP sesuai composer.lock" composer install --no-dev --optimize-autoloader --no-interaction
+        step "Memasang paket JS sesuai package-lock.json" npm ci --no-audit --no-fund
+        step "Membangun aset frontend (npm run build)" build_assets
+        step "Menyiapkan .env (kunci aplikasi, awalan database perusahaan)" prepare_install_env
+        step "Menyiapkan database pusat: struktur, peran & izin" setup_fresh_central
+        step "Menyiapkan tautan pemasangan di website" arm_setup_wizard
+        step "Membuat cache Laravel (optimize)" refresh_caches
+        step "Me-restart worker antrean" php artisan queue:restart
+
+        trap - ERR INT TERM
+        local url
+        url=$(env_get APP_URL)
+        say ""
+        say "${GREEN}${BOLD}INSTALASI DASAR SELESAI${RESET} dalam $(fmt_dur $((SECONDS - DEPLOY_START)))"
+        say ""
+        say "${BOLD}Lanjutkan di website:${RESET} ${url}/setup/$(<storage/app/setup-token)"
+        say "  Tautan sekali pakai: membuat akun admin dan perusahaan pertama, lalu memandu"
+        say "  pengisian profil perusahaan. Jangan bagikan tautan ini."
+        say "  Log: ${LOG}"
+    }
+
+    # ── Konversi: server lama satu-database → perusahaan utama ─────────────────
     redated_migrations() {
         # Migration tenant yang tertunda tetapi namanya (tanpa tanggal) sudah tercatat di DB lama:
         # akan dijalankan ulang dan adopsi mati di "Duplicate column" (runbook §G.2.7).
@@ -467,40 +531,31 @@ main() {
             done
     }
 
-    preflight_cutover() {
+    preflight_conversion() {
         LEGACY_DB=$(env_get DB_DATABASE)
         check_db_name "$LEGACY_DB"
-        case "$(db_arch "$LEGACY_DB")" in
-            pusat) fail "Database ${LEGACY_DB} sudah database pusat multi-perusahaan. Deploy biasa: ./deploy.sh" ;;
-            kosong) fail "Database ${LEGACY_DB} kosong, tidak ada data untuk dicutover. Instalasi baru: Jalur A di docs/multi-tenancy-runbook-eksekusi.md." ;;
-        esac
         resolve_commits
         if ! git cat-file -e "${TARGET_COMMIT}:database/migrations/tenant" 2>/dev/null; then
-            fail "${REMOTE}/${BRANCH} belum berisi kode multi-perusahaan; tidak ada yang perlu dicutover."
+            fail "${REMOTE}/${BRANCH} belum berisi kode multi-perusahaan; tidak ada yang perlu dikonversi."
         fi
 
-        if [[ ! "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ || ${#SLUG} -lt 3 || ${#SLUG} -gt 40 ]]; then
-            fail "--slug: 3-40 huruf kecil/angka/strip, mis. kisantra. PERMANEN: jadi alamat /c/<slug>, nama database, dan folder berkas."
-        fi
+        CENTRAL_DB="${LEGACY_DB}_central"
+        TENANT_PREFIX="${LEGACY_DB}_tenant_"
+        TENANT_DB="${TENANT_PREFIX}${SLUG}"
+        check_db_name "$CENTRAL_DB"
+        check_db_name "$TENANT_DB"
+
+        COMPANY_NAME=$(sql "SELECT name FROM company_profiles ORDER BY id LIMIT 1" "$LEGACY_DB" 2>/dev/null || true)
+        COMPANY_NAME=${COMPANY_NAME:-Perusahaan Utama}
         # Singkatan diisi admin di website (Profil Perusahaan, wajib sebelum aplikasi bisa dipakai);
         # di sini hanya dipakai bila profil lama sudah menyimpannya.
         ABBR=$(sql "SELECT UPPER(COALESCE(abbreviation, '')) FROM company_profiles ORDER BY id LIMIT 1" "$LEGACY_DB" 2>/dev/null || true)
         if [[ ! "$ABBR" =~ ^[A-Z]{2,10}$ ]]; then ABBR=""; fi
-        CENTRAL_DB=${CENTRAL_DB:-${SLUG//-/_}_central}
-        check_db_name "$CENTRAL_DB"
-        if [[ "$CENTRAL_DB" == "$LEGACY_DB" || "$CENTRAL_DB" == "tenant_${SLUG}" ]]; then
-            fail "--db-pusat harus database baru, bukan ${CENTRAL_DB}."
-        fi
-        if [[ -z "$COMPANY_NAME" ]]; then
-            COMPANY_NAME=$(sql "SELECT name FROM company_profiles ORDER BY id LIMIT 1" "$LEGACY_DB" 2>/dev/null || true)
-        fi
-        if [[ -z "$COMPANY_NAME" ]]; then fail "Nama perusahaan tidak ditemukan di DB lama; isi --nama=\"PT ...\"."; fi
-        ORG_NAME=${ORG_NAME:-$COMPANY_NAME}
 
         local name
-        for name in "$CENTRAL_DB" "tenant_${SLUG}"; do
+        for name in "$CENTRAL_DB" "$TENANT_DB"; do
             if db_exists "$name" && (($(db_table_count "$name") > 0)); then
-                fail "Database ${name} sudah ada dan berisi tabel. Cutover hanya menulis ke database baru atau kosong."
+                fail "Database ${name} sudah ada dan berisi tabel. Konversi hanya menulis ke database baru atau kosong."
             fi
         done
 
@@ -521,56 +576,38 @@ main() {
         # Uji baseline sekarang juga: skema yang tidak cocok ketahuan sebelum situs dimatikan.
         git show "${TARGET_COMMIT}:docs/migrasi/verifikasi-baseline.sql" | my --batch "$LEGACY_DB" >/dev/null
 
-        local users invoices files nullseq jobs direct
+        local users invoices files jobs direct
         users=$(sql "SELECT COUNT(*) FROM users" "$LEGACY_DB")
         invoices=$(sql "SELECT COUNT(*) FROM invoices" "$LEGACY_DB")
         files=$(count_files storage/app/public)
-        nullseq=$(sql "SELECT COUNT(*) FROM invoices WHERE invoice_number IS NOT NULL AND invoice_sequence IS NULL" "$LEGACY_DB" 2>/dev/null || echo "?")
         jobs=$(sql "SELECT COUNT(*) FROM jobs" "$LEGACY_DB" 2>/dev/null || echo 0)
         direct=$(sql "SELECT COUNT(*) FROM model_has_permissions" "$LEGACY_DB" 2>/dev/null || echo 0)
 
         say ""
-        say "${BOLD}Rencana cutover${RESET}"
-        say "  Database lama   : ${LEGACY_DB} (hanya dibaca, tidak diubah)"
+        say "${BOLD}Server ini masih versi lama (satu database). Rencana konversi:${RESET}"
+        say "  Perusahaan      : ${COMPANY_NAME} → perusahaan utama, alamat /c/${SLUG}"
+        say "  Database lama   : ${LEGACY_DB} (datanya hanya dibaca, tidak diubah)"
         say "  Database pusat  : ${CENTRAL_DB} (baru: user, role, perusahaan)"
-        say "  Database tenant : tenant_${SLUG} (salinan data bisnis DB lama)"
-        say "  Perusahaan      : ${COMPANY_NAME} · alamat /c/${SLUG}"
-        say "  Singkatan       : ${ABBR:-belum ada; admin wajib mengisinya di Profil Perusahaan saat login pertama}"
-        say "  Organization    : ${ORG_NAME}"
+        say "  Database usaha  : ${TENANT_DB} (salinan data bisnis DB lama)"
         say "  Isi DB lama     : ${users} user, ${invoices} invoice, ${files} berkas lampiran"
         say "  Kode            : ${PREV_COMMIT:0:7} → ${TARGET_COMMIT:0:7} ($(git rev-list --count "${PREV_COMMIT}..${TARGET_COMMIT}") commit)"
-        if [[ "$nullseq" != 0 ]]; then
-            say "${YELLOW}  • ${nullseq} invoice lama belum punya urutan nomor.${RESET} Setelah adopsi, nomornya dicocokkan dengan pola di"
-            say "    Pengaturan › Penomoran invoice. Yang tidak cocok MENJEDA cutover (situs tetap maintenance) sampai"
-            say "    pola disamakan. Paling cepat: samakan polanya sekarang di aplikasi lama, bila halaman itu sudah ada."
-        fi
+        say "  Sesudahnya di website: admin melengkapi profil (singkatan dll.) dan meninjau nomor invoice lama."
         if ((jobs > 0)); then say "${YELLOW}  • ${jobs} job antrean di DB lama belum diproses dan tidak ikut pindah.${RESET}"; fi
         if ((direct > 0)); then say "${YELLOW}  • ${direct} izin langsung per-user tidak ikut pindah${RESET} (role & izin role ikut)."; fi
         say "  Downtime: dump + restore + composer/npm + build. Siapkan jendela 1 jam."
-
-        if ((!ASSUME_YES)); then
-            if [[ ! -t 0 ]]; then fail "Tidak ada terminal untuk konfirmasi; jalankan dengan --yes."; fi
-            local answer
-            say ""
-            read -r -p "Ketik slug perusahaan (${SLUG}) untuk memulai cutover: " answer
-            if [[ "$answer" != "$SLUG" ]]; then
-                say "Dibatalkan, tidak ada yang diubah."
-                exit 0
-            fi
-        fi
-        SECRET=$(php -r 'echo bin2hex(random_bytes(16));')
+        confirm "Konversi sekarang? Situs akan maintenance selama proses."
     }
 
     create_databases() {
         local db
-        for db in "$CENTRAL_DB" "tenant_${SLUG}"; do
+        for db in "$CENTRAL_DB" "$TENANT_DB"; do
             if db_exists "$db"; then
                 echo "sudah ada (kosong): $db"
             elif sql "CREATE DATABASE \`${db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"; then
                 echo "dibuat: $db"
             else
                 echo "User MySQL di .env tidak boleh membuat database ${db}."
-                echo "Buat ${CENTRAL_DB} dan tenant_${SLUG} (utf8mb4) lewat panel/root, beri user ini hak penuh, lalu ulangi."
+                echo "Beri user ini hak penuh atas \`${LEGACY_DB}\\_%\` (lihat docs/guides/DEPLOY.md), lalu ulangi."
                 return 1
             fi
         done
@@ -596,22 +633,23 @@ main() {
 
     restore_tenant() {
         local tables
-        tables=$(db_table_count "tenant_${SLUG}")
+        tables=$(db_table_count "$TENANT_DB")
         if ((tables > 0)); then
-            echo "tenant_${SLUG} sudah berisi ${tables} tabel (restore sebelumnya terputus?); tidak ditimpa."
-            echo "DB lama tetap utuh. Hapus tenant_${SLUG} secara manual, lalu lanjutkan."
+            echo "${TENANT_DB} sudah berisi ${tables} tabel (restore sebelumnya terputus?); tidak ditimpa."
+            echo "DB lama tetap utuh. Hapus ${TENANT_DB} secara manual, lalu lanjutkan."
             return 1
         fi
-        gzip -dc "$STATE_DIR/freeze.sql.gz" | my "tenant_${SLUG}"
-        same_count invoices "$LEGACY_DB" "tenant_${SLUG}"
-        same_count bank_transactions "$LEGACY_DB" "tenant_${SLUG}"
+        gzip -dc "$STATE_DIR/freeze.sql.gz" | my "$TENANT_DB"
+        same_count invoices "$LEGACY_DB" "$TENANT_DB"
+        same_count bank_transactions "$LEGACY_DB" "$TENANT_DB"
     }
 
     switch_env() {
         env_set DB_DATABASE "$CENTRAL_DB"
         env_set LEGACY_DB_DATABASE "$LEGACY_DB"
+        env_set TENANCY_DB_PREFIX "$TENANT_PREFIX"
         php artisan config:clear
-        echo "DB_DATABASE=${CENTRAL_DB}  LEGACY_DB_DATABASE=${LEGACY_DB}"
+        echo "DB_DATABASE=${CENTRAL_DB}  LEGACY_DB_DATABASE=${LEGACY_DB}  TENANCY_DB_PREFIX=${TENANT_PREFIX}"
     }
 
     # Role & izin mengikuti DB lama (termasuk yang diubah lewat halaman Izin & Peran);
@@ -655,11 +693,11 @@ main() {
         php artisan permission:cache-reset
     }
 
-    org_slug() { php -r 'require "vendor/autoload.php"; echo Illuminate\Support\Str::slug($argv[1]);' -- "$ORG_NAME"; }
+    org_slug() { php -r 'require "vendor/autoload.php"; echo Illuminate\Support\Str::slug($argv[1]);' -- "$COMPANY_NAME"; }
 
     tenant_pending() {
         LC_ALL=C comm -23 <(ls database/migrations/tenant | sed -n 's/\.php$//p' | LC_ALL=C sort) \
-            <(sql "SELECT migration FROM migrations" "tenant_${SLUG}" | LC_ALL=C sort)
+            <(sql "SELECT migration FROM migrations" "$TENANT_DB" | LC_ALL=C sort)
     }
 
     adopt_database() {
@@ -669,7 +707,7 @@ main() {
         local pending
         pending=$(tenant_pending)
         if [[ -n "$pending" ]]; then
-            echo "Migration tenant belum tercatat di tenant_${SLUG}:"
+            echo "Migration tenant belum tercatat di ${TENANT_DB}:"
             echo "$pending"
             return 1
         fi
@@ -711,38 +749,15 @@ main() {
         ((baru >= lama))
     }
 
-    invoice_dry_run() {
-        php artisan tenants:run invoice:backfill-sequence --tenants="$SLUG" --option="dry-run=1" | tee "$STATE_DIR/invoice-kering.txt"
-    }
-
-    pause_for_invoice_pattern() {
-        trap - ERR INT TERM
-        local url
-        url=$(env_get APP_URL)
-        say ""
-        say "${YELLOW}${BOLD}CUTOVER DIJEDA${RESET}: situs tetap maintenance, belum ada invoice baru yang bisa terbit."
-        sed -n '/Pola aktif/,$p' "$STATE_DIR/invoice-kering.txt" | sed 's/^/  /' | tee -a "$LOG"
-        say ""
-        say "Nomor di atas tidak cocok dengan pola penomoran aktif. Tanpa urutannya, invoice berikutnya"
-        say "bisa MENGULANG nomor yang sudah terkirim ke klien."
-        say "  1. Buka ${url}/${SECRET} (melewati maintenance), login dengan akun admin lama, lalu buka"
-        say "     ${url}/c/${SLUG}/settings/invoice-numbering dan samakan pola dengan riwayat nomor Anda."
-        say "     Bila diminta lebih dulu, lengkapi Profil Perusahaan (termasuk singkatan)."
-        say "  2. Lanjutkan: ./deploy.sh --cutover --slug=${SLUG}"
-        say "     Sisa nomor yang memang diketik manual di luar pola: tambahkan --abaikan-nomor-tak-cocok"
-        say "Log: ${LOG}"
-        exit 2
-    }
-
     verify_baseline() {
-        baseline "tenant_${SLUG}" "$STATE_DIR/sesudah.txt"
-        # Yang boleh berbeda hanya dua blok terakhir: urutan nomor invoice (baru diisi) dan pola penomoran.
+        baseline "$TENANT_DB" "$STATE_DIR/sesudah.txt"
+        # Yang boleh berbeda hanya dua blok terakhir: urutan nomor invoice dan pola penomoran.
         if ! diff <(sed '/== NOMOR & URUTAN INVOICE ==/,$d' "$STATE_DIR/sebelum.txt") \
             <(sed '/== NOMOR & URUTAN INVOICE ==/,$d' "$STATE_DIR/sesudah.txt"); then
-            echo "Jumlah baris, total nilai, atau saldo BERBEDA dari sebelum cutover (lihat diff di atas)."
+            echo "Jumlah baris, total nilai, atau saldo BERBEDA dari sebelum konversi (lihat diff di atas)."
             return 1
         fi
-        echo "Jumlah baris, total nilai, dan saldo per rekening identik dengan sebelum cutover."
+        echo "Jumlah baris, total nilai, dan saldo per rekening identik dengan sebelum konversi."
     }
 
     finalize_caches() {
@@ -755,26 +770,21 @@ main() {
         php artisan permission:cache-reset
     }
 
-    run_cutover() {
-        TOTAL_STEPS=23
+    run_conversion() {
+        TOTAL_STEPS=21
         STATE_DIR="storage/app/cutover/${SLUG}"
         step "Memeriksa prasyarat server" check_prerequisites
         step "Mengambil info perubahan dari GitHub (${REMOTE}/${BRANCH})" git fetch --prune "$REMOTE" "$BRANCH"
         guard_worktree
 
-        if [[ -f "$STATE_DIR/selesai" ]]; then
-            say ""
-            say "${GREEN}Cutover ${SLUG} sudah selesai${RESET} ($(<"$STATE_DIR/selesai")). Deploy berikutnya cukup: ./deploy.sh"
-            return 0
-        fi
         local resumed=""
         if [[ -f "$STATE_DIR/langkah" ]]; then
             load_params
             resumed=" (percobaan ini)"
             say ""
-            say "${BOLD}Melanjutkan cutover ${SLUG}${RESET}. Sudah selesai: $(paste -sd' ' "$STATE_DIR/langkah")"
+            say "${BOLD}Melanjutkan konversi${RESET}. Sudah selesai: $(paste -sd' ' "$STATE_DIR/langkah")"
         else
-            preflight_cutover
+            preflight_conversion
             mkdir -p "$STATE_DIR"
             chmod 700 "$STATE_DIR"
             save_params
@@ -782,12 +792,12 @@ main() {
         fi
         if [[ "$(git rev-parse HEAD)" == "$TARGET_COMMIT" ]]; then PULLED=1; fi
 
-        kstep db "Menyiapkan database ${CENTRAL_DB} dan tenant_${SLUG}" create_databases
-        step "Mengaktifkan mode maintenance" php artisan down --retry=60 --secret="$SECRET"
+        kstep db "Menyiapkan database ${CENTRAL_DB} dan ${TENANT_DB}" create_databases
+        step "Mengaktifkan mode maintenance" php artisan down --retry=60
         IN_MAINTENANCE=1
         kstep beku "Membekukan data lama: dump ${LEGACY_DB}, arsip berkas, salinan .env" freeze
-        kstep baseline "Mencatat angka sebelum cutover (baris, nilai, saldo)" baseline "$LEGACY_DB" "$STATE_DIR/sebelum.txt"
-        kstep pulih "Memulihkan dump sebagai tenant_${SLUG}" restore_tenant
+        kstep baseline "Mencatat angka sebelum konversi (baris, nilai, saldo)" baseline "$LEGACY_DB" "$STATE_DIR/sebelum.txt"
+        kstep pulih "Memulihkan dump sebagai ${TENANT_DB}" restore_tenant
         kstep kode "Menarik kode ${TARGET_COMMIT:0:7}" pull_code
         PULLED=1
         kstep composer "Memasang paket PHP sesuai composer.lock" composer install --no-dev --optimize-autoloader --no-interaction
@@ -795,20 +805,11 @@ main() {
         kstep build "Membangun aset frontend (npm run build)" build_assets
         kstep env "Mengarahkan .env ke database pusat ${CENTRAL_DB}" switch_env
         kstep pusat "Menyiapkan database pusat: migrate, permission, role & izin lama" setup_central
-        kstep organisasi "Membuat organization ${ORG_NAME}" php artisan central:bootstrap --tanpa-admin --organization="$ORG_NAME"
-        kstep adopsi "Mendaftarkan tenant_${SLUG} sebagai perusahaan ${SLUG}" adopt_database
+        kstep organisasi "Membuat grup ${COMPANY_NAME}" php artisan central:bootstrap --tanpa-admin --organization="$COMPANY_NAME"
+        kstep adopsi "Mendaftarkan ${TENANT_DB} sebagai perusahaan utama" adopt_database
         kstep user "Mengimpor user (ID lama dipertahankan)" import_users
         kstep feedback "Menyalin riwayat feedback" copy_feedbacks
         kstep berkas "Menyalin berkas lampiran ke folder perusahaan" adopt_files
-        if done_has invoice; then
-            skip_step "Memeriksa urutan nomor invoice lama"
-        else
-            step "Memeriksa urutan nomor invoice lama (kering)" invoice_dry_run
-            if grep -q 'tidak cocok dengan pola aktif' "$STATE_DIR/invoice-kering.txt" && ((!ACCEPT_MISMATCH)); then
-                pause_for_invoice_pattern
-            fi
-        fi
-        kstep invoice "Mengisi urutan nomor invoice lama" php artisan tenants:run invoice:backfill-sequence --tenants="$SLUG"
         step "Membandingkan angka sebelum & sesudah" verify_baseline
         step "Membuat cache dan me-restart worker antrean" finalize_caches
         step "Membuka kembali situs" php artisan up
@@ -819,12 +820,12 @@ main() {
         local url
         url=$(env_get APP_URL)
         say ""
-        say "${GREEN}${BOLD}CUTOVER SELESAI${RESET} dalam $(fmt_dur $((SECONDS - DEPLOY_START)))${resumed}"
-        say "  Perusahaan : ${COMPANY_NAME} → ${url}/c/${SLUG}"
-        say "  Database   : pusat ${CENTRAL_DB}, perusahaan tenant_${SLUG}. Data DB lama ${LEGACY_DB} tidak diubah; simpan dulu."
-        say "  Arsip      : ${STATE_DIR} (freeze.sql.gz, storage-lama.tgz, env-lama, sebelum/sesudah.txt)"
-        say "               ${YELLOW}Salin ke luar server${RESET}, lalu simpan. Berisi data & rahasia .env lama."
-        say "  Log        : ${LOG}"
+        say "${GREEN}${BOLD}KONVERSI SELESAI${RESET} dalam $(fmt_dur $((SECONDS - DEPLOY_START)))${resumed}"
+        say "  Perusahaan utama : ${COMPANY_NAME} → ${url}/c/${SLUG}"
+        say "  Database         : pusat ${CENTRAL_DB}, perusahaan ${TENANT_DB}. Data DB lama ${LEGACY_DB} tidak diubah; simpan dulu."
+        say "  Arsip            : ${STATE_DIR} (freeze.sql.gz, storage-lama.tgz, env-lama, sebelum/sesudah.txt)"
+        say "                     ${YELLOW}Salin ke luar server${RESET}, lalu simpan. Berisi data & rahasia .env lama."
+        say "  Log              : ${LOG}"
         say ""
         if php artisan central:backup >>"$LOG" 2>&1; then
             say "  Backup pertama arsitektur baru: storage/app/backups/ ✓"
@@ -833,22 +834,43 @@ main() {
         fi
         php artisan central:tenants-status 2>&1 | tee -a "$LOG" | sed 's/^/  /' || true
         say ""
-        say "${BOLD}Periksa sekarang (butuh mata manusia):${RESET}"
-        say "  1. Login sebagai admin dengan sandi lama. Bila profil perusahaan belum lengkap (mis. singkatan),"
-        say "     aplikasi langsung meminta Anda melengkapinya; sampai itu disimpan, user lain melihat"
-        say "     \"perusahaan belum disiapkan\". Lakukan segera, lalu dashboard tampil."
-        say "  2. Akun staff: halaman yang bukan haknya (mis. Arus Kas) tetap menolak (403), sama seperti versi lama."
-        say "  3. Buat draft invoice → terbitkan → nomornya MELANJUTKAN nomor terakhir → hapus draft itu."
-        say "  4. Unduh satu invoice sebagai PDF; buka satu transaksi berlampiran."
-        say "  Membuat perusahaan baru dari menu Perusahaan butuh user MySQL yang boleh CREATE DATABASE"
-        say "  (runbook §G.1). Deploy berikutnya cukup: ./deploy.sh"
+        say "${BOLD}Lanjutkan di website (segera, sebelum staff masuk):${RESET}"
+        say "  1. Login sebagai admin dengan sandi lama. Aplikasi memandu melengkapi profil perusahaan"
+        say "     (singkatan dll.), lalu meninjau nomor invoice lama di Penomoran invoice."
+        say "     Sampai itu selesai, user lain melihat \"perusahaan belum disiapkan\"."
+        say "  2. Cek: buat draft invoice → terbitkan → nomornya melanjutkan nomor terakhir → hapus draft itu."
+        say "  Pembaruan berikutnya cukup: ./deploy.sh"
     }
 
-    # ── Mulai ───────────────────────────────────────────────────────────────────
-    local mode=""
-    if ((CUTOVER)); then mode=" · cutover ${SLUG}"; fi
-    say "${BOLD}Deploy finance-management${mode}${RESET} ${DIM}· $(date '+%d %b %Y %H:%M:%S') · log: ${LOG}${RESET}"
-    if ((CUTOVER)); then run_cutover; else run_routine; fi
+    # ── Mulai: pilih mode dari bentuk database ─────────────────────────────────
+    if ! command -v mysql >/dev/null || ! sql "SELECT 1" >/dev/null; then
+        echo "Tidak bisa memeriksa database: perintah mysql tidak ada atau kredensial DB_* di .env salah."
+        return 1
+    fi
+    local database d
+    database=$(env_get DB_DATABASE)
+    check_db_name "$database"
+    for d in storage/app/cutover/*/; do
+        if [[ -f "${d}langkah" && ! -f "${d}selesai" ]]; then MODE=konversi; fi
+    done
+    if [[ -z "$MODE" ]]; then
+        case "$(db_arch "$database")" in
+            pusat) MODE=rutin ;;
+            lama) MODE=konversi ;;
+            kosong) MODE=instalasi ;;
+            *)
+                echo "Database ${database} berisi tabel yang bukan milik aplikasi ini. Periksa DB_DATABASE di .env."
+                return 1
+                ;;
+        esac
+    fi
+
+    say "${BOLD}Deploy finance-management · ${MODE}${RESET} ${DIM}· $(date '+%d %b %Y %H:%M:%S') · log: ${LOG}${RESET}"
+    case "$MODE" in
+        rutin) run_routine ;;
+        konversi) run_conversion ;;
+        instalasi) run_install ;;
+    esac
 }
 
 main "$@"; exit $?

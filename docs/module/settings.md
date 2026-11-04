@@ -25,6 +25,8 @@
 3. `PUT` divalidasi `UpdateInvoiceSettingsRequest` (`padding` ∈ 1–5, `reset` ∈ RESETS, lalu `after()` → profil perusahaan wajib ada + `formatError()`), lalu `CompanyProfile::current()->update([...])`.
 4. Berlaku untuk invoice yang **dikirim setelah disimpan**; nomor yang sudah terbit tidak berubah, urutan tetap lanjut dari `invoice_sequence` (lihat `invoices.md`).
 
+**Peninjauan nomor lama (`POST /settings/invoice-numbering/review`).** Bila `needsInvoiceReview()`, `edit()` mengirim `legacyReview` = hasil kering `InvoiceNumberService::backfillSequences(false)` dengan pola yang sedang berlaku (`fillable`, 5 `samples` nomor → urutan, maks. 20 `unmatched` + `unmatchedCount`). Halaman menampilkannya di atas form; admin menyesuaikan pola (Simpan memperbarui pratinjau) lalu klik **Isi urutan & selesai meninjau** (nonaktif selama form belum disimpan) → `review()` mengisi urutan yang cocok, menyetel `invoice_legacy_reviewed_at`, redirect ke dashboard. Nomor yang tidak cocok (ketikan manual) dibiarkan kosong. Pengganti jeda nomor invoice di terminal pada `deploy.sh` lama; `invoice:backfill-sequence` memakai method service yang sama.
+
 Tanpa baris profil perusahaan, simpan ditolak ("Lengkapi Profil Perusahaan terlebih dahulu…") — halaman ini tidak membuat profil kosong (kolom profil lain wajib diisi).
 
 ### Profil — Edit & Hapus Akun (`GET/PATCH/DELETE /settings/profile`)
@@ -77,11 +79,14 @@ Route ini digate `can:manage company profile` (admin & finance manager bawaan; s
 
 ### Profil Perusahaan Wajib Lengkap (`EnsureCompanyProfileComplete`)
 
-Middleware terakhir di grup `/c/{company}` (`routes/web.php`, `$companyMiddleware`). Selama `CompanyProfile::current()?->missingFields()` tidak kosong (atau baris profil belum ada):
+Middleware terakhir di grup `/c/{company}` (`routes/web.php`, `$companyMiddleware`). Dua langkah berurutan:
 
-1. Pemegang `manage company profile` → redirect ke `settings.company` dengan flash `warning` "Lengkapi profil perusahaan dulu sebelum melanjutkan."
-2. User lain → halaman `company-not-ready` ("{nama} belum disiapkan", tombol muat ulang / pilih perusahaan lain / keluar).
-3. Tetap terbuka: `settings.company`, `settings.company.update`, `settings.company.delete-asset`, `tenant.storage` (pratinjau berkas), dan permintaan JSON non-Inertia (`api()` halaman).
+1. **Profil lengkap.** Selama `CompanyProfile::current()?->missingFields()` tidak kosong (atau baris profil belum ada): pemegang `manage company profile` → redirect ke `settings.company` dengan flash `warning`.
+2. **Nomor invoice lama ditinjau.** Selama `CompanyProfile::needsInvoiceReview()` (kolom `invoice_legacy_reviewed_at` kosong DAN ada invoice bernomor tanpa `invoice_sequence`, khas hasil konversi server lama): pemegang `manage invoice settings` → redirect ke `settings.invoice-numbering`, yang menampilkan panel peninjauan (lihat Penomoran Invoice).
+3. User tanpa izin yang bersangkutan → halaman `company-not-ready` ("{nama} belum disiapkan", tombol muat ulang / pilih perusahaan lain / keluar).
+4. Tetap terbuka: `settings.company*`, `settings.invoice-numbering*`, `tenant.storage` (pratinjau berkas), dan permintaan JSON non-Inertia (`api()` halaman).
+
+Perusahaan baru dari provisioning ditandai sudah ditinjau (`TenantDatabaseSeeder`); migration `2026_11_04_165740` menandai perusahaan yang tidak punya invoice tanpa urutan.
 
 `missingFields()` memeriksa `name`, `abbreviation`, `address`, `email`, `phone`, `finance_manager_name`, `finance_manager_position`; kosong atau `-` dihitung belum diisi. Perusahaan baru (TenantDatabaseSeeder: nama & singkatan dari form Tambah perusahaan, sisanya `-`) dan hasil cutover tanpa singkatan karenanya wajib disetel admin sebelum dipakai. Di test, gerbang dimatikan lewat `TestCase::$wajibProfilPerusahaan = false` (config `app.require_company_profile`); `WajibProfilPerusahaanTest` mengujinya dengan gerbang aktif.
 

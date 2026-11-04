@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyProfile;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Services\InvoiceNumberService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,12 +32,13 @@ class WajibProfilPerusahaanTest extends TestCase
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         Permission::firstOrCreate(['name' => 'manage company profile']);
+        Permission::firstOrCreate(['name' => 'manage invoice settings']);
         Permission::firstOrCreate(['name' => 'view dashboard']);
     }
 
     private function admin(): User
     {
-        Role::firstOrCreate(['name' => 'admin'])->givePermissionTo(['manage company profile', 'view dashboard']);
+        Role::firstOrCreate(['name' => 'admin'])->givePermissionTo(['manage company profile', 'manage invoice settings', 'view dashboard']);
         $user = User::factory()->create();
         $user->assignRole('admin');
 
@@ -178,5 +180,71 @@ class WajibProfilPerusahaanTest extends TestCase
         CompanyProfile::create($this->isianLengkap(['name' => 'PT Kinara Sadayatra Nusantara', 'abbreviation' => null]));
 
         $this->assertSame('KSN', app(InvoiceNumberService::class)->companyInitials());
+    }
+
+    /** Profil lengkap hasil konversi: pola penomoran seperti riwayat, belum ditinjau. */
+    private function profilHasilKonversi(): CompanyProfile
+    {
+        $profil = CompanyProfile::create($this->isianLengkap());
+        $profil->forceFill([
+            'invoice_number_format' => 'INV/{NO}/{PT}/{BLN}.{THN2}',
+            'invoice_number_padding' => 2,
+            'invoice_number_reset' => 'yearly',
+            'invoice_legacy_reviewed_at' => null,
+        ])->save();
+
+        return $profil;
+    }
+
+    public function test_nomor_invoice_lama_tanpa_urutan_wajib_ditinjau_admin(): void
+    {
+        $this->profilHasilKonversi();
+        Invoice::factory()->create(['invoice_number' => 'INV/04/KSN/03.26', 'invoice_sequence' => null]);
+
+        $this->actingAs($this->admin())->get('/dashboard')
+            ->assertRedirect(route('settings.invoice-numbering', ['company' => self::TEST_COMPANY]))
+            ->assertSessionHas('warning');
+    }
+
+    public function test_peninjauan_nomor_lama_juga_menahan_user_lain(): void
+    {
+        $this->profilHasilKonversi();
+        Invoice::factory()->create(['invoice_number' => 'INV/04/KSN/03.26', 'invoice_sequence' => null]);
+
+        $this->actingAs($this->staff())->get('/dashboard')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('company-not-ready'));
+    }
+
+    public function test_halaman_penomoran_menampilkan_pratinjau_nomor_lama(): void
+    {
+        $this->profilHasilKonversi();
+        Invoice::factory()->create(['invoice_number' => 'INV/04/KSN/03.26', 'invoice_sequence' => null]);
+        Invoice::factory()->create(['invoice_number' => 'MANUAL/003', 'invoice_sequence' => null]);
+
+        $this->actingAs($this->admin())->get('/settings/invoice-numbering')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('legacyReview.fillable', 1)
+                ->where('legacyReview.unmatched', ['MANUAL/003'])
+                ->where('legacyReview.samples.0.sequence', 4));
+    }
+
+    public function test_selesai_meninjau_mengisi_urutan_dan_membuka_gerbang(): void
+    {
+        $this->profilHasilKonversi();
+        $cocok = Invoice::factory()->create(['invoice_number' => 'INV/04/KSN/03.26', 'invoice_sequence' => null]);
+        $manual = Invoice::factory()->create(['invoice_number' => 'MANUAL/003', 'invoice_sequence' => null]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post('/settings/invoice-numbering/review')
+            ->assertRedirect(route('dashboard', ['company' => self::TEST_COMPANY]));
+
+        $this->assertSame(4, $cocok->fresh()->invoice_sequence);
+        $this->assertNull($manual->fresh()->invoice_sequence, 'Nomor manual dibiarkan kosong.');
+        $this->assertNotNull(CompanyProfile::current()->invoice_legacy_reviewed_at);
+
+        $respons = $this->actingAs($admin)->get('/dashboard');
+        $this->assertNotSame(route('settings.invoice-numbering', ['company' => self::TEST_COMPANY]), $respons->headers->get('Location'));
     }
 }

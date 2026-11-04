@@ -90,26 +90,27 @@ class CentralBackup extends Command
      */
     protected function collectDatabases(string $connection, string $centralDatabase): array
     {
+        // Awalan instalasi ini saja: server MySQL bisa dipakai bersama instalasi lain.
+        $awalan = addcslashes((string) config('tenancy.database.prefix'), '\\_%');
         $schemas = collect(DB::connection($connection)
-            ->select("SELECT SCHEMA_NAME AS name FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'tenant\\_%'"))
+            ->select('SELECT SCHEMA_NAME AS name FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE ?', [$awalan.'%']))
             ->pluck('name');
 
-        $slugs = Company::query()->pluck('id');
+        // Nama database dari perusahaannya sendiri (bisa tersimpan, bisa dari awalan instalasi).
+        $expected = Company::query()->get()->mapWithKeys(
+            fn (Company $company): array => [(string) $company->getTenantKey() => $company->database()->getName()]
+        );
 
         $databases = [$centralDatabase];
         $missing = [];
 
-        foreach ($slugs as $slug) {
-            $tenantDatabase = 'tenant_'.$slug;
-
+        foreach ($expected as $slug => $tenantDatabase) {
             if ($schemas->contains($tenantDatabase)) {
                 $databases[] = $tenantDatabase;
             } else {
                 $missing[] = $slug;
             }
         }
-
-        $expected = $slugs->map(fn (string $slug): string => 'tenant_'.$slug);
         $orphans = $schemas->reject(fn (string $schema): bool => $expected->contains($schema))->values()->all();
 
         return [$databases, $missing, $orphans];

@@ -176,6 +176,12 @@ Loading skeleton                  → Skeleton
 > pencocokan URL aktif pakai `appPath()`.
 > Cara migrasi + latihannya: `docs/panduan-migrasi.md` (untuk dipelajari);
 > daftar periksa hari-H: `docs/multi-tenancy-runbook-eksekusi.md`.
+> Deploy: satu perintah `./deploy.sh` memilih mode dari bentuk database (instalasi baru →
+> walkthrough `/setup`; server lama → konversi otomatis ke perusahaan utama `/c/utama`;
+> multi-perusahaan → pembaruan rutin), lihat `docs/guides/DEPLOY.md`. Nama database
+> perusahaan = `TENANCY_DB_PREFIX` + slug (unik per instalasi); JANGAN mematok `tenant_`,
+> pakai `$company->database()->getName()`. Gerbang `EnsureCompanyProfileComplete` mewajibkan
+> profil lengkap + peninjauan nomor invoice lama sebelum perusahaan bisa dipakai.
 
 | Module | Route | Fitur / Halaman |
 |--------|-------|-----------------|

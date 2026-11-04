@@ -99,9 +99,10 @@ class CompanyController extends Controller
         ];
 
         // Bersihkan sisa provisioning gagal: database setengah jadi + baris company.
-        // Slug tervalidasi regex saat pembuatan — aman untuk identifier.
-        $database = 'tenant_'.$targetCompany->getTenantKey();
-        abort_unless(preg_match('/^[a-z0-9_-]+$/', $database) === 1, 500);
+        // Nama dari perusahaannya sendiri (awalan instalasi + slug), divalidasi sebelum
+        // diinterpolasi sebagai identifier.
+        $database = (string) $targetCompany->database()->getName();
+        abort_unless(preg_match('/^[A-Za-z0-9_-]+$/', $database) === 1, 500);
         DB::statement("DROP DATABASE IF EXISTS `{$database}`");
         Company::withoutEvents(fn () => $targetCompany->delete());
 

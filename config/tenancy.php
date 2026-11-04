@@ -59,8 +59,14 @@ return [
         /**
          * Tenant database names are created like this:
          * prefix + tenant_id + suffix.
+         *
+         * Per instalasi lewat TENANCY_DB_PREFIX: beberapa instalasi bisa berbagi satu server
+         * MySQL, dan nama database bersifat global di server itu. deploy.sh mengisinya sekali
+         * (`<db>_tenant_`) saat konversi/instalasi baru. JANGAN diubah sesudahnya: perusahaan
+         * hasil adopsi menyimpan nama database-nya sendiri, tetapi yang dibuat lewat panel
+         * sebelum versi ini menghitungnya dari awalan.
          */
-        'prefix' => 'tenant_',
+        'prefix' => env('TENANCY_DB_PREFIX', 'tenant_'),
         'suffix' => '',
 
         /**

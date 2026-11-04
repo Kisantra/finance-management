@@ -35,6 +35,7 @@ class CompanyProfile extends Model
         'bank_accounts' => 'array',
         'is_pkp' => 'boolean',
         'ppn_rate' => 'decimal:2',
+        'invoice_legacy_reviewed_at' => 'datetime',
     ];
 
     /**
@@ -108,6 +109,16 @@ class CompanyProfile extends Model
     public static function current(): ?self
     {
         return static::first();
+    }
+
+    /**
+     * Nomor invoice lama (bernomor tetapi urutannya kosong) belum ditinjau admin. Tanpa
+     * urutan, invoice berikutnya bisa mengulang nomor yang sudah terkirim ke klien.
+     */
+    public function needsInvoiceReview(): bool
+    {
+        return $this->invoice_legacy_reviewed_at === null
+            && Invoice::query()->whereNotNull('invoice_number')->whereNull('invoice_sequence')->exists();
     }
 
     /**

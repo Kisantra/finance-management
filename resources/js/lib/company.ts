@@ -60,6 +60,8 @@ const CENTRAL_PATHS = [
     '/choose-company',
     '/panduan',
     '/language',
+    // Walkthrough pemasangan baru (sebelum ada perusahaan).
+    '/setup',
     // CATATAN: '/storage' sengaja TIDAK di sini. Ada dua route storage — milik vendor
     // Laravel (central, tidak dipakai aplikasi) dan 'c/{company}/storage/{path}' milik
     // TenantStorageController. Yang dipakai adalah yang tenant, jadi ia HARUS diberi prefix.

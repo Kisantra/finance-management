@@ -27,7 +27,7 @@ class FrontendCompanyPrefixTest extends TestCase
     private const ALLOW = [
         '/', '/login', '/logout', '/register', '/forgot-password', '/reset-password',
         '/confirm-password', '/verify-email', '/email', '/choose-company', '/panduan',
-        '/language', '/tenancy', '/up', '/_inertia', '/_boost',
+        '/language', '/tenancy', '/up', '/setup', '/_inertia', '/_boost',
         '/images', '/videos', '/build', '/fonts', '/favicon.ico',
     ];
 

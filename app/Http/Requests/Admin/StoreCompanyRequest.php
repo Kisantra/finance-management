@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\DatabasePerusahaanBelumAda;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCompanyRequest extends FormRequest
@@ -15,13 +16,16 @@ class StoreCompanyRequest extends FormRequest
     {
         return [
             'slug' => [
-                'required', 'string', 'min:3', 'max:40',
+                // Nama database MySQL maksimal 64 karakter: awalan instalasi + slug.
+                'required', 'string', 'min:3', 'max:'.min(40, 64 - strlen((string) config('tenancy.database.prefix'))),
                 // Slug = id tenant = nama database = path storage — PERMANEN.
                 // Huruf kecil/angka/strip; tidak boleh diawali/diakhiri strip.
                 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/',
                 // Prefix koneksi central WAJIB: di dalam konteks tenant, koneksi
                 // default menunjuk DB perusahaan — tabel companies ada di central
                 'unique:mysql.companies,id',
+                // Database bernama sama milik instalasi lain di server yang sama: lihat aturannya.
+                new DatabasePerusahaanBelumAda,
             ],
             'name' => ['required', 'string', 'max:100'],
             'abbreviation' => ['required', 'string', 'min:2', 'max:10', 'alpha:ascii'],

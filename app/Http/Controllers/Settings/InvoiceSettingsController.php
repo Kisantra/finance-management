@@ -18,8 +18,17 @@ class InvoiceSettingsController extends Controller
     {
         $today = today();
         $client = Client::query()->latest('id')->first();
+        $profil = CompanyProfile::current();
+        $tinjau = $profil?->needsInvoiceReview() ? $numbers->backfillSequences(false) : null;
 
         return Inertia::render('settings/invoice-numbering', [
+            // Nomor lama tanpa urutan (hasil konversi): pratinjau kering dengan pola yang sedang berlaku.
+            'legacyReview' => $tinjau ? [
+                'fillable' => $tinjau['filled'],
+                'samples' => $tinjau['samples'],
+                'unmatched' => array_slice($tinjau['unmatched'], 0, 20),
+                'unmatchedCount' => count($tinjau['unmatched']),
+            ] : null,
             'settings' => $numbers->settings(),
             'defaults' => [
                 'format' => InvoiceNumberService::DEFAULT_FORMAT,
@@ -65,5 +74,21 @@ class InvoiceSettingsController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Format penomoran invoice disimpan. Berlaku untuk invoice yang dikirim setelah ini.');
+    }
+
+    /**
+     * Selesai meninjau nomor lama: isi urutan yang cocok dengan pola aktif, sisanya (nomor yang
+     * diketik manual) dibiarkan kosong, lalu tandai sudah ditinjau supaya gerbang terbuka.
+     */
+    public function review(InvoiceNumberService $numbers): RedirectResponse
+    {
+        $profil = CompanyProfile::current();
+        abort_if($profil === null, 404);
+
+        $hasil = $numbers->backfillSequences(true);
+        $profil->forceFill(['invoice_legacy_reviewed_at' => now()])->save();
+
+        return redirect()->route('dashboard')
+            ->with('success', "{$hasil['filled']} invoice lama diisi urutannya. Nomor berikutnya melanjutkan deret yang ada.");
     }
 }

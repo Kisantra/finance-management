@@ -21,8 +21,11 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureCompanyProfileComplete
 {
-    /** Rute yang tetap terbuka: form profil itu sendiri dan berkas pratinjaunya. */
-    private const TERBUKA = ['settings.company', 'settings.company.update', 'settings.company.delete-asset', 'tenant.storage'];
+    /** Rute yang tetap terbuka: form penyiapan itu sendiri dan berkas pratinjaunya. */
+    private const TERBUKA = [
+        'settings.company', 'settings.company.update', 'settings.company.delete-asset', 'tenant.storage',
+        'settings.invoice-numbering', 'settings.invoice-numbering.update', 'settings.invoice-numbering.review',
+    ];
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -33,15 +36,21 @@ class EnsureCompanyProfileComplete
         }
 
         $profil = CompanyProfile::current();
-        if ($profil && $profil->missingFields() === []) {
-            return $next($request);
+
+        // Langkah 1: profil lengkap.
+        if (! $profil || $profil->missingFields() !== []) {
+            return $request->user()?->can('manage company profile')
+                ? redirect()->route('settings.company')->with('warning', 'Lengkapi profil perusahaan dulu sebelum melanjutkan.')
+                : Inertia::render('company-not-ready')->toResponse($request);
         }
 
-        if ($request->user()?->can('manage company profile')) {
-            return redirect()->route('settings.company')
-                ->with('warning', 'Lengkapi profil perusahaan dulu sebelum melanjutkan.');
+        // Langkah 2: nomor invoice lama (hasil konversi server lama) sudah ditinjau.
+        if ($profil->needsInvoiceReview()) {
+            return $request->user()?->can('manage invoice settings')
+                ? redirect()->route('settings.invoice-numbering')->with('warning', 'Tinjau nomor invoice lama dulu, supaya invoice berikutnya tidak mengulang nomor yang sudah terkirim.')
+                : Inertia::render('company-not-ready')->toResponse($request);
         }
 
-        return Inertia::render('company-not-ready')->toResponse($request);
+        return $next($request);
     }
 }

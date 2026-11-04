@@ -22,7 +22,7 @@ class CentralTenantsStatus extends Command
 
         foreach ($companies as $company) {
             $slug = (string) $company->getTenantKey();
-            $database = $this->tenantDatabaseName($slug);
+            $database = $this->tenantDatabaseName($company);
             $databaseExists = $database !== null && $this->databaseExists($database);
 
             if (! $databaseExists) {
@@ -57,16 +57,14 @@ class CentralTenantsStatus extends Command
     }
 
     /**
-     * Nama database tenant dari slug. Slug divalidasi ketat sebelum pernah
-     * diinterpolasi ke query (identifier tidak bisa memakai binding).
+     * Nama database perusahaan (tersimpan, atau awalan instalasi + slug). Divalidasi
+     * ketat sebelum pernah diinterpolasi ke query (identifier tidak bisa memakai binding).
      */
-    protected function tenantDatabaseName(string $slug): ?string
+    protected function tenantDatabaseName(Company $company): ?string
     {
-        if (! preg_match('/^[a-z0-9-]+$/', $slug)) {
-            return null;
-        }
+        $database = (string) $company->database()->getName();
 
-        return 'tenant_'.$slug;
+        return preg_match('/^[A-Za-z0-9_-]+$/', $database) === 1 ? $database : null;
     }
 
     protected function databaseExists(string $database): bool

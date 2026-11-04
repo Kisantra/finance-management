@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { Info, RotateCcw } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -41,6 +41,13 @@ interface Props {
         next_sequence: Record<Reset, number>;
     };
     recent: { id: number; number: string; issue_date: string }[];
+    /** Nomor lama tanpa urutan (hasil konversi server lama), dihitung kering dengan pola yang sedang berlaku. */
+    legacyReview: {
+        fillable: number;
+        samples: { number: string; sequence: number }[];
+        unmatched: string[];
+        unmatchedCount: number;
+    } | null;
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -93,8 +100,14 @@ function formatError(format: string, reset: Reset, known: string[]): string | nu
     return null;
 }
 
-export default function InvoiceNumberingSettings({ settings, defaults, tokens, paddings, hasCompany, sample, recent }: Props) {
+export default function InvoiceNumberingSettings({ settings, defaults, tokens, paddings, hasCompany, sample, recent, legacyReview }: Props) {
     const form = useForm<NumberingSettings>(settings);
+    const [reviewing, setReviewing] = React.useState(false);
+
+    const finishReview = () => {
+        setReviewing(true);
+        router.post(companyUrl('/settings/invoice-numbering/review'), {}, { onFinish: () => setReviewing(false) });
+    };
     const { data, setData } = form;
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -152,6 +165,58 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                 title="Penomoran invoice"
                 description="Atur bentuk nomor yang diberikan saat invoice dikirim. Nomor yang sudah terbit tidak ikut berubah."
             >
+                {legacyReview && (
+                    <section
+                        role="alert"
+                        className="mb-5 flex flex-col gap-4 rounded-3xl border border-ob-wait/40 bg-ob-wait/10 p-6 text-ob-ink sm:p-8"
+                    >
+                        <div className="flex flex-col gap-1.5">
+                            <h2 className="text-base font-semibold">Tinjau nomor invoice lama sebelum melanjutkan</h2>
+                            <p className="text-[13px] text-ob-ink-2">
+                                Invoice lama belum punya urutan nomor. Tanpa urutan, invoice berikutnya bisa mengulang nomor yang sudah
+                                terkirim ke klien. Dengan pola di bawah: <strong>{legacyReview.fillable}</strong> nomor cocok dan akan diisi
+                                urutannya, <strong>{legacyReview.unmatchedCount}</strong> tidak cocok dan dibiarkan kosong.
+                            </p>
+                        </div>
+                        {legacyReview.samples.length > 0 && (
+                            <ul className="flex flex-col gap-1 text-[13px]">
+                                {legacyReview.samples.map((s) => (
+                                    <li key={s.number}>
+                                        <span className="font-mono">{s.number}</span> → urutan {s.sequence}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {legacyReview.unmatchedCount > 0 && (
+                            <div className="text-[13px]">
+                                <p className="font-semibold">Tidak cocok dengan pola:</p>
+                                <p className="mt-1 font-mono text-ob-ink-2">
+                                    {legacyReview.unmatched.join(', ')}
+                                    {legacyReview.unmatchedCount > legacyReview.unmatched.length &&
+                                        ` dan ${legacyReview.unmatchedCount - legacyReview.unmatched.length} lainnya`}
+                                </p>
+                                <p className="mt-2 text-ob-ink-2">
+                                    Bila itu nomor lama yang sah, ubah pola di bawah sampai cocok lalu Simpan; daftar ini ikut diperbarui.
+                                    Nomor yang memang diketik manual boleh dibiarkan.
+                                </p>
+                            </div>
+                        )}
+                        <div>
+                            <Button
+                                type="button"
+                                variant="primary"
+                                className={BTN.primary}
+                                loading={reviewing}
+                                onClick={finishReview}
+                                disabled={form.isDirty}
+                            >
+                                Isi urutan & selesai meninjau
+                            </Button>
+                            {form.isDirty && <p className="mt-2 text-xs text-ob-ink-2">Simpan pola dulu sebelum menyelesaikan peninjauan.</p>}
+                        </div>
+                    </section>
+                )}
+
                 <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <form onSubmit={submit} className="flex flex-col gap-7 rounded-3xl border border-ob-line bg-ob-card p-6 sm:p-8">
                         {!hasCompany && (

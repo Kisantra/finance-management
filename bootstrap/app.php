@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RedirectToFirstRunSetup;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetPermissionsTeam;
 use App\Services\ErrorReportService;
@@ -28,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // SetPermissionsTeam wajib sebelum HandleInertiaRequests:
         // share() memanggil getAllPermissions() yang butuh konteks team.
+        // Instalasi baru: semua halaman ke walkthrough /setup selama berkas token deploy.sh ada.
+        $middleware->web(prepend: [RedirectToFirstRunSetup::class]);
+
         $middleware->web(append: [
             SetLocale::class,
             SetPermissionsTeam::class,

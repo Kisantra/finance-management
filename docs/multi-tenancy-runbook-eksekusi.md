@@ -398,6 +398,12 @@ pada penolakan itu — sandarkan pada tahu Anda di jalur mana.
 
 ## Jalur A — Server Baru (belum punya data)
 
+> **Sejak 2026-11-04: `./deploy.sh` + walkthrough website.** Pada database kosong,
+> `deploy.sh` menyiapkan database pusat lalu mencetak tautan `/setup/<token>`; akun admin,
+> perusahaan pertama (kode URL dipilih di form), dan profil dibuat lewat website
+> ([DEPLOY.md](guides/DEPLOY.md) › Instalasi baru). Urutan manual di bawah tetap berlaku
+> sebagai jalan cadangan.
+
 Dilatih penuh pada 2026-08-28 di database kosong; seluruh 16 halaman modul
 merespons 200 setelah langkah terakhir.
 
@@ -556,6 +562,12 @@ Dua hal lagi yang sudah terbukti perlu, dan tidak ada di PDF:
 > **GAGAL** saat latihan; keduanya akan menghentikan cutover produksi di tengah
 > jalan kalau tidak diurus. Rinciannya di
 > [G.2.7 Kegagalan nyata saat latihan](#g27-kegagalan-nyata-saat-latihan).
+>
+> **Pembaruan sesudahnya (2026-11-04, sore):** konversi kini otomatis lewat `./deploy.sh`
+> tanpa opsi apa pun: perusahaan yang berjalan menjadi perusahaan utama (`/c/utama`), nama
+> database diturunkan dari nama database lama (`<db_lama>_central`, `<db_lama>_tenant_utama`,
+> `TENANCY_DB_PREFIX=<db_lama>_tenant_`) supaya unik di server MySQL bersama, dan jeda nomor
+> invoice dipindah ke website (peninjauan wajib di Penomoran invoice). Lihat DEPLOY.md.
 >
 > **Diotomatiskan dan diuji 2026-11-04: `deploy.sh --cutover`.** Simulasi server
 > produksi lama: klon repo di commit `4483821` (satu-database terakhir), `.env`

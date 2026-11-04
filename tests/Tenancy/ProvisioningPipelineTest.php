@@ -8,8 +8,11 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Stancl\Tenancy\Events\DatabaseCreated;
 use Tests\TenancyTestCase;
 
 /**
@@ -118,8 +121,9 @@ class ProvisioningPipelineTest extends TenancyTestCase
         $slug = 'prov-gagal-'.bin2hex(random_bytes(2));
         $this->dibuat[] = $slug;
 
-        // Hadang pipeline: buat databasenya lebih dulu supaya CREATE DATABASE gagal.
-        DB::connection('mysql')->statement("CREATE DATABASE `tenant_{$slug}`");
+        // Hadang pipeline SESUDAH database dibuat percobaan ini sendiri (mis. migrasi gagal).
+        // Database yang sudah ada sebelumnya kini ditolak di validasi, lihat test di bawah.
+        Event::listen(DatabaseCreated::class, fn () => throw new RuntimeException('Gagal simulasi sesudah database dibuat'));
 
         Log::spy();
 
@@ -138,12 +142,48 @@ class ProvisioningPipelineTest extends TenancyTestCase
         );
     }
 
+    /**
+     * Server MySQL bisa dipakai bersama instalasi lain. Database bernama sama yang SUDAH ADA
+     * dulu dibiarkan pipeline gagal, lalu Coba Ulang menghapusnya: data instalasi lain hilang.
+     * Kini kode URL semacam itu ditolak sebelum apa pun dibuat, dan databasenya tidak disentuh.
+     */
+    public function test_kode_url_yang_databasenya_sudah_ada_ditolak_tanpa_menyentuhnya(): void
+    {
+        $slug = 'prov-ada-'.bin2hex(random_bytes(2));
+        $this->dibuat[] = $slug;
+        DB::connection('mysql')->statement("CREATE DATABASE `tenant_{$slug}`");
+        DB::connection('mysql')->statement("CREATE TABLE `tenant_{$slug}`.`milik_instalasi_lain` (id INT)");
+
+        $this->actingAs($this->adminOrganisasi())
+            ->post('/c/'.$this->slug(0).'/admin/companies', [
+                'slug' => $slug,
+                'name' => 'Perusahaan Bertabrakan',
+                'abbreviation' => 'TBR',
+            ])
+            ->assertSessionHasErrors('slug');
+
+        $this->assertNull(DB::connection('mysql')->table('companies')->where('id', $slug)->first());
+        $this->assertNotNull(
+            DB::connection('mysql')->selectOne("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'tenant_{$slug}' AND TABLE_NAME = 'milik_instalasi_lain'"),
+            'Database yang sudah ada tidak boleh dihapus atau diubah.'
+        );
+    }
+
     public function test_coba_ulang_memprovision_ulang_perusahaan_yang_gagal(): void
     {
         $slug = 'prov-ulang-'.bin2hex(random_bytes(2));
         $this->dibuat[] = $slug;
 
-        DB::connection('mysql')->statement("CREATE DATABASE `tenant_{$slug}`");
+        // Gagal sekali sesudah database dibuat; Coba Ulang membuang database milik percobaan
+        // itu sendiri lalu memprovision ulang.
+        $gagalSekali = true;
+        Event::listen(DatabaseCreated::class, function () use (&$gagalSekali): void {
+            if ($gagalSekali) {
+                $gagalSekali = false;
+
+                throw new RuntimeException('Gagal simulasi sesudah database dibuat');
+            }
+        });
 
         $admin = $this->adminOrganisasi();
 
@@ -170,6 +210,48 @@ class ProvisioningPipelineTest extends TenancyTestCase
             self::connectionFor($slug)->table('migrations')->count(),
             'Coba Ulang menandai active tanpa benar-benar menjalankan migration tenant.'
         );
+    }
+
+    /**
+     * Walkthrough instalasi (/setup) yang gagal sesudah database perusahaan dibuat tidak boleh
+     * meninggalkan sisa: database sisa membuat kode URL yang sama ditolak selamanya.
+     */
+    public function test_walkthrough_yang_gagal_membuang_sisa_percobaannya(): void
+    {
+        $slug = 'prov-setup-'.bin2hex(random_bytes(2));
+        $this->dibuat[] = $slug;
+        $email = "admin-{$slug}@uji.test";
+        $tokenPath = sys_get_temp_dir().'/setup-token-'.bin2hex(random_bytes(4));
+        $token = bin2hex(random_bytes(16));
+        file_put_contents($tokenPath, $token);
+        config(['app.setup_token_path' => $tokenPath]);
+        Event::listen(DatabaseCreated::class, fn () => throw new RuntimeException('Gagal simulasi sesudah database dibuat'));
+
+        try {
+            $this->get("/setup/{$token}");
+            $this->post('/setup', [
+                'admin_name' => 'Admin Pertama',
+                'admin_email' => $email,
+                'admin_password' => 'RahasiaBaru2026!',
+                'admin_password_confirmation' => 'RahasiaBaru2026!',
+                'company_name' => "PT Uji {$slug}",
+                'slug' => $slug,
+                'abbreviation' => 'UJI',
+            ])->assertSessionHas('error');
+
+            $this->assertNull(
+                DB::connection('mysql')->selectOne('SELECT 1 FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [config('tenancy.database.prefix').$slug]),
+                'Database buatan percobaan yang gagal harus dibuang.'
+            );
+            $this->assertFalse(DB::connection('mysql')->table('companies')->where('id', $slug)->exists());
+            $this->assertFalse(DB::connection('mysql')->table('users')->where('email', $email)->exists());
+            $this->assertFalse(DB::connection('mysql')->table('organizations')->where('slug', "pt-uji-{$slug}")->exists());
+            $this->assertFileExists($tokenPath, 'Tautan pemasangan harus tetap berlaku untuk mencoba lagi.');
+        } finally {
+            @unlink($tokenPath);
+            DB::connection('mysql')->table('users')->where('email', $email)->delete();
+            DB::connection('mysql')->table('organizations')->where('slug', "pt-uji-{$slug}")->delete();
+        }
     }
 
     // ------------------------------------------------------------------

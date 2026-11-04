@@ -28,6 +28,9 @@ class TenantDatabaseSeeder extends Seeder
                 'phone' => '-',
                 'finance_manager_name' => '-',
             ]);
+            // Perusahaan baru tidak punya nomor invoice lama untuk ditinjau; nomor manual
+            // yang diketik kemudian tidak boleh memunculkan gerbang peninjauan.
+            CompanyProfile::query()->update(['invoice_legacy_reviewed_at' => now()]);
         }
     }
 }

@@ -116,7 +116,7 @@ class CentralBootstrap extends Command
         $slug = $this->option('slug') ?: Str::slug($namaPerusahaan);
         $singkatan = $this->option('abbreviation') ?: strtoupper(substr($slug, 0, 3));
 
-        $this->line("Menyiapkan perusahaan {$namaPerusahaan} — database tenant_{$slug} dibuat dan dimigrasikan...");
+        $this->line("Menyiapkan perusahaan {$namaPerusahaan} — database perusahaan dibuat dan dimigrasikan...");
 
         try {
             $company = Company::create([
@@ -149,7 +149,7 @@ class CentralBootstrap extends Command
     }
 
     /**
-     * Cutover data lama (deploy.sh --cutover). Admin bawaan di jalur ini merugikan:
+     * Konversi server lama (deploy.sh, mode konversi). Admin bawaan di jalur ini merugikan:
      * akun itu tanpa keanggotaan perusahaan (403 di mana-mana) dan merebut ID yang
      * dipakai user lama, sehingga central:import-users menolak jalan.
      */

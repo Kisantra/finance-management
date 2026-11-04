@@ -30,30 +30,9 @@ class BackfillInvoiceSequence extends Command
         $this->line('Padding    : '.$settings['padding'].'   Reset: '.$settings['reset']);
         $this->newLine();
 
-        $terisi = 0;
-        $tidakCocok = [];
-
-        Invoice::query()
-            ->whereNotNull('invoice_number')
-            ->whereNull('invoice_sequence')
-            ->orderBy('id')
-            ->chunkById(500, function ($invoices) use ($numbers, $kering, &$terisi, &$tidakCocok) {
-                foreach ($invoices as $invoice) {
-                    $urutan = $numbers->sequenceOf($invoice->invoice_number);
-
-                    if ($urutan === null) {
-                        $tidakCocok[] = $invoice->invoice_number;
-
-                        continue;
-                    }
-
-                    if (! $kering) {
-                        Invoice::whereKey($invoice->id)->update(['invoice_sequence' => $urutan]);
-                    }
-
-                    $terisi++;
-                }
-            });
+        $hasil = $numbers->backfillSequences(! $kering);
+        $terisi = $hasil['filled'];
+        $tidakCocok = $hasil['unmatched'];
 
         $this->info($kering
             ? "{$terisi} invoice AKAN diisi urutannya."

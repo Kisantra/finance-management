@@ -27,6 +27,7 @@ use App\Http\Controllers\Settings\InvoiceSettingsController;
 use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\TemplateBuilderController;
 use App\Http\Controllers\TenantStorageController;
 use App\Http\Controllers\TransactionCategoryController;
@@ -68,6 +69,12 @@ Route::get('/panduan/{slug?}', fn (?string $slug = null) => Inertia::render('gui
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/choose-company', ChooseCompanyController::class)->name('choose-company');
 });
+
+// Walkthrough pemasangan baru: aktif hanya selama berkas token dari `deploy.sh` (mode
+// instalasi) ada. Membuat akun admin + perusahaan pertama, lalu diarahkan ke profil.
+Route::get('/setup', [SetupController::class, 'show'])->name('setup');
+Route::post('/setup', [SetupController::class, 'store'])->name('setup.store');
+Route::get('/setup/{token}', [SetupController::class, 'unlock'])->where('token', '[a-f0-9]{32}')->name('setup.unlock');
 
 // ============================================================================
 // AUTHENTICATED ROUTES — konteks perusahaan aktif (/c/{company}/...)
@@ -644,6 +651,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::middleware('can:manage invoice settings')->group(function () {
             Route::get('/invoice-numbering', [InvoiceSettingsController::class, 'edit'])->name('invoice-numbering');
             Route::put('/invoice-numbering', [InvoiceSettingsController::class, 'update'])->name('invoice-numbering.update');
+            Route::post('/invoice-numbering/review', [InvoiceSettingsController::class, 'review'])->name('invoice-numbering.review');
         });
 
         // PDF Template Builder — gated by permission

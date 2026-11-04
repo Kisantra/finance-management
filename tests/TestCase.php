@@ -72,6 +72,8 @@ abstract class TestCase extends BaseTestCase
         '/choose-company', '/up',
         // Publik / lintas perusahaan — tidak pernah ber-prefix /c/{company}.
         '/panduan',
+        // Walkthrough pemasangan baru (sebelum ada perusahaan).
+        '/setup',
         // Rute aset vendor stancl (stancl.tenancy.asset). Dorman selama
         // tenancy.filesystem.asset_helper_tenancy = false, tetapi tetap central.
         '/tenancy',

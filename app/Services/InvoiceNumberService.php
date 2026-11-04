@@ -116,6 +116,48 @@ class InvoiceNumberService
         return preg_match('/^'.$regex.'$/', $number, $match) ? (int) $match[1] : null;
     }
 
+    /**
+     * Isi invoice_sequence untuk invoice bernomor yang urutannya kosong, dengan POLA YANG SEDANG
+     * BERLAKU. $simpan=false = kering (hanya laporan). Dipakai `invoice:backfill-sequence` dan
+     * peninjauan nomor lama di Penomoran invoice.
+     *
+     * @return array{filled: int, unmatched: list<string>, samples: list<array{number: string, sequence: int}>}
+     */
+    public function backfillSequences(bool $simpan): array
+    {
+        $filled = 0;
+        $unmatched = [];
+        $samples = [];
+
+        Invoice::query()
+            ->whereNotNull('invoice_number')
+            ->whereNull('invoice_sequence')
+            ->orderBy('id')
+            ->chunkById(500, function ($invoices) use ($simpan, &$filled, &$unmatched, &$samples) {
+                foreach ($invoices as $invoice) {
+                    $urutan = $this->sequenceOf($invoice->invoice_number);
+
+                    if ($urutan === null) {
+                        $unmatched[] = $invoice->invoice_number;
+
+                        continue;
+                    }
+
+                    if ($simpan) {
+                        Invoice::whereKey($invoice->id)->update(['invoice_sequence' => $urutan]);
+                    }
+
+                    if (count($samples) < 5) {
+                        $samples[] = ['number' => $invoice->invoice_number, 'sequence' => $urutan];
+                    }
+
+                    $filled++;
+                }
+            });
+
+        return ['filled' => $filled, 'unmatched' => $unmatched, 'samples' => $samples];
+    }
+
     /** Hanya urutan tertinggi di periodenya yang boleh di-rollback, supaya urutan tidak berlubang. */
     public function isLatestInPeriod(Invoice $invoice): bool
     {

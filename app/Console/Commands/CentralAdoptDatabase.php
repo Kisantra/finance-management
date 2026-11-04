@@ -11,17 +11,17 @@ use Illuminate\Support\Facades\DB;
 class CentralAdoptDatabase extends Command
 {
     protected $signature = 'central:adopt-database
-        {slug : Slug perusahaan (permanen — menjadi URL, nama DB tenant_{slug}, path storage)}
+        {slug : Slug perusahaan (permanen: alamat URL, nama database = TENANCY_DB_PREFIX + slug, folder berkas)}
         {--organization= : Slug organization tujuan (harus sudah ada)}
         {--name= : Nama perusahaan}
         {--abbreviation= : Singkatan perusahaan (opsional; bila kosong, admin wajib mengisinya di Profil Perusahaan saat login pertama)}';
 
-    protected $description = 'Daftarkan database deployment lama (sudah di-restore sebagai tenant_{slug}) sebagai tenant';
+    protected $description = 'Daftarkan database deployment lama (sudah di-restore sebagai TENANCY_DB_PREFIX + slug) sebagai tenant';
 
     public function handle(): int
     {
         $slug = $this->argument('slug');
-        $database = 'tenant_'.$slug;
+        $database = config('tenancy.database.prefix').$slug;
 
         $organization = Organization::where('slug', $this->option('organization'))->first();
         if (! $organization) {
@@ -54,6 +54,9 @@ class CentralAdoptDatabase extends Command
                 'name' => $this->option('name'),
                 // Kosong = belum ada; gerbang profil memaksa admin mengisinya, lalu disamakan ke sini.
                 'abbreviation' => strtoupper((string) $this->option('abbreviation')),
+                // Nama database disimpan, bukan dihitung dari awalan saat ini (stancl hanya
+                // menyimpannya untuk database yang IA buat; database adopsi dibuat di luar).
+                'tenancy_db_name' => $database,
                 'status' => 'active',
             ]));
             $this->info("✓ Company {$slug} terdaftar → {$database}");
