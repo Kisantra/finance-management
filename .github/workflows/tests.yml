@@ -86,5 +86,12 @@ jobs:
       - name: Build Assets
         run: npm run build
 
+      # Harus SESUDAH build: `@/routes/*`, `@/actions/*`, dan `@/wayfinder` dibuat
+      # plugin Wayfinder saat build dan tidak di-commit. Dijalankan sebelum test
+      # supaya error tipe gagal cepat. Gerbang ini dipasang setelah 14 error tipe
+      # menumpuk tanpa terlihat, tiga di antaranya cacat yang dilihat pengguna.
+      - name: Periksa tipe TypeScript
+        run: npm run types
+
       - name: Run Tests
         run: ./vendor/bin/phpunit
