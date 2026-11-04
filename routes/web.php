@@ -30,6 +30,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\TemplateBuilderController;
 use App\Http\Controllers\TenantStorageController;
 use App\Http\Controllers\TransactionCategoryController;
+use App\Http\Middleware\EnsureCompanyProfileComplete;
 use App\Http\Middleware\EnsureUserBelongsToCompany;
 use App\Http\Middleware\SetCompanyUrlDefaults;
 use App\Http\Middleware\SetPermissionsTeam;
@@ -71,6 +72,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // ============================================================================
 // AUTHENTICATED ROUTES — konteks perusahaan aktif (/c/{company}/...)
 // Urutan middleware group: tenancy path → cek keanggotaan → team Spatie → URL defaults
+// → profil perusahaan wajib lengkap (butuh team untuk cek izin, URL defaults untuk redirect)
 // ============================================================================
 
 $companyMiddleware = [
@@ -80,6 +82,7 @@ $companyMiddleware = [
     EnsureUserBelongsToCompany::class,
     SetPermissionsTeam::class,
     SetCompanyUrlDefaults::class,
+    EnsureCompanyProfileComplete::class,
 ];
 
 Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () {

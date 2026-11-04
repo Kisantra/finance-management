@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateCompanyRequest;
 use App\Models\CompanyProfile;
+use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -16,8 +17,13 @@ class CompanyController extends Controller
     public function edit(): Response
     {
         $company = CompanyProfile::first();
+        // '-' adalah isian sementara provisioning: tampilkan kosong supaya terlihat wajib diisi.
+        $isian = fn (?string $nilai): string => trim((string) $nilai) === '-' ? '' : (string) $nilai;
 
         return Inertia::render('settings/company', [
+            'missingFields' => $company ? $company->missingFields() : ['name', 'abbreviation', 'address', 'email', 'phone', 'finance_manager_name', 'finance_manager_position'],
+            // Rujukan saat mengisi singkatan: kode di nomor terakhir yang sudah terkirim ke klien.
+            'lastInvoiceNumber' => Invoice::query()->whereNotNull('invoice_number')->latest('id')->value('invoice_number'),
             // Dinamai companyProfile, BUKAN company. Prop bersama bernama
             // `company` dikirim HandleInertiaRequests dan berisi identitas
             // tenant ({slug, name, abbreviation}); prop halaman dengan nama
@@ -27,15 +33,16 @@ class CompanyController extends Controller
             // prefiks /c/{slug} dan menjawab 404/405. Ditemukan QC 2026-11-03.
             'companyProfile' => $company ? [
                 'id' => $company->id,
-                'name' => $company->name,
-                'address' => $company->address,
-                'email' => $company->email,
-                'phone' => $company->phone,
+                'name' => $isian($company->name),
+                'abbreviation' => (string) $company->abbreviation,
+                'address' => $isian($company->address),
+                'email' => $isian($company->email),
+                'phone' => $isian($company->phone),
                 'is_pkp' => (bool) $company->is_pkp,
                 'npwp' => $company->npwp,
                 'ppn_rate' => $company->ppn_rate,
-                'finance_manager_name' => $company->finance_manager_name,
-                'finance_manager_position' => $company->finance_manager_position,
+                'finance_manager_name' => $isian($company->finance_manager_name),
+                'finance_manager_position' => $isian($company->finance_manager_position),
                 'bank_accounts' => $company->bank_accounts ?? [],
                 'logo_path' => $company->logo_path,
                 'letter_head_path' => $company->letter_head_path,
@@ -54,8 +61,10 @@ class CompanyController extends Controller
         $validated = $request->validated();
 
         $company = CompanyProfile::firstOrNew();
+        $belumLengkap = ! $company->exists || $company->missingFields() !== [];
         $company->fill([
             'name' => $validated['name'],
+            'abbreviation' => $validated['abbreviation'],
             'address' => $validated['address'],
             'email' => $validated['email'],
             'phone' => $validated['phone'],
@@ -78,10 +87,18 @@ class CompanyController extends Controller
             $this->replaceFile($company, 'signature_path', $request->file('signature'), "pdf-signature-{$ts}");
         }
         if ($request->hasFile('stamp')) {
-            $this->replaceFile($company, 'stamp_path', $request->file('stamp'), "kisantra-stamp-{$ts}");
+            $this->replaceFile($company, 'stamp_path', $request->file('stamp'), "stamp-{$ts}");
         }
 
         $company->save();
+
+        // Satu identitas: nama & singkatan di pemilih/pengalih perusahaan (database pusat)
+        // mengikuti profil, sumber yang sama dengan PDF dan nomor dokumen.
+        tenant()?->update(['name' => $company->name, 'abbreviation' => $company->abbreviation]);
+
+        if ($belumLengkap) {
+            return redirect()->route('dashboard')->with('success', 'Profil perusahaan lengkap. Selamat bekerja.');
+        }
 
         return redirect()->back()->with('success', 'Profil perusahaan berhasil diperbarui.');
     }

@@ -188,10 +188,20 @@ class InvoiceNumberService
         return null;
     }
 
-    /** Inisial nama perusahaan; "SPI" bila profil perusahaan belum diisi (perilaku lama). */
+    /**
+     * Kode {PT}: singkatan yang diisi di Profil Perusahaan (tiap perusahaan punya sendiri).
+     * Profil tanpa singkatan memakai inisial nama seperti perilaku lama; gerbang
+     * EnsureCompanyProfileComplete membuat cabang itu tidak tercapai lewat web.
+     */
     public function companyInitials(): string
     {
-        $name = CompanyProfile::current()?->name;
+        $profil = CompanyProfile::current();
+
+        if (filled($profil?->abbreviation)) {
+            return strtoupper((string) $profil->abbreviation);
+        }
+
+        $name = $profil?->name;
 
         return ($name ? $this->initials($name) : '') ?: 'SPI';
     }

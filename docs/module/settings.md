@@ -66,20 +66,31 @@ Catatan: form update profil di controller saat ini hanya memvalidasi `name` dan 
 ### Profil Perusahaan (`GET/POST /settings/company`)
 
 **Alur step-by-step:**
-1. `GET /settings/company` → `CompanyController::edit()` memuat `CompanyProfile::first()` dan merender `settings/company` dengan seluruh field + URL aset ber-cache-buster (`?v=filemtime`).
-2. User mengisi identitas (nama, alamat, email, telepon), status pajak (`is_pkp`, `npwp`, `ppn_rate` 0–100), penanggung jawab keuangan (`finance_manager_name/position`), serta mengunggah aset (logo, letterhead, signature, stamp — masing-masing image max 2 MB).
-3. Submit `POST /settings/company` → validasi `UpdateCompanyRequest` (`app/Http/Requests/Settings/UpdateCompanyRequest.php`).
+1. `GET /settings/company` → `CompanyController::edit()` memuat `CompanyProfile::first()` dan merender `settings/company` dengan seluruh field + URL aset ber-cache-buster (`?v=filemtime`), `missingFields` (isian wajib yang masih kosong) dan `lastInvoiceNumber` (rujukan saat mengisi singkatan). Isian sementara `-` dari provisioning dikirim sebagai string kosong.
+2. User mengisi identitas (nama, **singkatan** 2-10 huruf, alamat, email, telepon), status pajak (`is_pkp`, `npwp`, `ppn_rate` 0–100), penanggung jawab keuangan (`finance_manager_name/position`), serta mengunggah aset (logo, letterhead, signature, stamp — masing-masing image max 2 MB).
+3. Submit `POST /settings/company` → validasi `UpdateCompanyRequest` (`app/Http/Requests/Settings/UpdateCompanyRequest.php`): `abbreviation` wajib `alpha:ascii` 2-10 (di-uppercase di `prepareForValidation`); `-` ditolak (`not_in:-`) di nama, alamat, telepon, dan penanggung jawab keuangan.
 4. `CompanyProfile::firstOrNew()` — baris pertama dipakai atau dibuat baru (menjaga singleton), lalu `fill()` field teks.
 5. Untuk tiap file yang diunggah, `replaceFile()` menghapus file lama di disk `public` lalu `storeAs('images', "{nama}-{timestamp}.{ext}")`.
-6. `$company->save()` → flash "Profil perusahaan berhasil diperbarui."
+6. `$company->save()`, lalu `tenant()->update(['name', 'abbreviation'])`: nama & singkatan di database pusat (pemilih/pengalih perusahaan) disamakan dengan profil. Bila profil sebelumnya belum lengkap → redirect ke dashboard; selain itu flash "Profil perusahaan berhasil diperbarui."
 
-Route ini **tidak** digate permission (tidak ada `can:` di route, `UpdateCompanyRequest::authorize()` = `true`, `deleteAsset()` juga tanpa cek) — Staff pun bisa mengubah profil perusahaan dan menghapus asetnya. Checkbox PKP hanya menyembunyikan field NPWP/Tarif PPN di form; nilainya tetap terkirim & tersimpan. Kolom `bank_accounts` (rekening yang tercetak di invoice) dikirim ke halaman tetapi tidak bisa diedit di sini (tidak ada field maupun validasi).
+Route ini digate `can:manage company profile` (admin & finance manager bawaan; staff 403). Checkbox PKP hanya menyembunyikan field NPWP/Tarif PPN di form; nilainya tetap terkirim & tersimpan. Kolom `bank_accounts` (rekening yang tercetak di invoice) dikirim ke halaman tetapi tidak bisa diedit di sini (tidak ada field maupun validasi).
+
+### Profil Perusahaan Wajib Lengkap (`EnsureCompanyProfileComplete`)
+
+Middleware terakhir di grup `/c/{company}` (`routes/web.php`, `$companyMiddleware`). Selama `CompanyProfile::current()?->missingFields()` tidak kosong (atau baris profil belum ada):
+
+1. Pemegang `manage company profile` → redirect ke `settings.company` dengan flash `warning` "Lengkapi profil perusahaan dulu sebelum melanjutkan."
+2. User lain → halaman `company-not-ready` ("{nama} belum disiapkan", tombol muat ulang / pilih perusahaan lain / keluar).
+3. Tetap terbuka: `settings.company`, `settings.company.update`, `settings.company.delete-asset`, `tenant.storage` (pratinjau berkas), dan permintaan JSON non-Inertia (`api()` halaman).
+
+`missingFields()` memeriksa `name`, `abbreviation`, `address`, `email`, `phone`, `finance_manager_name`, `finance_manager_position`; kosong atau `-` dihitung belum diisi. Perusahaan baru (TenantDatabaseSeeder: nama & singkatan dari form Tambah perusahaan, sisanya `-`) dan hasil cutover tanpa singkatan karenanya wajib disetel admin sebelum dipakai. Di test, gerbang dimatikan lewat `TestCase::$wajibProfilPerusahaan = false` (config `app.require_company_profile`); `WajibProfilPerusahaanTest` mengujinya dengan gerbang aktif.
 
 **Siapa membaca isian ini** (diverifikasi dari kode):
 
 | Isian | Dibaca oleh |
 |---|---|
-| `name` | Semua PDF invoice bawaan (`InvoicePrintService::getCompanyInfo()`), PDF arus kas, pengajuan dana, rekap invoice, laba rugi; token builder `company.name`; `{PT}` di `InvoiceNumberService::companyInitials()`; singkatan `FundRequest::generateRequestNumber()` (via `computed_abbreviation`, kolom `abbreviation` tidak bisa diisi dari UI) |
+| `name` | Semua PDF invoice bawaan (`InvoicePrintService::getCompanyInfo()`), PDF arus kas, pengajuan dana, rekap invoice, laba rugi; token builder `company.name`; cadangan `{PT}` di `InvoiceNumberService::companyInitials()` bila singkatan kosong |
+| `abbreviation` (Singkatan) | `{PT}` di nomor invoice (`InvoiceNumberService::companyInitials()`), nomor pengajuan dana (`FundRequest::generateRequestNumber()` via `computed_abbreviation`), label di pemilih/pengalih perusahaan (disamakan ke `companies.abbreviation`) |
 | `address` / `email` / `phone` | Template invoice `semesta-invoice` (alamat, email) & `invoice` (Generik: alamat, telepon, email) — **bukan** `kisantra-invoice`; PDF arus kas & pengajuan dana; alamat juga di rekap invoice & laba rugi; token builder |
 | `finance_manager_name/position` | Area tanda tangan PDF invoice (kecuali AGSA), arus kas, pengajuan dana; token builder `company.finance_manager` |
 | `is_pkp` + `ppn_rate` | **PPN per invoice** (sejak 2026-10-13): selama `is_pkp` dan `ppn_rate > 0`, editor invoice menampilkan sakelar "Tagih PPN x%" (bawaan menyala untuk invoice baru) dan `ppn_rate` dibekukan ke `invoices.ppn_rate`; publish invoice berulang juga memberi PPN. Mematikan PKP / mengubah tarif hanya berlaku untuk invoice **baru** — invoice yang sudah ber-PPN tetap dengan tarifnya (lihat `invoices.md` › PPN). Untuk invoice lama (`invoices.ppn_rate NULL`) perilaku lama tetap: `semesta-invoice` baris PPN dari `ppn_rate` (mengabaikan `is_pkp`), kolom "PPN x%" rekap JSM berupa rumus, cabang non-Semesta `InvoicePrintService` menambah PPN ke `terbilang` bila `is_pkp`. `agsa-invoice` memakai rumus PPN tetapnya sendiri |

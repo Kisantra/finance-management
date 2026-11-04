@@ -14,13 +14,17 @@ export const guide: ModuleGuide = {
         {
             role: ROLES.staff,
             who: 'Pemilik akun',
-            can: ['Mengubah nama & email sendiri', 'Mengganti kata sandi sendiri', 'Menghapus akun sendiri', 'Membuka dan mengubah **Profil perusahaan** (tidak dibatasi izin)'],
-            cannot: ['Tidak melihat **Penomoran invoice** & **Template PDF**'],
+            can: ['Mengubah nama & email sendiri', 'Mengganti kata sandi sendiri', 'Menghapus akun sendiri'],
+            cannot: ['Tidak membuka **Profil perusahaan**, **Penomoran invoice**, & **Template PDF**'],
         },
         {
             role: ROLES.fm,
             who: 'Pengatur penomoran',
-            can: ['Semua yang bisa dilakukan Staff', 'Mengatur **Penomoran invoice**: pola, jumlah digit, dan kapan nomor kembali ke 1'],
+            can: [
+                'Semua yang bisa dilakukan Staff',
+                'Mengubah **Profil perusahaan**, termasuk **Singkatan** yang menjadi kode di nomor invoice',
+                'Mengatur **Penomoran invoice**: pola, jumlah digit, dan kapan nomor kembali ke 1',
+            ],
             cannot: ['Tidak melihat **Template PDF**'],
         },
         {
@@ -70,8 +74,9 @@ export const guide: ModuleGuide = {
             title: 'Melengkapi profil perusahaan',
             role: ROLES.admin,
             steps: [
-                'Buka **Pengaturan** › **Profil perusahaan**.',
-                'Isi **Identitas Perusahaan** (nama, alamat, email, telepon) dan **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan).',
+                'Buka **Pengaturan** › **Profil perusahaan**. Perusahaan baru (atau yang profilnya belum lengkap) membuka halaman ini **otomatis** sesudah login: aplikasi belum bisa dipakai siapa pun sampai profil disimpan.',
+                'Isi **Identitas Perusahaan**: nama, **Singkatan** (2-10 huruf, mis. KSN; menjadi kode di nomor invoice), alamat, email, telepon. Bila sudah pernah ada invoice, form menampilkan **nomor invoice terakhir**: samakan kodenya supaya nomor bersambung.',
+                'Isi **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan).',
                 'Centang **Pengusaha Kena Pajak (PKP)** bila perusahaan PKP; kolom **NPWP** dan **Tarif PPN (%)** baru muncul setelah dicentang. Selama PKP aktif, invoice baru bisa ditagih PPN.',
                 'Unggah **Kop Surat**, **Tanda Tangan**, **Stempel**, dan **Logo** (gambar maks 2 MB), lalu klik **Simpan Perubahan**.',
             ],
@@ -95,7 +100,7 @@ export const guide: ModuleGuide = {
                 'Nama perusahaan, **kop surat**, tanda tangan, stempel, serta nama & jabatan penanggung jawab tercetak di **PDF invoice**.',
                 'Selama **PKP** aktif, editor invoice menampilkan sakelar **Tagih PPN** (menyala untuk invoice baru) dan invoice berulang yang di-publish ikut diberi PPN. **Tarif PPN** disimpan di setiap invoice saat dibuat.',
                 'Mematikan PKP atau mengubah Tarif PPN hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tidak berubah.',
-                'Nama perusahaan menentukan inisial **{PT}** di nomor invoice berikutnya & singkatan nomor pengajuan dana baru.',
+                '**Singkatan** menjadi kode **{PT}** di nomor invoice berikutnya & nomor pengajuan dana baru, serta label perusahaan di pemilih perusahaan.',
                 'Identitas & penanggung jawab juga ikut di PDF laporan arus kas & pengajuan dana; **NPWP** di PDF rekap invoice & laba rugi.',
             ],
         },
@@ -124,7 +129,8 @@ export const guide: ModuleGuide = {
             title: 'Ke mana isi profil perusahaan mengalir',
             subtitle: 'Isian di satu halaman ini dibaca oleh banyak dokumen PDF.',
             rows: [
-                { label: 'Nama perusahaan', value: 'PDF invoice & laporan + inisial {PT} di nomor invoice', source: 'Identitas', tone: 'act' },
+                { label: 'Nama perusahaan', value: 'PDF invoice & laporan', source: 'Identitas', tone: 'act' },
+                { label: 'Singkatan', value: 'Kode {PT} di nomor invoice & pengajuan dana; label di pemilih perusahaan', source: 'Identitas', tone: 'act' },
                 { label: 'Alamat, email, telepon', value: 'Kepala PDF arus kas & pengajuan dana; invoice Semesta & Generik', source: 'Identitas', tone: 'act' },
                 { label: 'Nama & jabatan', value: 'Tanda tangan PDF invoice, arus kas, pengajuan dana', source: 'Penanggung jawab', tone: 'pos' },
                 { label: 'PKP & Tarif PPN', value: 'Sakelar Tagih PPN di invoice baru; tarif disimpan per invoice', source: 'Pajak', tone: 'wait' },
@@ -138,16 +144,16 @@ export const guide: ModuleGuide = {
     ],
     warnings: [
         {
-            title: 'Semua pengguna bisa mengubah profil perusahaan',
-            body: 'Halaman **Profil perusahaan** (termasuk menghapus gambar) tidak dibatasi izin, juga untuk Staff. Periksa isinya secara berkala.',
+            title: 'Perusahaan belum bisa dipakai sebelum profilnya lengkap',
+            body: 'Selama nama, **Singkatan**, alamat, kontak, atau penanggung jawab keuangan masih kosong, Admin & Finance manager langsung dibawa ke **Profil perusahaan**, sedangkan pengguna lain melihat halaman "belum disiapkan". Isi segera setelah perusahaan dibuat.',
         },
         {
             title: 'Invoice sebelum fitur PPN memakai aturan lama',
             body: 'Invoice yang dibuat sebelum 13 Oktober 2026 tidak menyimpan PPN. Saat dicetak ulang: **Semesta** menambah PPN dari Tarif PPN walau PKP tidak dicentang; **Kisantra** & **Generik** tanpa baris PPN, tetapi bila PKP dicentang teks Terbilang ikut menghitung PPN sehingga berbeda dari angka TOTAL.',
         },
         {
-            title: 'Ganti nama perusahaan = nomor dokumen berikutnya berubah',
-            body: 'Inisial **{PT}** di nomor invoice berikutnya dan singkatan nomor pengajuan dana baru diambil dari nama perusahaan. Nomor yang sudah terbit tetap.',
+            title: 'Ganti singkatan = kode di nomor dokumen berikutnya berubah',
+            body: 'Kode **{PT}** di nomor invoice berikutnya dan nomor pengajuan dana baru diambil dari **Singkatan**. Nomor urut tetap bersambung; nomor yang sudah terbit tidak berubah.',
         },
         {
             title: 'Hapus akun sendiri tidak bisa dibatalkan',
@@ -162,7 +168,7 @@ export const guide: ModuleGuide = {
     matrix: [
         { action: 'Mengubah profil & kata sandi sendiri', cells: [true, true, true] },
         { action: 'Menghapus akun sendiri', cells: [true, true, true] },
-        { action: 'Mengubah profil perusahaan', cells: [true, true, true] },
+        { action: 'Mengubah profil perusahaan', cells: [false, true, true] },
         { action: 'Mengatur penomoran invoice', cells: [false, true, true] },
         { action: 'Mengelola template PDF & font', cells: [false, false, true] },
     ],

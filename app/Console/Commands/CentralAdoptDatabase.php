@@ -14,7 +14,7 @@ class CentralAdoptDatabase extends Command
         {slug : Slug perusahaan (permanen — menjadi URL, nama DB tenant_{slug}, path storage)}
         {--organization= : Slug organization tujuan (harus sudah ada)}
         {--name= : Nama perusahaan}
-        {--abbreviation= : Singkatan dokumen (wajib manual, dipakai nomor invoice)}';
+        {--abbreviation= : Singkatan perusahaan (opsional; bila kosong, admin wajib mengisinya di Profil Perusahaan saat login pertama)}';
 
     protected $description = 'Daftarkan database deployment lama (sudah di-restore sebagai tenant_{slug}) sebagai tenant';
 
@@ -30,8 +30,8 @@ class CentralAdoptDatabase extends Command
             return self::FAILURE;
         }
 
-        if (! $this->option('name') || ! $this->option('abbreviation')) {
-            $this->error('--name dan --abbreviation wajib diisi (singkatan tidak boleh otomatis).');
+        if (! $this->option('name')) {
+            $this->error('--name wajib diisi.');
 
             return self::FAILURE;
         }
@@ -52,7 +52,8 @@ class CentralAdoptDatabase extends Command
                 'id' => $slug,
                 'organization_id' => $organization->id,
                 'name' => $this->option('name'),
-                'abbreviation' => $this->option('abbreviation'),
+                // Kosong = belum ada; gerbang profil memaksa admin mengisinya, lalu disamakan ke sini.
+                'abbreviation' => strtoupper((string) $this->option('abbreviation')),
                 'status' => 'active',
             ]));
             $this->info("✓ Company {$slug} terdaftar → {$database}");

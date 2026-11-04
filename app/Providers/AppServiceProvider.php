@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
                 'Database ini masih database satu-perusahaan (deployment lama). Migration DIHENTIKAN sebelum menyentuh apa pun.',
                 'Rollback juga ditolak: jangan ikuti saran migrate:rollback dari deploy.sh lama.',
                 'Kembalikan kode: git reset --hard <commit sebelumnya>, composer install, npm ci, npm run build, php artisan optimize:clear, php artisan up.',
-                'Lalu cutover sekali jalan: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug> --singkatan=<ABC>',
+                'Lalu cutover sekali jalan: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug>',
                 'Panduan: docs/guides/DEPLOY.md',
             ]));
         });

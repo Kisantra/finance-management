@@ -645,6 +645,8 @@ bash docs/migrasi/cek-migrasi-redate.sh tenant_kisantra
 # ───── 7. ADOPSI DATABASE (IREVERSIBEL mulai di sini) ──────────────────────
 php artisan central:adopt-database kisantra --organization=kisantra-group \
   --name="PT. Kinara Sadayatra Nusantara" --abbreviation=KSN
+#   --abbreviation opsional: tanpa itu, admin wajib mengisi Singkatan di Profil
+#   Perusahaan saat login pertama (gerbang EnsureCompanyProfileComplete).
 
 # ───── 8. IMPOR USER ───────────────────────────────────────────────────────
 php artisan central:import-users legacy --organization=kisantra-group \

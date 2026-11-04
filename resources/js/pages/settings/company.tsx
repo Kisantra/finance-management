@@ -36,6 +36,7 @@ import type { SharedProps } from '@/types';
 interface Company {
     id: number;
     name: string;
+    abbreviation: string;
     address: string;
     email: string;
     phone: string;
@@ -57,10 +58,13 @@ interface Company {
 
 interface Props extends SharedProps {
     companyProfile: Company | null;
+    missingFields: string[];
+    lastInvoiceNumber: string | null;
 }
 
 interface CompanyFormData {
     name: string;
+    abbreviation: string;
     address: string;
     email: string;
     phone: string;
@@ -84,6 +88,16 @@ const ASSET_META: Record<AssetKey, { label: string; description: string; icon: R
     stamp: { label: 'Stempel', description: 'Tampil di samping tanda tangan PDF invoice', icon: Stamp, color: 'orange' },
 };
 
+const FIELD_LABEL: Record<string, string> = {
+    name: 'nama perusahaan',
+    abbreviation: 'singkatan',
+    address: 'alamat',
+    email: 'email',
+    phone: 'telepon',
+    finance_manager_name: 'nama finance manager',
+    finance_manager_position: 'jabatan',
+};
+
 const COLOR_MAP: Record<string, { bg: string; text: string }> = {
     blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
     purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600 dark:text-purple-400' },
@@ -92,10 +106,11 @@ const COLOR_MAP: Record<string, { bg: string; text: string }> = {
 };
 
 export default function CompanySettings() {
-    const { companyProfile: company } = usePage<Props>().props;
+    const { companyProfile: company, missingFields, lastInvoiceNumber } = usePage<Props>().props;
 
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm<CompanyFormData>({
         name: company?.name ?? '',
+        abbreviation: company?.abbreviation ?? '',
         address: company?.address ?? '',
         email: company?.email ?? '',
         phone: company?.phone ?? '',
@@ -156,16 +171,51 @@ export default function CompanySettings() {
                 description="Atur identitas perusahaan yang tampil di invoice, dokumen, dan komunikasi formal"
             >
                 <form onSubmit={submit} className="space-y-6">
+                    {missingFields.length > 0 && (
+                        <div
+                            role="alert"
+                            className="rounded-xl border border-yellow-200 dark:border-yellow-900/50 bg-yellow-50 dark:bg-yellow-950/20 p-4 flex items-start gap-3"
+                        >
+                            <Info className="w-4 h-4 text-yellow-700 dark:text-yellow-400 shrink-0 mt-0.5" />
+                            <div className="text-sm text-yellow-900 dark:text-yellow-200">
+                                <p className="font-semibold">Lengkapi profil perusahaan sebelum melanjutkan</p>
+                                <p className="mt-1">
+                                    Perusahaan ini belum bisa dipakai siapa pun sampai profilnya disimpan. Yang masih kosong:{' '}
+                                    {missingFields.map((field) => FIELD_LABEL[field] ?? field).join(', ')}.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Section: Identitas */}
                     <FormSection title="Identitas Perusahaan" description="Nama, alamat, dan informasi kontak utama">
-                        <Input
-                            label="Nama Perusahaan *"
-                            value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
-                            error={errors.name}
-                            icon={<Building2 className="w-4 h-4" />}
-                            placeholder="PT. Nama Perusahaan"
-                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-4">
+                            <Input
+                                label="Nama Perusahaan *"
+                                value={data.name}
+                                onChange={(e) => setData('name', e.target.value)}
+                                error={errors.name}
+                                icon={<Building2 className="w-4 h-4" />}
+                                placeholder="PT. Nama Perusahaan"
+                            />
+                            <Input
+                                label="Singkatan *"
+                                value={data.abbreviation}
+                                onChange={(e) => setData('abbreviation', e.target.value.toUpperCase())}
+                                error={errors.abbreviation}
+                                maxLength={10}
+                                placeholder="mis. KSN"
+                            />
+                        </div>
+                        <p className="text-xs text-dark-500 dark:text-dark-400 -mt-2">
+                            Singkatan menjadi kode perusahaan di nomor invoice ({'{PT}'}) dan nomor pengajuan dana, 2-10 huruf.
+                            {lastInvoiceNumber && (
+                                <>
+                                    {' '}Nomor invoice terakhir: <span className="font-mono text-dark-700 dark:text-dark-200">{lastInvoiceNumber}</span>.
+                                    Samakan kodenya supaya nomor berikutnya tetap bersambung.
+                                </>
+                            )}
+                        </p>
                         <Textarea
                             label="Alamat *"
                             value={data.address}

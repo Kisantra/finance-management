@@ -5,7 +5,7 @@ Satu skrip untuk dua keadaan server. Jalankan dari folder aplikasi di server.
 | Keadaan server | Perintah | Seberapa sering |
 |---|---|---|
 | Sudah multi-perusahaan (alamat `/c/<slug>/...`) | `./deploy.sh` | setiap rilis |
-| Masih versi lama, satu database untuk satu perusahaan | `git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug> --singkatan=<ABC>` | **sekali saja** |
+| Masih versi lama, satu database untuk satu perusahaan | `git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug>` | **sekali saja** |
 
 Skrip memeriksa sendiri bentuk databasenya. `./deploy.sh` biasa di server lama menolak jalan dan menunjukkan perintah cutover; `--cutover` di server yang sudah multi-perusahaan juga menolak.
 
@@ -78,18 +78,19 @@ Untuk server yang masih menjalankan versi satu-database. Cutover memindahkan dat
 ```bash
 cd /path/aplikasi
 git fetch origin
-bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra --singkatan=KSN
+bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra
 ```
 
 | Opsi | Arti |
 |---|---|
 | `--slug=` (wajib) | 3-40 huruf kecil/angka/strip. **Permanen**: jadi alamat `/c/<slug>`, nama database `tenant_<slug>`, dan folder berkas. |
-| `--singkatan=` (wajib) | 2-10 huruf. Label pendek perusahaan di halaman pilih perusahaan, pengalih perusahaan, dan daftar Perusahaan/Pengguna. **Nomor invoice tidak berubah**: `{PT}` tetap diambil dari inisial nama di Profil Perusahaan, sama seperti sekarang. Samakan saja dengan kode di nomor invoice Anda (mis. `KSN`) supaya konsisten. |
 | `--nama=` | Nama perusahaan. Bawaan: nama di profil perusahaan DB lama. |
 | `--organisasi=` | Nama grup. Bawaan: sama dengan nama perusahaan. |
 | `--db-pusat=` | Nama database pusat baru. Bawaan: `<slug>_central`. |
 | `--abaikan-nomor-tak-cocok` | Lanjut walau masih ada nomor invoice lama di luar pola (nomor yang memang diketik manual). |
 | `--yes` | Tanpa konfirmasi. Tanpa ini, skrip meminta Anda mengetik slug. |
+
+**Singkatan perusahaan diisi di website, bukan di perintah.** Tiap perusahaan punya singkatannya sendiri (2-10 huruf, mis. `KSN`) di *Pengaturan › Profil Perusahaan*. Singkatan itu menjadi kode `{PT}` di nomor invoice dan nomor pengajuan dana, serta label di pemilih perusahaan. Aplikasi **mewajibkan** profil perusahaan lengkap (nama, singkatan, alamat, kontak, penanggung jawab keuangan) sebelum perusahaan bisa dipakai: admin langsung diarahkan ke form profil, user lain melihat "perusahaan belum disiapkan". Bila profil lama sudah menyimpan singkatan, nilai itu dipakai; bila belum, admin mengisinya saat login pertama sesudah cutover. Form menampilkan nomor invoice terakhir sebagai rujukan: samakan kodenya supaya nomor berikutnya bersambung.
 
 Sebelum mematikan situs, skrip memeriksa: database lama memang satu-database; dua database tujuan baru atau kosong; `BCRYPT_ROUNDS` tidak lebih rendah dari cost hash sandi lama (kalau lebih rendah, impor user mati di user pertama); tidak ada migration perusahaan yang hanya diberi tanggal baru; dan kueri baseline cocok dengan skema lama. Lalu menampilkan rencana: nama-nama database, jumlah user/invoice/berkas, serta peringatan (invoice tanpa urutan, job antrean yang tertinggal, izin langsung per-user yang tidak ikut pindah).
 
@@ -136,6 +137,7 @@ Mengulang dari nol: hapus database pusat baru, `tenant_<slug>`, dan folder `stor
 
 ### Sesudah selesai
 
+- **Segera login sebagai admin.** Bila profil perusahaan belum lengkap (biasanya singkatan), aplikasi langsung meminta Anda melengkapinya; sampai itu disimpan, user lain melihat "perusahaan belum disiapkan".
 - **Salin `storage/app/cutover/<slug>/` ke luar server**, lalu simpan. Isinya dump data lama dan rahasia `.env` lama.
 - Cek dengan mata: login dengan akun + sandi lama; akun staff tetap ditolak di halaman yang memang bukan haknya, sama seperti versi lama (izin yang pernah diubah lewat Izin & Peran ikut terbawa); buat draft invoice → terbitkan → nomornya melanjutkan nomor terakhir → hapus; unduh satu PDF; buka satu transaksi berlampiran.
 - Database lama dan `storage/app/public` biarkan dulu seminggu.

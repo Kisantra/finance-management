@@ -46,6 +46,15 @@ abstract class TestCase extends BaseTestCase
     protected bool $realTenancy = false;
 
     /**
+     * Apakah gerbang "profil perusahaan wajib lengkap" (EnsureCompanyProfileComplete) aktif.
+     *
+     * false (default) = dimatikan: sebagian besar test tidak membuat profil perusahaan dan
+     * akan dialihkan ke form profil. Gerbangnya diuji di WajibProfilPerusahaanTest (true).
+     * Di aplikasi sungguhan gerbang SELALU aktif.
+     */
+    protected bool $wajibProfilPerusahaan = false;
+
+    /**
      * Slug perusahaan default untuk test. Semua request non-central otomatis
      * di-prefix /c/{slug} (lihat call()), user actingAs otomatis menjadi
      * anggota perusahaan ini (lihat actingAs()).
@@ -91,6 +100,8 @@ abstract class TestCase extends BaseTestCase
         if (! $this->realTenancy) {
             config(['tenancy.bootstrappers' => []]);
         }
+
+        config(['app.require_company_profile' => $this->wajibProfilPerusahaan]);
 
         if (Schema::hasTable('companies')) {
             $organization = Organization::firstOrCreate(

@@ -9,7 +9,7 @@
 #
 # Cutover sekali jalan (server yang masih satu-database, sebelum multi-perusahaan).
 # Jalankan versi BARU skrip ini dari folder aplikasi, JANGAN ./deploy.sh versi lama:
-#   git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra --singkatan=KSN
+#   git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=kisantra
 #     --nama="PT ..."             nama perusahaan (bawaan: nama di profil perusahaan DB lama)
 #     --organisasi="..."          nama grup (bawaan: sama dengan nama perusahaan)
 #     --db-pusat=NAMA             database pusat baru (bawaan: <slug>_central)
@@ -34,7 +34,6 @@ main() {
             -f | --force) FORCE=1 ;;
             --cutover) CUTOVER=1 ;;
             --slug=*) SLUG=${arg#*=} ;;
-            --singkatan=*) ABBR=${arg#*=} ;;
             --nama=*) COMPANY_NAME=${arg#*=} ;;
             --organisasi=*) ORG_NAME=${arg#*=} ;;
             --db-pusat=*) CENTRAL_DB=${arg#*=} ;;
@@ -393,7 +392,7 @@ main() {
         database=$(env_get DB_DATABASE)
         check_db_name "$database"
         case "$(db_arch "$database")" in
-            lama) fail "Server ini masih satu-database (sebelum multi-perusahaan). Rilis ini butuh cutover sekali jalan, baca docs/guides/DEPLOY.md: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug> --singkatan=<ABC>" ;;
+            lama) fail "Server ini masih satu-database (sebelum multi-perusahaan). Rilis ini butuh cutover sekali jalan, baca docs/guides/DEPLOY.md: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug>" ;;
             kosong) fail "Database ${database} kosong. Instalasi baru: ikuti Jalur A di docs/multi-tenancy-runbook-eksekusi.md." ;;
         esac
 
@@ -479,13 +478,13 @@ main() {
             fail "${REMOTE}/${BRANCH} belum berisi kode multi-perusahaan; tidak ada yang perlu dicutover."
         fi
 
-        ABBR=${ABBR^^}
         if [[ ! "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ || ${#SLUG} -lt 3 || ${#SLUG} -gt 40 ]]; then
             fail "--slug: 3-40 huruf kecil/angka/strip, mis. kisantra. PERMANEN: jadi alamat /c/<slug>, nama database, dan folder berkas."
         fi
-        if [[ ! "$ABBR" =~ ^[A-Z]{2,10}$ ]]; then
-            fail "--singkatan wajib: 2-10 huruf, mis. KSN (label perusahaan di pemilih perusahaan; nomor invoice tidak berubah)."
-        fi
+        # Singkatan diisi admin di website (Profil Perusahaan, wajib sebelum aplikasi bisa dipakai);
+        # di sini hanya dipakai bila profil lama sudah menyimpannya.
+        ABBR=$(sql "SELECT UPPER(COALESCE(abbreviation, '')) FROM company_profiles ORDER BY id LIMIT 1" "$LEGACY_DB" 2>/dev/null || true)
+        if [[ ! "$ABBR" =~ ^[A-Z]{2,10}$ ]]; then ABBR=""; fi
         CENTRAL_DB=${CENTRAL_DB:-${SLUG//-/_}_central}
         check_db_name "$CENTRAL_DB"
         if [[ "$CENTRAL_DB" == "$LEGACY_DB" || "$CENTRAL_DB" == "tenant_${SLUG}" ]]; then
@@ -534,7 +533,8 @@ main() {
         say "  Database lama   : ${LEGACY_DB} (hanya dibaca, tidak diubah)"
         say "  Database pusat  : ${CENTRAL_DB} (baru: user, role, perusahaan)"
         say "  Database tenant : tenant_${SLUG} (salinan data bisnis DB lama)"
-        say "  Perusahaan      : ${COMPANY_NAME} · singkatan ${ABBR} · alamat /c/${SLUG}"
+        say "  Perusahaan      : ${COMPANY_NAME} · alamat /c/${SLUG}"
+        say "  Singkatan       : ${ABBR:-belum ada; admin wajib mengisinya di Profil Perusahaan saat login pertama}"
         say "  Organization    : ${ORG_NAME}"
         say "  Isi DB lama     : ${users} user, ${invoices} invoice, ${files} berkas lampiran"
         say "  Kode            : ${PREV_COMMIT:0:7} → ${TARGET_COMMIT:0:7} ($(git rev-list --count "${PREV_COMMIT}..${TARGET_COMMIT}") commit)"
@@ -724,6 +724,7 @@ main() {
         say "bisa MENGULANG nomor yang sudah terkirim ke klien."
         say "  1. Buka ${url}/${SECRET} (melewati maintenance), login dengan akun admin lama, lalu buka"
         say "     ${url}/c/${SLUG}/settings/invoice-numbering dan samakan pola dengan riwayat nomor Anda."
+        say "     Bila diminta lebih dulu, lengkapi Profil Perusahaan (termasuk singkatan)."
         say "  2. Lanjutkan: ./deploy.sh --cutover --slug=${SLUG}"
         say "     Sisa nomor yang memang diketik manual di luar pola: tambahkan --abaikan-nomor-tak-cocok"
         say "Log: ${LOG}"
@@ -830,7 +831,9 @@ main() {
         php artisan central:tenants-status 2>&1 | tee -a "$LOG" | sed 's/^/  /' || true
         say ""
         say "${BOLD}Periksa sekarang (butuh mata manusia):${RESET}"
-        say "  1. Login dengan akun lama + sandi lama → pilih perusahaan → dashboard tampil."
+        say "  1. Login sebagai admin dengan sandi lama. Bila profil perusahaan belum lengkap (mis. singkatan),"
+        say "     aplikasi langsung meminta Anda melengkapinya; sampai itu disimpan, user lain melihat"
+        say "     \"perusahaan belum disiapkan\". Lakukan segera, lalu dashboard tampil."
         say "  2. Akun staff: halaman yang bukan haknya (mis. Arus Kas) tetap menolak (403), sama seperti versi lama."
         say "  3. Buat draft invoice → terbitkan → nomornya MELANJUTKAN nomor terakhir → hapus draft itu."
         say "  4. Unduh satu invoice sebagai PDF; buka satu transaksi berlampiran."

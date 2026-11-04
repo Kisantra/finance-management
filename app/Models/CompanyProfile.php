@@ -109,4 +109,19 @@ class CompanyProfile extends Model
     {
         return static::first();
     }
+
+    /**
+     * Isian wajib profil yang belum diisi; kosong = profil lengkap. Perusahaan baru
+     * diprovisioning dengan '-' di kolom NOT NULL (TenantDatabaseSeeder), jadi '-'
+     * dihitung kosong. Dipakai gerbang EnsureCompanyProfileComplete.
+     *
+     * @return list<string>
+     */
+    public function missingFields(): array
+    {
+        return array_values(array_filter(
+            ['name', 'abbreviation', 'address', 'email', 'phone', 'finance_manager_name', 'finance_manager_position'],
+            fn (string $field): bool => blank($this->{$field}) || trim((string) $this->{$field}) === '-',
+        ));
+    }
 }

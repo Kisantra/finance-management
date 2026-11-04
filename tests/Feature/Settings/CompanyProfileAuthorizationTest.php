@@ -23,6 +23,7 @@ class CompanyProfileAuthorizationTest extends TestCase
     {
         return [
             'name' => $nama,
+            'abbreviation' => 'SDU',
             'address' => 'Jl. Uji No. 1',
             'email' => 'uji@contoh.id',
             'phone' => '08123456789',
