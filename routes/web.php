@@ -699,4 +699,24 @@ require __DIR__.'/auth.php';
 // URL yang tidak cocok dengan rute mana pun gagal SEBELUM middleware `web` berjalan,
 // sehingga halaman error tidak tahu siapa yang login (pengguna tampil sebagai tamu
 // dan tombol "Laporkan ke Tim IT" hilang). Fallback membuatnya tetap lewat `web`.
-Route::fallback(fn () => abort(404));
+// Alamat dari masa satu-perusahaan (bookmark /invoices, /dashboard) diarahkan ke perusahaan
+// pengguna: tanpa ini setiap bookmark staf menjadi 404 sesudah server lama dikonversi.
+Route::fallback(function (Request $request) {
+    $modulPerusahaan = collect(Route::getRoutes()->getRoutes())
+        ->map(fn ($route) => $route->uri())
+        ->filter(fn (string $uri) => str_starts_with($uri, 'c/{company}/'))
+        ->map(fn (string $uri) => explode('/', $uri)[2]);
+
+    abort_unless($modulPerusahaan->contains(strtok($request->path(), '/')), 404);
+
+    if (! $request->user()) {
+        return redirect()->guest('/login');
+    }
+
+    $perusahaan = $request->user()->companies()->pluck('companies.id');
+    $query = $request->getQueryString();
+
+    return redirect($perusahaan->count() === 1
+        ? '/c/'.$perusahaan->first().'/'.$request->path().($query ? '?'.$query : '')
+        : '/choose-company');
+});
