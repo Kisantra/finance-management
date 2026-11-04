@@ -282,6 +282,14 @@ main() {
     db_table_count() { sql "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$1'"; }
     table_exists() { [[ "$(sql "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = '$1' AND TABLE_NAME = '$2'")" == 1 ]]; }
 
+    # GRANT persis untuk user MySQL di .env atas semua database berawalan "$1_". Host diambil dari
+    # CURRENT_USER(): panel hosting (mis. CloudPanel) membuat user ber-host '%', bukan 'localhost'.
+    grant_sql() {
+        local who
+        who=$(sql "SELECT CURRENT_USER()")
+        echo "GRANT ALL PRIVILEGES ON \`${1}\\_%\`.* TO '${who%@*}'@'${who##*@}';"
+    }
+
     # Nama database disisipkan ke kueri. Panggil di konteks utama, bukan di dalam $(...):
     # fail di subshell hanya menghentikan subshell itu.
     check_db_name() {
@@ -474,16 +482,15 @@ main() {
     # (mis. CloudPanel) biasanya hanya berhak atas satu database: walkthrough lalu gagal di akhir.
     # Database uji bernama acak; CREATE tanpa IF NOT EXISTS, jadi yang dihapus pasti buatan sendiri.
     check_create_privilege() {
-        local probe="${TENANT_PREFIX}cek$$" user
+        local probe="${TENANT_PREFIX}cek$$"
         if sql "CREATE DATABASE \`${probe}\`" >/dev/null 2>&1; then
             sql "DROP DATABASE \`${probe}\`"
             return 0
         fi
-        user=$(env_get DB_USERNAME)
         say ""
-        say "${RED}User MySQL ${user} tidak boleh membuat database ${TENANT_PREFIX}…${RESET} (satu per perusahaan)."
-        say "  Jalankan sekali sebagai root MySQL (host disesuaikan dengan user itu), lalu ulangi ./deploy.sh:"
-        say "  GRANT ALL PRIVILEGES ON \`${1}\_%\`.* TO '${user}'@'localhost';"
+        say "${RED}User MySQL di .env tidak boleh membuat database ${TENANT_PREFIX}…${RESET} (satu per perusahaan)."
+        say "  Jalankan sekali sebagai root MySQL, lalu ulangi ./deploy.sh:"
+        say "  $(grant_sql "$1")"
         fail "Hak membuat database perusahaan belum ada."
     }
 
@@ -614,8 +621,8 @@ main() {
             elif sql "CREATE DATABASE \`${db}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"; then
                 echo "dibuat: $db"
             else
-                echo "User MySQL di .env tidak boleh membuat database ${db}."
-                echo "Beri user ini hak penuh atas \`${LEGACY_DB}\\_%\` (lihat docs/guides/DEPLOY.md), lalu ulangi."
+                echo "User MySQL di .env tidak boleh membuat database ${db}. Jalankan sekali sebagai root MySQL, lalu ulangi:"
+                echo "  $(grant_sql "$LEGACY_DB")"
                 return 1
             fi
         done

@@ -81,9 +81,9 @@ Nama yang dipakai, semuanya diturunkan dari nama database lama (`<db_lama>`) sup
 
 - **Hak MySQL.** User MySQL di `.env` harus boleh membuat dan memakai database berawalan nama database lama. Sekali, sebagai root (di CloudPanel: kredensial master, `clpctl db:show:master-credentials`):
   ```sql
-  GRANT ALL PRIVILEGES ON `<db_lama>\_%`.* TO '<user_app>'@'localhost';
+  GRANT ALL PRIVILEGES ON `<db_lama>\_%`.* TO '<user_app>'@'<host>';
   ```
-  Izin yang sama dipakai nanti saat menambah perusahaan dari menu Perusahaan. Tanpa izin ini, skrip berhenti **sebelum** situs dimatikan dan menyebut apa yang kurang.
+  `<host>` mengikuti user itu (`SELECT CURRENT_USER();` sebagai user aplikasi): CloudPanel membuatnya `%`, bukan `localhost`, dan GRANT ke host yang salah ditolak MySQL. Izin yang sama dipakai nanti saat menambah perusahaan dari menu Perusahaan. Tanpa izin ini, skrip berhenti **sebelum** situs dimatikan dan mencetak perintah GRANT yang persis untuk server itu.
 - **Jendela 1 jam.** Lamanya ditentukan dump + restore data, `composer install`, `npm ci`, `npm run build`.
 
 ### Yang dilakukan, berurutan
@@ -130,7 +130,7 @@ Mengulang dari nol: hapus database pusat baru, database perusahaan utama, dan fo
 ## Instalasi baru (server kosong)
 
 1. Di panel (CloudPanel): buat situs dan **database kosong**. Taruh kode di folder situs dan isi `.env` (salinan `.env.example`): `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, kredensial `DB_*`.
-2. Hak MySQL untuk membuat database perusahaan (sekali, sebagai root): `` GRANT ALL PRIVILEGES ON `<db>\_%`.* TO '<user_app>'@'localhost'; ``. User buatan panel biasanya hanya berhak atas satu database; `deploy.sh` memeriksanya lebih dulu (membuat lalu menghapus database uji `<db>_tenant_cek<angka>`) dan berhenti sambil mencetak perintah GRANT ini bila haknya belum ada.
+2. Hak MySQL untuk membuat database perusahaan (sekali, sebagai root): `` GRANT ALL PRIVILEGES ON `<db>\_%`.* TO '<user_app>'@'<host>'; `` (host mengikuti user itu; di CloudPanel `%`). User buatan panel biasanya hanya berhak atas satu database; `deploy.sh` memeriksanya lebih dulu (membuat lalu menghapus database uji `<db>_tenant_cek<angka>`) dan berhenti sambil mencetak perintah GRANT ini bila haknya belum ada.
 3. Jalankan `./deploy.sh`. Ia memasang paket, membangun aset, membuat `APP_KEY` bila kosong, mengisi `TENANCY_DB_PREFIX=<db>_tenant_`, menyiapkan database pusat (struktur, peran, izin), lalu mencetak **tautan pemasangan** `https://domain/setup/<token>`.
 4. Buka tautan itu. Walkthrough meminta:
    - **Akun admin**: nama, email, kata sandi.
