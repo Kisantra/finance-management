@@ -90,10 +90,18 @@ main() {
         if ((s >= 60)); then printf '%dm%02ds' $((s / 60)) $((s % 60)); else printf '%ds' "$s"; fi
     }
 
+    # Langkah berjalan di subshell latar; menghentikan subshell saja meninggalkan anaknya (npm, composer,
+    # migrate) tetap menulis node_modules/vendor/database, lalu bentrok saat deploy diulang.
+    kill_tree() {
+        local child
+        for child in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$child"; done
+        kill "$1" 2>/dev/null || true
+    }
+
     # ── Gagal: hentikan, jelaskan, tunjukkan jalan pulang ────────────────────────
     fail() {
         trap - ERR INT TERM
-        if [[ -n "$CURRENT_PID" ]]; then kill "$CURRENT_PID" 2>/dev/null || true; fi
+        if [[ -n "$CURRENT_PID" ]]; then kill_tree "$CURRENT_PID"; fi
         if ((TTY)); then printf '\r\033[K'; fi
         local recent
         recent=$(tail -n 20 "$LOG" 2>/dev/null || true)
@@ -845,6 +853,8 @@ main() {
     # ── Mulai: pilih mode dari bentuk database ─────────────────────────────────
     if ! command -v mysql >/dev/null || ! sql "SELECT 1" >/dev/null; then
         echo "Tidak bisa memeriksa database: perintah mysql tidak ada atau kredensial DB_* di .env salah."
+        echo "deploy.sh membaca baris KEY=nilai atau KEY=\"nilai\" apa adanya: tanpa komentar di baris yang sama,"
+        echo "tanpa spasi di sekitar '='. Nilai berisi # atau spasi wajib diapit tanda kutip."
         return 1
     fi
     local database d
