@@ -52,6 +52,12 @@ class RoleController extends Controller
             'icon' => ['required', 'string', Rule::in(self::AVAILABLE_ICONS)],
         ]);
 
+        // Kode mencari role bernama "admin" (akses pembuat perusahaan, sinkron izin tiap
+        // deploy, impor user): mengganti namanya memutus semua itu diam-diam.
+        if ($role->name === 'admin' && strtolower($validated['name']) !== 'admin') {
+            return redirect()->back()->with('error', 'Nama role admin tidak bisa diganti.');
+        }
+
         $role->update([
             'name' => strtolower($validated['name']),
             'icon' => $validated['icon'],

@@ -245,6 +245,8 @@ Reset cache: `php artisan permission:cache-reset`
 
 **Permission baru WAJIB lewat migrasi** (`Permission::firstOrCreate` + `givePermissionTo` ke role yang perlu) **dan** didaftarkan di `MasterPermissionSeeder` untuk instalasi baru. Jangan mengandalkan seeder saat deploy — `syncPermissions()` di seeder menyetel ulang izin role yang diatur lewat UI. Lihat `docs/guides/DEPLOY.md`.
 
+**Role `admin` selalu memegang SEMUA permission**: `deploy.sh` menjalankan `php artisan central:sync-admin-permissions` tiap rilis, dan halaman Izin & Peran menolak mengubah izin atau nama role admin. Migrasi permission baru cukup memberi role lain yang perlu.
+
 ---
 
 ## PDF Generation

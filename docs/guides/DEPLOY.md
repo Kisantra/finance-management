@@ -36,11 +36,12 @@ Istilah yang dipakai di bawah:
 | 6 | `composer install --no-dev --optimize-autoloader` | **Bukan `composer update`**: versi persis dari `composer.lock` yang sudah dites. |
 | 7 | `npm ci` | **Bukan `npm install`**: versi persis dari `package-lock.json`. |
 | 8 | `php artisan central:deploy-migrate --force --canary=<slug>` | Database pusat dulu, lalu canary, lalu perusahaan lain satu per satu, dengan laporan per perusahaan. Canary = `DEPLOY_CANARY` di `.env`, atau perusahaan aktif tertua. |
-| 9 | `npm run build` (berkas `public/hot` sisa `npm run dev` dihapus dulu) | `public/build` tidak disimpan di git. `public/hot` yang tertinggal membuat semua halaman putih. |
-| 10 | `php artisan optimize:clear` lalu `optimize` | Buang cache lama, buat ulang dari kode baru. |
-| 11 | `php artisan permission:cache-reset` | Permission/role baru dari migrasi langsung terbaca. |
-| 12 | `php artisan queue:restart` | Worker antrean memuat kode baru setelah tugas yang sedang jalan selesai. |
-| 13 | `php artisan up`, lalu tampilkan `central:tenants-status` | Situs online; tiap perusahaan harus `Migration pending 0`. |
+| 9 | `php artisan central:sync-admin-permissions` | Role **admin** selalu memegang **semua** permission, termasuk yang baru dibawa rilis ini. Role lain tidak disentuh. |
+| 10 | `npm run build` (berkas `public/hot` sisa `npm run dev` dihapus dulu) | `public/build` tidak disimpan di git. `public/hot` yang tertinggal membuat semua halaman putih. |
+| 11 | `php artisan optimize:clear` lalu `optimize` | Buang cache lama, buat ulang dari kode baru. |
+| 12 | `php artisan permission:cache-reset` | Permission/role baru dari migrasi langsung terbaca. |
+| 13 | `php artisan queue:restart` | Worker antrean memuat kode baru setelah tugas yang sedang jalan selesai. |
+| 14 | `php artisan up`, lalu tampilkan `central:tenants-status` | Situs online; tiap perusahaan harus `Migration pending 0`. |
 
 Tiap langkah menampilkan nomor, jam mulai, spinner + waktu berjalan + baris terakhir output, lalu ✓ dan durasinya. Output lengkap: `storage/logs/deploy-<waktu>.log`.
 
@@ -106,7 +107,7 @@ Sebelum mematikan situs, skrip memeriksa: database lama memang satu-database; du
 | 7 | Pulihkan dump sebagai `tenant_<slug>`, cocokkan jumlah invoice & transaksi | |
 | 8-11 | Tarik kode, `composer install`, `npm ci`, `npm run build` | |
 | 12 | `.env`: `DB_DATABASE=<db pusat>`, `LEGACY_DB_DATABASE=<db lama>` | Mulai sini aplikasi membaca database pusat. |
-| 13 | Database pusat: `migrate`, `MasterPermissionSeeder`, lalu **role & izin disalin dari DB lama** | Role buatan sendiri ikut; izin yang diubah lewat halaman Izin & Peran dipertahankan; izin yang baru ada di rilis ini mengikuti bawaan. |
+| 13 | Database pusat: `migrate`, `MasterPermissionSeeder`, lalu **role & izin disalin dari DB lama** | Role buatan sendiri ikut; izin yang diubah lewat halaman Izin & Peran dipertahankan; izin yang baru ada di rilis ini mengikuti bawaan. Role **admin** selalu mendapat semua izin. |
 | 14 | `central:bootstrap --tanpa-admin` | Hanya organization. Admin datang dari user lama. |
 | 15 | `central:adopt-database` | Mendaftarkan perusahaan + menjalankan migration perusahaan. Lulus hanya bila **0 migration tertunda**. |
 | 16 | `central:import-users legacy` | **ID user lama dipertahankan**: data bisnis menyimpan ID user (pemilik reimbursement, penyetuju, pencair dana). Dicek: setiap user lama punya pasangan ID + email yang sama di pusat. Sandi lama tetap berlaku. |
@@ -163,6 +164,8 @@ foreach (['admin', 'finance manager'] as $roleName) {
 ```
 
 Tambahkan juga nama permission ke `MasterPermissionSeeder` agar instalasi baru ikut memilikinya.
+
+**Role admin tidak perlu diurus.** Tiap deploy menjalankan `php artisan central:sync-admin-permissions`, yang memberi role `admin` semua permission yang ada, termasuk yang baru. Halaman Izin & Peran mengunci role admin (tidak bisa dicabut izinnya atau diganti namanya), supaya admin tidak bisa mengunci dirinya sendiri keluar. Migrasi cukup memberi permission baru ke role lain yang memang perlu (mis. finance manager, staff).
 
 ## Persiapan sekali di server (bila belum)
 

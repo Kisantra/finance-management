@@ -67,6 +67,9 @@ class PermissionController extends Controller
         ]);
 
         $role = Role::findOrFail($validated['role_id']);
+        if ($ditolak = $this->tolakJikaAdmin($role)) {
+            return $ditolak;
+        }
         $permission = Permission::findOrFail($validated['permission_id']);
 
         if ($role->permissions->contains('id', $permission->id)) {
@@ -91,6 +94,9 @@ class PermissionController extends Controller
         ]);
 
         $role = Role::findOrFail($validated['role_id']);
+        if ($ditolak = $this->tolakJikaAdmin($role)) {
+            return $ditolak;
+        }
 
         $modulePermissions = Permission::where('name', 'like', "% {$validated['module']}")
             ->orWhere('name', 'like', "% {$validated['module']} %")
@@ -127,6 +133,9 @@ class PermissionController extends Controller
         ]);
 
         $role = Role::findOrFail($validated['role_id']);
+        if ($ditolak = $this->tolakJikaAdmin($role)) {
+            return $ditolak;
+        }
 
         if ($validated['action'] === 'grant') {
             $role->syncPermissions(Permission::all());
@@ -137,6 +146,18 @@ class PermissionController extends Controller
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()->back();
+    }
+
+    /**
+     * Role admin selalu memegang semua permission (central:sync-admin-permissions tiap
+     * deploy). Mengubahnya di sini sia-sia dan berbahaya: mencabut `manage permissions`
+     * dari admin mengunci semua admin keluar dari halaman ini.
+     */
+    private function tolakJikaAdmin(Role $role): ?RedirectResponse
+    {
+        return $role->name === 'admin'
+            ? redirect()->back()->with('error', 'Role admin selalu memiliki semua hak akses dan tidak bisa diubah.')
+            : null;
     }
 
     public function destroy(Permission $permission): RedirectResponse

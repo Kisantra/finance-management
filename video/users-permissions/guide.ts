@@ -71,6 +71,7 @@ export const guide: ModuleGuide = {
                 'Centang atau hapus centang satu izin. Perubahan langsung tersimpan.',
                 'Klik **Semua** / **None** di judul modul untuk seluruh izin modul itu, atau **Beri Semua** / **Cabut Semua** (dengan konfirmasi) untuk semua izin.',
                 'Pakai **Cari permission...** untuk menyaring, mis. ketik "invoices".',
+                'Peran **admin** terkunci: selalu memiliki semua izin, termasuk izin fitur baru yang datang di tiap pembaruan.',
             ],
         },
         {
@@ -78,7 +79,7 @@ export const guide: ModuleGuide = {
             role: ROLES.admin,
             steps: [
                 'Klik **Tambah Peran**, isi **Nama Peran** (otomatis huruf kecil), pilih **Ikon Peran**, lalu **Tambah Peran**. Peran baru belum punya izin apa pun.',
-                'Ikon pensil di kartu peran untuk mengganti nama/ikon (pada peran bawaan **admin** dan **finance manager**, pilih ulang **Ikon Peran** sebelum **Simpan Perubahan**, bila tidak penyimpanan ditolak); ikon tempat sampah untuk menghapus.',
+                'Ikon pensil di kartu peran untuk mengganti nama/ikon (pada peran bawaan **admin** dan **finance manager**, pilih ulang **Ikon Peran** sebelum **Simpan Perubahan**, bila tidak penyimpanan ditolak; nama **admin** tidak bisa diganti); ikon tempat sampah untuk menghapus.',
                 'Peran **admin** dan **staff** tidak bisa dihapus, begitu pula peran yang sedang Anda pakai.',
             ],
         },
@@ -149,8 +150,8 @@ export const guide: ModuleGuide = {
             body: 'Pengguna berstatus **Tidak Aktif** masih bisa masuk. Ganti juga **Kata Sandi**-nya agar ia tidak bisa masuk lagi dengan sandi lama. Sesi yang sudah terbuka (termasuk **Ingat saya**) tidak otomatis berakhir, dan **Lupa kata sandi** tetap bisa dipakai bila ia masih memegang email akunnya.',
         },
         {
-            title: 'Jangan cabut izin dari peran admin',
-            body: 'Tidak ada pengaman: mencabut **manage permissions** atau **manage users** dari admin, atau mengganti peran akun Anda sendiri, bisa mengunci semua admin dari halaman ini.',
+            title: 'Jangan ganti peran akun Anda sendiri',
+            body: 'Izin peran **admin** terkunci (selalu semua izin) dan namanya tidak bisa diganti. Tetapi mengganti peran akun admin terakhir menjadi peran lain tetap bisa mengunci semua orang dari halaman ini.',
         },
         {
             title: 'Hapus izin = semua peran kehilangan akses',
@@ -158,7 +159,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Jangan ganti nama peran bawaan',
-            body: 'Notifikasi dan aturan khusus admin mencari peran bernama **admin** dan **finance manager**; perlindungan hapus mencari **admin** dan **staff**. Mengganti namanya mematikan fitur itu.',
+            body: 'Notifikasi mencari peran bernama **finance manager**; perlindungan hapus mencari **staff**. Mengganti namanya mematikan fitur itu. (Nama **admin** sudah dikunci.)',
         },
         {
             title: 'Peran finance manager bisa terhapus',

@@ -378,7 +378,7 @@ main() {
 
     # ── Deploy rutin ────────────────────────────────────────────────────────────
     run_routine() {
-        TOTAL_STEPS=13
+        TOTAL_STEPS=14
         step "Memeriksa prasyarat server" check_prerequisites
         step "Mengambil info perubahan dari GitHub (${REMOTE}/${BRANCH})" git fetch --prune "$REMOTE" "$BRANCH"
         guard_worktree
@@ -437,6 +437,7 @@ main() {
         MIGRATE_STARTED=1
         step "Migrasi database: pusat → ${canary:+canary ${canary} → }semua perusahaan" \
             php artisan central:deploy-migrate --force ${canary:+"--canary=$canary"}
+        step "Memberi role admin semua hak akses (termasuk fitur baru)" php artisan central:sync-admin-permissions
         step "Membangun aset frontend (npm run build)" build_assets
         step "Menyegarkan cache Laravel (optimize:clear + optimize)" refresh_caches
         step "Menyegarkan cache permission" php artisan permission:cache-reset
@@ -649,6 +650,8 @@ main() {
         php artisan migrate --force
         php artisan db:seed --class=MasterPermissionSeeder --force
         carry_roles
+        # Izin role lama disalin apa adanya, kecuali admin: admin selalu memegang semua.
+        php artisan central:sync-admin-permissions
         php artisan permission:cache-reset
     }
 

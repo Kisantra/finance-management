@@ -82,7 +82,7 @@ Konvensi nama permission = `aksi + spasi + modul`. Modul dan aksinya:
 
 | Role | Icon | Filosofi |
 |------|------|----------|
-| `admin` | `shield-exclamation` | Akses penuh — `syncPermissions(Permission::all())`. Termasuk `manage users`, `manage permissions`, `manage pdf templates`. |
+| `admin` | `shield-exclamation` | Akses penuh — **selalu semua permission**: `central:sync-admin-permissions` (dipanggil `deploy.sh` tiap rilis dan saat cutover) memberi permission baru apa pun ke admin. Toggle/sync di halaman Izin & Peran **ditolak** untuk admin (`PermissionController::tolakJikaAdmin`), dan nama `admin` tidak bisa diganti (`RoleController::update`) — banyak kode mencari role bernama `admin` (akses pembuat perusahaan, impor user). Mencegah admin mengunci dirinya sendiri keluar dengan mencabut `manage permissions`. Test: `AdminSelaluSemuaIzinTest`. |
 | `finance manager` | `banknotes` | 69 dari 75 permission: operasional keuangan (invoice, payment, cash flow, approve/pay/disburse) **tanpa manajemen user & permission** — hanya `view permissions`, tidak dapat `manage users`, `manage permissions`, `manage pdf templates`. Juga tidak bisa `delete clients`/`delete services`/`delete reimbursements`. |
 | `staff` | `user` | 21 permission: dashboard, lihat/buat/edit klien (tanpa hapus), lihat layanan, lihat & buat invoice, kelola reimbursement/fund request/feedback miliknya, lihat & ajukan receivable. Tanpa approve/pay, tanpa bank-accounts/cash-flow, tanpa laporan. |
 

@@ -321,6 +321,9 @@ export default function PermissionsIndex() {
     const [deleteProcessing, setDeleteProcessing] = React.useState(false);
 
     const selectedRole = React.useMemo(() => roles.find((r) => r.id === selectedRoleId) ?? null, [roles, selectedRoleId]);
+    // Role admin selalu memegang semua permission (disinkronkan tiap deploy); server juga menolak perubahan.
+    const isAdminRole = selectedRole?.name === 'admin';
+    const canEditRole = canManagePermissions && !isAdminRole;
 
     // Filter permissions by search
     const filteredGroups = React.useMemo(() => {
@@ -337,7 +340,7 @@ export default function PermissionsIndex() {
     const moduleCount = Object.keys(groupedPermissions).length;
 
     const togglePermission = (permissionId: number) => {
-        if (!canManagePermissions || !selectedRole) return;
+        if (!canEditRole || !selectedRole) return;
         router.post(
             companyUrl('/admin/permissions/toggle'),
             { role_id: selectedRole.id, permission_id: permissionId },
@@ -541,7 +544,9 @@ export default function PermissionsIndex() {
                                                     {selectedRole.name}
                                                 </h3>
                                                 <p className="text-xs text-dark-500 dark:text-dark-400">
-                                                    {selectedRole.permission_ids.length} dari {totalPermissions} permission diberikan
+                                                    {isAdminRole
+                                                        ? 'Selalu memiliki semua hak akses; permission baru otomatis diberikan tiap pembaruan.'
+                                                        : `${selectedRole.permission_ids.length} dari ${totalPermissions} permission diberikan`}
                                                 </p>
                                             </div>
                                         </div>
@@ -555,7 +560,7 @@ export default function PermissionsIndex() {
                                                     icon={<Search className="w-4 h-4" />}
                                                 />
                                             </div>
-                                            {canManagePermissions && (
+                                            {canEditRole && (
                                                 <>
                                                     <Button variant="outline" size="sm" onClick={() => setConfirmRevokeAll(true)}>
                                                         <X className="w-4 h-4 text-red-500" />
@@ -590,7 +595,7 @@ export default function PermissionsIndex() {
                                                             <Badge variant="zinc" size="sm">{perms.length}</Badge>
                                                         </div>
 
-                                                        {canManagePermissions && (
+                                                        {canEditRole && (
                                                             <div className="flex gap-1.5">
                                                                 <Button variant="ghost" size="sm" onClick={() => syncModule(module, 'grant')}>
                                                                     <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
@@ -615,7 +620,7 @@ export default function PermissionsIndex() {
                                                                             checked
                                                                                 ? 'border-primary-300 dark:border-primary-700 bg-primary-50/60 dark:bg-primary-900/20'
                                                                                 : 'border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 hover:border-primary-300 dark:hover:border-primary-700',
-                                                                            !canManagePermissions ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
+                                                                            !canEditRole ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
                                                                         )}
                                                                     >
                                                                         <span
@@ -630,7 +635,7 @@ export default function PermissionsIndex() {
                                                                         </span>
                                                                         <Checkbox
                                                                             checked={checked}
-                                                                            disabled={!canManagePermissions}
+                                                                            disabled={!canEditRole}
                                                                             onCheckedChange={() => togglePermission(permission.id)}
                                                                         />
                                                                     </label>
