@@ -37,13 +37,25 @@ class CentralImportUsers extends Command
                     ->where('model_has_roles.model_type', 'App\\Models\\User');
             })
             ->leftJoin('roles', 'roles.id', '=', 'model_has_roles.role_id')
-            ->select('users.name', 'users.email', 'users.password',
+            ->select('users.id', 'users.name', 'users.email', 'users.password',
                 'users.phone_number', 'users.status', 'users.locale', 'roles.name as role')
             ->get()
             ->map(fn ($row) => (array) $row)
             ->all();
 
         $this->info(sprintf('Ditemukan %d user di koneksi "%s".', count($rows), $this->argument('connection')));
+
+        $bentrok = $service->idConflicts($rows);
+        if ($bentrok !== []) {
+            $this->error('Impor DIBATALKAN, tidak ada yang ditulis. ID user lama bentrok dengan database pusat:');
+            foreach ($bentrok as $baris) {
+                $this->line('  '.$baris);
+            }
+            $this->line('Database perusahaan menyimpan ID user ini (pemilik reimbursement, penyetuju, pencair dana).');
+            $this->line('Impor ke database pusat yang masih kosong; jangan buat akun lain sebelum impor.');
+
+            return self::FAILURE;
+        }
 
         if ($this->option('dry-run')) {
             foreach ($rows as $row) {

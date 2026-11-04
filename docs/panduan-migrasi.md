@@ -74,9 +74,9 @@ Yang paling penting dari tabel ini adalah kolom terakhir.
 
 | Perintah | Gunanya | Merusak data? |
 |---|---|---|
-| `central:bootstrap` | Instalasi baru: organization + admin pertama + perusahaan pertama. Di Jalur B dipakai **tanpa `--company`**, hanya untuk membuat organization | Menolak jalan bila sudah ada user |
+| `central:bootstrap` | Instalasi baru: organization + admin pertama + perusahaan pertama. Di Jalur B dipakai dengan **`--tanpa-admin`**: hanya membuat organization (idempoten), tanpa akun | Menolak jalan bila sudah ada user (kecuali `--tanpa-admin`) |
 | `central:adopt-database {slug}` | Daftarkan DB lama sebagai tenant, lalu `tenants:migrate` untuk tenant itu | Isi tabel tidak disentuh, **tapi skemanya diubah** — ini titik ireversibel |
-| `central:import-users {koneksi}` | Salin user + role dari DB lama ke central. `--organization` dan `--company` **wajib**, juga untuk `--dry-run` | Tidak — idempoten, aman diulang |
+| `central:import-users {koneksi}` | Salin user + role dari DB lama ke central, **dengan ID user lama** (data bisnis menyimpan ID user). `--organization` dan `--company` **wajib**, juga untuk `--dry-run` | Tidak — idempoten, aman diulang. Menolak sebelum menulis apa pun bila ID lama sudah dipakai email lain |
 | `central:adopt-storage {slug}` | Salin/pindahkan lampiran ke folder tenant | `--pindahkan` memindahkan; tanpa itu menyalin |
 | `invoice:backfill-sequence` | Isi urutan nomor invoice lama sesuai pola yang berlaku. Dijalankan lewat `tenants:run … --option="dry-run=1"` | Hanya mengisi kolom yang masih kosong |
 | `central:tenants-status` | Lihat status semua perusahaan + **migration pending** | Hanya membaca |
@@ -349,8 +349,9 @@ php artisan migrate --force
 php artisan db:seed --class=MasterPermissionSeeder --force
 php artisan permission:cache-reset
 
-# 6. organization (admin sebenarnya datang dari langkah 8)
-php artisan central:bootstrap --organization="<Nama Grup>" --quota=5 --name="Operator" --email="ops@example.com"
+# 6. organization saja (admin sebenarnya datang dari langkah 9; akun operator
+#    di sini merebut ID user lama dan impor menolak jalan)
+php artisan central:bootstrap --tanpa-admin --organization="<Nama Grup>" --quota=5
 
 # 7. REKONSILIASI BUKU MIGRATION — tanpa ini langkah 8 MATI
 bash docs/migrasi/cek-migrasi-redate.sh tenant_<slug>
@@ -479,7 +480,8 @@ Gejala nyata yang pernah terjadi, beserta sebab dan tindakannya.
 | `Could not verify the hashed value's configuration` | `BCRYPT_ROUNDS` server baru lebih rendah dari yang lama | Naikkan ke nilai sama atau lebih tinggi, ulangi impor |
 | `RoleDoesNotExist` saat impor | Role sisa eksperimen di DB lama (`staff_test`, `admin_t`) | Sudah tidak menghentikan impor. Perintah melaporkan role yang dilewati beserta emailnya — tetapkan role penggantinya lewat menu Pengguna **sebelum go-live** |
 | User bisa login tapi tidak punya akses apa pun | Role-nya termasuk yang dilewati di atas | Tetapkan role lewat menu Pengguna |
-| Akun hasil `central:bootstrap` 403 di semua halaman, termasuk `/choose-company` | Tanpa `--company`, perintah itu tidak membuat keanggotaan perusahaan maupun role | Tambahkan akun itu sebagai anggota + beri role lewat menu Pengguna memakai admin hasil impor — atau jangan buat akun operator sama sekali |
+| Akun hasil `central:bootstrap` 403 di semua halaman, termasuk `/choose-company` | Tanpa `--company`, perintah itu tidak membuat keanggotaan perusahaan maupun role | Di Jalur B pakai `--tanpa-admin` (tanpa akun). Akun yang terlanjur dibuat: tambahkan sebagai anggota + beri role lewat menu Pengguna memakai admin hasil impor |
+| `Impor DIBATALKAN … ID user lama bentrok` | Database pusat sudah berisi user ber-ID sama (mis. akun operator dibuat sebelum impor) | Impor ke database pusat yang masih kosong. Data bisnis menyimpan ID user; impor dengan ID baru membuat catatan menunjuk orang lain |
 | Invoice baru bernomor 01 padahal 01 sudah terkirim ke klien | `invoice_sequence` kosong untuk invoice lama | §6.5 — setel pola, dry-run, backfill. **Sebelum** aplikasi dibuka |
 | Halaman Profil Perusahaan mati total untuk semua orang, termasuk admin | `MasterPermissionSeeder` belum dijalankan, sehingga permission `manage company profile` tidak ada di database | Jalankan seeder, lalu `permission:cache-reset` |
 | Semua lampiran hilang padahal berkasnya masih ada di server | `central:adopt-storage` terlewat | Jalankan perintah itu, lalu `storage:link` |

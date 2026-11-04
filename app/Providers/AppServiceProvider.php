@@ -5,8 +5,13 @@ namespace App\Providers;
 use Carbon\Carbon;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\MigrationsStarted;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +31,24 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('testing')) {
             $this->loadMigrationsFrom(database_path('migrations/tenant'));
         }
+
+        // Pengaman cutover: kode multi-perusahaan tidak boleh menjalankan migration, maju
+        // ATAU mundur, terhadap database deployment lama. Itu terjadi bila deploy.sh versi
+        // lama menarik rilis ini lalu memanggil `migrate`, atau operator mengikuti saran
+        // `migrate:rollback` yang dicetaknya. Lihat docs/guides/DEPLOY.md.
+        Event::listen(MigrationsStarted::class, function (): void {
+            if (tenancy()->initialized || ! $this->databaseSatuPerusahaan()) {
+                return;
+            }
+
+            throw new RuntimeException(implode(PHP_EOL, [
+                'Database ini masih database satu-perusahaan (deployment lama). Migration DIHENTIKAN sebelum menyentuh apa pun.',
+                'Rollback juga ditolak: jangan ikuti saran migrate:rollback dari deploy.sh lama.',
+                'Kembalikan kode: git reset --hard <commit sebelumnya>, composer install, npm ci, npm run build, php artisan optimize:clear, php artisan up.',
+                'Lalu cutover sekali jalan: git fetch origin && bash <(git show origin/main:deploy.sh) --cutover --slug=<slug> --singkatan=<ABC>',
+                'Panduan: docs/guides/DEPLOY.md',
+            ]));
+        });
 
         // Set locale from session or user preference with fallback
         $availableLocales = config('app.available_locales', ['id', 'zh']);
@@ -58,5 +81,16 @@ class AppServiceProvider extends ServiceProvider
             default => 'id',
         };
         Carbon::setLocale($carbonLocale);
+    }
+
+    /**
+     * Database deployment lama: ada tabel bisnis + user, tetapi belum ada `companies`.
+     * Database pusat tidak pernah punya `invoices`; di test migration tenant ikut dimuat,
+     * tetapi `migrate:fresh` memicu event ini saat database masih kosong.
+     */
+    private function databaseSatuPerusahaan(): bool
+    {
+        return Schema::hasTable('invoices') && ! Schema::hasTable('companies')
+            && Schema::hasTable('users') && DB::table('users')->exists();
     }
 }

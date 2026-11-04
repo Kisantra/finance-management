@@ -278,6 +278,14 @@ lama & baru) — deploy buruk sekarang mengenai SEMUA perusahaan.
 > sini — rekonsiliasi buku migration dan backfill urutan invoice — **wajib**, dan
 > tanpa keduanya cutover berhenti di tengah jalan atau menerbitkan nomor invoice
 > yang bertabrakan.
+>
+> **ID user (2026-11-04).** `central:import-users` kini memakai ID user lama dan
+> menolak jalan bila ID itu sudah dipakai di database pusat, karena data bisnis
+> menyimpan ID user (runbook §G.2.7 butir 6). Memboyong deployment ke server yang
+> database pusatnya **sudah berisi user** akan ditolak bila ID-nya bentrok; itu
+> butuh pemetaan ID di database perusahaan, yang belum tersedia. Server yang
+> deploymentnya sendiri diubah ke multi-perusahaan: pakai
+> `deploy.sh --cutover` ([DEPLOY.md](guides/DEPLOY.md)).
 
 Saat siap memindahkan data produksi lama ke server ini, per perusahaan:
 
@@ -303,8 +311,7 @@ sudo -u kisantra-testing php artisan central:adopt-database namaco   --organizat
 sudo -u kisantra-testing php artisan central:import-users legacy   --organization=kisantra --company=namaco --dry-run
 sudo -u kisantra-testing php artisan central:import-users legacy   --organization=kisantra --company=namaco
 
-# 5. Berkas/lampiran — JANGAN pakai --pindahkan, dan jangan hapus yang asli
-#    (URL lampiran belum sadar tenant — runbook §G.2.8b)
+# 5. Berkas/lampiran — menyalin; yang asli disimpan dulu sebagai cadangan
 sudo -u kisantra-testing php artisan central:adopt-storage namaco
 sudo -u kisantra-testing php artisan storage:link
 

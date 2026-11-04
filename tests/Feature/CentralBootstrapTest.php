@@ -55,6 +55,19 @@ class CentralBootstrapTest extends TestCase
         );
     }
 
+    public function test_tanpa_admin_hanya_membuat_organization_dan_idempoten(): void
+    {
+        $opsi = ['--organization' => 'Kisantra Group', '--quota' => '3', '--tanpa-admin' => true];
+
+        $this->artisan('central:bootstrap', $opsi)->assertSuccessful();
+        $this->artisan('central:bootstrap', $opsi)->assertSuccessful();
+
+        $this->assertSame(1, Organization::where('slug', 'kisantra-group')->count());
+        $this->assertSame(3, Organization::where('slug', 'kisantra-group')->value('company_quota'));
+        $this->assertSame(0, User::count(),
+            'Cutover tidak boleh membuat akun: ID user lama harus tetap kosong untuk central:import-users.');
+    }
+
     public function test_menolak_jalan_bila_sudah_ada_user(): void
     {
         User::factory()->create();

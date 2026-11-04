@@ -32,12 +32,17 @@ class CentralBootstrap extends Command
         {--password= : Sandi admin pertama (dikosongkan = ditanyakan tersembunyi)}
         {--company= : Nama perusahaan pertama; kosongkan untuk membuatnya lewat UI nanti}
         {--slug= : Slug perusahaan, dipakai di URL /c/{slug}}
-        {--abbreviation= : Singkatan perusahaan untuk nomor invoice, mis. KSN}';
+        {--abbreviation= : Singkatan perusahaan untuk nomor invoice, mis. KSN}
+        {--tanpa-admin : Cutover data lama: hanya buat organization (idempoten); admin datang dari central:import-users}';
 
     protected $description = 'Instalasi baru: buat organization, admin pertama, dan (opsional) perusahaan pertama';
 
     public function handle(): int
     {
+        if ($this->option('tanpa-admin')) {
+            return $this->organizationSaja();
+        }
+
         if (User::query()->exists()) {
             $this->error('Database pusat sudah berisi user. Perintah ini hanya untuk instalasi baru.');
             $this->line('Untuk memigrasikan deployment lama, pakai central:adopt-database lalu central:import-users.');
@@ -139,6 +144,39 @@ class CentralBootstrap extends Command
         $this->info("Perusahaan siap: /c/{$company->getTenantKey()}");
         $this->newLine();
         $this->line("Login di /login sebagai {$admin->email}, lalu buka /c/{$company->getTenantKey()}/dashboard");
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Cutover data lama (deploy.sh --cutover). Admin bawaan di jalur ini merugikan:
+     * akun itu tanpa keanggotaan perusahaan (403 di mana-mana) dan merebut ID yang
+     * dipakai user lama, sehingga central:import-users menolak jalan.
+     */
+    private function organizationSaja(): int
+    {
+        $nama = $this->option('organization') ?: $this->ask('Nama organization');
+
+        $pemeriksaan = Validator::make(
+            ['organization' => $nama, 'quota' => $this->option('quota')],
+            ['organization' => ['required', 'string', 'max:255'], 'quota' => ['required', 'integer', 'min:1']],
+        );
+
+        if ($pemeriksaan->fails()) {
+            foreach ($pemeriksaan->errors()->all() as $pesan) {
+                $this->error($pesan);
+            }
+
+            return self::FAILURE;
+        }
+
+        $organization = Organization::firstOrCreate(
+            ['slug' => Str::slug($nama)],
+            ['name' => $nama, 'company_quota' => (int) $this->option('quota')],
+        );
+
+        $this->info(($organization->wasRecentlyCreated ? 'Organization dibuat: ' : 'Organization sudah ada: ')
+            ."{$organization->name} (slug {$organization->slug})");
 
         return self::SUCCESS;
     }

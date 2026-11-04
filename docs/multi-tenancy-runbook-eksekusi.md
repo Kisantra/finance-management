@@ -475,12 +475,16 @@ rekonsiliasi buku migration (tanpa itu langkah adopsi mati) dan backfill urutan
 invoice (tanpa itu invoice berikutnya mengulang nomor yang sudah terkirim ke
 klien).
 
-**`central:bootstrap` boleh dipakai di jalur ini, tapi hanya untuk membuat
-organization.** Database pusat di Jalur B memang masih kosong, jadi perintah itu
-tidak menolak jalan. Jangan pakai `--company` (database tenant sudah ada, bukan
-dibuat baru), dan sadari akun admin yang ia buat tidak punya keanggotaan
-perusahaan maupun role — 403 di mana-mana sampai Anda tambahkan manual (§G.2.7
-butir 4). Admin yang sebenarnya datang dari `central:import-users`.
+**Otomatis: `deploy.sh --cutover`.** Seluruh urutan ini dijalankan satu perintah,
+lengkap dengan pemeriksaan sebelum downtime, gerbang verifikasi per langkah, dan
+bisa dilanjutkan bila berhenti di tengah. Lihat [DEPLOY.md](guides/DEPLOY.md).
+Urutan manual di §G.2 tetap berlaku sebagai penjelasan dan jalan cadangan.
+
+**`central:bootstrap` di jalur ini: pakai `--tanpa-admin`.** Opsi itu hanya membuat
+organization (idempoten). Jangan membuat akun operator sebelum impor: akun itu tanpa
+keanggotaan (403 di mana-mana) dan merebut ID yang dipakai user lama, sehingga
+`central:import-users` menolak jalan (§G.2.7 butir 6). Admin yang sebenarnya datang
+dari `central:import-users`.
 
 ---
 
@@ -553,6 +557,21 @@ Dua hal lagi yang sudah terbukti perlu, dan tidak ada di PDF:
 > jalan kalau tidak diurus. Rinciannya di
 > [G.2.7 Kegagalan nyata saat latihan](#g27-kegagalan-nyata-saat-latihan).
 >
+> **Diotomatiskan dan diuji 2026-11-04: `deploy.sh --cutover`.** Simulasi server
+> produksi lama: klon repo di commit `4483821` (satu-database terakhir), `.env`
+> bergaya produksi (cache/session/antrean `database`, config ter-cache), salinan
+> DB dengan ID user berlubang (1, 3, 7, 9), role buatan sendiri, izin staff yang
+> diubah lewat UI, feedback berlampiran, dan nomor invoice manual di luar pola.
+> Hasil: `deploy.sh` lama dihentikan pengaman tanpa mengubah DB (begitu pula
+> `migrate:rollback` yang disarankannya); lima penolakan sebelum downtime lulus;
+> cutover dijeda di nomor invoice lalu dilanjutkan; ID user, role & izin (0 beda),
+> feedback, berkas, dan baseline cocok; login dengan sandi lama, akses per peran,
+> dan lampiran lewat `/c/{slug}/storage` lulus via HTTP; deploy rutin, canary
+> gagal, rilis perbaikan, dan jalan "kembali ke versi lama" sesudah cutover
+> selesai juga lulus. Dua cacat skrip ketemu dan diperbaiki sebelum rilis:
+> `DELETE` multi-tabel tanpa database default ("No database selected") dan cek
+> dump `gzip | grep -q` yang mati SIGPIPE pada dump besar.
+>
 > Latihannya bisa diulang siapa pun:
 > `DB_PASSWORD=… bash docs/migrasi/latihan-cutover.sh`
 > (sumber bawaan `finance_main_dev`; untuk dump Anda sendiri setel
@@ -611,10 +630,9 @@ php artisan migrate --force
 php artisan db:seed --class=MasterPermissionSeeder --force
 php artisan permission:cache-reset
 
-# ───── 5. ORGANIZATION + AKUN OPERATOR ─────────────────────────────────────
-php artisan central:bootstrap --organization="Kisantra Group" --quota=5 \
-  --name="Operator" --email="ops@kisantra.com"
-#   Sandi ditanyakan tersembunyi. Pakai email yang BUKAN milik user lama.
+# ───── 5. ORGANIZATION (tanpa akun) ────────────────────────────────────────
+php artisan central:bootstrap --tanpa-admin --organization="Kisantra Group" --quota=5
+#   Jangan buat akun operator: ia merebut ID user lama dan impor menolak jalan.
 
 # ───── 6. REKONSILIASI BUKU MIGRATION — SEBELUM ADOPT, BUKAN SESUDAH ───────
 bash docs/migrasi/cek-migrasi-redate.sh tenant_kisantra
@@ -668,7 +686,7 @@ Flag boolean tetap harus ditulis `--option="dry-run=1"`.
 | 1 backup, 2 baseline | tidak | — |
 | 3 restore ke `tenant_{slug}` | tidak | `DROP DATABASE tenant_{slug}` |
 | 4 `migrate --force` (pusat) | tidak, DB pusat **baru** | `DROP DATABASE` DB pusat, buat ulang |
-| 5 `central:bootstrap` | tidak | hapus baris organization + user, atau buang DB pusat |
+| 5 `central:bootstrap --tanpa-admin` | tidak | hapus baris organization, atau buang DB pusat |
 | 6 rekonsiliasi buku migration | menulis ke `tenant_{slug}.migrations` | `DELETE FROM migrations WHERE migration='…'` |
 | **7 `central:adopt-database`** | **YA** | hanya lewat dump langkah 1: `DROP` + `CREATE` + restore `freeze.sql` |
 | 8 `central:import-users` | tidak (idempoten) | hapus baris user/`company_user` di DB pusat |
@@ -708,11 +726,11 @@ dipulihkan — jumlah baris `users`/`companies`/`company_user`/`model_has_roles`
 | 3 | `SELECT COUNT(*) FROM tenant_{slug}.invoices;` | sama dengan DB lama |
 | 4 | `php artisan migrate:status` | 0 Pending di pusat |
 | 4 | keluaran seeder | `Total: 77 permissions`, `Admin: 77 / Finance Manager: 70 / Staff: 21` |
-| 5 | keluaran perintah | "Organization dibuat", "Admin pertama dibuat" |
+| 5 | keluaran perintah | "Organization dibuat" |
 | 6 | `cek-migrasi-redate.sh` diulang | blok "hanya berubah tanggal" kosong |
 | 7 | keluaran `tenants:migrate` | semua `DONE`, tidak ada `FAIL` |
 | 7 | `php artisan central:tenants-status` | status `active`, Database `OK`, **Migration pending 0** |
-| 8 | `SELECT COUNT(*) FROM users;` di pusat | = jumlah user DB lama (+1 akun operator) |
+| 8 | `SELECT COUNT(*) FROM users;` di pusat | = jumlah user DB lama, dengan **ID + email sama persis** (butir 6 §G.2.7) |
 | 8 | daftar "role dilewati" | kosong, atau sudah Anda tangani |
 | 9 | `find storage/tenant{slug} -type f \| wc -l` | = jumlah berkas yang dilaporkan perintah |
 | 10 | laporan dry-run | "tidak cocok" kosong, atau tinggal nomor yang memang ketikan manual |
@@ -878,8 +896,9 @@ biarkan dulu seminggu, bersihkan setelah yakin.
 
 #### G.2.7 Kegagalan nyata saat latihan
 
-Lima hal di bawah ini gagal atau menyesatkan. Keempat yang pertama akan
-menghentikan cutover produksi.
+Lima hal pertama di bawah ini gagal atau menyesatkan saat latihan; keempat yang
+pertama akan menghentikan cutover produksi. Butir 6-7 ditemukan kemudian, saat
+menyiapkan `deploy.sh --cutover`.
 
 **1. `central:adopt-database` MATI: `Duplicate column name 'system_key'`** —
 ini kegagalan terpenting yang ditemukan latihan.
@@ -955,6 +974,10 @@ Pengguna memakai akun admin hasil impor, atau (b) jangan buat akun operator
 sama sekali — hanya organization yang dibutuhkan langkah 7, dan admin datang
 dari `central:import-users`. Latihan memakai (b) untuk kerja nyatanya.
 
+**Status 2026-11-04:** (b) kini satu opsi, `central:bootstrap --tanpa-admin`, dan
+(a) tidak lagi bisa dilakukan sebelum impor: akun operator merebut ID user lama
+(butir 6).
+
 **5. Role warisan dilewati — persis seperti dijanjikan.** Satu akun berrole
 `staff_test` diimpor **tanpa** role, dan dilaporkan terang-terangan:
 
@@ -970,7 +993,39 @@ Role lain terbawa utuh: `admin` → `admin`, `finance manager` →
 0 keanggotaan baru` — idempoten, dan hash sandi **identik byte-per-byte** dengan
 DB lama (dibandingkan dengan `l.password = c.password` di SQL).
 
-#### G.2.8 Cacat produk yang ditemukan latihan — BELUM diperbaiki
+**Status 2026-11-04:** `deploy.sh --cutover` menyalin role buatan sendiri beserta
+izinnya dari DB lama sebelum impor, jadi user seperti ini tetap punya hak yang sama.
+
+**6. ID user tidak dipertahankan saat impor** (ditemukan 2026-11-04, sudah
+diperbaiki). Tabel bisnis di database perusahaan menyimpan ID user sebagai angka
+tanpa FK: `reimbursements.user_id`/`reviewed_by`/`paid_by`,
+`reimbursement_payments.paid_by`, `fund_requests.user_id`/`reviewed_by`/
+`disbursed_by`, `receivables.approved_by`, dan debitur polimorfik
+`receivables.debtor_id`. Impor lama membuat user dengan ID auto-increment, jadi
+begitu ID lama berlubang (pernah ada user dihapus) atau akun operator dibuat lebih
+dulu, catatan itu diam-diam menunjuk orang lain. Terbukti di DB demo:
+`admin@gmail.com` ber-ID 1 di DB lama, ID 2 di pusat. Latihan tidak menangkapnya
+karena ID sumbernya kebetulan rapat dan tanpa akun operator. Kini
+`central:import-users` memakai ID lama dan **menolak jalan sebelum menulis apa pun**
+bila ID itu sudah dipakai email lain, atau email itu sudah ada dengan ID lain
+(`CentralUserImportTest`).
+
+**7. Izin role yang diubah lewat UI dan riwayat feedback tidak ikut pindah**
+(ditemukan 2026-11-04, ditangani `deploy.sh --cutover`). `MasterPermissionSeeder`
+mengisi database pusat dengan izin bawaan, sehingga perubahan dari halaman Izin &
+Peran hilang. `feedbacks` hidup di database pusat dan tidak tersalin oleh perintah
+mana pun. Cutover kini menyalin keduanya (role/izin sesudah seeder; feedback
+dengan `company_id = {slug}`).
+
+#### G.2.8 Cacat produk yang ditemukan latihan — SUDAH diperbaiki
+
+> **Status 2026-11-04: keduanya sudah diperbaiki di kode.** (a) Kedua berkas kembali
+> bernama seperti di `main` produksi (`2026_09_17_000000_…`, `2026_09_17_000001_…`);
+> `deploy.sh --cutover` tetap memeriksa pola ini sebelum downtime. (b) Berkas
+> perusahaan dilayani route `/c/{slug}/storage/{path}` (`TenantStorageController`,
+> dengan cek keanggotaan), dan middleware `SetCompanyUrlDefaults` mengarahkan
+> `Storage::disk('public')->url()` ke route itu. Perusahaan kedua boleh di-onboard.
+> Uraian di bawah dipertahankan sebagai catatan sejarah.
 
 Dua hal di bawah ini ada di kode, bukan di prosedur. Latihan ini hanya
 mendokumentasikannya.
@@ -1034,13 +1089,15 @@ paket) atau setel `url_override` + symlink per tenant, lalu ganti semua
 
 ### G.3 Setiap rilis berikutnya
 
+`./deploy.sh` ([DEPLOY.md](guides/DEPLOY.md)): backup semua database
+(`central:backup`), lalu `central:deploy-migrate --canary=<slug>` — database pusat
+dulu, satu perusahaan sebagai percobaan, baru sisanya; bila canary gagal,
+perusahaan lain tidak disentuh. Padanan manualnya:
+
 ```bash
 git pull && composer install --no-dev && npm run build
-php artisan migrate --force                          # central dulu
-php artisan tenants:migrate --force --tenants=<uji>  # canary satu perusahaan
-# verifikasi canary, lalu:
-php artisan tenants:migrate --force                  # sisanya
-php artisan config:cache && php artisan queue:restart
+php artisan central:deploy-migrate --force --canary=<uji>   # pusat → canary → sisanya
+php artisan optimize && php artisan queue:restart
 ```
 
 Aturan: migration tenant wajib **expand–contract** (kode baru jalan di skema lama &

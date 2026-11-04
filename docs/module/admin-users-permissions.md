@@ -22,7 +22,7 @@ Fitur **teams** Spatie AKTIF dengan `team_foreign_key = company_id` (**string** 
 - **Membuat role global** di kode: `setPermissionsTeamId(null)` dulu (pola di `MasterPermissionSeeder`).
 - **Keanggotaan perusahaan** hidup di pivot `company_user` (user_id, company_id) — TANPA kolom role; role selalu dari Spatie teams. `UserController@store` otomatis meng-attach user baru ke perusahaan aktif admin pembuatnya.
 - Di test, `Tests\TestCase::setUp()` men-set team default `test-company`; test isolasi lihat `tests/Feature/CompanyPermissionIsolationTest.php`.
-- Impor user deployment lama: `php artisan central:import-users {connection} --organization= --company=` (`app/Services/CentralUserImportService.php`, idempoten).
+- Impor user deployment lama: `php artisan central:import-users {connection} --organization= --company=` (`app/Services/CentralUserImportService.php`, idempoten). **ID user lama dipertahankan** karena data bisnis di database perusahaan menyimpan ID user (pemilik/penyetuju reimbursement, fund request, receivable); bentrok ID → impor dibatalkan sebelum menulis apa pun. Dipakai otomatis oleh `deploy.sh --cutover`.
 
 ### Provisioning Perusahaan (`/admin/companies`, sejak Tahap 4)
 
