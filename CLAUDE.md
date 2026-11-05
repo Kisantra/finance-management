@@ -193,7 +193,7 @@ Loading skeleton                  → Skeleton
 | Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Bank Accounts | `/bank-accounts` | Index, Create, Edit, Delete, Transactions |
-| Cash Flow | `/cash-flow` | Overview, Income, Expenses, Transfers |
+| Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh) + menu Transfer & Penyesuaian |
 | Tx Categories | `/transaction-categories` | Index, Create, Update, Delete |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
 | Fund Requests | `/fund-requests` | All/My Requests, Create, Review, Disburse |

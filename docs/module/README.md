@@ -17,7 +17,7 @@
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
 | [bank-accounts.md](bank-accounts.md) | Rekening bank, saldo terhitung, transaksi | `/bank-accounts` |
-| [cash-flow.md](cash-flow.md) | Pemasukan, Pengeluaran, Transfer, export PDF | `/cash-flow/*` |
+| [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Transfer, export PDF | `/cash-flow/*` |
 | [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete | `/transaction-categories` |
 | [fund-requests.md](fund-requests.md) | Permintaan dana: workflow + pencairan | `/fund-requests` |
 | [reimbursements.md](reimbursements.md) | Reimbursement: workflow + pembayaran parsial | `/reimbursements` |

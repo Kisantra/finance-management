@@ -6,7 +6,7 @@ import { ADMIN_DELETE_STEPS, ADMIN_IMPACT_STEPS, EDIT_STEPS, EXPENSE_STEPS, INCO
 
 /* Arus Kas hanya untuk Finance manager & Admin (Staff tidak punya izin income/expense/transfer). */
 
-const outro = { id: 'outro', frames: 90, node: <Outro where="Arus Kas › Pemasukan" action="Input Pemasukan" /> };
+const outro = { id: 'outro', frames: 90, node: <Outro where="Arus Kas › Pemasukan & Pengeluaran" action="Input Pemasukan" /> };
 
 export const TUTORIALS: Tutorials = {
     fm: buildTutorial('CashFlowFinanceManager', ROLES.fm, [

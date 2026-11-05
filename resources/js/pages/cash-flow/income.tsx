@@ -1,11 +1,10 @@
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowDownLeft,
-    ArrowUpDown,
+    Calendar,
     Download,
     FileText,
     Filter,
-    Paperclip,
     Plus,
     Search,
     Trash2,
@@ -25,13 +24,15 @@ import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
+import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { Pagination } from '@/components/shared/pagination';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, formatDate, toLocalIso } from '@/lib/utils';
 import * as cashFlowRoutes from '@/routes/cash-flow';
-import { CashFlowStatsBar } from './components/cash-flow-stats';
+import { CashFlowTabs } from './components/cash-flow-tabs';
+import { HEAD_ROW, InputByText, LIST_CARD, SortableTh, StopRowClick, TABLE_SCROLL, TH } from './components/table-parts';
 import {
     TransactionDetailDialog,
     type CashFlowDialogData,
@@ -47,6 +48,7 @@ interface Props {
     filters: IncomeFilters;
     clientOptions: FilterOption[];
     categoryOptions: FilterOption[];
+    inputByOptions: FilterOption[];
     accounts: AccountPickerItem[];
 }
 
@@ -58,7 +60,7 @@ function parseIso(s: string | null): Date | null {
     return s ? new Date(s) : null;
 }
 
-export default function CashFlowIncome({ rows, pagination, stats, filters, clientOptions, categoryOptions, accounts }: Props) {
+export default function CashFlowIncome({ rows, pagination, stats, filters, clientOptions, categoryOptions, inputByOptions, accounts }: Props) {
     const { can } = useCan();
     const canDelete = can('delete income');
     const canCreate = can('create income');
@@ -115,6 +117,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
             date_to: next.date_to || undefined,
             clients: next.clients.length > 0 ? next.clients.join(',') : undefined,
             categories: next.categories.length > 0 ? next.categories.join(',') : undefined,
+            input_by: next.input_by ?? undefined,
             sort: next.sort,
             direction: next.direction,
             per_page: next.per_page,
@@ -176,7 +179,8 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
         (filters.search ? 1 : 0) +
         (filters.date_from && filters.date_to ? 1 : 0) +
         filters.clients.length +
-        filters.categories.length;
+        filters.categories.length +
+        (filters.input_by ? 1 : 0);
 
     const allSelected = rows.length > 0 && selected.length === rows.length;
     const periodLabel =
@@ -188,20 +192,20 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
         <AppLayout>
             <Head title="Pemasukan" />
 
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Pemasukan"
+                    title="Pemasukan & Pengeluaran"
                     description="Daftar semua pemasukan dari pembayaran invoice & transaksi langsung."
                     action={
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <TutorialButton slug="cash-flow" />
                             <Button variant="outline" size="md" onClick={exportPdf}>
-                                <Download className="w-4 h-4" />
+                                <Download className="h-4 w-4" />
                                 Export PDF
                             </Button>
                             {canCreate && accounts.length > 0 && (
                                 <Button variant="green" size="md" onClick={() => setCreateOpen(true)}>
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="h-4 w-4" />
                                     Input Pemasukan
                                 </Button>
                             )}
@@ -209,16 +213,17 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                     }
                 />
 
-                <CashFlowStatsBar
-                    stats={stats}
-                    period={periodLabel}
-                    primaryLabel="Total Pemasukan"
-                    primaryTone="green"
-                />
+                <CashFlowTabs active="income" />
 
-                {/* Filter bar */}
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <StatsCard label="Total Pemasukan" value={formatCurrency(stats.total_amount)} icon={<ArrowDownLeft />} color="green" />
+                    <StatsCard label="Jumlah Transaksi" value={stats.total_count.toLocaleString('id-ID')} icon={<FileText />} color="blue" />
+                    <StatsCard label="Periode" value={periodLabel} icon={<Calendar />} color="purple" />
+                </div>
+
+                <section aria-label="Daftar pemasukan" className={LIST_CARD}>
+                    {/* Filter bar */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         <DatePicker
                             mode="range"
                             label="Rentang Tanggal"
@@ -249,65 +254,67 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                             placeholder="Semua kategori"
                             clearable
                         />
+                        <Combobox
+                            label="Diinput oleh"
+                            options={inputByOptions}
+                            value={filters.input_by}
+                            onChange={(v) => apply({ input_by: v ? Number(v) : null, page: 1 })}
+                            placeholder="Semua pengguna"
+                            emptyText="Belum ada pencatat."
+                            clearable
+                        />
                         <Input
                             label="Cari"
-                            icon={<Search className="w-4 h-4" />}
+                            icon={<Search className="h-4 w-4" />}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Invoice, klien, deskripsi..."
                         />
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
-                                    <Filter className="w-3 h-3" />
+                                    <Filter className="h-3 w-3" />
                                     {activeFilterCount} filter aktif
                                 </Badge>
                             )}
-                            <span className="text-sm text-dark-500 dark:text-dark-400">
+                            <span className="text-[13px] text-ob-ink-2">
                                 Menampilkan <span className="tabular-nums">{rows.length}</span> dari{' '}
                                 <span className="tabular-nums">{pagination.total}</span> hasil
                             </span>
                         </div>
                         {activeFilterCount > 0 && (
                             <Button variant="ghost" size="sm" onClick={reset}>
-                                <X className="w-3.5 h-3.5" />
+                                <X className="h-3.5 w-3.5" />
                                 Reset
                             </Button>
                         )}
                     </div>
-                </div>
 
-                {/* Table */}
-                <div className="bg-white dark:bg-dark-700 rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden">
+                    {/* Table */}
                     {rows.length === 0 ? (
                         <EmptyState
-                            icon={<ArrowDownLeft className="w-7 h-7" />}
+                            icon={<ArrowDownLeft className="h-7 w-7" />}
                             title="Tidak ada pemasukan"
                             description="Coba sesuaikan filter atau periode pencarian."
                         />
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className={TABLE_SCROLL}>
                             <table className="w-full text-sm">
-                                <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
-                                    <tr>
-                                        <th className="w-10 px-4 py-3">
+                                <thead>
+                                    <tr className={HEAD_ROW}>
+                                        <th scope="col" className="w-10 px-3 py-2.5">
                                             {canDelete && (
-                                                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                                                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Pilih semua baris" />
                                             )}
                                         </th>
                                         <SortableTh label="Tanggal" column="date" current={filters.sort} direction={filters.direction} onSort={onSort} />
-                                        <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Sumber
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">
-                                            Klien / Deskripsi
-                                        </th>
-                                        <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden lg:table-cell">
-                                            Kategori
-                                        </th>
+                                        <th scope="col" className={TH}>Sumber</th>
+                                        <th scope="col" className={cn(TH, 'hidden md:table-cell')}>Klien / Deskripsi</th>
+                                        <th scope="col" className={cn(TH, 'hidden lg:table-cell')}>Kategori</th>
+                                        <th scope="col" className={cn(TH, 'hidden xl:table-cell')}>Diinput oleh</th>
                                         <SortableTh
                                             label="Jumlah"
                                             column="amount"
@@ -318,68 +325,72 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                         />
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
+                                <tbody>
                                     {rows.map((row) => (
                                         <tr
                                             key={row.uid}
                                             onClick={() => openRow(row)}
                                             className={cn(
-                                                'transition-colors cursor-pointer',
-                                                selected.includes(row.uid)
-                                                    ? 'bg-primary-50/50 dark:bg-primary-900/10'
-                                                    : 'hover:bg-secondary-50/80 dark:hover:bg-dark-800/50',
+                                                'cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0',
+                                                selected.includes(row.uid) ? 'bg-ob-act-fill/10' : 'hover:bg-ob-hover',
                                             )}
                                         >
-                                            <td className="px-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-3 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
                                                 {canDelete && (
                                                     <Checkbox
                                                         checked={selected.includes(row.uid)}
                                                         onCheckedChange={() => toggleOne(row.uid)}
+                                                        aria-label="Pilih baris"
                                                     />
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3 align-middle whitespace-nowrap text-sm text-dark-700 dark:text-dark-300">
+                                            <td className="whitespace-nowrap px-3 py-3 align-middle text-ob-ink-2">
                                                 {formatDate(row.date)}
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 <SourceBadge type={row.source_type} />
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden md:table-cell">
+                                            <td className="hidden px-3 py-3 align-middle md:table-cell">
                                                 {row.source_type === 'payment' ? (
                                                     <>
-                                                        <div className="font-medium text-dark-900 dark:text-dark-50 truncate max-w-72">
+                                                        <div className="max-w-72 truncate font-medium text-ob-ink">
                                                             {row.client_name || '—'}
                                                         </div>
-                                                        <div className="text-xs text-dark-500 dark:text-dark-400 font-mono truncate">
+                                                        <div className="truncate font-mono text-xs text-ob-ink-3">
                                                             {row.invoice_number}
                                                         </div>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <div className="font-medium text-dark-900 dark:text-dark-50 truncate max-w-72">
+                                                        <div className="max-w-72 truncate font-medium text-ob-ink">
                                                             {row.description || '—'}
                                                         </div>
-                                                        <div className="text-xs text-dark-500 dark:text-dark-400 truncate">
+                                                        <div className="truncate text-xs text-ob-ink-3">
                                                             {row.bank_name}
                                                         </div>
                                                     </>
                                                 )}
                                                 {row.attachment_url && (
-                                                    <AttachmentPreviewButton
-                                                        url={row.attachment_url}
-                                                        name={row.attachment_name}
-                                                    />
+                                                    <StopRowClick>
+                                                        <AttachmentPreviewButton
+                                                            url={row.attachment_url}
+                                                            name={row.attachment_name}
+                                                        />
+                                                    </StopRowClick>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden lg:table-cell">
+                                            <td className="hidden px-3 py-3 align-middle lg:table-cell">
                                                 {row.category_label ? (
-                                                    <Badge variant="zinc" className="text-xs">{row.category_label}</Badge>
+                                                    <Badge variant="zinc">{row.category_label}</Badge>
                                                 ) : (
-                                                    <span className="text-xs text-dark-400 dark:text-dark-500">—</span>
+                                                    <span className="text-xs text-ob-ink-3">—</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3 align-middle text-right">
-                                                <span className="font-semibold text-green-600 dark:text-green-400 tabular-nums">
+                                            <td className="hidden px-3 py-3 align-middle xl:table-cell">
+                                                <InputByText name={row.input_by} />
+                                            </td>
+                                            <td className="whitespace-nowrap px-3 py-3 text-right align-middle">
+                                                <span className="font-semibold tabular-nums text-ob-pos">
                                                     +{formatCurrency(row.amount)}
                                                 </span>
                                             </td>
@@ -391,29 +402,27 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                     )}
 
                     {pagination.last_page > 1 && (
-                        <div className="px-4 py-3 border-t border-secondary-200 dark:border-dark-600">
+                        <div className="border-t border-ob-line pt-4">
                             <Pagination meta={pagination} onPageChange={(page) => apply({ page })} />
                         </div>
                     )}
-                </div>
+                </section>
             </div>
 
             {/* Floating bulk-action bar */}
             {canDelete && selected.length > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-4 duration-200">
-                    <div className="bg-white dark:bg-dark-700 rounded-xl shadow-xl border border-secondary-200 dark:border-dark-600 px-4 py-3 flex items-center gap-4 min-w-80">
+                <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 animate-in slide-in-from-bottom-4 duration-200">
+                    <div className="flex min-w-80 items-center gap-4 rounded-2xl border border-ob-line bg-ob-card px-4 py-3 shadow-xl shadow-black/20">
                         <div className="flex items-center gap-2">
                             <Badge variant="default">{selected.length}</Badge>
-                            <span className="text-sm font-medium text-dark-900 dark:text-dark-50">
-                                catatan dipilih
-                            </span>
+                            <span className="text-sm font-medium text-ob-ink">catatan dipilih</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="zinc" size="sm" onClick={() => setSelected([])}>
                                 Batal
                             </Button>
                             <Button variant="red" size="sm" onClick={() => setBulkDeleteOpen(true)}>
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="h-3.5 w-3.5" />
                                 Hapus
                             </Button>
                         </div>
@@ -443,7 +452,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                     open={createOpen}
                     onOpenChange={(open) => {
                         setCreateOpen(open);
-                        if (!open) router.reload({ only: ['rows', 'stats', 'pagination'] });
+                        if (!open) router.reload({ only: ['rows', 'stats', 'pagination', 'inputByOptions'] });
                     }}
                     accountId={accounts[0].id}
                     accounts={accounts}
@@ -459,43 +468,16 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
 function SourceBadge({ type }: { type: string }) {
     if (type === 'payment') {
         return (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-                <FileText className="w-3 h-3" />
+            <Badge variant="blue" className="gap-1.5">
+                <FileText className="h-3 w-3" />
                 Invoice
-            </span>
+            </Badge>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
-            <Wallet className="w-3 h-3" />
+        <Badge variant="green" className="gap-1.5">
+            <Wallet className="h-3 w-3" />
             Langsung
-        </span>
-    );
-}
-
-interface SortableThProps {
-    label: string;
-    column: string;
-    current: string;
-    direction: 'asc' | 'desc';
-    onSort: (column: string) => void;
-    align?: 'left' | 'right';
-}
-
-function SortableTh({ label, column, current, direction, onSort, align = 'left' }: SortableThProps) {
-    const active = current === column;
-    return (
-        <th className={cn('px-3 py-3 text-xs font-semibold text-dark-500 dark:text-dark-400', align === 'right' ? 'text-right' : 'text-left')}>
-            <button
-                onClick={() => onSort(column)}
-                className={cn(
-                    'inline-flex items-center gap-1 hover:text-dark-900 dark:hover:text-dark-50 transition-colors',
-                    active && 'text-primary-600 dark:text-primary-400',
-                )}
-            >
-                {label}
-                <ArrowUpDown className={cn('w-3 h-3', active ? 'opacity-100' : 'opacity-40')} />
-            </button>
-        </th>
+        </Badge>
     );
 }

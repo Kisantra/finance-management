@@ -1,6 +1,6 @@
 # Modul: Cash Flow (Arus Kas)
 
-> Modul monitoring dan pencatatan arus kas dalam tiga halaman: **Income** (pemasukan), **Expenses** (pengeluaran), dan **Transfers** (pindah dana antar rekening). Route prefix `/cash-flow` untuk halaman, sedangkan mutasi memakai endpoint bersama `/bank-transactions/*`. Permission granular per fitur: `view|create|edit|delete income`, `view|create|edit|delete expense`, `view|create|edit|delete transfer` — otorisasi mutasi dilakukan di FormRequest/Gate (bukan middleware route), sehingga endpoint bersama bisa dipakai user cash-flow yang tidak punya akses `bank-accounts`. Export PDF digate `can:view bank-accounts`.
+> Modul monitoring dan pencatatan arus kas dalam dua menu: **Pemasukan & Pengeluaran** — satu halaman bertab **Semua** (`/cash-flow/all`, pemasukan + pengeluaran) | **Pemasukan** (`/cash-flow/income`) | **Pengeluaran** (`/cash-flow/expenses`) — dan **Transfer & Penyesuaian** (`/cash-flow/transfers`, pindah dana antar rekening). Route prefix `/cash-flow` untuk halaman, sedangkan mutasi memakai endpoint bersama `/bank-transactions/*`. Permission granular per fitur: `view|create|edit|delete income`, `view|create|edit|delete expense`, `view|create|edit|delete transfer` — tab **Semua** butuh `view income` **dan** `view expense`; otorisasi mutasi dilakukan di FormRequest/Gate (bukan middleware route), sehingga endpoint bersama bisa dipakai user cash-flow yang tidak punya akses `bank-accounts`. Ketiga tab punya kolom & filter **Diinput oleh** (`created_by`). Export PDF digate `can:view bank-accounts`; ekspor Excel tab Semua mengikuti izin tab Semua.
 
 ## Tabel Database
 
@@ -30,13 +30,14 @@
 
 **Alur step-by-step:**
 
-1. User membuka `/cash-flow` (menu sidebar).
-2. Closure route (`routes/web.php`) mengecek permission user secara berurutan: `view income` → redirect ke `cash-flow.income`; kalau tidak, `view expense` → `cash-flow.expenses`; kalau tidak, `view transfer` → `cash-flow.transfers`.
+1. User membuka `/cash-flow` (menu sidebar **Pemasukan & Pengeluaran**).
+2. Closure route (`routes/web.php`) mengecek permission user secara berurutan: `view income` **dan** `view expense` → redirect ke `cash-flow.all` (tab Semua); kalau tidak, `view income` → `cash-flow.income`; kalau tidak, `view expense` → `cash-flow.expenses`; kalau tidak, `view transfer` → `cash-flow.transfers`.
 3. Tanpa satu pun permission tersebut → `abort(403)`.
 
 ```php
 Route::get('/', function () {
     $user = request()->user();
+    if ($user?->can('view income') && $user->can('view expense')) return redirect()->route('cash-flow.all');
     if ($user?->can('view income')) return redirect()->route('cash-flow.income');
     if ($user?->can('view expense')) return redirect()->route('cash-flow.expenses');
     if ($user?->can('view transfer')) return redirect()->route('cash-flow.transfers');
@@ -44,7 +45,63 @@ Route::get('/', function () {
 })->name('index');
 ```
 
-Diverifikasi `tests/Feature/CashFlowPermissionTest.php::test_cash_flow_index_redirects_to_first_allowed_tab`.
+Diverifikasi `tests/Feature/CashFlowPermissionTest.php::test_cash_flow_index_redirects_to_first_allowed_tab` dan `tests/Feature/ArusKasSemuaTest.php::test_tab_semua_butuh_izin_pemasukan_dan_pengeluaran`.
+
+### Navigasi: menu, tab, breadcrumb
+
+1. Grup sidebar **Arus Kas** (`resources/js/layouts/sidebar.tsx`) berisi dua item: **Pemasukan & Pengeluaran** (`href: '/cash-flow'`, `permission: ['view income', 'view expense']` — array berarti cukup salah satu; aktif untuk prefix `/cash-flow/all`, `/cash-flow/income`, `/cash-flow/expenses`) dan **Transfer & Penyesuaian** (tidak berubah). `NavItem.permission` dan `matchPrefix` menerima `string | string[]`.
+2. Klik menu → `GET /cash-flow` → redirect ke tab pertama yang diizinkan (di atas).
+3. Ketiga tab memakai judul halaman yang sama, "Pemasukan & Pengeluaran", dan tab bar `CashFlowTabs` (`resources/js/pages/cash-flow/components/cash-flow-tabs.tsx`, komponen katalog `Tabs`). Tab disaring `useCan` dengan aturan yang sama dengan middleware route: **Semua** = `view income` && `view expense`, **Pemasukan** = `view income`, **Pengeluaran** = `view expense`. Ganti tab = `router.get()` ke URL tab itu tanpa membawa filter (filter tiap tab berbeda).
+4. Breadcrumb header (`resources/js/layouts/header.tsx`): `/cash-flow/all` → Arus Kas › Pemasukan & Pengeluaran; `/cash-flow/income` dan `/cash-flow/expenses` → Arus Kas › Pemasukan & Pengeluaran (tautan ke `/cash-flow`) › Pemasukan / Pengeluaran.
+
+### Tab Semua — `GET /cash-flow/all` (`can:view income` + `can:view expense`)
+
+Pemasukan dan pengeluaran dalam satu daftar. Definisi tiap sisi **sama persis** dengan tab Pemasukan dan Pengeluaran — `UNION ALL` tiga sumber:
+
+- pembayaran invoice (`payments`) → `direction = 'in'`;
+- `bank_transactions` `credit` yang kategorinya bertipe `income` → `direction = 'in'`;
+- `bank_transactions` `debit` yang kategorinya bertipe `expense` → `direction = 'out'`.
+
+Transfer (kategori `transfer`) dan pokok utang/piutang (kategori `financing`) **tidak** termasuk; bunga (`EXP-INTEREST` / `REV-INTEREST`, bertipe `expense` / `income`) termasuk. Tidak ada saldo berjalan.
+
+**Alur step-by-step:**
+
+1. Filter dari query string (`filterSemua()`): `date_from` + `date_to` (berlaku bila keduanya ada), `bank_accounts` (CSV id), `categories` (CSV id), `input_by` (id pengguna pusat), `search` (nomor invoice, nama klien, referensi, nama bank, deskripsi), `sort` (`date` | `amount`), `direction`, `per_page` (dibatasi 1–100), `page`.
+2. `kasGabungan()` membangun tiga subquery dengan kolom seragam (`uid`, `id`, `source_type`, `direction`, `date`, `amount`, `reference_number`, lampiran, `invoice_number`, `client_name`, `bank_name`, `category_id`/`category_label`, `description`, `created_by`) lalu menggabungkannya dengan `unionAll` di dalam `fromSub(..., 'combined')`. Filter **kategori** mengecualikan sisi pembayaran (pembayaran tidak berkategori), sama dengan tab Pemasukan.
+3. Ringkasan dalam satu query: `SUM(CASE WHEN direction = 'in' ...)`, `SUM(CASE WHEN direction = 'out' ...)`, `COUNT(*)` → `stats {total_in, total_out, net, total_count}`.
+4. Baris: `orderBy(sort, direction)` + `orderBy('uid')` sebagai pemecah seri, `offset/limit`; `barisKas()` memetakan baris dan mengisi `input_by` (nama pencatat, satu query `whereIn` ke pusat per halaman).
+5. Respons Inertia `cash-flow/all`: `rows`, `pagination`, `stats`, `filters`, `incomeCategoryOptions` + `expenseCategoryOptions`, `bankAccountOptions`, `inputByOptions`, `accounts`. Opsi kategori sengaja **terpisah per jenis**: filter memakai gabungannya, sedangkan dialog ubah hanya menawarkan kategori sejenis transaksinya — validasi update cuma `exists`, dan kategori pengeluaran di transaksi masuk membuatnya hilang dari tab Pemasukan maupun Pengeluaran.
+6. UI (`resources/js/pages/cash-flow/all.tsx`): 3 `StatsCard` (**Total Masuk**, **Total Keluar**, **Selisih** bertanda), filter (**Rentang Tanggal**, **Rekening**, **Kategori**, **Diinput oleh**, **Cari** ber-debounce 350 ms), tabel (Tanggal, Jenis Masuk/Keluar, Keterangan — pembayaran: klien + nomor invoice + bank, transaksi: deskripsi + bank —, Kategori, Diinput oleh, Jumlah `+` hijau / `−` `ob-neg`), `Pagination`. Klik baris membuka `TransactionDetailDialog` dengan jenis `payment` / `income` / `expense` sesuai sumber & arah (pemetaan sama dengan tab Pemasukan/Pengeluaran). Tombol **Input Pemasukan** / **Input Pengeluaran** (izin `create income` / `create expense`, dan ada rekening) membuka `TransactionFormDialog`. **Tidak ada hapus massal** di tab ini — hapus lewat tab Pemasukan/Pengeluaran.
+
+```php
+$sumber = array_filter([
+    $f['categories'] ? null : $pembayaran,       // filter kategori → tanpa pembayaran invoice
+    $transaksi('credit', 'income', 'in'),
+    $transaksi('debit', 'expense', 'out'),
+]);
+foreach (array_values($sumber) as $i => $q) {
+    $bagian = DB::query()->fromSub($q, "s{$i}");
+    $gabungan = $gabungan ? $gabungan->unionAll($bagian) : $bagian;
+}
+return DB::query()->fromSub($gabungan, 'combined');
+```
+
+Diverifikasi `tests/Feature/ArusKasSemuaTest.php` (gabungan tanpa transfer & pendanaan, urutan, ringkasan, filter, izin).
+
+### Ekspor Excel tab Semua — `GET /cash-flow/all/export/excel` (`can:view income` + `can:view expense`)
+
+1. Tombol **Export Excel** membuka `/cash-flow/all/export/excel?{filter aktif}` (`date_from`, `date_to`, `bank_accounts`, `categories`, `input_by`, `search`) di tab baru lewat `companyUrl()`.
+2. `exportAll()` memakai `filterSemua()` + `kasGabungan()` yang sama dengan halaman, **tanpa paginasi**, urut tanggal naik (lalu `uid`).
+3. `App\Exports\ArusKasExport` (`FromArray`): kolom Tanggal (`d/m/Y`), Jenis (Masuk/Keluar), Sumber (Pembayaran invoice / Transaksi langsung), Rekening, Keterangan, Kategori, Diinput oleh (`Tidak tercatat` bila kosong), Masuk (Rp), Keluar (Rp), No. Referensi; kolom nominal berformat `#,##0`. Tanpa saldo berjalan.
+4. Nama file `arus-kas_{date_from}_{date_to}.xlsx`, atau `arus-kas_semua-waktu.xlsx` tanpa rentang tanggal.
+
+### Kolom & filter "Diinput oleh" (tab Semua, Pemasukan, Pengeluaran)
+
+1. Sumber: `created_by` di `payments` / `bank_transactions` — id pengguna PUSAT tanpa FK, diisi trait `MencatatPengguna` sejak Nov 2026.
+2. Filter `?input_by={id}` (`pencatatDipilih()`) diterapkan di setiap sisi query (`payments.created_by` / `bank_transactions.created_by`).
+3. Nama dicari `namaPengguna()`: `User::whereIn('id', ...)` di database pusat untuk id di halaman itu saja — **jangan** join/`whereHas` tabel `users` dari query bisnis (database perusahaan). `created_by` kosong → UI menampilkan **Tidak tercatat** (redup); id yang tidak ditemukan di pusat → **Pengguna dihapus**.
+4. Pilihan filter `inputByOptions` (`pilihanPencatat()`): pengguna yang pernah mencatat transaksi bank **atau** pembayaran di perusahaan ini (distinct `created_by` kedua tabel), urut nama.
+5. Kolom tampil mulai `lg` di tab Semua dan mulai `xl` di tab Pemasukan/Pengeluaran (kolomnya lebih banyak); di layar kecil tabel memprioritaskan keterangan & nominal.
 
 ### Halaman Income — `GET /cash-flow/income` (`can:view income`)
 
@@ -52,14 +109,14 @@ Income adalah **UNION dua sumber**: pembayaran invoice (`payments`) + transaksi 
 
 **Alur step-by-step:**
 
-1. User membuka halaman / mengubah filter (`date_from`, `date_to`, `clients` (CSV id), `categories` (CSV id), `search`, `sort`, `direction`, `per_page`, `page`).
+1. User membuka halaman / mengubah filter (`date_from`, `date_to`, `clients` (CSV id), `categories` (CSV id), `input_by` (id pencatat), `search`, `sort`, `direction`, `per_page`, `page`).
 2. `CashFlowController::income()` membangun dua subquery:
    - **Payment side**: join `payments → invoices → clients → bank_accounts`, kolom diseragamkan (`uid = 'payment-{id}'`, `source_type='payment'`, `category_* = NULL`).
    - **Transaction side**: join `bank_transactions → bank_accounts → transaction_categories` dengan `transaction_type='credit'` **dan** `transaction_categories.type='income'` (`uid = 'transaction-{id}'`).
 3. Kedua subquery digabung `unionAll` dalam `DB::query()->fromSub(...)`. Kekhususan filter: memilih filter **client** mengecualikan sisi transaksi (client hanya ada di payments); memilih filter **kategori** mengecualikan sisi payments.
 4. `sum('amount')` dan `count()` dihitung dari union untuk `stats`; baris diambil manual dengan `offset/limit` (paginasi manual `paginationMeta()`).
-5. Respons `Inertia::render('cash-flow/income', ...)` dengan `rows`, `pagination`, `stats {total_amount, total_count}`, `filters`, `clientOptions`, `categoryOptions` (dari `TransactionCategory::selectOptions('income')`), `accounts` (untuk dialog create).
-6. UI (`resources/js/pages/cash-flow/income.tsx`): DataTable dengan checkbox bulk, tombol Export PDF, dialog create income (via `bank-transactions.store`), detail dialog dengan preview attachment.
+5. Respons `Inertia::render('cash-flow/income', ...)` dengan `rows` (termasuk `input_by` = nama pencatat atau `null`), `pagination`, `stats {total_amount, total_count}`, `filters`, `clientOptions`, `categoryOptions` (dari `TransactionCategory::selectOptions('income')`), `inputByOptions`, `accounts` (untuk dialog create).
+6. UI (`resources/js/pages/cash-flow/income.tsx`): tab bar, 3 `StatsCard`, filter (termasuk **Diinput oleh**), tabel dengan checkbox bulk dan kolom **Diinput oleh**, tombol Export PDF, dialog create income (via `bank-transactions.store`), detail dialog dengan preview attachment.
 
 **Penjelasan kode** (`app/Http/Controllers/CashFlowController.php`):
 
@@ -81,11 +138,11 @@ if ($includePayments && $includeTransactions) {
 
 **Alur step-by-step:**
 
-1. Filter: `date_from/date_to`, `categories`, `bank_accounts`, `search`, sort/paginasi.
+1. Filter: `date_from/date_to`, `categories`, `bank_accounts`, `input_by`, `search`, sort/paginasi.
 2. Query tunggal: `bank_transactions` join `bank_accounts` + `transaction_categories`, dengan `transaction_type='debit'` **dan** `transaction_categories.type='expense'`. (Leg debit transfer tidak muncul karena kategorinya bertipe `transfer`.)
 3. `stats` = sum + count dari query terklon sebelum select/limit.
-4. Respons Inertia `cash-flow/expenses` + `categoryOptions('expense')`, `bankAccountOptions`, `accounts`.
-5. UI menampilkan tabel, filter Combobox rekening/kategori, dialog create expense, bulk delete, Export PDF (menyertakan `bank_accounts` terpilih).
+4. Respons Inertia `cash-flow/expenses` + `categoryOptions('expense')`, `bankAccountOptions`, `inputByOptions`, `accounts`; tiap baris membawa `input_by`.
+5. UI menampilkan tab bar, 3 `StatsCard`, tabel dengan kolom **Diinput oleh**, filter Combobox kategori/rekening/**Diinput oleh**, dialog create expense, bulk delete, Export PDF (menyertakan `bank_accounts` terpilih).
 
 ### Halaman Transfers — `GET /cash-flow/transfers` (`can:view transfer`)
 
@@ -209,7 +266,7 @@ Versi halaman cash-flow yang bisa mencampur payments dan transaksi.
 
 **Alur step-by-step:**
 
-1. Halaman income/expenses mengirim `POST /cash-flow/bulk-delete` payload `{uids: ['payment-3', 'transaction-9', ...]}`.
+1. Tab Pemasukan/Pengeluaran mengirim `POST /cash-flow/bulk-delete` payload `{uids: ['payment-3', 'transaction-9', ...]}`. (Tab Semua sengaja tanpa hapus massal.)
 2. `CashFlowController::bulkDestroy()` memecah uid per sumber. Otorisasi via `Gate::authorize()` per fitur: adanya `paymentIds` menuntut `delete income` (payment = uang masuk), tiap fitur transaksi (`income`/`expense`/`transfer`) menuntut `delete {feature}`.
 3. Payments dihapus by id; transaksi transfer dihapus per pasangan reference; sisanya by id.
 4. Redirect back + flash `pages.bulk_delete_done` dengan jumlah baris terhapus.
@@ -280,9 +337,9 @@ Keduanya menunjuk `CashFlowExportController` yang sama dan digate `can:view bank
 
 Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 
-### Panduan & video tutorial (tombol **Tutorial** di header Pemasukan / Pengeluaran / Transfer)
+### Panduan & video tutorial (tombol **Tutorial** di header tab Semua / Pemasukan / Pengeluaran dan Transfer)
 
-1. `<TutorialButton slug="cash-flow" />` di ketiga halaman membuka dialog video per role: **Finance manager** (`CashFlowFinanceManager`: input pemasukan, pengeluaran, transfer, koreksi) dan **Admin** (`CashFlowAdmin`: peran, dampak ke saldo & Laba Rugi, isi dua transaksi transfer, jejak di Rekening Bank & Laba Rugi, peringatan, hapus massal). Staff tidak punya izin modul ini sehingga tidak ada video Staff.
+1. `<TutorialButton slug="cash-flow" />` di keempat halaman membuka dialog video per role: **Finance manager** (`CashFlowFinanceManager`: input pemasukan, pengeluaran, transfer, koreksi) dan **Admin** (`CashFlowAdmin`: peran, dampak ke saldo & Laba Rugi, isi dua transaksi transfer, jejak di Rekening Bank & Laba Rugi, peringatan, hapus massal). Staff tidak punya izin modul ini sehingga tidak ada video Staff.
 2. Teks panduan (halaman `/panduan` dan adegan video) bersumber dari `video/cash-flow/guide.ts`; langkah walkthrough di `video/cash-flow/steps.ts`, koordinat di `video/cash-flow/shots.ts`, komposisi di `video/cash-flow/tutorial.tsx`, screenshot di `video/cash-flow/screens/`.
 3. Ambil ulang screenshot: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8014`), jalankan `video/capture/cash-flow.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py cash-flow` dan salin koordinat hasilnya ke `shots.ts`. Skrip menambah 1 pemasukan, 1 pengeluaran, 1 transfer di DB QC dan butuh sub-kategori transfer (kategori transfer tanpa sub-kategori tidak bisa dipilih di form). Jalankan sebelum `video/capture/profit-loss.js`.
 4. **Perubahan UI/alur modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.**
@@ -292,11 +349,14 @@ Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 - **Bank Accounts** — setiap mutasi di sini langsung menggeser saldo dinamis rekening; endpoint mutasi juga dipakai tab transaksi halaman bank-accounts.
 - **Invoices/Payments** — sisi payment pada halaman Income bersumber dari pembayaran invoice; menghapusnya lewat bulk delete cash-flow benar-benar menghapus record pembayaran (status invoice dihitung ulang oleh modul Invoices).
 - **Transaction Categories** — tipe kategori (`income`/`expense`/`transfer`) menentukan halaman mana yang menampilkan transaksi; opsi picker dari `TransactionCategory::selectOptions()` dan `GET /api/transaction-categories?type=credit|debit`.
-- **Loans & Receivables** — membuat `BankTransaction` otomatis (kategori sistem) yang ikut tampil di halaman income/expenses.
+- **Loans & Receivables** — membuat `BankTransaction` otomatis (kategori sistem). Pokoknya (kategori `financing`) tidak tampil di tab Semua/Pemasukan/Pengeluaran; bunganya (`EXP-INTEREST` / `REV-INTEREST`, bertipe `expense` / `income`) tampil.
 - **Permissions (Spatie)** — 12 permission granular (`view|create|edit|delete` × `income|expense|transfer`), diseed `database/seeders/MasterPermissionSeeder.php`.
 
 ## Invarian & Jebakan
 
+- **Tab Semua = gabungan persis sisi Pemasukan + sisi Pengeluaran.** Mengubah definisi salah satu sisi (sumber, tipe transaksi, tipe kategori) wajib diterapkan di `income()`/`expenses()` **dan** `kasGabungan()` sekaligus. Transfer dan pokok utang/piutang tetap di luar.
+- **Izin tab Semua hidup di tiga tempat**: middleware route (`can:view income` + `can:view expense`, termasuk ekspor Excel), redirect `GET /cash-flow`, dan `CashFlowTabs`. Ubah ketiganya bersamaan.
+- **Nama pencatat dicari di database pusat** (`User::whereIn`), tidak pernah join/`whereHas` tabel `users` dari query bisnis — tabel itu tidak ada di database perusahaan.
 - **Otorisasi mutasi TIDAK di route.** Route `bank-transactions.*` sengaja tanpa `can:` middleware; keamanan sepenuhnya di `authorize()` FormRequest + `Gate::authorize()` di `destroy()`/`bulkDestroy()`. Menambah endpoint baru di grup ini tanpa authorize = lubang keamanan.
 - **Transfer selalu sepasang.** Invariannya: dua baris berbagi `reference_number` `TRF...`; hapus/edit satu leg harus menjaga pasangannya (controller sudah menangani — jangan hapus leg via query manual). Deteksi transfer memakai `str_starts_with($reference_number, 'TRF')` — jangan beri reference berprefix `TRF` pada transaksi biasa.
 - **Nominal transfer tidak bisa diedit** lewat `PUT /bank-transactions/{id}` — hanya tanggal & deskripsi (disinkron ke pasangan). Ubah nominal = hapus lalu buat transfer baru.
@@ -312,7 +372,8 @@ Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 
 | File | Peran |
 |------|-------|
-| `app/Http/Controllers/CashFlowController.php` | Halaman income (UNION), expenses, transfers, bulk delete uid |
+| `app/Http/Controllers/CashFlowController.php` | Tab Semua (`all`, UNION 3 sumber) + ekspor Excel (`exportAll`), halaman income (UNION), expenses, transfers, bulk delete uid, helper "Diinput oleh" (`namaPengguna`, `pilihanPencatat`) |
+| `app/Exports/ArusKasExport.php` | Lembar Excel tab Semua (Masuk/Keluar terpisah, tanpa saldo berjalan) |
 | `app/Http/Controllers/BankTransactionController.php` | store/update/destroy/bulkDestroy/transfer + endpoint tab JSON |
 | `app/Http/Requests/StoreBankTransactionRequest.php` | Otorisasi `create income`/`create expense` berdasar `transaction_type` |
 | `app/Http/Requests/UpdateBankTransactionRequest.php` | Otorisasi `abilityFor('edit')` per fitur |
@@ -322,7 +383,8 @@ Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 | `app/Http/Controllers/CashFlowExportController.php` | Normalisasi filter export (alias tanggal, `bank_accounts` CSV), nama file |
 | `app/Services/CashFlowExportService.php` | Data laporan, saldo awal/akhir, mode SEMUA WAKTU, limit 1G/300s |
 | `resources/views/pdf/cash-flow-report.blade.php` | Template PDF, tabel di-chunk 250 baris |
-| `resources/js/pages/cash-flow/` | `income.tsx`, `expenses.tsx`, `transfers.tsx` + `components/` (stats, detail dialog) |
+| `resources/js/pages/cash-flow/` | `all.tsx` (tab Semua), `income.tsx`, `expenses.tsx`, `transfers.tsx` + `components/` (`cash-flow-tabs.tsx` tab bar, `table-parts.tsx` bahan tabel bersama + sel "Diinput oleh", stats transfer, detail dialog) |
+| `resources/js/layouts/sidebar.tsx`, `resources/js/layouts/header.tsx` | Menu Arus Kas (izin & prefix berbentuk array) dan breadcrumb tab |
 | `resources/js/components/shared/file-upload.tsx` | Upload + paste clipboard bukti transaksi |
-| `routes/web.php` | Redirect index per permission, route `bank-transactions.*` tanpa middleware can |
-| `tests/Feature/CashFlowPermissionTest.php`, `BankTransactionControllerTest.php`, `CashFlowExportControllerTest.php` | Test perilaku permission, CRUD, dan export |
+| `routes/web.php` | Redirect index per permission (Semua bila boleh keduanya), route `cash-flow.all` + `cash-flow.all.export`, route `bank-transactions.*` tanpa middleware can |
+| `tests/Feature/CashFlowPermissionTest.php`, `BankTransactionControllerTest.php`, `CashFlowExportControllerTest.php`, `ArusKasSemuaTest.php` | Test perilaku permission, CRUD, export PDF, tab Semua + ekspor Excel + "Diinput oleh" |

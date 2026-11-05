@@ -394,9 +394,13 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         ->name('bank-account.export.pdf.preview');
 
     Route::prefix('cash-flow')->name('cash-flow.')->group(function () {
-        // Redirect to the first tab the user is allowed to see.
+        // Redirect to the first tab the user is allowed to see. Tab "Semua" (pemasukan +
+        // pengeluaran) hanya untuk yang boleh melihat keduanya.
         Route::get('/', function () {
             $user = request()->user();
+            if ($user?->can('view income') && $user->can('view expense')) {
+                return redirect()->route('cash-flow.all');
+            }
             if ($user?->can('view income')) {
                 return redirect()->route('cash-flow.income');
             }
@@ -408,6 +412,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             }
             abort(403);
         })->name('index');
+        Route::get('/all', [CashFlowController::class, 'all'])->middleware(['can:view income', 'can:view expense'])->name('all');
+        Route::get('/all/export/excel', [CashFlowController::class, 'exportAll'])->middleware(['can:view income', 'can:view expense'])->name('all.export');
         Route::get('/income', [CashFlowController::class, 'income'])->middleware('can:view income')->name('income');
         Route::get('/expenses', [CashFlowController::class, 'expenses'])->middleware('can:view expense')->name('expenses');
         Route::get('/transfers', [CashFlowController::class, 'transfers'])->middleware('can:view transfer')->name('transfers');

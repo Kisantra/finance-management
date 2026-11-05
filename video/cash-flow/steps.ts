@@ -9,7 +9,7 @@ const S = SHOTS;
 export const INCOME_STEPS: Step[] = [
     {
         src: img('fm-income-list'),
-        caption: 'Buka menu Arus Kas › Pemasukan. Semua uang yang masuk ke rekening perusahaan terkumpul di sini.',
+        caption: 'Buka menu Arus Kas › Pemasukan & Pengeluaran, tab Pemasukan. Semua uang yang masuk ke rekening perusahaan terkumpul di sini.',
         duration: 110,
     },
     {
@@ -89,7 +89,7 @@ export const EXPENSE_STEPS: Step[] = [
         cursor: S['fm-expense-list'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Uang keluar dicatat di Arus Kas › Pengeluaran lewat tombol Input Pengeluaran.',
+        caption: 'Uang keluar dicatat di Arus Kas › Pemasukan & Pengeluaran, tab Pengeluaran, lewat tombol Input Pengeluaran.',
         duration: 110,
     },
     {

@@ -7,19 +7,20 @@ export const guide: ModuleGuide = {
     title: 'Arus Kas',
     group: 'Arus Kas',
     order: 10,
-    path: '/cash-flow/income',
+    path: '/cash-flow',
     permission: ['view income', 'view expense', 'view transfer'],
     summary:
-        'Pencatatan uang masuk dan keluar rekening bank perusahaan dalam tiga halaman: **Pemasukan** (pembayaran invoice + pemasukan langsung), **Pengeluaran**, dan **Transfer & Penyesuaian** (pindah dana antar rekening). Setiap catatan langsung mengubah saldo rekening dan, sesuai kategorinya, Laporan Laba Rugi. Staff tidak punya akses ke modul ini.',
+        'Pencatatan uang masuk dan keluar rekening bank perusahaan dalam dua menu: **Pemasukan & Pengeluaran** (tab **Semua**, **Pemasukan** — pembayaran invoice + pemasukan langsung —, dan **Pengeluaran**) serta **Transfer & Penyesuaian** (pindah dana antar rekening). Setiap catatan menyimpan siapa yang menginputnya, langsung mengubah saldo rekening dan, sesuai kategorinya, Laporan Laba Rugi. Staff tidak punya akses ke modul ini.',
     roles: [
         {
             role: ROLES.fm,
             who: 'Pencatat kas',
             can: [
                 'Mencatat pemasukan & pengeluaran langsung beserta bukti',
+                'Melihat semua uang masuk & keluar di tab **Semua**, lengkap dengan siapa yang menginputnya',
                 'Transfer antar rekening, termasuk biaya admin',
                 'Mengedit & menghapus catatan kas',
-                'Export PDF laporan arus kas',
+                'Export PDF laporan arus kas & Export Excel tab Semua',
             ],
             cannot: ['Pembayaran invoice hanya bisa dilihat di sini; ubah lewat halaman Invoice'],
         },
@@ -34,10 +35,21 @@ export const guide: ModuleGuide = {
     ],
     tasks: [
         {
+            title: 'Melihat semua uang masuk & keluar',
+            role: ROLES.fm,
+            steps: [
+                'Buka **Arus Kas › Pemasukan & Pengeluaran**. Bila Anda boleh melihat pemasukan **dan** pengeluaran, tab **Semua** terbuka lebih dulu; tab **Pemasukan** dan **Pengeluaran** ada di sebelahnya.',
+                'Tab **Semua** menggabungkan pembayaran invoice, pemasukan langsung, dan pengeluaran dalam satu tabel; kolom **Jenis** menandai **Masuk** atau **Keluar**. Transfer antar rekening dan pokok utang/piutang tidak termasuk (lihat menu **Transfer & Penyesuaian**).',
+                'Kartu **Total Masuk**, **Total Keluar**, dan **Selisih** mengikuti filter aktif.',
+                'Kolom **Diinput oleh** (layar lebar) menunjukkan siapa yang mencatat; catatan lama dari sebelum fitur ini tampil **Tidak tercatat**. Saring per orang dengan filter **Diinput oleh**.',
+                'Klik **Export Excel** untuk mengunduh daftar sesuai filter aktif (semua halaman, urut tanggal): masuk dan keluar di kolom terpisah, lengkap dengan kolom Diinput oleh.',
+            ],
+        },
+        {
             title: 'Mencatat pemasukan langsung',
             role: ROLES.fm,
             steps: [
-                'Buka **Arus Kas › Pemasukan**, lalu klik **Input Pemasukan**.',
+                'Buka **Arus Kas › Pemasukan & Pengeluaran**, lalu klik **Input Pemasukan** (ada di tab **Semua** dan **Pemasukan**).',
                 'Pilih **Rekening** penerima dan **Kategori** (sub-kategori). Kategori belum ada? Klik **+ Tambah** di samping label Kategori.',
                 'Isi **Jumlah** dan **Tanggal**, lalu **Deskripsi** (wajib). **Nomor Referensi** dan **Lampiran Bukti** (PDF/JPG/PNG, maks 5 MB, bisa juga tempel gambar dengan Ctrl+V) opsional.',
                 'Klik **Simpan Pemasukan**. Form tetap terbuka dan dikosongkan untuk catatan berikutnya; klik **Tutup** bila selesai.',
@@ -48,7 +60,7 @@ export const guide: ModuleGuide = {
             title: 'Mencatat pengeluaran',
             role: ROLES.fm,
             steps: [
-                'Buka **Arus Kas › Pengeluaran**, lalu klik **Input Pengeluaran**.',
+                'Buka **Arus Kas › Pemasukan & Pengeluaran**, lalu klik **Input Pengeluaran** (ada di tab **Semua** dan **Pengeluaran**).',
                 'Pilih **Rekening** sumber dan **Kategori** biaya, isi **Jumlah**, **Tanggal**, dan **Deskripsi**.',
                 'Tambahkan **Nomor Referensi** (mis. nomor tagihan) dan unggah bukti di **Lampiran Bukti**.',
                 'Klik **Simpan Pengeluaran**. Saldo rekening langsung berkurang.',
@@ -68,7 +80,7 @@ export const guide: ModuleGuide = {
             title: 'Mengedit catatan',
             role: ROLES.fm,
             steps: [
-                'Klik baris di tabel untuk membuka dialog **Edit Pemasukan** / **Edit Pengeluaran**.',
+                'Klik baris di tabel (tab **Semua**, **Pemasukan**, atau **Pengeluaran**) untuk membuka dialog **Edit Pemasukan** / **Edit Pengeluaran**.',
                 'Ubah **Jumlah**, **Tanggal**, **Kategori**, **Referensi**, **Deskripsi**, atau **Lampiran**, lalu klik **Simpan Perubahan**.',
                 '**Rekening** tidak bisa diubah. Salah rekening? Hapus lalu catat ulang.',
                 'Transfer hanya bisa diubah **Tanggal** dan **Deskripsi**-nya (berlaku untuk kedua sisi). Salah nominal? Hapus lalu buat transfer baru.',
@@ -79,19 +91,20 @@ export const guide: ModuleGuide = {
             title: 'Menghapus catatan',
             role: ROLES.admin,
             steps: [
-                'Centang baris yang akan dihapus, lalu klik **Hapus** di bar yang muncul di bawah layar dan konfirmasi.',
+                'Di tab **Pemasukan** atau **Pengeluaran** (tab **Semua** tidak punya hapus massal), centang baris yang akan dihapus, lalu klik **Hapus** di bar yang muncul di bawah layar dan konfirmasi.',
                 'Penghapusan permanen. Transfer terhapus kedua sisinya; baris **Invoice** ikut menghapus catatan pembayaran invoice-nya.',
                 'Finance manager juga bisa menghapus. Satu catatan pun dihapus lewat centang yang sama (tidak ada tombol hapus di dialog detail).',
             ],
         },
         {
-            title: 'Menyaring & export PDF',
+            title: 'Menyaring & export',
             role: ROLES.fm,
             steps: [
-                'Saring dengan **Rentang Tanggal**, **Klien** (Pemasukan), **Kategori**, **Rekening** (Pengeluaran) / **Rekening Terkait** (Transfer), atau kotak **Cari**.',
-                'Di Pemasukan, filter **Klien** menyembunyikan baris **Langsung**, dan filter **Kategori** menyembunyikan baris **Invoice**.',
-                'Kartu ringkasan (**Total Pemasukan/Pengeluaran/Transfer**, **Jumlah Transaksi**, **Periode**) mengikuti filter aktif.',
-                '**Export PDF** membuka laporan arus kas rekening (masuk & keluar, saldo awal sampai akhir) untuk rentang tanggal terpilih; tanpa rentang = semua waktu. Filter klien & kategori tidak ikut ke PDF.',
+                'Saring dengan **Rentang Tanggal**, **Klien** (Pemasukan), **Kategori**, **Rekening** (Semua, Pengeluaran) / **Rekening Terkait** (Transfer), **Diinput oleh** (Semua, Pemasukan, Pengeluaran), atau kotak **Cari**.',
+                'Di tab Pemasukan, filter **Klien** menyembunyikan baris **Langsung**. Di tab Pemasukan dan Semua, filter **Kategori** menyembunyikan pembayaran invoice (tidak berkategori).',
+                'Kartu ringkasan (**Total Pemasukan/Pengeluaran/Transfer**, **Jumlah Transaksi**, **Periode**; di tab Semua: **Total Masuk**, **Total Keluar**, **Selisih**) mengikuti filter aktif.',
+                '**Export PDF** (tab Pemasukan, Pengeluaran, dan halaman Transfer) membuka laporan arus kas rekening (masuk & keluar, saldo awal sampai akhir) untuk rentang tanggal terpilih; tanpa rentang = semua waktu. Filter klien & kategori tidak ikut ke PDF.',
+                '**Export Excel** (tab Semua) mengunduh daftar persis sesuai semua filter aktif, tanpa saldo berjalan.',
             ],
         },
     ],
@@ -142,19 +155,19 @@ export const guide: ModuleGuide = {
         },
     ],
     warnings: [
-        { title: 'Pilih kategori dengan teliti', body: 'Kategori menentukan halaman tempat catatan tampil dan baris Laba Rugi. Kategori **Transfer** (atau **Penyesuaian**) yang dipilih di form Pemasukan/Pengeluaran membuat catatan **hilang** dari halaman itu dan dari Laba Rugi.' },
-        { title: 'Menghapus pembayaran invoice', body: 'Baris **Invoice** di Pemasukan bisa ikut terhapus lewat hapus massal. Status invoice tetap (mis. Lunas) walau pembayarannya hilang. Koreksi pembayaran sebaiknya lewat halaman Invoice.' },
+        { title: 'Pilih kategori dengan teliti', body: 'Kategori menentukan tab tempat catatan tampil dan baris Laba Rugi. Kategori **Transfer** (atau **Penyesuaian**) yang dipilih di form Pemasukan/Pengeluaran membuat catatan **hilang** dari tab Semua, Pemasukan, dan Pengeluaran, serta dari Laba Rugi.' },
+        { title: 'Menghapus pembayaran invoice', body: 'Baris **Invoice** di tab Pemasukan bisa ikut terhapus lewat hapus massal. Status invoice tetap (mis. Lunas) walau pembayarannya hilang. Koreksi pembayaran sebaiknya lewat halaman Invoice.' },
         { title: 'Jangan awali referensi dengan "TRF"', body: 'Referensi berawalan **TRF** (termasuk yang diketik saat membayar Reimbursement / mencairkan Permintaan Dana) dianggap transfer: perubahan nominal & kategori diabaikan, dan menghapusnya ikut menghapus semua transaksi berreferensi sama.' },
         { title: 'Penghapusan tidak bisa dibatalkan', body: 'Tidak ada tempat sampah atau riwayat hapus. Menghapus transaksi pembayaran Reimbursement / Permintaan Dana tidak mengembalikan status pengajuannya.' },
     ],
     matrixRoles: [ROLES.fm, ROLES.admin],
     matrix: [
-        { action: 'Melihat Pemasukan / Pengeluaran / Transfer', cells: [true, true] },
+        { action: 'Melihat Pemasukan & Pengeluaran (tab Semua, Pemasukan, Pengeluaran) / Transfer', cells: [true, true] },
         { action: 'Input pemasukan & pengeluaran', cells: [true, true] },
         { action: 'Transfer antar rekening', cells: [true, true] },
         { action: 'Mengedit catatan', cells: [true, true] },
         { action: 'Menghapus catatan', cells: [true, true] },
-        { action: 'Export PDF', cells: [true, true] },
+        { action: 'Export PDF & Export Excel (tab Semua)', cells: [true, true] },
     ],
     insightRoles: ['admin', 'finance manager'],
 };

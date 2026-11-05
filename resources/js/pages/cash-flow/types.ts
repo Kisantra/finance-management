@@ -20,6 +20,49 @@ export interface CashFlowStats {
     total_count: number;
 }
 
+/* ─── Tab Semua (pemasukan + pengeluaran) ──────────── */
+
+export interface CombinedRow {
+    /** `payment-{id}` atau `transaction-{id}` */
+    uid: string;
+    id: number;
+    source_type: 'payment' | 'transaction';
+    direction: 'in' | 'out';
+    date: string;
+    amount: number;
+    reference_number: string | null;
+    invoice_number: string | null;
+    client_name: string | null;
+    bank_name: string;
+    category_id: number | null;
+    category_label: string | null;
+    description: string | null;
+    /** Nama pencatat; null = data lama sebelum pencatat direkam ("Tidak tercatat"). */
+    input_by: string | null;
+    attachment_url: string | null;
+    attachment_name: string | null;
+}
+
+export interface CombinedStats {
+    total_in: number;
+    total_out: number;
+    net: number;
+    total_count: number;
+}
+
+export interface CombinedFilters {
+    date_from: string | null;
+    date_to: string | null;
+    bank_accounts: number[];
+    categories: number[];
+    input_by: number | null;
+    search: string | null;
+    sort: string;
+    direction: 'asc' | 'desc';
+    per_page: number;
+    page: number;
+}
+
 /* ─── Income page ──────────────────────────────────── */
 
 export interface IncomeRow {
@@ -35,6 +78,7 @@ export interface IncomeRow {
     category_id: number | null;
     category_label: string | null;
     description: string | null;
+    input_by: string | null;
     attachment_url: string | null;
     attachment_name: string | null;
 }
@@ -44,6 +88,7 @@ export interface IncomeFilters {
     date_to: string | null;
     clients: number[];
     categories: number[];
+    input_by: number | null;
     search: string | null;
     sort: string;
     direction: 'asc' | 'desc';
@@ -63,6 +108,7 @@ export interface ExpenseRow {
     category_label: string | null;
     bank_name: string;
     account_name: string;
+    input_by: string | null;
     attachment_url: string | null;
     attachment_name: string | null;
 }
@@ -72,6 +118,7 @@ export interface ExpenseFilters {
     date_to: string | null;
     categories: number[];
     bank_accounts: number[];
+    input_by: number | null;
     search: string | null;
     sort: string;
     direction: 'asc' | 'desc';

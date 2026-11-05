@@ -47,8 +47,10 @@ type BadgeKey = 'reimbursements' | 'fund_requests';
 interface NavItem {
     label: string;
     href: string;
-    permission?: string;
-    matchPrefix: string;
+    /** Array = cukup salah satu izin. */
+    permission?: string | string[];
+    /** Array = item aktif bila URL cocok dengan salah satu prefix. */
+    matchPrefix: string | string[];
     badgeKey?: BadgeKey;
 }
 
@@ -90,8 +92,13 @@ const NAV: NavGroup[] = [
         label: 'Arus Kas',
         icon: <TrendingUp className={ICON} />,
         items: [
-            { label: 'Pemasukan', href: '/cash-flow/income', permission: 'view income', matchPrefix: '/cash-flow/income' },
-            { label: 'Pengeluaran', href: '/cash-flow/expenses', permission: 'view expense', matchPrefix: '/cash-flow/expenses' },
+            // Satu menu bertab (Semua / Pemasukan / Pengeluaran); /cash-flow mengarahkan ke tab pertama yang diizinkan.
+            {
+                label: 'Pemasukan & Pengeluaran',
+                href: '/cash-flow',
+                permission: ['view income', 'view expense'],
+                matchPrefix: ['/cash-flow/all', '/cash-flow/income', '/cash-flow/expenses'],
+            },
             { label: 'Transfer & Penyesuaian', href: '/cash-flow/transfers', permission: 'view transfer', matchPrefix: '/cash-flow/transfers' },
         ],
     },
@@ -152,7 +159,10 @@ const NAV: NavGroup[] = [
     },
 ];
 
-function matches(url: string, prefix: string): boolean {
+function matches(url: string, prefix: string | string[]): boolean {
+    if (Array.isArray(prefix)) {
+        return prefix.some((p) => matches(url, p));
+    }
     return url === prefix || url.startsWith(prefix + '/') || url.startsWith(prefix + '?');
 }
 
@@ -188,7 +198,9 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
     const permissions = auth.permissions;
     const currentUrl = appPath(usePage().url);
 
-    const can = (permission?: string) => !permission || permissions.includes(permission);
+    const can = (permission?: string | string[]) =>
+        !permission ||
+        (Array.isArray(permission) ? permission.some((p) => permissions.includes(p)) : permissions.includes(permission));
 
     /* Drawer di layar kecil selalu lebar; ciut hanya berlaku di desktop. */
     const isCollapsed = collapsed && !open;

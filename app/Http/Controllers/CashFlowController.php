@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ArusKasExport;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\TransactionCategory;
+use App\Models\User;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CashFlowController extends Controller
 {
@@ -35,6 +41,9 @@ class CashFlowController extends Controller
     /** @var list<string> */
     private const KOLOM_URUT_TRANSAKSI = ['transaction_date', 'amount', 'description', 'reference_number'];
 
+    /** @var list<string> */
+    private const KOLOM_URUT_SEMUA = ['date', 'amount'];
+
     /**
      * INCOME page — UNION of Payments + credit BankTransactions (income category).
      */
@@ -43,6 +52,7 @@ class CashFlowController extends Controller
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
         $clientIds = $this->parseIntArray($request->input('clients'));
         $categoryIds = $this->parseIntArray($request->input('categories'));
+        $inputBy = $this->pencatatDipilih($request);
         $search = $request->input('search');
         $perPage = (int) $request->input('per_page', 25);
         $sort = in_array($request->input('sort'), self::KOLOM_URUT_GABUNGAN, true)
@@ -59,6 +69,9 @@ class CashFlowController extends Controller
 
         if (! empty($clientIds)) {
             $payments->whereIn('clients.id', $clientIds);
+        }
+        if ($inputBy) {
+            $payments->where('payments.created_by', $inputBy);
         }
         if ($dateFrom && $dateTo) {
             $payments->whereBetween('payments.payment_date', [$dateFrom, $dateTo]);
@@ -87,6 +100,7 @@ class CashFlowController extends Controller
             DB::raw('NULL as category_id'),
             DB::raw('NULL as category_label'),
             DB::raw('NULL as description'),
+            'payments.created_by',
         ]);
 
         // ── Transaction side ──────────────────────────
@@ -98,6 +112,9 @@ class CashFlowController extends Controller
 
         if (! empty($categoryIds)) {
             $transactions->whereIn('bank_transactions.category_id', $categoryIds);
+        }
+        if ($inputBy) {
+            $transactions->where('bank_transactions.created_by', $inputBy);
         }
         if ($dateFrom && $dateTo) {
             $transactions->whereBetween('bank_transactions.transaction_date', [$dateFrom, $dateTo]);
@@ -125,6 +142,7 @@ class CashFlowController extends Controller
             'transaction_categories.id as category_id',
             'transaction_categories.label as category_label',
             'bank_transactions.description',
+            'bank_transactions.created_by',
         ]);
 
         // If user picked client filter, exclude transaction-side records (clients only on payments).
@@ -146,11 +164,14 @@ class CashFlowController extends Controller
         $totalAmount = (int) (clone $unionQuery)->sum('amount');
         $total = (clone $unionQuery)->count();
 
-        $rows = (clone $unionQuery)
+        $halaman = (clone $unionQuery)
             ->orderBy($sort, $direction)
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
-            ->get()
+            ->get();
+        $nama = $this->namaPengguna($halaman->pluck('created_by'));
+
+        $rows = $halaman
             ->map(fn ($r) => [
                 'uid' => $r->uid,
                 'id' => (int) $r->id,
@@ -164,6 +185,7 @@ class CashFlowController extends Controller
                 'category_id' => $r->category_id ? (int) $r->category_id : null,
                 'category_label' => $r->category_label,
                 'description' => $r->description,
+                'input_by' => $this->namaPencatat($r->created_by, $nama),
                 'attachment_url' => $r->attachment_path ? \Storage::disk('public')->url($r->attachment_path) : null,
                 'attachment_name' => $r->attachment_name,
             ])->all();
@@ -180,6 +202,7 @@ class CashFlowController extends Controller
                 'date_to' => $dateTo,
                 'clients' => $clientIds,
                 'categories' => $categoryIds,
+                'input_by' => $inputBy,
                 'search' => $search,
                 'sort' => $sort,
                 'direction' => $direction,
@@ -188,6 +211,7 @@ class CashFlowController extends Controller
             ],
             'clientOptions' => $this->clientOptions(),
             'categoryOptions' => $this->categoryOptions('income'),
+            'inputByOptions' => $this->pilihanPencatat(),
             'accounts' => $this->accountsForForm(),
         ]);
     }
@@ -200,6 +224,7 @@ class CashFlowController extends Controller
         [$dateFrom, $dateTo] = $this->parseDateRange($request);
         $categoryIds = $this->parseIntArray($request->input('categories'));
         $bankAccountIds = $this->parseIntArray($request->input('bank_accounts'));
+        $inputBy = $this->pencatatDipilih($request);
         $search = $request->input('search');
         $perPage = (int) $request->input('per_page', 25);
         $sort = in_array($request->input('sort'), self::KOLOM_URUT_TRANSAKSI, true)
@@ -220,6 +245,9 @@ class CashFlowController extends Controller
         if (! empty($bankAccountIds)) {
             $query->whereIn('bank_transactions.bank_account_id', $bankAccountIds);
         }
+        if ($inputBy) {
+            $query->where('bank_transactions.created_by', $inputBy);
+        }
         if ($dateFrom && $dateTo) {
             $query->whereBetween('bank_transactions.transaction_date', [$dateFrom, $dateTo]);
         }
@@ -234,7 +262,7 @@ class CashFlowController extends Controller
         $totalAmount = (int) (clone $query)->sum('bank_transactions.amount');
         $total = (clone $query)->count();
 
-        $rows = $query
+        $halaman = $query
             ->select([
                 'bank_transactions.id',
                 'bank_transactions.transaction_date',
@@ -247,11 +275,15 @@ class CashFlowController extends Controller
                 'transaction_categories.label as category_label',
                 'bank_accounts.bank_name',
                 'bank_accounts.account_name',
+                'bank_transactions.created_by',
             ])
             ->orderBy($sort, $direction)
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
-            ->get()
+            ->get();
+        $nama = $this->namaPengguna($halaman->pluck('created_by'));
+
+        $rows = $halaman
             ->map(fn ($r) => [
                 'id' => (int) $r->id,
                 'transaction_date' => $r->transaction_date->toDateString(),
@@ -262,6 +294,7 @@ class CashFlowController extends Controller
                 'category_label' => $r->category_label,
                 'bank_name' => $r->bank_name,
                 'account_name' => $r->account_name,
+                'input_by' => $this->namaPencatat($r->created_by, $nama),
                 'attachment_url' => $r->attachment_path ? \Storage::disk('public')->url($r->attachment_path) : null,
                 'attachment_name' => $r->attachment_name,
             ])->all();
@@ -278,6 +311,7 @@ class CashFlowController extends Controller
                 'date_to' => $dateTo,
                 'categories' => $categoryIds,
                 'bank_accounts' => $bankAccountIds,
+                'input_by' => $inputBy,
                 'search' => $search,
                 'sort' => $sort,
                 'direction' => $direction,
@@ -286,8 +320,67 @@ class CashFlowController extends Controller
             ],
             'categoryOptions' => $this->categoryOptions('expense'),
             'bankAccountOptions' => $this->bankAccountOptions(),
+            'inputByOptions' => $this->pilihanPencatat(),
             'accounts' => $this->accountsForForm(),
         ]);
+    }
+
+    /**
+     * Tab SEMUA: pemasukan (pembayaran invoice + transaksi masuk berkategori pemasukan) dan
+     * pengeluaran (transaksi keluar berkategori pengeluaran) dalam satu daftar. Definisi tiap sisi
+     * sama persis dengan tab Pemasukan dan Pengeluaran; transfer dan pendanaan (utang/piutang)
+     * tidak termasuk. Butuh `view income` DAN `view expense` (route).
+     */
+    public function all(Request $request): Response
+    {
+        $filter = $this->filterSemua($request);
+        $perPage = max(1, min(100, (int) $request->input('per_page', 25)));
+        $page = max(1, (int) $request->input('page', 1));
+        $sort = in_array($request->input('sort'), self::KOLOM_URUT_SEMUA, true) ? $request->input('sort') : 'date';
+        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
+
+        $query = $this->kasGabungan($filter);
+        $ringkasan = (clone $query)
+            ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END), 0) AS masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END), 0) AS keluar")
+            ->selectRaw('COUNT(*) AS jumlah')
+            ->first();
+
+        $rows = $this->barisKas((clone $query)
+            ->orderBy($sort, $direction)
+            ->orderBy('uid', $direction)
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get());
+
+        return Inertia::render('cash-flow/all', [
+            'rows' => $rows,
+            'pagination' => $this->paginationMeta($page, $perPage, (int) $ringkasan->jumlah),
+            'stats' => [
+                'total_in' => (int) $ringkasan->masuk,
+                'total_out' => (int) $ringkasan->keluar,
+                'net' => (int) $ringkasan->masuk - (int) $ringkasan->keluar,
+                'total_count' => (int) $ringkasan->jumlah,
+            ],
+            'filters' => [...$filter, 'sort' => $sort, 'direction' => $direction, 'per_page' => $perPage, 'page' => $page],
+            // Terpisah per jenis: dialog ubah hanya menawarkan kategori sejenis (validasi update cuma
+            // `exists`; kategori pengeluaran di transaksi masuk menghilangkannya dari kedua tab).
+            'incomeCategoryOptions' => $this->categoryOptions('income'),
+            'expenseCategoryOptions' => $this->categoryOptions('expense'),
+            'bankAccountOptions' => $this->bankAccountOptions(),
+            'inputByOptions' => $this->pilihanPencatat(),
+            'accounts' => $this->accountsForForm(),
+        ]);
+    }
+
+    /** Ekspor Excel tab Semua dengan filter yang sedang aktif, urut tanggal naik. */
+    public function exportAll(Request $request): BinaryFileResponse
+    {
+        $filter = $this->filterSemua($request);
+        $rows = $this->barisKas($this->kasGabungan($filter)->orderBy('date')->orderBy('uid')->get());
+        $periode = $filter['date_from'] && $filter['date_to'] ? "{$filter['date_from']}_{$filter['date_to']}" : 'semua-waktu';
+
+        return Excel::download(new ArusKasExport($rows), "arus-kas_{$periode}.xlsx");
     }
 
     /**
@@ -592,5 +685,196 @@ class CashFlowController extends Controller
                 'account_name' => $a->account_name,
                 'bank_name' => $a->bank_name,
             ])->all();
+    }
+
+    /**
+     * Filter tab Semua dari query string.
+     *
+     * @return array{date_from: string|null, date_to: string|null, bank_accounts: list<int>, categories: list<int>, input_by: int|null, search: string|null}
+     */
+    private function filterSemua(Request $request): array
+    {
+        [$dateFrom, $dateTo] = $this->parseDateRange($request);
+
+        return [
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'bank_accounts' => $this->parseIntArray($request->input('bank_accounts')),
+            'categories' => $this->parseIntArray($request->input('categories')),
+            'input_by' => $this->pencatatDipilih($request),
+            'search' => $request->input('search') ?: null,
+        ];
+    }
+
+    /**
+     * UNION tiga sumber tab Semua dengan kolom seragam; `direction` = in/out. Kategori hanya ada di
+     * transaksi, jadi filter kategori mengecualikan sisi pembayaran (sama dengan tab Pemasukan).
+     *
+     * @param  array{date_from: string|null, date_to: string|null, bank_accounts: list<int>, categories: list<int>, input_by: int|null, search: string|null}  $f
+     */
+    private function kasGabungan(array $f): QueryBuilder
+    {
+        $periode = $f['date_from'] && $f['date_to'] ? [$f['date_from'], $f['date_to']] : null;
+
+        $pembayaran = Payment::query()
+            ->join('invoices', 'payments.invoice_id', '=', 'invoices.id')
+            ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
+            ->join('bank_accounts', 'payments.bank_account_id', '=', 'bank_accounts.id')
+            ->when($periode, fn ($q) => $q->whereBetween('payments.payment_date', $periode))
+            ->when($f['bank_accounts'], fn ($q) => $q->whereIn('payments.bank_account_id', $f['bank_accounts']))
+            ->when($f['input_by'], fn ($q) => $q->where('payments.created_by', $f['input_by']))
+            ->when($f['search'], fn ($q, $cari) => $q->where(fn ($w) => $w
+                ->where('invoices.invoice_number', 'like', "%{$cari}%")
+                ->orWhere('clients.name', 'like', "%{$cari}%")
+                ->orWhere('payments.reference_number', 'like', "%{$cari}%")
+                ->orWhere('bank_accounts.bank_name', 'like', "%{$cari}%")))
+            ->select([
+                DB::raw("CONCAT('payment-', payments.id) as uid"),
+                'payments.id',
+                DB::raw("'payment' as source_type"),
+                DB::raw("'in' as direction"),
+                'payments.payment_date as date',
+                'payments.amount',
+                'payments.reference_number',
+                'payments.attachment_path',
+                'payments.attachment_name',
+                'invoices.invoice_number',
+                'clients.name as client_name',
+                'bank_accounts.bank_name',
+                DB::raw('NULL as category_id'),
+                DB::raw('NULL as category_label'),
+                DB::raw('NULL as description'),
+                'payments.created_by',
+            ]);
+
+        $transaksi = fn (string $tipe, string $jenisKategori, string $arah) => BankTransaction::query()
+            ->join('bank_accounts', 'bank_transactions.bank_account_id', '=', 'bank_accounts.id')
+            ->join('transaction_categories', 'bank_transactions.category_id', '=', 'transaction_categories.id')
+            ->where('bank_transactions.transaction_type', $tipe)
+            ->where('transaction_categories.type', $jenisKategori)
+            ->when($periode, fn ($q) => $q->whereBetween('bank_transactions.transaction_date', $periode))
+            ->when($f['bank_accounts'], fn ($q) => $q->whereIn('bank_transactions.bank_account_id', $f['bank_accounts']))
+            ->when($f['categories'], fn ($q) => $q->whereIn('bank_transactions.category_id', $f['categories']))
+            ->when($f['input_by'], fn ($q) => $q->where('bank_transactions.created_by', $f['input_by']))
+            ->when($f['search'], fn ($q, $cari) => $q->where(fn ($w) => $w
+                ->where('bank_transactions.description', 'like', "%{$cari}%")
+                ->orWhere('bank_transactions.reference_number', 'like', "%{$cari}%")
+                ->orWhere('bank_accounts.bank_name', 'like', "%{$cari}%")))
+            ->select([
+                DB::raw("CONCAT('transaction-', bank_transactions.id) as uid"),
+                'bank_transactions.id',
+                DB::raw("'transaction' as source_type"),
+                DB::raw("'{$arah}' as direction"),
+                'bank_transactions.transaction_date as date',
+                'bank_transactions.amount',
+                'bank_transactions.reference_number',
+                'bank_transactions.attachment_path',
+                'bank_transactions.attachment_name',
+                DB::raw('NULL as invoice_number'),
+                DB::raw('NULL as client_name'),
+                'bank_accounts.bank_name',
+                'transaction_categories.id as category_id',
+                'transaction_categories.label as category_label',
+                'bank_transactions.description',
+                'bank_transactions.created_by',
+            ]);
+
+        $sumber = array_filter([
+            $f['categories'] ? null : $pembayaran,
+            $transaksi('credit', 'income', 'in'),
+            $transaksi('debit', 'expense', 'out'),
+        ]);
+
+        $gabungan = null;
+        foreach (array_values($sumber) as $i => $q) {
+            $bagian = DB::query()->fromSub($q, "s{$i}");
+            $gabungan = $gabungan ? $gabungan->unionAll($bagian) : $bagian;
+        }
+
+        return DB::query()->fromSub($gabungan, 'combined');
+    }
+
+    /**
+     * Baris tab Semua untuk halaman & ekspor, lengkap dengan nama pencatat.
+     *
+     * @param  Collection<int, \stdClass>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function barisKas(Collection $rows): array
+    {
+        $nama = $this->namaPengguna($rows->pluck('created_by'));
+
+        return $rows->map(fn ($r) => [
+            'uid' => $r->uid,
+            'id' => (int) $r->id,
+            'source_type' => $r->source_type,
+            'direction' => $r->direction,
+            'date' => $r->date,
+            'amount' => (int) $r->amount,
+            'reference_number' => $r->reference_number,
+            'invoice_number' => $r->invoice_number,
+            'client_name' => $r->client_name,
+            'bank_name' => $r->bank_name,
+            'category_id' => $r->category_id ? (int) $r->category_id : null,
+            'category_label' => $r->category_label,
+            'description' => $r->description,
+            'input_by' => $this->namaPencatat($r->created_by, $nama),
+            'attachment_url' => $r->attachment_path ? \Storage::disk('public')->url($r->attachment_path) : null,
+            'attachment_name' => $r->attachment_name,
+        ])->values()->all();
+    }
+
+    /**
+     * Nama pengguna untuk id `created_by` (pengguna hidup di database PUSAT: cari lewat whereIn,
+     * jangan join dari database perusahaan).
+     *
+     * @param  Collection<int, mixed>  $ids
+     * @return array<int, string>
+     */
+    private function namaPengguna(Collection $ids): array
+    {
+        $ids = $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        return $ids->isEmpty() ? [] : User::query()->whereIn('id', $ids)->pluck('name', 'id')->all();
+    }
+
+    /** @param  array<int, string>  $nama */
+    private function namaPencatat(mixed $id, array $nama): ?string
+    {
+        if (! $id) {
+            return null;
+        }
+
+        return $nama[(int) $id] ?? 'Pengguna dihapus';
+    }
+
+    /** @return int|null id pencatat dari `?input_by=` */
+    private function pencatatDipilih(Request $request): ?int
+    {
+        $id = (int) $request->input('input_by');
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Pilihan filter "Diinput oleh": pengguna yang pernah mencatat transaksi kas atau pembayaran
+     * di perusahaan ini.
+     *
+     * @return list<array{label: string, value: int}>
+     */
+    private function pilihanPencatat(): array
+    {
+        $ids = BankTransaction::query()->whereNotNull('created_by')->distinct()->pluck('created_by')
+            ->merge(Payment::query()->whereNotNull('created_by')->distinct()->pluck('created_by'))
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return User::query()->whereIn('id', $ids)->orderBy('name')->get(['id', 'name'])
+            ->map(fn (User $user) => ['label' => $user->name, 'value' => $user->id])
+            ->all();
     }
 }
