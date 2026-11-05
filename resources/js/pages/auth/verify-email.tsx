@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
-import { LogOut, MailCheck, RefreshCw } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import * as React from 'react';
+import { AuthIcon, AuthStatus } from '@/components/auth/auth-form';
+import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import AuthLayout from '@/layouts/auth-layout';
 
@@ -26,55 +28,32 @@ export default function VerifyEmail({ status }: Props) {
         <>
             <Head title="Verifikasi Email" />
 
-            <div className="space-y-7">
-                <div className="space-y-1.5">
-                    <h2 className="text-2xl font-bold text-dark-900 dark:text-dark-50">
-                        Verifikasi email Anda
-                    </h2>
-                    <p className="text-sm text-dark-500 dark:text-dark-400">
-                        Terima kasih telah mendaftar! Sebelum memulai, harap verifikasi alamat email Anda
-                        dengan mengklik tautan yang baru saja kami kirimkan. Jika Anda tidak menerima
-                        email, kami dengan senang hati akan mengirimkan yang baru.
-                    </p>
-                </div>
+            <AuthIcon>
+                <MailCheck className="h-5 w-5" />
+            </AuthIcon>
 
-                {status === 'verification-link-sent' && (
-                    <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-                        Tautan verifikasi baru telah dikirimkan ke alamat email Anda.
-                    </div>
-                )}
+            {/* Akun dibuat oleh admin, jadi tanpa "terima kasih telah mendaftar". */}
+            <PageHeader
+                title="Verifikasi email Anda"
+                description="Sebelum memulai, verifikasi alamat email Anda lewat tautan yang baru saja kami kirimkan. Belum menerima email? Kirim ulang di bawah."
+            />
 
-                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
-                    <MailCheck className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                </div>
+            {status === 'verification-link-sent' && (
+                <AuthStatus className="mt-6">Tautan verifikasi baru telah dikirimkan ke alamat email Anda.</AuthStatus>
+            )}
 
-                <div className="space-y-3">
-                    <form onSubmit={handleResend}>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="lg"
-                            loading={resending}
-                            className="w-full"
-                            icon={<RefreshCw className="h-4 w-4" />}
-                        >
-                            Kirim Ulang Email Verifikasi
-                        </Button>
-                    </form>
+            <div className="mt-8 flex flex-col gap-3">
+                <form onSubmit={handleResend}>
+                    <Button type="submit" variant="primary" size="lg" loading={resending} className="w-full">
+                        Kirim Ulang Email Verifikasi
+                    </Button>
+                </form>
 
-                    <form onSubmit={handleLogout}>
-                        <Button
-                            type="submit"
-                            variant="outline"
-                            size="lg"
-                            loading={loggingOut}
-                            className="w-full"
-                            icon={<LogOut className="h-4 w-4" />}
-                        >
-                            Keluar
-                        </Button>
-                    </form>
-                </div>
+                <form onSubmit={handleLogout}>
+                    <Button type="submit" variant="outline" size="lg" loading={loggingOut} className="w-full">
+                        Keluar
+                    </Button>
+                </form>
             </div>
         </>
     );

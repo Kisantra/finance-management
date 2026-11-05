@@ -1,138 +1,273 @@
-import { type ReactNode } from 'react'
+import { BarChart3 } from 'lucide-react';
+import * as React from 'react';
+import { AuthLink } from '@/components/auth/auth-form';
+import { StatusPill } from '@/components/dashboard/widget';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+/*
+ * Kerangka halaman autentikasi: masuk, lupa / atur ulang / konfirmasi kata sandi, verifikasi email.
+ *
+ * Satu wadah Obsidian (radius 24) terbagi dua kolom. Kiri: chip merek, formulir di tengah, baris
+ * kaki. Kanan (mulai lg): panel radius 16 yang menjorok 8 px dari tepi wadah, berisi cuplikan
+ * aplikasi ini sendiri (Arus Kas, Periode, Invoice belum dibayar, Menunggu persetujuan) dengan data
+ * contoh, tanpa foto. Panel selalu memakai permukaan gelap Obsidian (kelas `dark` pada panel, sama
+ * dengan Ringkasan tema gelap) agar terbaca sebagai jendela produk dan kontras dengan formulir di
+ * kedua tema. Seluruh panel dekoratif: aria-hidden, tanpa elemen yang bisa difokus.
+ *
+ * Halaman ini publik: semua nama dan angka di panel WAJIB fiktif ("Contoh"), jangan data asli.
+ */
 
 interface AuthLayoutProps {
-    children: ReactNode
+    children: React.ReactNode;
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
     return (
-        <div className="flex h-screen w-screen overflow-hidden">
-            {/* Left panel — brand / hero */}
-            <div className="hidden lg:flex lg:w-[52%] xl:w-[55%] relative flex-col overflow-hidden"
-                 style={{
-                     backgroundColor: '#0f172a',
-                     backgroundImage: [
-                         'radial-gradient(ellipse 80% 60% at 20% 40%, rgba(37,99,235,0.18) 0%, transparent 60%)',
-                         'radial-gradient(ellipse 60% 80% at 80% 80%, rgba(99,102,241,0.12) 0%, transparent 60%)',
-                         'radial-gradient(ellipse 40% 40% at 60% 10%, rgba(14,165,233,0.10) 0%, transparent 50%)',
-                     ].join(', '),
-                 }}>
+        <div className="flex min-h-dvh justify-center p-3 sm:p-6 lg:items-center">
+            <div className="grid min-h-[calc(100dvh-1.5rem)] w-full max-w-[1360px] rounded-3xl border border-ob-line bg-ob-card text-ob-ink sm:min-h-[calc(100dvh-3rem)] lg:min-h-[clamp(700px,calc(100dvh-3rem),880px)] lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
+                <div className="flex min-w-0 flex-col p-6 sm:p-10">
+                    <header>
+                        <span className="inline-flex h-10 items-center gap-2.5 rounded-full border border-ob-line pl-2 pr-4">
+                            <img src="/images/kisantra.png" alt="" className="h-6 w-6 object-contain" />
+                            <span className="text-[13px] font-semibold text-ob-ink">Kisantra Finance</span>
+                        </span>
+                    </header>
 
-                {/* Grid overlay */}
-                <div className="absolute inset-0 pointer-events-none" style={{
-                    backgroundImage: [
-                        'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)',
-                        'linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-                    ].join(', '),
-                    backgroundSize: '48px 48px',
-                }} />
+                    <main className="flex flex-1 items-center justify-center py-12">
+                        <div className="w-full max-w-[380px]">{children}</div>
+                    </main>
 
-                {/* Ambient orbs */}
-                <div className="absolute pointer-events-none" style={{ width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,0.22) 0%, transparent 70%)', filter: 'blur(40px)', top: -80, left: -80 }} />
-                <div className="absolute pointer-events-none" style={{ width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)', filter: 'blur(32px)', bottom: 80, right: -60 }} />
-                <div className="absolute pointer-events-none" style={{ width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.15) 0%, transparent 70%)', filter: 'blur(24px)', bottom: '30%', left: '30%' }} />
-
-                {/* Geometric corner accents */}
-                <div className="absolute top-0 left-0 w-28 h-28" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderLeft: '1px solid rgba(255,255,255,0.08)' }} />
-                <div className="absolute bottom-0 right-0 w-28 h-28" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', borderRight: '1px solid rgba(255,255,255,0.08)' }} />
-
-                {/* Dot accent top-right */}
-                <div className="absolute top-8 right-8 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-400 opacity-60" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 opacity-40" />
-                    <div className="w-1 h-1 rounded-full bg-sky-400 opacity-30" />
+                    <footer className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1.5 text-xs text-ob-ink-3">
+                        <span>© {new Date().getFullYear()} Kisantra Finance</span>
+                        <span>
+                            Pengguna baru? <AuthLink href="/panduan">Pelajari dulu di Panduan</AuthLink>
+                        </span>
+                    </footer>
                 </div>
 
-                {/* Main content */}
-                <div className="relative z-10 flex flex-col justify-between h-full p-12 xl:p-16">
-
-                    {/* Logo */}
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center">
-                            <svg className="w-7 h-7 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75" />
-                            </svg>
-                        </div>
-                        <span className="text-white font-semibold text-lg tracking-wide">Kisantra Finance</span>
-                    </div>
-
-                    {/* Hero */}
-                    <div className="space-y-8">
-                        <div className="space-y-4">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                                <span className="text-blue-300 text-xs font-medium tracking-wider uppercase">Finance Management</span>
-                            </div>
-
-                            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-[1.15] tracking-tight">
-                                Kendali Penuh<br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-sky-300">
-                                    Atas Keuangan
-                                </span><br />
-                                Bisnis Anda
-                            </h1>
-
-                            <p className="text-slate-400 text-base xl:text-lg leading-relaxed max-w-sm">
-                                Platform terintegrasi untuk invoice, pembayaran, arus kas, dan laporan keuangan dalam satu tempat.
-                            </p>
-                        </div>
-
-                        <div className="h-px w-48" style={{ background: 'linear-gradient(to right, transparent, rgba(37,99,235,0.3), transparent)' }} />
-
-                        <div className="grid grid-cols-2 gap-5">
-                            {[
-                                // Livewire sudah sepenuhnya dilepas; angka lama menyesatkan
-                                // siapa pun yang menilai tumpukan teknologi dari layar login.
-                                { value: 'Multi', label: 'Perusahaan & Database' },
-                                { value: 'Multi', label: 'Role & Permission' },
-                                { value: 'Real-time', label: 'Notifikasi & Laporan' },
-                                { value: 'PDF', label: 'Invoice & Export' },
-                            ].map(({ value, label }) => (
-                                <div key={label} className="space-y-0.5" style={{ borderLeft: '2px solid rgba(37,99,235,0.6)', paddingLeft: 14 }}>
-                                    <div className="text-white font-bold text-2xl">{value}</div>
-                                    <div className="text-slate-500 text-xs">{label}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Trust badge */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex -space-x-2">
-                            {['from-blue-500 to-indigo-600', 'from-emerald-500 to-teal-600', 'from-violet-500 to-purple-600'].map((gradient, i) => (
-                                <div key={i} className={`w-7 h-7 rounded-full bg-gradient-to-br ${gradient} border-2 flex items-center justify-center`} style={{ borderColor: '#0f172a' }}>
-                                    <span className="text-white text-[9px] font-bold">{String.fromCharCode(65 + i)}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="text-slate-500 text-xs">Dipercaya oleh tim keuangan profesional</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right panel — form */}
-            <div className="flex-1 flex flex-col items-center justify-center overflow-y-auto relative bg-white dark:bg-[#1e1e2e]">
-
-                {/* Mobile logo */}
-                <div className="lg:hidden absolute top-6 left-6 flex items-center gap-2.5">
-                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75" />
-                        </svg>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">Kisantra Finance</span>
-                </div>
-
-                {/* Form slot */}
-                <div className="w-full max-w-[400px] px-8 py-10 xl:px-12">
-                    {children}
-                </div>
-
-                {/* Copyright */}
-                <div className="absolute bottom-5 text-xs text-slate-400 dark:text-slate-600 select-none">
-                    &copy; {new Date().getFullYear()} Kisantra Finance. All rights reserved.
+                <div className="hidden p-2 pl-0 lg:flex">
+                    <AppPreview />
                 </div>
             </div>
         </div>
-    )
+    );
+}
+
+/* ── Panel cuplikan aplikasi (dekoratif, data contoh) ─────────────────────────────────────── */
+
+const BARS = [
+    { month: 'Jun', income: 32, expense: 21 },
+    { month: 'Jul', income: 40, expense: 27 },
+    { month: 'Agu', income: 35, expense: 30 },
+    { month: 'Sep', income: 46, expense: 25 },
+    { month: 'Okt', income: 42, expense: 33 },
+    { month: 'Nov', income: 55, expense: 28 },
+];
+const CHART_MAX = 60;
+
+const WEEKDAYS = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
+
+/* Seperti kalender Ringkasan: hari di luar bulan berarsir tanpa angka, rentang terpilih biru. */
+type DayKind = 'outside' | 'day' | 'edge' | 'inside';
+const WEEK: { label?: string; kind: DayKind }[] = [
+    { kind: 'outside' },
+    { kind: 'outside' },
+    { label: '1', kind: 'edge' },
+    { label: '2', kind: 'inside' },
+    { label: '3', kind: 'inside' },
+    { label: '4', kind: 'edge' },
+    { label: '5', kind: 'day' },
+];
+const DAY_STYLE: Record<DayKind, string> = {
+    outside: 'border-transparent [background-image:repeating-linear-gradient(135deg,var(--ob-hatch-edge)_0_1px,transparent_1px_6px)]',
+    day: 'border-ob-line-soft bg-ob-inner text-ob-ink',
+    edge: 'border-transparent bg-ob-act-fill font-semibold text-white',
+    inside: 'border-ob-act-fill/35 bg-ob-act-fill/20 text-ob-ink',
+};
+
+const INVOICES = [
+    { client: 'PT Contoh Jaya', due: 'Lewat 9 hari', amount: 'Rp 12.500.000', late: true },
+    { client: 'CV Contoh Makmur', due: 'Jatuh tempo 28 Nov', amount: 'Rp 8.000.000', late: false },
+];
+
+/*
+ * Kartu melayang: Card katalog + bayangan panel melayang + masuk berjenjang (ob-rise, mati pada
+ * prefers-reduced-motion). Tata letak di "panggung" berukuran tetap: setiap tumpang-tindih tepat
+ * 20 px, lebih kecil dari padding kartu (22 px), jadi hanya padding yang tertutup, tak ada isi;
+ * jarak antarkartu yang tidak bertumpuk 24 px. lg (panggung 484 × 556): Arus Kas, Periode,
+ * Invoice. xl (624 × 523): ditambah Menunggu persetujuan dan kartu yang lebih besar; bila panel
+ * selebar ≥ 720 px (kueri kontainer, mis. layar 1440) panggung diperbesar 10% agar tetap mengisi
+ * panel. Mengubah isi kartu mengubah tingginya: ukur ulang lalu sesuaikan posisi `top` di bawah.
+ */
+const FLOAT = 'ob-rise absolute shadow-xl shadow-black/40';
+
+function AppPreview() {
+    return (
+        <div
+            aria-hidden="true"
+            className="dark @container pointer-events-none relative flex-1 select-none overflow-hidden rounded-2xl bg-ob-page text-ob-ink"
+        >
+            <span className="absolute left-8 top-8 inline-flex h-10 items-center rounded-full border border-ob-line px-4 text-xs font-medium text-ob-ink-2">
+                Pratinjau aplikasi · data contoh
+            </span>
+
+            <div className="absolute inset-0 flex items-center justify-center px-8 pb-8 pt-24 xl:pb-16">
+                <div className="relative h-[556px] w-[484px] shrink-0 xl:h-[523px] xl:w-[624px] @min-[720px]:scale-110">
+                    <CashFlowCard />
+                    <InvoicesCard />
+                    <PeriodCard />
+                    <ApprovalsCard />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CashFlowCard() {
+    const last = BARS.length - 1;
+    return (
+        <Card className={cn(FLOAT, 'left-0 top-0 w-[264px] p-[22px] xl:top-[41px] xl:w-[380px]')} style={{ animationDelay: '60ms' }}>
+            <p className="text-sm font-semibold">Arus Kas</p>
+            <p className="mt-4 text-[26px] font-semibold leading-none tracking-[-0.01em] xl:text-[32px]">Rp 125.000.000</p>
+            <p className="mt-2 text-xs text-ob-ink-2">Total saldo · 3 rekening</p>
+
+            <div className="mt-4 flex items-center gap-4 text-xs text-ob-ink-2">
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2.5 w-3.5 rounded-[3px]" style={{ background: 'var(--ob-bar-now)' }} />
+                    Pemasukan
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="ob-hatch h-2.5 w-3.5 rounded-[3px]" />
+                    Pengeluaran
+                </span>
+            </div>
+
+            <div className="relative mt-3 h-[84px] xl:h-[104px]">
+                <div className="absolute inset-0 flex flex-col justify-between">
+                    <span className="border-t border-dashed border-ob-line" />
+                    <span className="border-t border-dashed border-ob-line" />
+                    <span className="border-t border-ob-line-strong" />
+                </div>
+                <div className="absolute inset-0 grid grid-cols-6 gap-x-1.5 px-1 xl:gap-x-3">
+                    {BARS.map((bar, i) => (
+                        <div key={bar.month} className="flex h-full items-end justify-center gap-[3px]">
+                            <span
+                                className="w-[11px] rounded-t-[4px] xl:w-[14px]"
+                                style={{
+                                    height: `${(bar.income / CHART_MAX) * 100}%`,
+                                    background: i === last ? 'var(--ob-bar-now)' : 'var(--ob-bar-past)',
+                                }}
+                            />
+                            <span
+                                className="ob-hatch w-[11px] rounded-t-[4px] border-b-0 xl:w-[14px]"
+                                style={{ height: `${(bar.expense / CHART_MAX) * 100}%` }}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="mt-2 grid grid-cols-6 gap-x-1.5 px-1 text-center text-xs text-ob-ink-3 xl:gap-x-3">
+                {BARS.map((bar, i) => (
+                    <span key={bar.month} className={cn(i === last && 'font-semibold text-ob-ink')}>
+                        {bar.month}
+                    </span>
+                ))}
+            </div>
+        </Card>
+    );
+}
+
+function PeriodCard() {
+    return (
+        <Card
+            className={cn(FLOAT, 'left-[244px] top-[140px] w-[240px] p-[18px] xl:left-[360px] xl:top-[184px] xl:w-[264px]')}
+            style={{ animationDelay: '220ms' }}
+        >
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">Periode Arus Kas</p>
+                <StatusPill tone="act">4 hari</StatusPill>
+            </div>
+            <div className="mt-3 grid grid-cols-7 gap-1.5">
+                {WEEKDAYS.map((day, i) => (
+                    <span key={`w${i}`} className="text-center text-xs font-medium text-ob-ink-3">
+                        {day}
+                    </span>
+                ))}
+                {WEEK.map((day, i) => (
+                    <span
+                        key={`d${i}`}
+                        className={cn('flex h-[30px] items-center justify-center rounded-[10px] border text-[13px] font-medium', DAY_STYLE[day.kind])}
+                    >
+                        {day.label}
+                    </span>
+                ))}
+            </div>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl border border-ob-line bg-ob-inner p-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ob-line bg-ob-card text-ob-ink-2">
+                    <BarChart3 className="h-4 w-4" />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                    <span className="text-lg font-semibold leading-tight">+Rp 18,5 jt</span>
+                    <span className="text-xs text-ob-ink-2">Arus bersih 4 hari</span>
+                </span>
+            </div>
+        </Card>
+    );
+}
+
+function InvoicesCard() {
+    return (
+        <Card
+            className={cn(FLOAT, 'left-0 top-[364px] w-[300px] px-[22px] pb-1.5 pt-[18px] xl:top-[331px] xl:w-[336px]')}
+            style={{ animationDelay: '140ms' }}
+        >
+            <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-semibold">Invoice belum dibayar</p>
+                <span className="shrink-0 text-xs font-medium text-ob-ink-2">2 invoice</span>
+            </div>
+            <ul className="mt-1.5">
+                {INVOICES.map((invoice, i) => (
+                    <li
+                        key={invoice.client}
+                        className={cn('flex items-center gap-3 py-3', i < INVOICES.length - 1 && 'border-b border-ob-line-soft')}
+                    >
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="truncate text-[13px] font-semibold">{invoice.client}</span>
+                            <span className={cn('text-xs', invoice.late ? 'text-ob-late' : 'text-ob-ink-3')}>{invoice.due}</span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                            <span className="text-[13px] font-semibold">{invoice.amount}</span>
+                            {invoice.late ? <StatusPill tone="late">Lewat tempo</StatusPill> : <StatusPill tone="act">Terkirim</StatusPill>}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+}
+
+function ApprovalsCard() {
+    return (
+        <Card
+            className={cn(FLOAT, 'left-[324px] top-0 hidden w-[300px] items-center gap-3 py-3 pl-3 pr-5 xl:flex')}
+            style={{ animationDelay: '300ms' }}
+        >
+            <span className="flex -space-x-1.5">
+                {['AR', 'DS', 'MK'].map((initials) => (
+                    <Avatar key={initials} className="h-8 w-8 ring-2 ring-ob-card">
+                        <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                ))}
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ob-inner text-xs font-bold text-ob-ink-2 ring-2 ring-ob-card">
+                    +2
+                </span>
+            </span>
+            <span className="flex flex-col">
+                <span className="text-[13px] font-semibold">Menunggu persetujuan</span>
+                <span className="text-xs text-ob-ink-2">5 reimbursement</span>
+            </span>
+        </Card>
+    );
 }

@@ -30,7 +30,7 @@ type ModulHalaman = {
 };
 
 createInertiaApp({
-    title: (title) => (title ? `${title} — ${appName}` : appName),
+    title: (title) => (title ? `${title} · ${appName}` : appName),
 
     /*
      * `.default` dibuka di sini, bukan diserahkan ke Inertia. `resolvePageComponent`
