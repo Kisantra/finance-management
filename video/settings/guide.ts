@@ -1,7 +1,7 @@
 import type { ModuleGuide } from '../guide';
 import { ROLES } from '../roles';
 
-/** Pengaturan: akun sendiri, profil perusahaan, penomoran invoice, template PDF. Lihat video/guide.ts. */
+/** Pengaturan: akun sendiri, koneksi Claude, profil perusahaan, penomoran invoice, template PDF. Lihat video/guide.ts. */
 export const guide: ModuleGuide = {
     slug: 'settings',
     title: 'Pengaturan',
@@ -9,13 +9,16 @@ export const guide: ModuleGuide = {
     order: 10,
     path: '/settings',
     summary:
-        'Satu halaman untuk akun Anda (profil & kata sandi), identitas perusahaan yang tercetak di dokumen PDF, format nomor invoice, dan template PDF invoice. Dibuka dari menu akun di kanan atas › **Pengaturan**.',
+        'Satu halaman untuk akun Anda (profil, kata sandi, dan koneksi Claude), identitas perusahaan yang tercetak di dokumen PDF, format nomor invoice, dan template PDF invoice. Dibuka dari menu akun di kanan atas › **Pengaturan**.',
     roles: [
         {
             role: ROLES.staff,
             who: 'Pemilik akun',
             can: ['Mengubah nama & email sendiri', 'Mengganti kata sandi sendiri', 'Menghapus akun sendiri'],
-            cannot: ['Tidak membuka **Profil perusahaan**, **Penomoran invoice**, & **Template PDF**'],
+            cannot: [
+                'Tidak membuka **Profil perusahaan**, **Penomoran invoice**, & **Template PDF**',
+                'Tidak menghubungkan **Claude** selama perannya belum diberi izin **use claude**',
+            ],
         },
         {
             role: ROLES.fm,
@@ -24,6 +27,7 @@ export const guide: ModuleGuide = {
                 'Semua yang bisa dilakukan Staff',
                 'Mengubah **Profil perusahaan**, termasuk **Singkatan** yang menjadi kode di nomor invoice',
                 'Mengatur **Penomoran invoice**: pola, jumlah digit, dan kapan nomor kembali ke 1',
+                'Menghubungkan **Claude** ke data keuangan (hanya baca) dan mencabut sambungannya di **Koneksi Claude**',
             ],
             cannot: ['Tidak melihat **Template PDF**'],
         },
@@ -58,6 +62,17 @@ export const guide: ModuleGuide = {
             steps: [
                 'Di **Profil**, klik **Hapus Akun**, isi kata sandi Anda, lalu **Hapus Akun Saya**.',
                 'Akun dan data milik Anda (reimbursement, pengajuan dana, feedback, notifikasi) terhapus permanen dan Anda langsung keluar.',
+            ],
+        },
+        {
+            title: 'Menghubungkan Claude ke data keuangan',
+            role: ROLES.fm,
+            steps: [
+                'Buka **Pengaturan** › **Koneksi Claude**, lalu klik **Salin** di samping **Alamat konektor**. Menu ini hanya tampil bila peran Anda punya izin **use claude** di perusahaan yang sedang dibuka.',
+                'Di Claude (web atau desktop), buka **Settings › Connectors**, pilih **Add custom connector**, beri nama **Kisantra Finance**, tempel alamatnya, lalu klik **Connect**.',
+                'Halaman aplikasi ini terbuka: masuk bila diminta, periksa daftar perusahaan yang akan terbaca, lalu pilih **Izinkan**.',
+                'Di percakapan, aktifkan konektor **Kisantra Finance** lalu bertanyalah, mis. "Berapa invoice yang lewat tempo bulan ini?"',
+                'Untuk memutus akses, klik **Cabut** di **Sambungan aktif**. Claude langsung kehilangan akses dan harus meminta izin lagi.',
             ],
         },
         {
@@ -116,6 +131,15 @@ export const guide: ModuleGuide = {
             ],
         },
         {
+            title: 'Koneksi Claude',
+            tone: 'neutral',
+            items: [
+                'Claude hanya **membaca**: tidak bisa menambah, mengubah, atau menghapus data apa pun.',
+                'Yang terbaca mengikuti izin peran pengguna di tiap perusahaan; perusahaan tempat perannya tidak punya **use claude** tidak terbaca.',
+                'Sambungan berakhir sendiri setelah 30 hari tidak dipakai; **Cabut** memutusnya seketika.',
+            ],
+        },
+        {
             title: 'Template PDF',
             tone: 'pos',
             items: [
@@ -161,6 +185,10 @@ export const guide: ModuleGuide = {
             body: 'Siapa pun bisa menghapus akunnya, termasuk admin terakhir. Reimbursement, pengajuan dana, feedback, dan notifikasi miliknya ikut terhapus, juga riwayat pembayaran reimbursement yang pernah ia catat; transaksi bank-nya tetap ada.',
         },
         {
+            title: 'Data yang dibaca Claude ikut diproses Anthropic',
+            body: 'Isi yang dibaca Claude masuk ke percakapan dan diproses oleh Anthropic. Hubungkan hanya akun yang memang perlu, dan cabut sambungan yang tidak dipakai lagi di **Koneksi Claude**.',
+        },
+        {
             title: 'Unggah gambar menimpa file lama',
             body: 'Kop surat, tanda tangan, stempel, atau logo yang lama langsung dihapus dari server saat disimpan; tidak ada riwayat versi.',
         },
@@ -169,6 +197,7 @@ export const guide: ModuleGuide = {
     matrix: [
         { action: 'Mengubah profil & kata sandi sendiri', cells: [true, true, true] },
         { action: 'Menghapus akun sendiri', cells: [true, true, true] },
+        { action: 'Menghubungkan Claude (hanya baca)', cells: [false, true, true] },
         { action: 'Mengubah profil perusahaan', cells: [false, true, true] },
         { action: 'Mengatur penomoran invoice', cells: [false, true, true] },
         { action: 'Mengelola template PDF & font', cells: [false, false, true] },

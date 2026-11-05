@@ -34,6 +34,28 @@ export function formatDate(dateString: string, locale = 'id-ID'): string {
     });
 }
 
+/**
+ * Salin teks ke clipboard. Clipboard API hanya tersedia di konteks aman (HTTPS/localhost);
+ * di luar itu jatuh ke execCommand supaya tombol salin tidak diam-diam gagal.
+ */
+export async function copyText(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        const copied = document.execCommand('copy');
+        area.remove();
+        return copied;
+    }
+}
+
 const ERROR_TOAST_OPTS = { duration: Infinity, closeButton: true } as const;
 
 /** Toast error tunggal — tidak auto-close, ada tombol X. */

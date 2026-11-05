@@ -24,6 +24,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\Settings\CompanyController;
 use App\Http\Controllers\Settings\CustomFontController;
 use App\Http\Controllers\Settings\InvoiceSettingsController;
+use App\Http\Controllers\Settings\KoneksiClaudeController;
 use App\Http\Controllers\Settings\PasswordController as SettingsPasswordController;
 use App\Http\Controllers\Settings\PdfTemplateController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -644,6 +645,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
 
         Route::get('/password', [SettingsPasswordController::class, 'edit'])->name('password');
         Route::put('/password', [SettingsPasswordController::class, 'update'])->name('password.update');
+
+        // Koneksi Claude: tanpa gate izin karena hanya menyentuh token OAuth milik user yang
+        // login, sehingga sambungan tetap bisa dicabut walau izin `use claude` sudah dilepas.
+        Route::get('/claude', [KoneksiClaudeController::class, 'index'])->name('claude');
+        Route::delete('/claude/{client}', [KoneksiClaudeController::class, 'destroy'])->name('claude.revoke');
 
         // Profil perusahaan — digate permission: identitasnya (nama, NPWP, PKP,
         // logo, tanda tangan) tampil di setiap PDF invoice dan singkatannya

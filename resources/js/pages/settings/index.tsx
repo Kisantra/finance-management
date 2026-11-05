@@ -1,5 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Building2, ChevronRight, FileText, Hash, KeyRound, User, type LucideIcon } from 'lucide-react';
+import { Building2, ChevronRight, FileText, Hash, KeyRound, Plug, User, type LucideIcon } from 'lucide-react';
 import * as React from 'react';
 import { AppLink } from '@/components/app-link';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
@@ -25,6 +25,13 @@ const GROUPS: { title: string; rows: SettingRow[] }[] = [
         rows: [
             { href: '/settings/profile', title: 'Profil', description: 'Nama dan email yang Anda pakai untuk masuk', icon: User },
             { href: '/settings/password', title: 'Kata sandi', description: 'Ganti kata sandi akun Anda', icon: KeyRound },
+            {
+                href: '/settings/claude',
+                title: 'Koneksi Claude',
+                description: 'Hubungkan Claude untuk membaca data keuangan, atau cabut sambungannya',
+                icon: Plug,
+                permission: 'use claude',
+            },
         ],
     },
     {

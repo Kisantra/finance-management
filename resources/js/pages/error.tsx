@@ -19,7 +19,7 @@ import {
 import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, copyText } from '@/lib/utils';
 
 interface ReportField {
     label: string;
@@ -72,28 +72,6 @@ function appearance(status: number): { tone: Tone; icon: React.ReactNode } {
     if (status === 404) return { tone: 'zinc', icon: <SearchX className={iconClass} /> };
 
     return { tone: 'zinc', icon: <TriangleAlert className={iconClass} /> };
-}
-
-/**
- * Clipboard API hanya tersedia di konteks aman (HTTPS/localhost). Di luar itu,
- * jatuh ke execCommand supaya tombol salin tidak diam-diam gagal.
- */
-async function copyText(text: string): Promise<boolean> {
-    try {
-        await navigator.clipboard.writeText(text);
-        return true;
-    } catch {
-        const area = document.createElement('textarea');
-        area.value = text;
-        area.setAttribute('readonly', '');
-        area.style.position = 'fixed';
-        area.style.opacity = '0';
-        document.body.appendChild(area);
-        area.select();
-        const copied = document.execCommand('copy');
-        area.remove();
-        return copied;
-    }
 }
 
 export default function ErrorPage({ status, title, description, home_url, home_label, can_retry, can_report, report_url, report, is_guest }: Props) {

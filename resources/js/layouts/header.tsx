@@ -52,6 +52,7 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
     '/settings': [{ label: 'Pengaturan' }],
     '/settings/profile': [{ label: 'Pengaturan' }, { label: 'Profil' }],
     '/settings/password': [{ label: 'Pengaturan' }, { label: 'Kata Sandi' }],
+    '/settings/claude': [{ label: 'Pengaturan' }, { label: 'Koneksi Claude' }],
     '/settings/company': [{ label: 'Pengaturan' }, { label: 'Profil Perusahaan' }],
     '/settings/invoice-numbering': [{ label: 'Pengaturan' }, { label: 'Penomoran Invoice' }],
     '/settings/pdf-templates': [{ label: 'Pengaturan' }, { label: 'Template PDF' }],

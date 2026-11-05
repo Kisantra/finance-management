@@ -1,6 +1,6 @@
-# Modul: Settings (Hub, Profil, Password, Perusahaan, Penomoran Invoice, PDF Template Builder)
+# Modul: Settings (Hub, Profil, Password, Koneksi Claude, Perusahaan, Penomoran Invoice, PDF Template Builder)
 
-> Modul pengaturan pribadi (profil & kata sandi), profil perusahaan tunggal (identitas, NPWP/PKP, aset gambar untuk PDF), dan **WYSIWYG PDF Template Builder** beserta pustaka font kustom global. Route prefix `/settings` dengan nama route `settings.*`. Profil/password/company terbuka untuk semua user login; `invoice-numbering` digate `manage invoice settings`; sub-grup `pdf-templates` (termasuk custom fonts) digate permission `manage pdf templates`.
+> Modul pengaturan pribadi (profil, kata sandi, koneksi Claude), profil perusahaan tunggal (identitas, NPWP/PKP, aset gambar untuk PDF), dan **WYSIWYG PDF Template Builder** beserta pustaka font kustom global. Route prefix `/settings` dengan nama route `settings.*`. Profil/password terbuka untuk semua user login; `claude` juga tanpa gate (hanya menyentuh token OAuth milik user sendiri; baris hub-nya tampil untuk pemegang `use claude`); `company` digate `manage company profile`; `invoice-numbering` digate `manage invoice settings`; sub-grup `pdf-templates` (termasuk custom fonts) digate permission `manage pdf templates`.
 
 ## Tabel Database
 
@@ -10,12 +10,13 @@
 | `company_profiles` | `name`, `abbreviation`, `address`, `email`, `phone`, `logo_path`, `letter_head_path`, `signature_path`, `stamp_path`, `is_pkp` (bool), `npwp`, `ppn_rate` (decimal:2), `bank_accounts` (JSON), `finance_manager_name`, `finance_manager_position`, `invoice_number_format` (default `{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`), `invoice_number_padding` (1–5 digit minimum, default 3), `invoice_number_reset` (`monthly`/`yearly`/`never`, default `monthly`) | Singleton — hanya satu baris, diakses via `CompanyProfile::current()`. |
 | `pdf_templates` | `name`, `description`, `layout` (JSON), `is_default` (bool) | Layout builder: banded (`{paper, bands:{header, content, footerFlow, footerFixed}}`) atau legacy flat-array. |
 | `custom_fonts` | `name` (unique), `filename` | Font .ttf global untuk semua template; file di `storage/app/public/fonts/custom/`. |
+| `oauth_clients`, `oauth_access_tokens`, `oauth_refresh_tokens` (database **pusat**, Passport) | `name`, `revoked`; `user_id`, `client_id`, `revoked`, `created_at`, `expires_at`; `access_token_id`, `revoked`, `expires_at` | Dibaca & dicabut oleh Koneksi Claude. Skema dan alur OAuth: [koneksi-claude.md](koneksi-claude.md). |
 
 ## Fitur
 
 ### Hub Pengaturan (`GET /settings`)
 
-`Route::inertia('/', 'settings/index')` — halaman `settings/index.tsx` (gaya Obsidian, referensi "General & Security Settings"): kartu baris berkelompok **Akun** (Profil, Kata sandi), **Perusahaan** (Profil perusahaan), **Invoice** (Penomoran invoice, Template PDF). Tiap baris = ikon, nama, keterangan, panah; baris bertanda permission disembunyikan dari user tanpa izin itu (`auth.permissions`). Halaman detail memakai `SettingsLayout` (tautan "‹ Pengaturan" + judul + satu kartu isi; prop `bare` untuk halaman yang menyusun kartunya sendiri) — tidak ada lagi menu samping antarpengaturan. Menu akun di header menautkan "Pengaturan" ke hub dan "Profil perusahaan" langsung ke `/settings/company` (untuk semua role). Header hub memuat `<TutorialButton slug="settings" />`.
+`Route::inertia('/', 'settings/index')` — halaman `settings/index.tsx` (gaya Obsidian, referensi "General & Security Settings"): kartu baris berkelompok **Akun** (Profil, Kata sandi, Koneksi Claude), **Perusahaan** (Profil perusahaan), **Invoice** (Penomoran invoice, Template PDF). Tiap baris = ikon, nama, keterangan, panah; baris bertanda permission disembunyikan dari user tanpa izin itu (`auth.permissions`, yaitu izin di perusahaan aktif). Koneksi Claude bertanda `use claude`. Halaman detail memakai `SettingsLayout` (tautan "‹ Pengaturan" + judul + satu kartu isi; prop `bare` untuk halaman yang menyusun kartunya sendiri) — tidak ada lagi menu samping antarpengaturan. Menu akun di header menautkan "Pengaturan" ke hub dan "Profil perusahaan" langsung ke `/settings/company` (untuk semua role). Header hub memuat `<TutorialButton slug="settings" />`.
 
 ### Penomoran Invoice (`GET/PUT /settings/invoice-numbering`, `can:manage invoice settings`)
 
@@ -64,6 +65,33 @@ Catatan: form update profil di controller saat ini hanya memvalidasi `name` dan 
 2. Submit `PUT /settings/password` dengan `current_password`, `password`, `password_confirmation`.
 3. Validasi: `current_password` rule bawaan Laravel (mencocokkan hash password aktif), `password` mengikuti `PasswordRule::defaults()` + `confirmed`.
 4. `Auth::user()->update(['password' => Hash::make(...)])` → flash "Kata sandi berhasil diperbarui."
+
+### Koneksi Claude (`GET /settings/claude`, `DELETE /settings/claude/{client}`)
+
+Halaman tempat pengguna menghubungkan Claude ke server MCP hanya-baca (lihat [koneksi-claude.md](koneksi-claude.md)) dan mencabut sambungannya. Halaman persetujuan OAuth (`pages/oauth/authorize.tsx`) menjanjikan "Akses bisa dicabut kapan saja di Pengaturan › Koneksi Claude"; janji itu dipenuhi di sini.
+
+Route `settings.claude` dan `settings.claude.revoke` **sengaja tanpa gate `can:`**: keduanya hanya menyentuh token OAuth milik user yang login, sehingga user yang izin `use claude`-nya sudah dilepas tetap bisa mencabut sambungannya (lewat URL langsung). Yang digate hanya baris hub-nya (`permission: 'use claude'`).
+
+**Alur step-by-step:**
+1. Hub › **Akun** › **Koneksi Claude** → `KoneksiClaudeController::index()` merender `settings/claude` dengan:
+   - `connectorUrl` = `url('/mcp/keuangan')`, absolut mengikuti skema & host request (sama dengan endpoint discovery OAuth).
+   - `companies` = `AksesClaude::perusahaan($user)` dipetakan ke `{kode, nama}`, sumber yang sama dengan halaman persetujuan dan alat MCP.
+   - `canUse` = perusahaan aktif ada di daftar itu, artinya user memegang `use claude` di perusahaan ini.
+   - `connections` = sambungan aktif per klien OAuth `{id, name, connectedAt, lastActiveAt, expiresAt}` (definisi di bawah).
+2. Halaman (Obsidian, `SettingsLayout bare`): kartu **Hubungkan Claude** (alamat konektor read-only + tombol **Salin**, 4 langkah: Settings › Connectors › Add custom connector di Claude, nama "Kisantra Finance", tempel alamat, **Connect**, masuk lalu **Izinkan**, aktifkan konektor di percakapan), **Sambungan aktif** (per klien: Pertama tersambung, Terakhir aktif, "Perlu login ulang N hari lagi bila tidak dipakai", tombol **Cabut**; `EmptyState` bila kosong), **Perusahaan yang bisa dibaca**, dan **Perlu diketahui** (hanya baca, ikut izin peran per perusahaan, data diproses Anthropic, berakhir setelah 30 hari tidak dipakai). Bila `canUse` false, banner peringatan di atas: "{perusahaan} tidak ikut terbaca" atau, bila tak ada perusahaan sama sekali, "Claude belum bisa membaca perusahaan mana pun".
+3. **Cabut** → `ConfirmDialog` (danger) → `DELETE /settings/claude/{client}` → `destroy()`:
+   - 404 bila user tidak punya token (dalam status apa pun) untuk klien itu; mencabut ulang klien yang tokennya sudah dicabut tetap sukses.
+   - Mass update `revoked = true` pada `oauth_refresh_tokens` yang `access_token_id`-nya milik token user itu untuk klien itu (subquery), lalu pada **semua** `oauth_access_tokens` user itu untuk klien itu. Selalu lewat `$user->tokens()`, jadi token user lain pada klien yang sama tidak tersentuh.
+   - Redirect ke `settings.claude` + flash success "Sambungan Claude dicabut. Claude harus login dan meminta izin lagi." (halaman menampilkannya sebagai toast di `onSuccess`).
+4. Efeknya seketika: guard Passport memeriksa kolom `revoked` di setiap permintaan ke `/mcp/keuangan`, dan refresh token yang dicabut tidak bisa ditukar lagi, jadi Claude harus login dan meminta izin ulang.
+
+**Sambungan aktif** (`sambunganAktif()`, 3 query, tanpa lazy loading):
+- Token akses milik user (`$user->tokens()`) dengan `revoked = false` DAN (`expires_at > now` ATAU punya refresh token `revoked = false` dengan `expires_at > now`). Token akses berumur 1 jam, refresh token 30 hari (`AppServiceProvider`), jadi sambungan yang tidak dipakai beberapa jam tetap aktif lewat refresh token-nya.
+- Dikelompokkan per `client_id`; klien OAuth yang `revoked` tidak ditampilkan (Passport sudah menolak tokennya).
+- `connectedAt` = MIN `created_at` dari **semua** token user untuk klien itu (`withMin` pada `Client::tokens()`), bukan hanya token aktif: setiap refresh mencabut token akses lama, sehingga token aktif selalu yang terbaru.
+- `lastActiveAt` = MAX `created_at` token aktif, yaitu login atau refresh terakhir (presisi kira-kira 1 jam, karena Claude baru me-refresh saat token aksesnya habis).
+- `expiresAt` = kedaluwarsa refresh token aktif yang paling akhir; tanpa refresh token yang berlaku, kedaluwarsa token aksesnya. Nilai ini bergeser 30 hari ke depan setiap kali Claude me-refresh.
+- Urut dari `lastActiveAt` terbaru.
 
 ### Profil Perusahaan (`GET/POST /settings/company`)
 
@@ -242,6 +270,7 @@ if (str_starts_with((string) $template, 'builder:')) {
 
 - Tombol **Tutorial** di header hub `/settings` (`<TutorialButton slug="settings" />` di `resources/js/pages/settings/index.tsx`) dan halaman `/panduan` membaca `video/settings/guide.ts` (peran, tugas, dampak, catatan "Ke mana isi profil perusahaan mengalir", peringatan, matriks hak akses) dan `video/settings/tutorial.tsx` (komposisi Remotion `SettingsStaff`, `SettingsFinanceManager`, `SettingsAdmin`).
 - Isi video: **Staff** — profil, kata sandi, arti Hapus Akun; **Finance manager** — penomoran invoice (pola, digit, reset, pratinjau, kapan berlaku); **Admin** — peran, profil perusahaan, dampak & aliran data ke PDF, template PDF (buat, editor, simpan, default), jejak di dialog Cetak invoice, hapus template, peringatan.
+- **Koneksi Claude** baru ada sebagai teks di `guide.ts` (tugas "Menghubungkan Claude ke data keuangan", dampak, peringatan, baris matriks); belum ada adegan video. Screenshot `fm-hub`/`admin-hub` diambil sebelum baris hub **Koneksi Claude** ada, jadi perlu diambil ulang bersama koordinatnya di `shots.ts` saat video pengaturan diperbarui.
 - File: `video/settings/{guide.ts, shots.ts, steps.ts, tutorial.tsx, screens/*.webp}`; capture `video/capture/settings.js`.
 - Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8018`), jalankan dulu `video/capture/users-permissions.js` (membuat staff "Budi Santoso"), lalu `video/capture/settings.js` lewat Playwright MCP (`browser_run_code_unsafe`), `python video/capture/to-webp.py settings`, dan salin koordinat hasilnya ke `shots.ts`. Skrip tidak menyimpan profil perusahaan maupun penomoran; nama staff diubah lalu dikembalikan, kata sandi disimpan dengan nilai yang sama, dan template contoh "Invoice Kisantra Modern" dibuat lalu dihapus lagi. `INVOICE_ID` di skrip harus invoice bernomor yang ada di DB QC (untuk adegan dialog Cetak). Pratinjau: `npm run video`.
 - **Perubahan perilaku/label/hak akses modul ini wajib diikuti pembaruan `guide.ts` (dan screenshot + `steps.ts` bila tampilan berubah).**
@@ -254,6 +283,7 @@ if (str_starts_with((string) $template, 'builder:')) {
 - **Invoice download/preview** menerima `template=builder:{id}` → `BuilderInvoicePrinter` (lihat `routes/web.php` baris 164–213).
 - **Permissions**: `manage pdf templates` didefinisikan di `MasterPermissionSeeder` (hanya admin); `manage invoice settings` (admin + finance manager) ditambahkan oleh migrasi `2026_10_08_005001_add_manage_invoice_settings_permission` dan seeder.
 - **Header React** (`resources/js/layouts/header.tsx`): switcher bahasa memanggil `POST /language` yang menyimpan `locale` ke session — dibaca `HandleInertiaRequests` sebagai prop `locale`.
+- **Koneksi Claude** ([koneksi-claude.md](koneksi-claude.md)): `/settings/claude` menampilkan alamat server MCP `/mcp/keuangan` (pusat) dan mencabut token Passport-nya. Daftar perusahaan yang terbaca memakai `AksesClaude`, penentu yang sama dengan alat MCP dan halaman persetujuan OAuth, jadi ketiganya tidak pernah berbeda pendapat.
 
 ## Invarian & Jebakan
 
@@ -271,11 +301,15 @@ if (str_starts_with((string) $template, 'builder:')) {
 - `ppn_rate` disimpan `decimal:2` (persen, 0–100), **bukan** nilai uang — jangan ikut aturan integer rupiah.
 - Hapus akun di profil = hard delete user (tanpa soft delete; role/permission dilepas trait Spatie). FK `ON DELETE CASCADE` ikut menghapus `reimbursements` (→ `reimbursement_payments`), `fund_requests` (→ items), `feedbacks`, `app_notifications` milik user, **dan** `reimbursement_payments` yang `paid_by` user itu; transaksi bank hasil pembayaran/pencairan tetap ada. Kolom `reviewed_by`/`disbursed_by`/`approved_by`/`responded_by` → `SET NULL`. Tidak ada penjaga "admin terakhir".
 - Route `custom-fonts` berada **di dalam** prefix `pdf-templates` — URL penuhnya `/settings/pdf-templates/custom-fonts` dan ikut tergate `manage pdf templates`.
+- **Koneksi Claude hanya mencabut token milik user yang login.** Selalu lewat `$user->tokens()`; jangan mencabut klien OAuth-nya (klien hasil pendaftaran dinamis tidak dimiliki satu user) dan jangan menambahkan gate `can:` ke route-nya (user yang izinnya dilepas harus tetap bisa mencabut).
+- Tabel `oauth_*` ada di database **pusat** (`passport.connection`); model Passport aman dipakai di dalam `/c/{company}` walau tenancy aktif. Jangan menggantinya dengan query tanpa model yang memakai koneksi default.
+- Kode otorisasi yang belum ditukar (`oauth_auth_codes`, umur pendek) tidak ikut dicabut; Claude menukarnya beberapa detik setelah **Izinkan**, jadi celahnya praktis tidak ada.
 
 ## File Kunci
 
-- `routes/web.php` (baris 535–572 — blok settings; 117–119 redirect sandbox; 164–213 download/preview builder)
+- `routes/web.php` (blok `Route::prefix('settings')` di grup `/c/{company}`; 117–119 redirect sandbox; 164–213 download/preview builder)
 - `app/Http/Controllers/Settings/ProfileController.php`
+- `app/Http/Controllers/Settings/KoneksiClaudeController.php` (Koneksi Claude; penentu akses `app/Mcp/AksesClaude.php`)
 - `app/Http/Controllers/Settings/PasswordController.php`
 - `app/Http/Controllers/Settings/CompanyController.php`
 - `app/Http/Controllers/Settings/PdfTemplateController.php`
@@ -286,5 +320,5 @@ if (str_starts_with((string) $template, 'builder:')) {
 - `app/Models/CompanyProfile.php`, `PdfTemplate.php`, `CustomFont.php`
 - `app/Services/BuilderInvoicePrinter.php`, `TemplateTokens.php`, `ItemColumns.php`
 - `resources/views/pdf/template-builder.blade.php`
-- `resources/js/pages/settings/index.tsx` (hub), `invoice-numbering.tsx`, `profile.tsx`, `password.tsx`, `company.tsx`, `pdf-templates/`; `resources/js/layouts/settings-layout.tsx`
-- Tests: `tests/Feature/Settings/ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `InvoiceNumberingSettingsTest.php`, `tests/Feature/InvoiceNumberServiceTest.php`, `tests/Feature/PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`
+- `resources/js/pages/settings/index.tsx` (hub), `invoice-numbering.tsx`, `profile.tsx`, `password.tsx`, `claude.tsx`, `company.tsx`, `pdf-templates/`; `resources/js/layouts/settings-layout.tsx`
+- Tests: `tests/Feature/Settings/ProfileUpdateTest.php`, `PasswordUpdateTest.php`, `InvoiceNumberingSettingsTest.php`, `tests/Feature/InvoiceNumberServiceTest.php`, `tests/Feature/PdfTemplate*Test.php`, `TemplateBuilderControllerTest.php`, `tests/Feature/Mcp/PengaturanKoneksiClaudeTest.php` (Koneksi Claude: props, definisi sambungan aktif, cabut hanya token sendiri, 404, tanpa gate)
