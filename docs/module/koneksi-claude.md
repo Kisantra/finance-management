@@ -18,8 +18,9 @@ non-teknis): [`docs/guides/KONEKSI-CLAUDE.md`](../guides/KONEKSI-CLAUDE.md). Per
 | Penentu akses | `app/Mcp/AksesClaude.php` | Satu-satunya jawaban "boleh membaca": anggota aktif perusahaan + izin `use claude` + izin modul, semuanya **di team perusahaan itu** (Spatie teams). Dipakai alat dan halaman persetujuan. |
 | Dasar alat | `app/Mcp/Tools/AlatKeuangan.php` | Validasi `perusahaan`, cek akses, log `mcp.alat`, pasang tenancy + team izin, `jalankan()`, lalu **selalu** memulihkan keduanya di `finally`. Menimpa `annotations()` agar setiap alat mengumumkan `readOnlyHint`. |
 | Persetujuan OAuth | `app/Mcp/PersetujuanClaude.php` + `resources/js/pages/oauth/authorize.tsx` | Halaman `GET /oauth/authorize` (Passport). Form Izinkan/Tolak = form HTML biasa (Passport menjawab redirect ke domain Claude). Tombol Izinkan disembunyikan bila tidak ada perusahaan yang boleh dibaca. |
-| Pengaturan | `/c/{company}/settings/claude` (lihat [settings.md](settings.md)) | Alamat konektor, cara menghubungkan, sambungan aktif + Cabut. |
-| Konfigurasi | `config/auth.php` (guard `api` = passport), `AppServiceProvider` | `passport.connection` = koneksi central; token akses 1 jam, refresh token 30 hari. |
+| Pengaturan | `/c/{company}/settings/claude` (lihat [settings.md](settings.md)) | Alamat konektor, cara menghubungkan, status kunci OAuth, sambungan aktif + Cabut. |
+| Kunci OAuth | `app/Mcp/KunciOAuth.php` | Membuat pasangan kunci Passport saat pemegang `use claude` (di perusahaan mana pun) membuka Pengaturan › Koneksi Claude: `ada()` (berkas lengkap & tidak kosong, atau `PASSPORT_*_KEY` di env) dan `pastikan()` (`passport:keys --force` di dalam `Cache::lock`, hanya bila pasangan belum lengkap). Status ke halaman: `siap` / `baru` / `gagal` (dicatat di log) / `belum` (pengguna tanpa izin; tidak membuat apa pun). |
+| Konfigurasi | `config/auth.php` (guard `api` = passport), `AppServiceProvider` | `passport.connection` = koneksi central; `Passport::loadKeysFrom(storage_path())` mematok kunci ke storage pusat; token akses 1 jam, refresh token 30 hari. |
 | Izin | migration `2026_11_05_120000_add_use_claude_permission_to_roles` + `MasterPermissionSeeder` | `use claude`: bawaan admin & finance manager; bisa diubah di Izin & Peran. |
 
 ## Alur
@@ -66,12 +67,15 @@ filter, bukan hanya halaman itu. Nominal integer rupiah, tanggal Y-m-d, status m
 - **Jangan `whereHas`/`join` ke tabel PUSAT (`users`, `companies`) dari query database perusahaan.** Cari id-nya di pusat dulu, lalu `whereIn`. Eager load (`with('user')`) aman karena berjalan sebagai query terpisah di koneksi model. Suite tes memakai satu database sehingga kesalahan ini lolos tes dan baru gagal di produksi.
 - **Tidak ada query per baris.** `Model::preventLazyLoading()` aktif di luar produksi; beberapa accessor model (mis. `Invoice::amount_paid`) tetap meng-query per baris walau kolomnya sudah dipilih, jadi tes alat daftar memeriksa jumlah query tetap saat jumlah baris bertambah.
 - **Tabel `oauth_*` di database pusat** (`passport.connection`); jangan memindahkannya ke migration tenant.
+- **Kunci OAuth di storage pusat, satu pasang per server, tidak pernah ditimpa.** Di dalam `/c/{company}` tenancy mengalihkan `storage_path()` ke `storage/tenant{slug}`; tanpa patok `Passport::loadKeysFrom()` kunci yang dibuat dari halaman Pengaturan tertulis di sana, sementara `/oauth/token` dan `/mcp/keuangan` membaca dari pusat (Claude mendapat 500 "Invalid key supplied"). Kunci baru membatalkan semua sambungan Claude, jadi hanya pasangan yang belum lengkap yang boleh dibuat ulang.
 
 ## Deploy
 
-`deploy.sh` (`ensure_passport_keys`, dipanggil di `refresh_caches` dan `finalize_caches`) membuat
-kunci Passport `storage/oauth-{private,public}.key` **sekali** bila belum lengkap, lalu `chmod 600`
-kunci privat. Kunci tidak pernah ditimpa: kunci baru membatalkan semua sambungan Claude. Tabel
+Kunci Passport `storage/oauth-{private,public}.key` dibuat **sekali** bila belum lengkap, lewat dua
+jalan yang setara: `deploy.sh` (`ensure_passport_keys`, dipanggil di `refresh_caches` dan
+`finalize_caches`, lalu `chmod 600` kunci privat) dan halaman Pengaturan › Koneksi Claude
+(`KunciOAuth`, berjalan sebagai user PHP-FPM, yang di CloudPanel sama dengan user situs; Passport
+sendiri memasang `chmod 600`). Kunci tidak pernah ditimpa: kunci baru membatalkan semua sambungan Claude. Tabel
 OAuth dan izin `use claude` datang lewat `migrate` biasa. PHP produksi wajib punya ekstensi
 `sodium` (dipakai `lcobucci/jwt`); PC dev Windows memasang paket dengan
 `--ignore-platform-req=ext-sodium` bila `extension=sodium` belum aktif di `php.ini`.
@@ -80,6 +84,7 @@ OAuth dan izin `use claude` datang lewat `migrate` biasa. PHP produksi wajib pun
 
 - `tests/Feature/Mcp/KoneksiClaudeTest.php`: 401 + `WWW-Authenticate` tanpa token, discovery publik, `daftar-perusahaan` hanya yang berizin, penolakan alat, koneksi & team pulih setelah alat, `readOnlyHint`, halaman persetujuan.
 - `tests/Feature/Mcp/Alat*Test.php`: isi, filter, penolakan izin, dan aturan visibilitas per alat.
-- `tests/Feature/Mcp/PengaturanKoneksiClaudeTest.php`: sambungan aktif per klien, cabut hanya token milik sendiri, 404 untuk klien tanpa token.
+- `tests/Feature/Mcp/PengaturanKoneksiClaudeTest.php`: sambungan aktif per klien, cabut hanya token milik sendiri, 404 untuk klien tanpa token; kunci OAuth dibuat saat halaman dibuka dan tidak ditimpa, pasangan setengah jadi dibuat ulang, kunci env dihormati, kegagalan tidak menjatuhkan halaman (status `gagal` + log), pengguna tanpa izin tidak memicu pembuatan. Kunci ditulis ke folder sementara per test.
+- `tests/Tenancy/StoragePerTenantTest.php` (`test_kunci_oauth_tetap_di_storage_pusat_saat_tenancy_aktif`): patok path kunci bertahan saat `FilesystemTenancyBootstrapper` aktif; hanya suite `TenancyReal` yang menjalankan bootstrapper itu.
 - **Guard izin:** `User::$guard_name = 'web'`. Di `/mcp/keuangan` middleware `auth:api` menjadikan `api` guard bawaan; tanpa properti itu Spatie mencari izin ber-guard `api` dan setiap cek gagal. Alat yang dipanggil langsung (`KeuanganServer::actingAs`) memakai guard `web`, jadi bug ini hanya tertangkap lewat HTTP + `Passport::actingAs` (`test_lewat_http_dengan_token_passport_izin_tetap_terbaca`) atau uji ujung ke ujung. Ditemukan 5 Nov 2026 saat uji ujung ke ujung di server QA.
 - Uji manual: `php artisan mcp:inspector mcp/keuangan` (butuh token Bearer) atau hubungkan Claude ke server QA.

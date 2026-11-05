@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Passport\Passport;
 use Tests\TenancyTestCase;
 
 /**
@@ -65,6 +66,24 @@ class StoragePerTenantTest extends TenancyTestCase
 
         $this->assertStringContainsString('tenant'.$this->slug(0), $saatAktif, 'storage_path() tidak ber-suffix tenant.');
         $this->assertSame($sebelum, $setelah, 'storage_path() tidak kembali ke nilai central setelah tenancy berakhir.');
+    }
+
+    /**
+     * Kunci OAuth dibuat dari Pengaturan › Koneksi Claude (di dalam /c/{company}), tetapi dibaca
+     * /oauth/token dan /mcp/keuangan yang berjalan tanpa tenancy. Kalau path-nya ikut ber-suffix,
+     * kunci tertulis ke storage/tenant{slug} dan Claude mendapat "Invalid key supplied".
+     */
+    public function test_kunci_oauth_tetap_di_storage_pusat_saat_tenancy_aktif(): void
+    {
+        $pusat = storage_path('oauth-private.key');
+
+        $this->useTenant(0);
+        $saatAktif = Passport::keyPath('oauth-private.key');
+        $storageTenant = storage_path('oauth-private.key');
+        $this->endTenancy();
+
+        $this->assertNotSame($pusat, $storageTenant, 'Kontrol: storage_path() seharusnya ber-suffix saat tenancy aktif.');
+        $this->assertSame($pusat, $saatAktif, 'Kunci OAuth ikut pindah ke storage perusahaan.');
     }
 
     public function test_disk_public_tidak_melihat_lampiran_perusahaan_lain(): void

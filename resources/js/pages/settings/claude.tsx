@@ -34,6 +34,52 @@ interface Props {
     readableCompanies: { kode: string; nama: string }[];
     connections: Connection[];
     canUse: boolean;
+    /** Kunci OAuth server: dibuat otomatis saat pemegang `use claude` membuka halaman ini. */
+    oauthKeyStatus: 'siap' | 'baru' | 'gagal' | 'belum';
+}
+
+const STATUS_KUNCI: Record<Exclude<Props['oauthKeyStatus'], 'siap'>, { tone: string; ikon: React.ReactNode; judul: string; isi: React.ReactNode }> = {
+    baru: {
+        tone: 'border-ob-pos/40 bg-ob-pos/10',
+        ikon: <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-pos" />,
+        judul: 'Server baru saja disiapkan',
+        isi: 'Kunci OAuth untuk koneksi Claude dibuat otomatis. Koneksi siap dipakai.',
+    },
+    gagal: {
+        tone: 'border-ob-late/40 bg-ob-late/10',
+        ikon: <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-late" />,
+        judul: 'Server belum siap untuk Claude',
+        isi: (
+            <>
+                Kunci OAuth gagal dibuat otomatis (folder <span className="font-mono">storage</span> kemungkinan tidak bisa ditulis). Minta admin
+                server menjalankan <span className="font-mono">php artisan passport:keys</span> sebagai user situs, lalu buka ulang halaman ini.
+            </>
+        ),
+    },
+    belum: {
+        tone: 'border-ob-wait/40 bg-ob-wait/10',
+        ikon: <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-wait" />,
+        judul: 'Server belum siap untuk Claude',
+        isi: 'Kunci OAuth dibuat otomatis saat pengguna berizin use claude membuka halaman ini.',
+    },
+};
+
+function StatusKunci({ status }: { status: Props['oauthKeyStatus'] }) {
+    if (status === 'siap') {
+        return null;
+    }
+
+    const s = STATUS_KUNCI[status];
+
+    return (
+        <div role={status === 'gagal' ? 'alert' : 'status'} className={`flex gap-2.5 rounded-2xl border p-3.5 ${s.tone}`}>
+            {s.ikon}
+            <div className="min-w-0 text-[13px] text-ob-ink-2">
+                <p className="font-semibold text-ob-ink">{s.judul}</p>
+                <p>{s.isi}</p>
+            </div>
+        </div>
+    );
 }
 
 const NAMA_KONEKTOR = 'Kisantra Finance';
@@ -147,7 +193,7 @@ function SambunganItem({ connection, onCabut }: { connection: Connection; onCabu
     );
 }
 
-export default function KoneksiClaude({ connectorUrl, readableCompanies, connections, canUse }: Props) {
+export default function KoneksiClaude({ connectorUrl, readableCompanies, connections, canUse, oauthKeyStatus }: Props) {
     const { company } = usePage<SharedProps>().props;
     const [target, setTarget] = React.useState<Connection | null>(null);
     const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -220,6 +266,7 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                                 <CardDescription>Tambahkan aplikasi ini sebagai konektor kustom di Claude, lalu izinkan aksesnya.</CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col gap-6">
+                                <StatusKunci status={oauthKeyStatus} />
                                 <AlamatKonektor url={connectorUrl} />
                                 <ol role="list" className="flex flex-col gap-3">
                                     {LANGKAH.map((langkah, i) => (

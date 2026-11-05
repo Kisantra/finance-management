@@ -4,17 +4,20 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Mcp\AksesClaude;
+use App\Mcp\KunciOAuth;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Passport\Client;
 use Laravel\Passport\RefreshToken;
 use Laravel\Passport\Token;
+use Throwable;
 
 /**
  * Pengaturan › Koneksi Claude: alamat konektor MCP, perusahaan yang bisa dibaca Claude, dan
@@ -26,18 +29,42 @@ use Laravel\Passport\Token;
  */
 class KoneksiClaudeController extends Controller
 {
-    public function index(Request $request, AksesClaude $akses): Response
+    public function index(Request $request, AksesClaude $akses, KunciOAuth $kunci): Response
     {
         /** @var User $user */
         $user = $request->user();
         $perusahaan = $akses->perusahaan($user);
+        $canUse = $perusahaan->contains(fn (Company $company) => $company->getKey() === tenant()?->getTenantKey());
 
         return Inertia::render('settings/claude', [
             'connectorUrl' => url('/mcp/keuangan'),
             'readableCompanies' => $perusahaan->map(fn (Company $company) => ['kode' => $company->getKey(), 'nama' => $company->name])->values(),
             'connections' => $this->sambunganAktif($user),
-            'canUse' => $perusahaan->contains(fn (Company $company) => $company->getKey() === tenant()?->getTenantKey()),
+            'canUse' => $canUse,
+            'oauthKeyStatus' => $this->statusKunci($kunci, $perusahaan->isNotEmpty()),
         ]);
+    }
+
+    /**
+     * Kunci OAuth milik server (satu untuk semua perusahaan) dibuat saat pemegang `use claude` di
+     * perusahaan mana pun membuka halaman ini untuk menyalin alamat konektor, jadi tidak perlu
+     * menjalankan passport:keys di server. Pengguna lain hanya melihat statusnya.
+     *
+     * @return 'siap'|'baru'|'gagal'|'belum'
+     */
+    private function statusKunci(KunciOAuth $kunci, bool $boleh): string
+    {
+        if (! $boleh) {
+            return $kunci->ada() ? 'siap' : 'belum';
+        }
+
+        try {
+            return $kunci->pastikan();
+        } catch (Throwable $e) {
+            Log::error('Kunci OAuth koneksi Claude gagal dibuat', ['error' => $e->getMessage()]);
+
+            return 'gagal';
+        }
     }
 
     /**

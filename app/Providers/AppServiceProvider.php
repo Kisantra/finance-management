@@ -34,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
         // (tenancy aktif) mencarinya di database perusahaan. Token akses berumur pendek;
         // refresh token 30 hari (setelah itu Claude meminta login & persetujuan ulang).
         config(['passport.connection' => config('tenancy.database.central_connection')]);
+        // Kunci OAuth dipatok ke storage PUSAT: di dalam /c/{company} tenancy mengalihkan
+        // storage_path() ke storage/tenant{slug}, padahal /oauth & /mcp membacanya dari pusat.
+        Passport::loadKeysFrom(storage_path());
         Passport::tokensExpireIn(CarbonInterval::hour());
         Passport::refreshTokensExpireIn(CarbonInterval::days(30));
         Passport::authorizationView(fn (array $parameters) => PersetujuanClaude::tampilkan($parameters));

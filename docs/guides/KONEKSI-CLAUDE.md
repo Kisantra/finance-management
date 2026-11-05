@@ -29,11 +29,16 @@ data yang sama terbatasnya dengan yang terlihat di aplikasi.
    **Finance Manager**. Peran lain bisa diberi lewat **Administrasi › Izin & Peran** (bagian Claude).
 3. **Server sudah disiapkan** (sekali saja, oleh admin server): blok `/.well-known` di vhost
    CloudPanel harus meneruskan permintaan ke aplikasi. Lihat [Mengatasi masalah](#mengatasi-masalah).
+   Kunci keamanan OAuth **tidak perlu dibuat manual**: kunci dibuat otomatis saat pemegang izin
+   `use claude` pertama kali membuka **Pengaturan › Koneksi Claude** (atau saat `./deploy.sh`).
 
 ## Menghubungkan (sekali saja)
 
 1. Di aplikasi, buka **Pengaturan › Koneksi Claude**, lalu salin **alamat konektor**:
-   `https://finance.kisantra.com/mcp/keuangan`.
+   `https://finance.kisantra.com/mcp/keuangan`. Bila muncul kotak hijau **"Server baru saja
+   disiapkan"**, kunci OAuth baru saja dibuat dan koneksi siap dipakai. Bila muncul kotak oranye
+   **"Server belum siap untuk Claude"**, berhenti di sini dan hubungi admin server (lihat
+   [Mengatasi masalah](#mengatasi-masalah)).
 2. Di Claude (web atau desktop), buka **Settings › Connectors › Add custom connector**.
 3. Isi nama **Kisantra Finance**, tempel alamat konektor, lalu klik **Add**.
 4. Klik **Connect**. Claude membuka halaman aplikasi:
@@ -129,6 +134,9 @@ Admin juga bisa menutup akses suatu peran dengan mencabut izin `use claude` di I
 
 | Gejala | Penyebab & solusi |
 |--------|-------------------|
+| Saat Connect, Claude menampilkan **"Connecting to the server Not found 500"** atau sejenisnya | Kunci OAuth server belum ada. Buka **Pengaturan › Koneksi Claude** sekali dengan akun ber-izin `use claude`: kunci dibuat otomatis. Lalu di Claude klik **Connect** lagi pada konektor yang sudah ada; jangan menambah konektor kedua dan jangan klik "Continue anyway". |
+| Pengaturan › Koneksi Claude menampilkan kotak oranye "Server belum siap untuk Claude" | Kunci gagal dibuat otomatis, biasanya karena folder `storage` tidak bisa ditulis. Admin server: dari folder aplikasi, sebagai user situs (bukan root), jalankan `php artisan passport:keys`, lalu buka ulang halaman itu. |
+| Claude menolak menambah konektor: "A connector with this URL already exists" | Konektor dengan alamat yang sama sudah ada. Pakai yang lama: **Settings › Connectors**, pilih **Kisantra Finance**, lalu **Connect**. |
 | Saat Connect, Claude gagal menemukan halaman login | Server belum meneruskan `/.well-known/...` ke aplikasi. Admin server: CloudPanel › Sites › domain › **Vhost**, pada blok `location ~ /.well-known {` tambahkan `try_files $uri $uri/ /index.php?$query_string;` lalu Save. Cek: `https://finance.kisantra.com/.well-known/oauth-authorization-server` harus menampilkan JSON. |
 | Claude menjawab "belum ada perusahaan yang boleh dibaca" | Peran Anda belum punya izin `use claude` di perusahaan itu. Minta admin mengaktifkannya, lalu tanya lagi (tidak perlu menghubungkan ulang). |
 | "Perusahaan ... tidak bisa dibaca ... tidak punya izin view ..." | Peran Anda di perusahaan itu tidak boleh melihat modul tersebut. Sama dengan di aplikasi. |

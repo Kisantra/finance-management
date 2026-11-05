@@ -137,6 +137,7 @@ export const guide: ModuleGuide = {
                 'Claude hanya **membaca**: tidak bisa menambah, mengubah, atau menghapus data apa pun.',
                 'Yang terbaca mengikuti izin peran pengguna di tiap perusahaan; perusahaan tempat perannya tidak punya **use claude** tidak terbaca.',
                 'Sambungan berakhir sendiri setelah 30 hari tidak dipakai; **Cabut** memutusnya seketika.',
+                'Saat pemegang **use claude** pertama kali membuka **Koneksi Claude**, server menyiapkan kunci keamanan OAuth secara otomatis. Sekali saja: kunci yang sudah ada tidak pernah diganti, karena menggantinya memutus semua sambungan Claude.',
             ],
         },
         {

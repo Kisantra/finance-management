@@ -5,9 +5,12 @@ namespace Tests\Feature\Mcp;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Passport\Client;
+use Laravel\Passport\Passport;
 use Laravel\Passport\RefreshToken;
 use Laravel\Passport\Token;
 use Spatie\Permission\Models\Permission;
@@ -17,7 +20,8 @@ use Tests\TestCase;
 
 /**
  * Pengaturan › Koneksi Claude: alamat konektor, perusahaan yang terbaca, sambungan OAuth aktif,
- * dan pencabutan yang hanya menyentuh token milik user yang login.
+ * pencabutan yang hanya menyentuh token milik user yang login, dan kunci OAuth yang dibuat
+ * otomatis saat halaman dibuka. Kunci ditulis ke folder sementara per test, bukan storage/.
  */
 class PengaturanKoneksiClaudeTest extends TestCase
 {
@@ -27,9 +31,19 @@ class PengaturanKoneksiClaudeTest extends TestCase
 
     protected User $staf;
 
+    private string $folderKunci;
+
+    private ?string $kunciAsli;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->kunciAsli = Passport::$keyPath;
+        $this->folderKunci = sys_get_temp_dir().DIRECTORY_SEPARATOR.'kunci-oauth-'.bin2hex(random_bytes(4));
+        File::ensureDirectoryExists($this->folderKunci);
+        Passport::loadKeysFrom($this->folderKunci);
+        config(['passport.private_key' => null, 'passport.public_key' => null]);
 
         $this->travelTo(Carbon::parse('2026-11-05 10:00:00'));
 
@@ -47,6 +61,14 @@ class PengaturanKoneksiClaudeTest extends TestCase
         $this->staf = User::factory()->create(['name' => 'Staf Uji']);
         $this->staf->companies()->syncWithoutDetaching([self::TEST_COMPANY]);
         $this->staf->assignRole('staff');
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory($this->folderKunci);
+        Passport::$keyPath = $this->kunciAsli;
+
+        parent::tearDown();
     }
 
     public function test_halaman_memuat_alamat_konektor_perusahaan_dan_hanya_sambungan_aktif(): void
@@ -139,10 +161,13 @@ class PengaturanKoneksiClaudeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('canUse', false)
+                ->where('oauthKeyStatus', 'belum')
                 ->has('readableCompanies', 0)
                 ->has('connections', 1)
                 ->where('connections.0.id', $claude->getKey())
             );
+
+        $this->assertFileDoesNotExist($this->kunci('private'), 'Pengguna tanpa izin use claude tidak boleh memicu pembuatan kunci.');
 
         $this->actingAs($this->staf)
             ->delete('/settings/claude/'.$claude->getKey())
@@ -150,6 +175,68 @@ class PengaturanKoneksiClaudeTest extends TestCase
 
         $this->assertTrue($token->fresh()->revoked);
         $this->assertTrue($this->refreshDicabut($token));
+    }
+
+    public function test_kunci_oauth_dibuat_saat_halaman_dibuka_dan_pasangan_lengkap_tidak_pernah_ditimpa(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/settings/claude')
+            ->assertInertia(fn (Assert $page) => $page->where('oauthKeyStatus', 'baru'));
+
+        $this->assertStringContainsString('PRIVATE KEY', File::get($this->kunci('private')));
+        $this->assertStringContainsString('PUBLIC KEY', File::get($this->kunci('public')));
+        $sidik = [md5_file($this->kunci('private')), md5_file($this->kunci('public'))];
+
+        $this->actingAs($this->admin)
+            ->get('/settings/claude')
+            ->assertInertia(fn (Assert $page) => $page->where('oauthKeyStatus', 'siap'));
+
+        $this->assertSame($sidik, [md5_file($this->kunci('private')), md5_file($this->kunci('public'))], 'Kunci baru memutus semua sambungan Claude.');
+    }
+
+    public function test_pasangan_kunci_setengah_jadi_dibuat_ulang(): void
+    {
+        File::put($this->kunci('public'), 'sisa kunci lama');
+        File::put($this->kunci('private'), '');
+
+        $this->actingAs($this->admin)
+            ->get('/settings/claude')
+            ->assertInertia(fn (Assert $page) => $page->where('oauthKeyStatus', 'baru'));
+
+        $this->assertStringContainsString('PRIVATE KEY', File::get($this->kunci('private')));
+        $this->assertStringContainsString('PUBLIC KEY', File::get($this->kunci('public')));
+    }
+
+    public function test_kunci_dari_env_dianggap_siap_tanpa_membuat_berkas(): void
+    {
+        config(['passport.private_key' => 'kunci-privat-env', 'passport.public_key' => 'kunci-publik-env']);
+
+        $this->actingAs($this->admin)
+            ->get('/settings/claude')
+            ->assertInertia(fn (Assert $page) => $page->where('oauthKeyStatus', 'siap'));
+
+        $this->assertFileDoesNotExist($this->kunci('private'));
+    }
+
+    public function test_kunci_gagal_dibuat_halaman_tetap_terbuka_dan_kegagalan_dicatat(): void
+    {
+        Passport::loadKeysFrom($this->folderKunci.DIRECTORY_SEPARATOR.'tidak-ada');
+        Log::spy();
+
+        $this->actingAs($this->admin)
+            ->get('/settings/claude')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('oauthKeyStatus', 'gagal')
+                ->where('connectorUrl', url('/mcp/keuangan'))
+            );
+
+        Log::shouldHaveReceived('error')->once()->withArgs(fn (string $pesan) => $pesan === 'Kunci OAuth koneksi Claude gagal dibuat');
+    }
+
+    private function kunci(string $jenis): string
+    {
+        return $this->folderKunci.DIRECTORY_SEPARATOR."oauth-{$jenis}.key";
     }
 
     private function klien(string $nama, bool $dicabut = false): Client
