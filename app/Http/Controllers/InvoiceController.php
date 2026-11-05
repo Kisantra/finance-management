@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\InvoiceRecapExport;
 use App\Exports\InvoiceRecapJsmExport;
 use App\Http\Requests\InvoicePreviewRequest;
+use App\Http\Requests\NextInvoiceNumberRequest;
 use App\Http\Requests\SendInvoiceRequest;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
@@ -537,15 +538,18 @@ class InvoiceController extends Controller
     {
         $validated = $request->validated();
         $publish = $request->boolean('publish');
+        // Memilih nomor sendiri setara dengan "Kirim invoice" di drawer, yang butuh `edit invoices`.
+        // Tanpa izin itu nomor tetap otomatis, seperti sebelum dialog ini ada.
+        $nomor = $request->user()->can('edit invoices') ? ($validated['invoice_number'] ?? null) : null;
 
-        $invoice = DB::transaction(function () use ($validated, $publish) {
+        $invoice = DB::transaction(function () use ($validated, $publish, $nomor) {
             ['attributes' => $attributes, 'items' => $items] = $this->buildInvoiceData($validated);
 
             $invoice = Invoice::create([...$attributes, 'status' => 'draft']);
             $invoice->items()->createMany($items);
 
             if ($publish) {
-                $this->publish($invoice);
+                $this->publish($invoice, $nomor);
             }
 
             return $invoice;
@@ -646,11 +650,23 @@ class InvoiceController extends Controller
     }
 
     /** Beri nomor berikutnya & ubah draft menjadi terkirim (dipakai "Simpan & terbitkan"). */
-    private function publish(Invoice $invoice): void
+    /** Terbitkan draft: nomor dari dialog bila diisi, selain itu nomor berikutnya sesuai format. */
+    private function publish(Invoice $invoice, ?string $nomor = null): void
     {
         $invoice->update([
-            'invoice_number' => Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id),
+            'invoice_number' => filled($nomor) ? $nomor : Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id),
             'status' => 'sent',
+        ]);
+    }
+
+    /**
+     * Nomor berikutnya untuk klien & tanggal yang sedang diisi di editor, untuk mengisi dialog
+     * "Simpan & terbitkan". Sama dengan nomor yang diberikan bila dialog dikonfirmasi tanpa diubah.
+     */
+    public function nextNumber(NextInvoiceNumberRequest $request): JsonResponse
+    {
+        return response()->json([
+            'number' => Invoice::generateInvoiceNumber(Carbon::parse($request->validated('issue_date')), (int) $request->validated('client_id')),
         ]);
     }
 
@@ -745,7 +761,7 @@ class InvoiceController extends Controller
             $invoice->items()->createMany($items);
 
             if ($publish) {
-                $this->publish($invoice);
+                $this->publish($invoice, $validated['invoice_number'] ?? null);
             }
         });
 

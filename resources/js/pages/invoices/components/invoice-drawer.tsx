@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -21,6 +21,7 @@ import { companyUrl } from '@/lib/company';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
 import { BTN, dateTime, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
+import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
 import { PrintInvoiceDialog, type CustomTemplate } from './print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
@@ -574,36 +575,15 @@ function DrawerSkeleton() {
 
 /* ─────────────────────────────────── dialog: kirim ─── */
 
-const DIALOG = cn(SURFACE, 'rounded-3xl p-6');
-
-function DialogHead({ title, sub, onClose }: { title: string; sub?: React.ReactNode; onClose: () => void }) {
-    return (
-        <div className="mb-5 flex items-start justify-between gap-4">
-            <div className="min-w-0">
-                <DialogTitle className="text-xl font-semibold text-ob-ink dark:text-ob-ink">{title}</DialogTitle>
-                {sub ? <DialogDescription className="mt-1 text-[13px] leading-relaxed text-ob-ink-2 dark:text-ob-ink-2">{sub}</DialogDescription> : <DialogDescription className="sr-only">{title}</DialogDescription>}
-            </div>
-            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={onClose} aria-label="Tutup">
-                <X className="h-4 w-4" />
-            </Button>
-        </div>
-    );
-}
-
 function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onOpenChange: (o: boolean) => void; detail: InvoiceDetail; onSent: () => void }) {
-    const suggested = detail.next_invoice_number ?? '';
-    const [number, setNumber] = React.useState(suggested);
     const [error, setError] = React.useState<string | null>(null);
     const [sending, setSending] = React.useState(false);
 
     React.useEffect(() => {
-        if (open) {
-            setNumber(suggested);
-            setError(null);
-        }
-    }, [open, suggested]);
+        if (open) setError(null);
+    }, [open]);
 
-    const send = async () => {
+    const send = async (number: string) => {
         setSending(true);
         const result = await invoiceAction(`/invoices/${detail.id}/send`, 'POST', { invoice_number: number }).catch(() => null);
         setSending(false);
@@ -617,59 +597,20 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent size="md" hideClose className={DIALOG}>
-                <DialogHead
-                    title="Kirim invoice"
-                    sub="Memberi nomor dan mengubah status menjadi Terkirim. Klien tidak menerima email otomatis; unduh PDF setelah terbit."
-                    onClose={() => onOpenChange(false)}
-                />
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        send();
-                    }}
-                    className="flex flex-col gap-4"
-                >
-                    <div className={FIELD}>
-                        <Input
-                            label="Nomor invoice"
-                            value={number}
-                            onChange={(e) => {
-                                setNumber(e.target.value);
-                                setError(null);
-                            }}
-                            className="font-mono"
-                            error={error ?? undefined}
-                            hint="Nomor berikutnya sesuai format di Pengaturan › Penomoran invoice. Bisa dibatalkan (rollback) selama ini nomor urut terakhir di periodenya."
-                            autoFocus
-                        />
-                    </div>
-                        {error && number !== suggested && suggested && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setNumber(suggested);
-                                    setError(null);
-                                }} className="-mt-2 self-start text-[13px] font-semibold text-ob-act hover:underline">
-                                Pakai nomor yang disarankan
-                            </button>
-                        )}
-                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-sm">
-                        <span className="truncate text-ob-ink-2">{detail.client.name}</span>
-                        <span className="font-semibold text-ob-ink">{rp(detail.total_amount)}</span>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)}>
-                            Batal
-                        </Button>
-                        <Button type="submit" className={BTN.primary} loading={sending} disabled={!number.trim()} icon={<Send className="h-4 w-4" />}>
-                            Kirim invoice
-                        </Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
+        <InvoiceNumberDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            title="Kirim invoice"
+            sub="Memberi nomor dan mengubah status menjadi Terkirim. Klien tidak menerima email otomatis; unduh PDF setelah terbit."
+            confirmLabel="Kirim invoice"
+            suggested={detail.next_invoice_number ?? ''}
+            clientName={detail.client.name}
+            total={detail.total_amount}
+            submitting={sending}
+            error={error}
+            onClearError={() => setError(null)}
+            onConfirm={send}
+        />
     );
 }
 

@@ -17,8 +17,9 @@ import { useCan } from '@/hooks/use-can';
 import { AppLayout } from '@/layouts/app-layout';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
-import { cn, toastErrors, toLocalIso } from '@/lib/utils';
+import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
+import { InvoiceNumberDialog } from './components/invoice-number-dialog';
 import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import { parseQty } from './components/item-table-helpers';
 import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE } from './components/ob';
@@ -311,20 +312,60 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
     };
 
     /* ── simpan ── */
-    const submit = (publish: boolean) => {
+    // "Simpan & terbitkan" lewat dialog berisi nomor berikutnya (dihitung server untuk klien &
+    // tanggal ini). Memilih nomor sendiri butuh `edit invoices`, sama dengan "Kirim invoice".
+    const [publishOpen, setPublishOpen] = React.useState(false);
+    const [suggestedNumber, setSuggestedNumber] = React.useState('');
+    const [loadingNumber, setLoadingNumber] = React.useState(false);
+    const [numberError, setNumberError] = React.useState<string | null>(null);
+    const canChooseNumber = can('edit invoices');
+
+    const submit = (publish: boolean, invoiceNumber?: string) => {
         setSubmitting(publish ? 'publish' : 'draft');
-        form.transform((d) => ({ ...toPayload(d, multiClient), publish }));
+        form.transform((d) => ({ ...toPayload(d, multiClient), publish, ...(invoiceNumber ? { invoice_number: invoiceNumber } : {}) }));
         const options: Parameters<typeof form.post>[1] = {
             preserveScroll: true,
             onSuccess: (page) => {
+                setPublishOpen(false);
                 const message = (page.props.flash as { success?: string } | undefined)?.success;
                 toast.success(message ?? (publish ? 'Invoice diterbitkan.' : 'Invoice disimpan.'));
             },
-            onError: (errs) => toastErrors(errs as Record<string, string>, isEdit ? 'UpdateInvoice' : 'CreateInvoice'),
+            onError: (errs) => {
+                const e = errs as Record<string, string>;
+                // Hanya nomornya yang ditolak (mis. sudah dipakai): tetap di dialog untuk diperbaiki.
+                if (e.invoice_number && Object.keys(e).length === 1) {
+                    setNumberError(e.invoice_number);
+                    form.clearErrors();
+                    return;
+                }
+                setPublishOpen(false);
+                toastErrors(e, isEdit ? 'UpdateInvoice' : 'CreateInvoice');
+            },
             onFinish: () => setSubmitting(null),
         };
         if (isEdit) form.put(companyUrl(`/invoices/${invoice.id}`), options);
         else form.post(companyUrl('/invoices'), options);
+    };
+
+    const openPublish = async () => {
+        // Tanpa klien/tanggal nomor belum bisa dihitung: biarkan validasi server menunjukkan yang kurang.
+        if (!data.client_id || !data.issue_date) return submit(true);
+        setNumberError(null);
+        setSuggestedNumber('');
+        setPublishOpen(true);
+        setLoadingNumber(true);
+        try {
+            const params = new URLSearchParams({ client_id: String(data.client_id), issue_date: data.issue_date });
+            const res = await api(`/invoices/next-number?${params}`);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message ?? 'Nomor berikutnya gagal dihitung.');
+            setSuggestedNumber(json.number);
+        } catch (err) {
+            setPublishOpen(false);
+            toastError(err instanceof Error ? err.message : 'Nomor berikutnya gagal dihitung.');
+        } finally {
+            setLoadingNumber(false);
+        }
     };
 
     React.useEffect(() => {
@@ -403,7 +444,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                 <Button type="submit" variant="outline" className={BTN.secondary} loading={submitting === 'draft'} disabled={processing}>
                                     Simpan draft
                                 </Button>
-                                <Button type="button" variant="primary" className={BTN.primary} loading={submitting === 'publish'} disabled={processing} onClick={() => submit(true)} icon={<Send className="h-4 w-4" />}>
+                                <Button type="button" variant="primary" className={BTN.primary} loading={submitting === 'publish'} disabled={processing} onClick={openPublish} icon={<Send className="h-4 w-4" />}>
                                     Simpan &amp; terbitkan
                                 </Button>
                             </>
@@ -676,6 +717,26 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                     {previewPanel}
                 </SheetContent>
             </Sheet>
+
+            <InvoiceNumberDialog
+                open={publishOpen}
+                onOpenChange={(open) => {
+                    setPublishOpen(open);
+                    if (!open) setNumberError(null);
+                }}
+                title="Simpan & terbitkan"
+                sub="Invoice disimpan, diberi nomor, dan berstatus Terkirim. Klien tidak menerima email otomatis; unduh PDF setelah terbit."
+                confirmLabel="Terbitkan"
+                suggested={suggestedNumber}
+                loading={loadingNumber}
+                editable={canChooseNumber}
+                clientName={selectedClient?.name ?? ''}
+                total={total}
+                submitting={submitting === 'publish'}
+                error={numberError}
+                onClearError={() => setNumberError(null)}
+                onConfirm={(number) => submit(true, canChooseNumber ? number : undefined)}
+            />
         </>
     );
 }

@@ -221,6 +221,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/export/pdf', [InvoiceController::class, 'exportPdf'])->name('export.pdf');
         Route::post('/', [InvoiceController::class, 'store'])->middleware('can:create invoices')->name('store');
         Route::post('/preview', [InvoiceController::class, 'preview'])->name('preview');
+        Route::get('/next-number', [InvoiceController::class, 'nextNumber'])->name('next-number');
         Route::get('/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('show');
         Route::get('/{invoice}/data', [InvoiceController::class, 'data'])->name('data');
         Route::get('/{invoice}/edit', [InvoiceController::class, 'edit'])->middleware('can:edit invoices')->name('edit');

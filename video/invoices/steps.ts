@@ -97,7 +97,7 @@ export const STAFF_STEPS: Step[] = [
         cursor: S['staff-create-item2'].draft,
         click: true,
         zoom: 1.7,
-        caption: 'Simpan draft agar diperiksa dulu, atau Simpan & terbitkan untuk langsung memberi nomor. Setelah tersimpan, Staff tidak bisa mengeditnya.',
+        caption: 'Simpan draft agar diperiksa dulu, atau Simpan & terbitkan untuk langsung memberi nomor (nomornya dikonfirmasi dulu di dialog). Setelah tersimpan, Staff tidak bisa mengeditnya.',
         duration: 150,
     },
     {

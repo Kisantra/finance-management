@@ -542,6 +542,63 @@ class InvoiceControllerTest extends TestCase
         $this->assertSame('005/INV/SPI-XX/III/2026', $sent->fresh()->invoice_number);
     }
 
+    public function test_dialog_terbitkan_terisi_nomor_yang_sama_dengan_nomor_otomatis(): void
+    {
+        $saran = $this->actingAs($this->admin)
+            ->getJson('/invoices/next-number?client_id='.$this->client->id.'&issue_date=2026-03-01')
+            ->assertOk()
+            ->json('number');
+
+        $this->assertStringStartsWith('001/INV/', $saran);
+        $this->assertStringEndsWith('/III/2026', $saran);
+
+        $this->actingAs($this->admin)->post('/invoices', [...$this->invoicePayload(), 'publish' => true]);
+        $this->assertSame($saran, Invoice::latest('id')->first()->invoice_number, 'Dialog yang tidak diubah harus menghasilkan nomor otomatis yang sama.');
+
+        $this->actingAs($this->admin)->getJson('/invoices/next-number')->assertJsonValidationErrors(['client_id', 'issue_date']);
+    }
+
+    public function test_simpan_dan_terbitkan_memakai_nomor_dari_dialog(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/invoices', [...$this->invoicePayload(), 'publish' => true, 'invoice_number' => '017/INV/SPI-XX/III/2026'])
+            ->assertSessionHasNoErrors();
+
+        $invoice = Invoice::latest('id')->first();
+        $this->assertSame('sent', $invoice->status);
+        $this->assertSame('017/INV/SPI-XX/III/2026', $invoice->invoice_number);
+
+        $draft = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id]);
+        $this->actingAs($this->admin)
+            ->put("/invoices/{$draft->id}", [...$this->invoicePayload(), 'publish' => true, 'invoice_number' => 'INV-MANUAL-01'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('INV-MANUAL-01', $draft->fresh()->invoice_number);
+    }
+
+    public function test_nomor_dari_dialog_yang_sudah_dipakai_ditolak_tanpa_membuat_invoice(): void
+    {
+        Invoice::factory()->sent()->create(['billed_to_id' => $this->client->id, 'invoice_number' => '017/INV/SPI-XX/III/2026']);
+        $sebelum = Invoice::count();
+
+        $this->actingAs($this->admin)
+            ->post('/invoices', [...$this->invoicePayload(), 'publish' => true, 'invoice_number' => '017/INV/SPI-XX/III/2026'])
+            ->assertSessionHasErrors(['invoice_number' => 'Nomor ini sudah dipakai invoice lain.']);
+
+        $this->assertSame($sebelum, Invoice::count());
+    }
+
+    /** Memilih nomor sendiri setara "Kirim invoice" di drawer, yang butuh `edit invoices`. */
+    public function test_tanpa_izin_edit_invoices_nomor_dari_dialog_diabaikan(): void
+    {
+        $pembuat = User::factory()->create();
+        $pembuat->givePermissionTo(['view invoices', 'create invoices']);
+
+        $this->actingAs($pembuat)->post('/invoices', [...$this->invoicePayload(), 'publish' => true, 'invoice_number' => 'PILIHAN-SENDIRI']);
+
+        $this->assertStringStartsWith('001/INV/', Invoice::latest('id')->first()->invoice_number);
+    }
+
     public function test_show_renders_the_list_with_the_invoice_selected(): void
     {
         $invoice = Invoice::factory()->draft()->create(['billed_to_id' => $this->client->id]);

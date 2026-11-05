@@ -40,6 +40,9 @@ class StoreInvoiceRequest extends FormRequest
             'discount_reason' => ['nullable', 'string', 'max:255'],
             'apply_ppn' => ['nullable', 'boolean'],
             'faktur' => ['nullable', 'string', 'max:50'],
+            // Nomor dari dialog "Simpan & terbitkan". Dipakai hanya saat publish oleh pemegang
+            // `edit invoices` (lihat InvoiceController::store); kosong = nomor otomatis.
+            'invoice_number' => ['nullable', 'string', 'max:100', Rule::unique('invoices', 'invoice_number')->ignore($this->route('invoice'))],
         ];
     }
 
@@ -63,6 +66,8 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.unit_price.min' => 'Harga satuan baris :position tidak boleh negatif.',
             'discount_value.min' => 'Diskon tidak boleh negatif.',
             'faktur.max' => 'Nomor faktur pajak maksimal 50 karakter.',
+            'invoice_number.unique' => 'Nomor ini sudah dipakai invoice lain.',
+            'invoice_number.max' => 'Nomor invoice maksimal 100 karakter.',
             'discount_value.integer' => 'Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.',
         ];
     }

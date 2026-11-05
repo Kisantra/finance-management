@@ -66,7 +66,7 @@ export const guide: ModuleGuide = {
                 'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
                 'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
-                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**.',
+                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
                 'Staff tidak bisa mengedit invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
             ],
         },
