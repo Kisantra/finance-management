@@ -137,6 +137,7 @@ const NAV: NavGroup[] = [
         icon: <ShieldCheck className={ICON} />,
         items: [
             { label: 'Pengguna', href: '/admin/users', permission: 'manage users', matchPrefix: '/admin/users' },
+            { label: 'Perusahaan', href: '/admin/companies', permission: 'manage companies', matchPrefix: '/admin/companies' },
             { label: 'Izin & Peran', href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
             { label: 'Feedback', href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
         ],

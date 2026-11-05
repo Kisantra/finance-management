@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Company;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\InvoiceNumberService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Spatie\Permission\Models\Permission;
@@ -39,16 +40,53 @@ class CompanyControllerTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    public function test_index_lists_companies_with_quota(): void
+    public function test_index_lists_organization_companies_with_members_and_preview(): void
     {
         $this->actingAs($this->admin)
             ->get('/admin/companies')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('admin/companies/index')
-                ->has('companies', 1)
-                ->where('companies.0.slug', self::TEST_COMPANY)
+                ->has('organizationCompanies', 1)
+                ->where('organizationCompanies.0.slug', self::TEST_COMPANY)
+                ->where('organizationCompanies.0.is_member', true)
+                ->where('organizationCompanies.0.members', fn ($members) => collect($members)
+                    ->contains(fn ($member) => $member['id'] === $this->admin->id && $member['role'] === 'admin'))
                 ->where('quota.total', 100)
+                ->where('preview.invoiceFormat', InvoiceNumberService::DEFAULT_FORMAT)
+                ->where('preview.invoicePadding', InvoiceNumberService::DEFAULT_PADDING)
+                ->where('preview.databasePrefix', (string) config('tenancy.database.prefix'))
+            );
+    }
+
+    public function test_index_reads_each_members_role_per_company(): void
+    {
+        Event::fake([TenantCreated::class]);
+        Company::create(['id' => 'pt-kedua', 'organization_id' => $this->organization->id, 'name' => 'PT Kedua', 'abbreviation' => 'KDA']);
+
+        setPermissionsTeamId(null);
+        Role::firstOrCreate(['name' => 'staff']);
+
+        $staf = User::factory()->create();
+        $staf->companies()->attach([self::TEST_COMPANY, 'pt-kedua']);
+        setPermissionsTeamId('pt-kedua');
+        $staf->assignRole('staff');
+        setPermissionsTeamId(self::TEST_COMPANY);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/companies')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('organizationCompanies', 2)
+                ->where('organizationCompanies', function ($companies) use ($staf): bool {
+                    $perSlug = collect($companies)->keyBy('slug');
+                    $peran = fn (string $slug) => collect($perSlug[$slug]['members'])->pluck('role', 'id');
+
+                    return $perSlug['pt-kedua']['is_member'] === false
+                        && $peran('pt-kedua')->all() === [$staf->id => 'staff']
+                        && $peran(self::TEST_COMPANY)->get($staf->id) === null
+                        && $peran(self::TEST_COMPANY)->get($this->admin->id) === 'admin';
+                })
             );
     }
 

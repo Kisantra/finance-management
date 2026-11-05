@@ -10,7 +10,7 @@ export const guide: ModuleGuide = {
     path: '/admin/users',
     permission: ['manage users', 'view permissions'],
     summary:
-        'Tempat Admin membuat akun karyawan, memberi satu peran (Admin, Finance manager, Staff, atau peran buatan sendiri), dan mengatur izin tiap peran. Menu dan tombol yang muncul di seluruh aplikasi mengikuti izin peran ini.',
+        'Tempat Admin membuat akun karyawan, memberi satu peran (Admin, Finance manager, Staff, atau peran buatan sendiri), dan mengatur izin tiap peran. Menu dan tombol yang muncul di seluruh aplikasi mengikuti izin peran ini. Untuk grup dengan beberapa perusahaan, Admin juga membuat perusahaan baru dan menentukan siapa yang boleh membuka tiap perusahaan.',
     roles: [
         {
             role: ROLES.fm,
@@ -26,6 +26,8 @@ export const guide: ModuleGuide = {
                 'Memberi atau mengganti peran pengguna',
                 'Mencentang izin per peran, per modul, atau sekaligus',
                 'Menambah, mengganti nama, dan menghapus peran',
+                'Membuat perusahaan baru di grup dan melihat siapa saja anggota tiap perusahaan',
+                'Memberi pengguna akses ke beberapa perusahaan sekaligus',
             ],
             cannot: [
                 'Tidak bisa menghapus akun sendiri',
@@ -84,6 +86,26 @@ export const guide: ModuleGuide = {
             ],
         },
         {
+            title: 'Menambah perusahaan baru',
+            role: ROLES.admin,
+            steps: [
+                'Buka **Administrasi › Perusahaan**, lalu klik **Perusahaan baru**.',
+                'Isi **Nama perusahaan**. **Kode URL** dan **Singkatan** terisi otomatis dari nama; ubah bila perlu. Kode URL menjadi alamat perusahaan dan **tidak bisa diubah**.',
+                'Periksa **Pratinjau** di sebelah kanan: alamat, nomor invoice pertama, dan kuota grup ikut berubah saat Anda mengetik.',
+                'Klik **Buat perusahaan** dan tunggu beberapa detik. Setelah muncul **siap**, klik **Buka perusahaan**, lalu lengkapi Profil Perusahaan.',
+            ],
+        },
+        {
+            title: 'Memberi pengguna akses ke perusahaan lain',
+            role: ROLES.admin,
+            steps: [
+                'Buka **Administrasi › Pengguna**, lalu klik ikon pensil di baris pengguna.',
+                'Di **Perusahaan**, centang perusahaan yang boleh ia buka. Pilihan ini baru muncul bila grup punya lebih dari satu perusahaan.',
+                'Peran yang dipilih berlaku di **setiap** perusahaan yang dicentang. Klik **Simpan Perubahan**.',
+                'Untuk memeriksa hasilnya, buka **Administrasi › Perusahaan** lalu klik **Lihat siapa saja** di kartu perusahaan: nama anggota dan perannya tampil di sana.',
+            ],
+        },
+        {
             title: 'Melihat izin tiap peran',
             role: ROLES.fm,
             steps: [
@@ -111,6 +133,16 @@ export const guide: ModuleGuide = {
                 'Ikut terhapus: **reimbursement**, **pengajuan dana**, **feedback**, dan **notifikasi** miliknya.',
                 'Transaksi bank dari pembayaran/pencairannya **tetap ada**, jadi saldo & laporan tidak berubah.',
                 'Namanya sebagai peninjau, pencair dana, penyetuju piutang, atau penanggap feedback di data orang lain menjadi kosong.',
+            ],
+        },
+        {
+            title: 'Saat perusahaan baru dibuat',
+            tone: 'act',
+            items: [
+                'Perusahaan itu mendapat database sendiri; datanya tidak tercampur dengan perusahaan lain.',
+                'Pembuatnya otomatis menjadi **Admin** di sana. Pengguna lain belum bisa membukanya sampai diberi akses.',
+                'Formulir **Pengguna** mulai menampilkan pilihan **Perusahaan**, dan anggota lebih dari satu perusahaan mendapat pengalih perusahaan di menu akun.',
+                'Kuota perusahaan grup berkurang satu.',
             ],
         },
         {
@@ -162,6 +194,10 @@ export const guide: ModuleGuide = {
             body: 'Notifikasi mencari peran bernama **finance manager**; perlindungan hapus mencari **staff**. Mengganti namanya mematikan fitur itu. (Nama **admin** sudah dikunci.)',
         },
         {
+            title: 'Perusahaan tidak bisa dihapus',
+            body: 'Kode URL perusahaan bersifat permanen dan belum ada tombol untuk menghapus perusahaan. Jangan membuat perusahaan percobaan.',
+        },
+        {
             title: 'Peran finance manager bisa terhapus',
             body: 'Hanya **admin** dan **staff** yang dilindungi. Bila finance manager dihapus, penggunanya pindah ke peran dengan izin paling sedikit.',
         },
@@ -174,5 +210,7 @@ export const guide: ModuleGuide = {
         { action: 'Mengubah izin peran', cells: [false, true] },
         { action: 'Menambah, mengubah & menghapus peran', cells: [false, true] },
         { action: 'Menghapus izin dari sistem (tanda ×)', cells: [false, true] },
+        { action: 'Membuat perusahaan baru', cells: [false, true] },
+        { action: 'Memberi akses ke perusahaan lain', cells: [false, true] },
     ],
 };

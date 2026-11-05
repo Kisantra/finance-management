@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { suggestAbbreviation, suggestSlug } from '@/lib/company-name';
 import type { SharedProps } from '@/types';
 
 /**
@@ -23,29 +24,6 @@ interface SetupForm {
     company_name: string;
     slug: string;
     abbreviation: string;
-}
-
-const LEGAL = /^(pt|cv|ud|pd|tb)\.?\s+/i;
-
-function suggestSlug(name: string): string {
-    return name
-        .replace(LEGAL, '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 40);
-}
-
-function suggestAbbreviation(name: string): string {
-    return name
-        .replace(LEGAL, '')
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((word) => word.replace(/[^A-Za-z]/g, '').charAt(0).toUpperCase())
-        .join('')
-        .slice(0, 10);
 }
 
 export default function Setup({ unlocked, appUrl }: Props) {

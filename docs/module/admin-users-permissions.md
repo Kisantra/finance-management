@@ -26,9 +26,29 @@ Fitur **teams** Spatie AKTIF dengan `team_foreign_key = company_id` (**string** 
 
 ### Provisioning Perusahaan (`/admin/companies`, sejak Tahap 4)
 
-Halaman **Perusahaan** (permission baru `manage companies`, admin only — migration
-`2026_08_11_120000_add_manage_companies_permission_to_roles.php`) untuk membuat perusahaan
-baru di organization admin yang login:
+Halaman **Perusahaan** (menu **Administrasi › Perusahaan**, permission baru `manage companies`,
+admin only — migration `2026_08_11_120000_add_manage_companies_permission_to_roles.php`) untuk
+membuat perusahaan baru di organization admin yang login, sekaligus panel "siapa bisa membuka
+perusahaan mana" (redesign Obsidian 5 Nov 2026):
+
+- **Kartu per perusahaan**: status, `/c/{slug}`, singkatan, tanggal dibuat, dan anggota beserta
+  **peran di perusahaan itu** (tombol *Lihat siapa saja*). Peran dibaca `peranAnggota()` dalam
+  satu query ke pivot `model_has_roles` lintas team — relasi `roles` Spatie terikat team AKTIF,
+  jadi tidak bisa dipakai untuk perusahaan lain. Anggota tanpa baris peran tampil *Tanpa peran*.
+- Tombol **Buka perusahaan** hanya untuk perusahaan aktif yang penggunanya anggota (`is_member`);
+  bukan anggota → `EnsureUserBelongsToCompany` menjawab 403, jadi tombolnya tidak ditawarkan.
+- Pemberian akses tetap lewat **Pengguna** (edit user → centang perusahaan, lihat bagian
+  Tambah/Edit User); kartu *Mengatur siapa yang bisa masuk* menautkan ke sana. Pilihan
+  perusahaan di formulir Pengguna baru muncul bila organization punya > 1 perusahaan.
+- **Dialog Perusahaan baru**: kode URL & singkatan disarankan dari nama (`lib/company-name.ts`,
+  dipakai juga walkthrough `/setup`) sampai admin mengubahnya sendiri. Panel pratinjau dirakit di
+  browser dari prop `preview` (`databasePrefix`/`databaseSuffix` = `config('tenancy.database.*')`,
+  `invoiceFormat`/`invoicePadding` = `InvoiceNumberService::DEFAULT_*`): alamat, nomor invoice
+  pertama, nama database, akses awal, kuota; plus lima langkah yang terjadi (tiga otomatis: DB,
+  data awal `TenantDatabaseSeeder`, pembuat jadi admin; dua oleh admin: profil wajib, beri akses).
+  Selama provisioning dialog tidak bisa ditutup (prosesnya sinkron). Sukses → tampilan *siap*
+  dengan *Buka perusahaan* (muat ulang penuh ke `/c/{slug}/dashboard`, gerbang profil
+  mengambil alih) dan *Buka Pengguna*.
 
 1. Form: nama, **kode URL/slug (permanen — menjadi `/c/{slug}`, nama DB `tenant_{slug}`,
    path storage)**, **singkatan** (kode `{PT}` nomor invoice; awal profil, bisa diubah di
@@ -47,7 +67,8 @@ baru di organization admin yang login:
 3. File: `app/Http/Controllers/Admin/CompanyController.php`,
    `app/Http/Requests/Admin/StoreCompanyRequest.php`,
    `resources/js/pages/admin/companies/index.tsx`;
-   test `tests/Feature/Admin/CompanyControllerTest.php`.
+   test `tests/Feature/Admin/CompanyControllerTest.php` (termasuk
+   `test_index_reads_each_members_role_per_company`: peran per perusahaan + `is_member`).
 
 **⚠ Invarian validasi lintas-database:** rule `unique:`/`exists:` yang menunjuk tabel
 CENTRAL (users, companies) WAJIB diprefix koneksi central — `unique:mysql.users` — karena

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCompanyRequest;
 use App\Models\Company;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\InvoiceNumberService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,19 +24,30 @@ class CompanyController extends Controller
 
         abort_if($organization === null, 403, 'Akun Anda tidak terikat ke organization mana pun.');
 
-        $companies = Company::withCount('members')
+        $daftar = Company::query()
             ->where('organization_id', $organization->id)
+            ->with(['members' => fn ($query) => $query->select('users.id', 'users.name')->orderBy('users.name')])
             ->orderBy('created_at')
-            ->get()
-            ->map(fn (Company $company) => [
-                'slug' => $company->getTenantKey(),
-                'name' => $company->name,
-                'abbreviation' => $company->abbreviation,
-                'status' => $company->status,
-                'members_count' => $company->members_count,
-                'created_at' => $company->created_at?->format('Y-m-d'),
-                'is_current' => tenant()?->getTenantKey() === $company->getTenantKey(),
-            ]);
+            ->get();
+
+        $peran = $this->peranAnggota($daftar->map(fn (Company $company) => (string) $company->getTenantKey())->all());
+        $saya = $request->user()->id;
+
+        $companies = $daftar->map(fn (Company $company) => [
+            'slug' => $company->getTenantKey(),
+            'name' => $company->name,
+            'abbreviation' => $company->abbreviation,
+            'status' => $company->status,
+            'members_count' => $company->members->count(),
+            'members' => $company->members->map(fn (User $member) => [
+                'id' => $member->id,
+                'name' => $member->name,
+                'role' => $peran[(string) $company->getTenantKey()][$member->id] ?? null,
+            ])->values(),
+            'created_at' => $company->created_at?->format('Y-m-d'),
+            'is_current' => tenant()?->getTenantKey() === $company->getTenantKey(),
+            'is_member' => $company->members->contains('id', $saya),
+        ]);
 
         return Inertia::render('admin/companies/index', [
             // BUKAN 'companies': nama itu dipakai prop bersama yang berisi
@@ -47,7 +61,39 @@ class CompanyController extends Controller
                 'total' => $organization->company_quota,
             ],
             'organizationName' => $organization->name,
+            // Bahan pratinjau formulir "Perusahaan baru": nama database dan nomor
+            // invoice pertama dirakit di browser selagi admin mengetik.
+            'preview' => [
+                'databasePrefix' => (string) config('tenancy.database.prefix'),
+                'databaseSuffix' => (string) config('tenancy.database.suffix'),
+                'invoiceFormat' => InvoiceNumberService::DEFAULT_FORMAT,
+                'invoicePadding' => InvoiceNumberService::DEFAULT_PADDING,
+            ],
         ]);
+    }
+
+    /**
+     * Peran tiap anggota di tiap perusahaan, dalam satu query. Relasi `roles` Spatie
+     * terikat team yang AKTIF, jadi tidak bisa membaca peran di perusahaan lain.
+     *
+     * @param  list<string>  $slugs
+     * @return array<string, array<int, string>> slug => [user_id => nama peran]
+     */
+    private function peranAnggota(array $slugs): array
+    {
+        $pivot = (string) config('permission.table_names.model_has_roles');
+        $tim = (string) config('permission.column_names.team_foreign_key');
+        $roles = (new Role)->getTable();
+
+        return Role::query()
+            ->join($pivot, "{$pivot}.role_id", '=', "{$roles}.id")
+            ->where("{$pivot}.model_type", (new User)->getMorphClass())
+            ->whereIn("{$pivot}.{$tim}", $slugs)
+            ->orderBy("{$roles}.id")
+            ->get(["{$roles}.name", "{$pivot}.{$tim} as perusahaan", "{$pivot}.model_id as pengguna"])
+            ->groupBy('perusahaan')
+            ->map(fn ($baris) => $baris->unique('pengguna')->pluck('name', 'pengguna')->all())
+            ->all();
     }
 
     /**
