@@ -90,7 +90,7 @@ export const guide: ModuleGuide = {
                 'Pilih rekening, lalu klik menu **•••** di samping tombol **Transfer**.',
                 '**Edit Rekening**: ubah data rekening. Mengubah **Saldo Awal** menggeser saldo terkini sebesar selisihnya.',
                 '**Export PDF**: laporan kas rekening ini untuk semua waktu (filter bulan di halaman tidak ikut).',
-                '**Hapus Rekening**: aplikasi tetap menghapus rekening yang sudah berisi transaksi (kecuali yang pernah dipakai membayar pinjaman), jadi gunakan hanya untuk rekening yang belum pernah dipakai. Baca bagian peringatan sebelum menghapus.',
+                '**Hapus Rekening**: aplikasi tetap menghapus rekening yang sudah berisi transaksi (kecuali yang pernah dipakai membayar utang), jadi gunakan hanya untuk rekening yang belum pernah dipakai. Baca bagian peringatan sebelum menghapus.',
             ],
         },
     ],
@@ -151,7 +151,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Jangan hapus transaksi dari modul lain',
-            body: 'Pembayaran reimbursement, pencairan dana, dan transaksi pinjaman/piutang juga tampil di tab Transaksi. Bila dihapus di sini, saldo berubah tetapi status di modul asalnya tidak ikut kembali.',
+            body: 'Pembayaran reimbursement, pencairan dana, dan transaksi utang/piutang juga tampil di tab Transaksi. Bila dihapus di sini, saldo berubah tetapi status di modul asalnya tidak ikut kembali.',
         },
         {
             title: 'Pilih kategori yang tipenya sesuai',

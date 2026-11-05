@@ -39,7 +39,7 @@ class RingkasanKeuangan extends AlatKeuangan
         'pengeluaran' => 'view expense',
         'invoice' => 'view invoices',
         'piutang' => 'view receivables',
-        'pinjaman' => 'view loans',
+        'utang' => 'view loans',
         'reimbursement' => 'view reimbursements',
         'pengajuan_dana' => 'view fund requests',
     ];
@@ -58,7 +58,7 @@ class RingkasanKeuangan extends AlatKeuangan
 
     protected string $name = 'ringkasan-keuangan';
 
-    protected string $description = 'Ringkasan keuangan satu periode (bawaan: bulan berjalan). kas: total saldo semua rekening saat ini + uang_masuk/uang_keluar periode = semua mutasi rekening termasuk transfer antar rekening dan pinjaman/piutang (kartu Arus Kas di Ringkasan aplikasi). pemasukan/pengeluaran: definisi halaman Arus Kas, hanya kategori pemasukan/pengeluaran (+ pembayaran invoice), tanpa transfer, pendanaan, penyesuaian; per_kategori = 5 terbesar + Lainnya. invoice, piutang (uang perusahaan di pihak lain), pinjaman (utang perusahaan), reimbursement, pengajuan_dana: posisi hari ini (posisi_per), tidak terikat periode; sisa_pokok tanpa bunga. Bagian yang modulnya tidak boleh Anda lihat tercantum di tidak_ditampilkan. Rincian: laba-rugi, mutasi-rekening.';
+    protected string $description = 'Ringkasan keuangan satu periode (bawaan: bulan berjalan). kas: total saldo semua rekening saat ini + uang_masuk/uang_keluar periode = semua mutasi rekening termasuk transfer antar rekening dan utang/piutang (kartu Arus Kas di Ringkasan aplikasi). pemasukan/pengeluaran: definisi halaman Arus Kas, hanya kategori pemasukan/pengeluaran (+ pembayaran invoice), tanpa transfer, pendanaan, penyesuaian; per_kategori = 5 terbesar + Lainnya. invoice, piutang (uang perusahaan di pihak lain), utang (pinjaman yang diterima perusahaan), reimbursement, pengajuan_dana: posisi hari ini (posisi_per), tidak terikat periode; sisa_pokok tanpa bunga. Bagian yang modulnya tidak boleh Anda lihat tercantum di tidak_ditampilkan. Rincian: laba-rugi, mutasi-rekening.';
 
     protected function izin(): string
     {
@@ -102,7 +102,7 @@ class RingkasanKeuangan extends AlatKeuangan
                 'pengeluaran' => $this->pengeluaran($dari, $sampai),
                 'invoice' => $this->invoice($hariIni),
                 'piutang' => $this->piutang($hariIni),
-                'pinjaman' => $this->pinjaman(),
+                'utang' => $this->utang(),
                 'reimbursement' => $this->reimbursement($user),
                 'pengajuan_dana' => $this->pengajuanDana($user),
             };
@@ -288,12 +288,12 @@ class RingkasanKeuangan extends AlatKeuangan
     }
 
     /**
-     * Utang perusahaan, ringkasan halaman Pinjaman (LoanController::index): sisa pokok dicakup ke
-     * pinjaman aktif.
+     * Utang perusahaan, ringkasan halaman Utang (LoanController::index): sisa pokok dicakup ke
+     * utang aktif.
      *
      * @return array<string, mixed>
      */
-    private function pinjaman(): array
+    private function utang(): array
     {
         $status = Loan::query()
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS aktif")

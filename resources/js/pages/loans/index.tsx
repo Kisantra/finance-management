@@ -111,11 +111,11 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
         router.delete(loanRoutes.destroy.url({ loan: deleteRow.id }), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Pinjaman dihapus');
+                toast.success('Utang dihapus');
                 setDeleteRow(null);
                 setDetailRow(null);
             },
-            onError: () => toast.error('Pinjaman gagal dihapus'),
+            onError: () => toast.error('Utang gagal dihapus'),
             onFinish: () => setDeleting(false),
         });
     };
@@ -130,18 +130,18 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
 
     return (
         <>
-            <Head title="Pinjaman" />
+            <Head title="Utang" />
             <div className="ob-motion flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Pinjaman</h1>
-                        <p className="text-[13px] text-ob-ink-2">Utang perusahaan ke bank, lembaga, atau perorangan · {stats.total} pinjaman</p>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Utang</h1>
+                        <p className="text-[13px] text-ob-ink-2">Pinjaman yang diterima perusahaan dari bank, lembaga, atau perorangan · {stats.total} utang</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <TutorialButton slug="loans" />
                         <Button className={BTN.primary} onClick={() => bukaForm(null)} icon={<Plus className="h-4 w-4" />}>
-                            Tambah pinjaman
+                            Tambah utang
                         </Button>
                     </div>
                 </div>
@@ -149,21 +149,21 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                 {/* ── ringkasan ── */}
                 {/* Satu kolom di bawah sm: "Rp 375.500.000" pada 26 px tidak muat di separuh layar 360 px,
                     dan yang patah jadi "Rp" / "375.500.000" adalah angka utama halaman ini. */}
-                <section aria-label="Ringkasan pinjaman" className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
+                <section aria-label="Ringkasan utang" className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
                     <StatBlock
                         label="Sisa pokok"
                         value={rp(stats.outstanding_principal)}
                         valueClass={stats.outstanding_principal > 0 ? 'text-ob-neg' : 'text-ob-pos'}
-                        sub={stats.active_count > 0 ? `${stats.active_count} pinjaman aktif · dari ${rp(stats.active_principal)}` : 'tidak ada pinjaman aktif'}
+                        sub={stats.active_count > 0 ? `${stats.active_count} utang aktif · dari ${rp(stats.active_principal)}` : 'tidak ada utang aktif'}
                         onClick={stats.active_count > 0 ? () => navigate({ status: 'active' }) : undefined}
                     />
-                    <StatBlock label="Pokok terbayar" value={rp(stats.paid_principal)} sub="pada pinjaman yang masih aktif" />
-                    <StatBlock label="Bunga dibayar" value={rp(stats.paid_interest)} sub="biaya pinjaman sejauh ini" />
+                    <StatBlock label="Pokok terbayar" value={rp(stats.paid_principal)} sub="pada utang yang masih aktif" />
+                    <StatBlock label="Bunga dibayar" value={rp(stats.paid_interest)} sub="biaya utang sejauh ini" />
                     <JatuhTempoBlock iso={stats.next_maturity} />
                 </section>
 
                 {/* ── daftar ── */}
-                <section aria-label="Daftar pinjaman" className={cn(CARD, 'flex flex-col gap-4')}>
+                <section aria-label="Daftar utang" className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div
                             role="group"
@@ -196,7 +196,7 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Cari nomor atau pemberi pinjaman…"
                                 icon={<Search className="h-4 w-4" />}
-                                aria-label="Cari pinjaman"
+                                aria-label="Cari utang"
                             />
                         </div>
                     </div>
@@ -249,7 +249,7 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                         <table className="w-full min-w-[780px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <th className="py-2.5 pl-3 font-medium">Pinjaman</th>
+                                    <th className="py-2.5 pl-3 font-medium">Utang</th>
                                     <th className="py-2.5 pr-4 text-right font-medium">Pokok</th>
                                     <th className="py-2.5 pr-4 font-medium">Bunga &amp; tenor</th>
                                     <th className="py-2.5 pr-4 font-medium">Jatuh tempo</th>
@@ -351,18 +351,18 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
 
                     {!loading && rows.length === 0 && (
                         <div className="my-2 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-6 py-10 text-center">
-                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? 'Tidak ada pinjaman yang cocok' : 'Belum ada pinjaman'}</span>
+                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? 'Tidak ada utang yang cocok' : 'Belum ada utang'}</span>
                             <span className="max-w-[380px] text-[13px] text-ob-ink-2">
-                                {terfilter ? 'Ubah atau hapus filter untuk melihat pinjaman lain.' : 'Catat pinjaman yang diterima perusahaan, lalu angsurannya bisa dilacak per termin di sini.'}
+                                {terfilter ? 'Ubah atau hapus filter untuk melihat utang lain.' : 'Catat pinjaman yang diterima perusahaan, lalu angsurannya bisa dilacak per termin di sini.'}
                             </span>
                             <Button variant="outline" className={BTN.small} onClick={terfilter ? resetFilters : () => bukaForm(null)}>
-                                {terfilter ? 'Hapus filter' : 'Tambah pinjaman'}
+                                {terfilter ? 'Hapus filter' : 'Tambah utang'}
                             </Button>
                         </div>
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
-                        <span>{pagination.total} pinjaman · terbaru lebih dulu</span>
+                        <span>{pagination.total} utang · terbaru lebih dulu</span>
                         {pagination.last_page > 1 && <Pagination meta={pagination} onPageChange={(page) => navigate({ page })} />}
                     </div>
                 </section>
@@ -388,9 +388,9 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                 onOpenChange={(o) => !o && setDeleteRow(null)}
                 onConfirm={hapus}
                 loading={deleting}
-                title="Hapus pinjaman ini?"
+                title="Hapus utang ini?"
                 description={`${deleteRow?.loan_number} dari ${deleteRow?.lender_name} akan dihapus, dan transaksi pencairannya di rekening bank ikut dibalik.`}
-                confirmLabel="Hapus pinjaman"
+                confirmLabel="Hapus utang"
                 variant="danger"
             />
         </>
@@ -424,7 +424,7 @@ function JatuhTempoBlock({ iso }: { iso: string | null }) {
             <div className="flex min-w-0 flex-col gap-1 px-0 lg:px-6">
                 <span className="text-[13px] text-ob-ink-2">Jatuh tempo terdekat</span>
                 <span className="whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink sm:text-[26px]">—</span>
-                <span className="text-xs text-ob-ink-2">semua pinjaman sudah lunas</span>
+                <span className="text-xs text-ob-ink-2">semua utang sudah lunas</span>
             </div>
         );
     }

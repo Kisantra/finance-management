@@ -110,7 +110,7 @@ const NAV: NavGroup[] = [
         label: 'Utang & Piutang',
         icon: <Landmark className={ICON} />,
         items: [
-            { label: 'Pinjaman', href: '/loans', permission: 'view loans', matchPrefix: '/loans' },
+            { label: 'Utang', href: '/loans', permission: 'view loans', matchPrefix: '/loans' },
             { label: 'Piutang', href: '/receivables', permission: 'view receivables', matchPrefix: '/receivables' },
         ],
     },

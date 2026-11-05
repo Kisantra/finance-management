@@ -103,7 +103,7 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
 
                 <section aria-label="Jadwal angsuran" className="flex flex-col gap-3 border-t border-ob-line pt-5">
                     <h3 className="text-base font-semibold text-ob-ink">Jadwal angsuran</h3>
-                    <JadwalAngsuran path={`/loans/${row.id}/schedule`} label={`Jadwal angsuran pinjaman ${row.loan_number}`} />
+                    <JadwalAngsuran path={`/loans/${row.id}/schedule`} label={`Jadwal angsuran utang ${row.loan_number}`} />
                 </section>
 
                 {(row.purpose || row.contract_attachment_url) && (

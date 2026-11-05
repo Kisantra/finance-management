@@ -15,7 +15,7 @@ interface Props {
 }
 
 const BISA = [
-    'Hanya membaca: invoice, rekening & mutasi, laba rugi, klien, layanan, reimbursement, pengajuan dana, pinjaman, dan piutang.',
+    'Hanya membaca: invoice, rekening & mutasi, laba rugi, klien, layanan, reimbursement, pengajuan dana, utang, dan piutang.',
     'Tidak bisa menambah, mengubah, atau menghapus data apa pun.',
     'Mengikuti izin peran Anda di tiap perusahaan.',
 ];

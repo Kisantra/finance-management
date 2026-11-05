@@ -61,7 +61,7 @@ Model: `app/Models/Receivable.php` — relasi `debtor(): MorphTo`, `payments(): 
    Dihitung di SQL, bukan dengan menarik baris ke PHP: jumlah piutang lewat tempo tidak punya batas atas.
 5. Props tambahan: `statusCounts` (hitungan per status untuk pil filter), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
 6. Halaman React (gaya Obsidian) menampilkan ringkasan 4 angka — **belum kembali, lewat tempo, menunggu persetujuan, jatuh tempo terdekat** — lalu pil status berhitung dan tabel 6 kolom.
-   Susunannya sengaja berbeda dari halaman Pinjaman: di Pinjaman kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
+   Susunannya sengaja berbeda dari halaman Utang: di Utang kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
    Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian (`components/receivable-drawer.tsx`) yang terbuka saat baris diklik: jadwal angsuran, Ajukan, Proses pengajuan, Catat pembayaran, Edit, Hapus.
    Untuk piutang **ditolak**, alasan penolakan tampil paling atas di panel, karena itulah yang harus diperbaiki pengajunya.
    Jadwal angsuran tetap ditampilkan sebelum disetujui (itu yang dinilai penyetuju), tetapi penanda "termin berikutnya" dimatikan: menyorot termin yang harus dibayar duluan pada sesuatu yang belum berjalan menjanjikan aksi yang belum ada.
@@ -198,6 +198,6 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 | `routes/web.php` (baris 466-474) | Route + permission middleware |
 | `app/Services/JadwalAngsuranService.php` | Penyusun jadwal angsuran (dipakai Piutang & Pinjaman); rumus bunga piutang = persentase atas SELURUH pokok, tidak diprorata |
 | `resources/js/pages/receivables/components/` | `receivable-drawer.tsx` (rincian + jadwal), `-form-sheet`, `-approve-sheet`, `-pay-sheet`, `ptg.tsx` (status/bunga bersama) |
-| `resources/js/components/jadwal-angsuran.tsx` | Tabel jadwal angsuran, dipakai bersama modul Pinjaman |
+| `resources/js/components/jadwal-angsuran.tsx` | Tabel jadwal angsuran, dipakai bersama modul Utang (Loans) |
 | `resources/js/pages/receivables/index.tsx` (+ `types.ts`) | Halaman Inertia: tabel, dialog create/edit, ApproveReceivableDialog, PayReceivableDialog, ConfirmDialog submit/hapus |
 | `database/seeders/MasterPermissionSeeder.php` | Definisi 6 permission receivables per role |

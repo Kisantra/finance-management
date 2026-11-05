@@ -163,7 +163,7 @@ class LoanController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Pinjaman berhasil dibuat');
+        return back()->with('success', 'Utang berhasil dicatat');
     }
 
     public function update(UpdateLoanRequest $request, Loan $loan): RedirectResponse
@@ -177,7 +177,7 @@ class LoanController extends Controller
             ->where('transaction_type', 'credit')
             ->exists();
 
-        abort_if($loan->status !== 'active', 403, 'Pinjaman yang sudah lunas tidak dapat diedit');
+        abort_if($loan->status !== 'active', 403, 'Utang yang sudah lunas tidak dapat diedit');
 
         $validated = $request->validated();
 
@@ -210,12 +210,12 @@ class LoanController extends Controller
             'contract_attachment' => $attachmentPath,
         ]);
 
-        return back()->with('success', 'Pinjaman berhasil diperbarui');
+        return back()->with('success', 'Utang berhasil diperbarui');
     }
 
     public function destroy(Loan $loan): RedirectResponse
     {
-        abort_if($loan->payments()->exists(), 403, 'Pinjaman yang sudah memiliki pembayaran tidak dapat dihapus');
+        abort_if($loan->payments()->exists(), 403, 'Utang yang sudah memiliki pembayaran tidak dapat dihapus');
 
         DB::transaction(function () use ($loan) {
             // Pencairan pinjaman membentuk transaksi masuk di bank, ditautkan
@@ -236,12 +236,12 @@ class LoanController extends Controller
             $loan->delete();
         });
 
-        return back()->with('success', 'Pinjaman berhasil dihapus beserta mutasi pencairannya');
+        return back()->with('success', 'Utang berhasil dihapus beserta mutasi pencairannya');
     }
 
     public function pay(PayLoanRequest $request, Loan $loan): RedirectResponse
     {
-        abort_if($loan->status !== 'active', 403, 'Pinjaman ini tidak dapat dibayar');
+        abort_if($loan->status !== 'active', 403, 'Utang ini tidak dapat dibayar');
 
         $paidPrincipal = (int) $loan->payments()->sum('principal_paid');
         $remainingPrincipal = $loan->principal_amount - $paidPrincipal;
@@ -320,7 +320,7 @@ class LoanController extends Controller
             }
         });
 
-        return back()->with('success', 'Pembayaran pinjaman berhasil dicatat');
+        return back()->with('success', 'Pembayaran utang berhasil dicatat');
     }
 
     private function generateLoanNumber(): string

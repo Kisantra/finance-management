@@ -1,5 +1,7 @@
 # Modul: Loans (Utang Perusahaan)
 
+> **Nama di aplikasi: "Utang"** (menu Utang & Piutang › Utang). Sebelum Nov 2026 bernama "Pinjaman"; yang diganti hanya label tampilan. Route `/loans`, izin `view|create|edit|delete|pay loans`, nomor `LOAN-xxxxx`, dan nama kategori sistem ("Penerimaan Pinjaman", "Pembayaran Pokok Pinjaman", "Beban Bunga Pinjaman") tetap. Field "Pemberi pinjaman" dan "Tujuan pinjaman" juga tetap karena tetap tepat untuk sebuah utang. Jangan mengganti kata "Pinjaman" secara massal: jenis piutang "Pinjaman Karyawan"/"Pinjaman Perusahaan" adalah uang yang DIPINJAMKAN perusahaan (modul Receivables).
+
 > Modul untuk mencatat **pinjaman yang DITERIMA perusahaan dari pihak luar** (bank, lender perorangan, dsb.) — kebalikan dari modul Receivables. Mencakup CRUD pinjaman, lampiran kontrak, dan pencatatan pembayaran (pokok + bunga) yang otomatis membuat mutasi rekening (`BankTransaction`). Route prefix: `/loans` (satu halaman Inertia `loans/index` dengan dialog). Digate permission Spatie: `view loans` (grup), lalu per-aksi `create loans`, `edit loans`, `delete loans`, `pay loans` (`routes/web.php:458-464`).
 
 ## Tabel Database
@@ -168,7 +170,7 @@ Komponennya dipakai bersama modul Piutang (`/receivables/{id}/schedule` mengemba
 
 ### Panduan & video tutorial (tombol **Tutorial** di header daftar)
 
-1. `<TutorialButton slug="loans" />` di samping **Tambah Pinjaman** membuka video per role; halaman `/panduan/loans` memuat panduan teks yang sama. Staff tidak punya `view loans`, jadi hanya ada video **Finance manager** (`LoansFinanceManager`: mencatat pinjaman, membayar angsuran) dan **Admin** (`LoansAdmin`: peran, dampak ke rekening/Arus Kas/Laba Rugi, isi transaksi dana masuk & angsuran, jejak di Rekening Bank & Arus Kas › Pengeluaran, peringatan, hapus pinjaman).
+1. `<TutorialButton slug="loans" />` di samping **Tambah utang** membuka video per role; halaman `/panduan/loans` memuat panduan teks yang sama. Staff tidak punya `view loans`, jadi hanya ada video **Finance manager** (`LoansFinanceManager`: mencatat pinjaman, membayar angsuran) dan **Admin** (`LoansAdmin`: peran, dampak ke rekening/Arus Kas/Laba Rugi, isi transaksi dana masuk & angsuran, jejak di Rekening Bank & Arus Kas › Pengeluaran, peringatan, hapus pinjaman).
 2. Sumber: `video/loans/guide.ts` (teks `/panduan` + adegan), `steps.ts`, `shots.ts`, `tutorial.tsx`, `screens/*.webp`.
 3. Ambil ulang screenshot: server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8016`), jalankan `video/capture/loans.js` (form diisi, **tidak** disimpan) lalu `video/capture/loans-after.js` (hanya membaca) lewat Playwright MCP (`browser_run_code_unsafe`), kemudian `python video/capture/to-webp.py loans` dan salin koordinat ke `shots.ts`. Data contoh: pinjaman "PT Bank Mandiri (Persero) Tbk" (aktif, 2 angsuran), "KSP Mitra Usaha Mandiri" (lunas), dan hasil simpan "PT BPR Dana Makmur" + angsuran ke-3 Mandiri (ref `KMK-261012`).
 4. Karena bug lookup kategori `code` (lihat Invarian), simpan pinjaman & bayar angsuran gagal 500 di MySQL; data hasil simpan untuk screenshot dibuat langsung di DB QC dengan isi yang sama persis dengan yang ditulis controller (kategori memakai label seeder: Penerimaan Pinjaman, Pembayaran Pokok Pinjaman, Beban Bunga Pinjaman). Setelah bug diperbaiki, langkah simpan bisa dijalankan lewat UI.

@@ -8,14 +8,14 @@ const S = SHOTS;
 export const CREATE_STEPS: Step[] = [
     {
         src: img('fm-list'),
-        caption: 'Buka menu Utang & Piutang › Pinjaman. Di sini tercatat semua pinjaman yang diterima perusahaan.',
+        caption: 'Buka menu Utang & Piutang › Utang. Di sini tercatat semua pinjaman yang diterima perusahaan.',
         duration: 110,
     },
     {
         src: img('fm-list'),
         focus: S['fm-list'].stats,
         zoom: 1.3,
-        caption: 'Ringkasan: jumlah pinjaman, yang masih aktif, total pokok, dan pokok dari pinjaman yang belum lunas.',
+        caption: 'Ringkasan: jumlah utang, yang masih aktif, total pokok, dan pokok dari utang yang belum lunas.',
     },
     {
         src: img('fm-list'),
@@ -29,14 +29,14 @@ export const CREATE_STEPS: Step[] = [
         cursor: S['fm-list'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Klik Tambah Pinjaman untuk mencatat pinjaman yang baru diterima.',
+        caption: 'Klik Tambah utang untuk mencatat pinjaman yang baru diterima.',
         duration: 100,
     },
     {
         src: img('fm-form-empty'),
         focus: S['fm-form-empty'].number,
         zoom: 1.6,
-        caption: 'Nomor Pinjaman terisi otomatis. Boleh diganti, misalnya dengan nomor kontrak, asal belum pernah dipakai.',
+        caption: 'Nomor utang terisi otomatis. Boleh diganti, misalnya dengan nomor kontrak, asal belum pernah dipakai.',
     },
     {
         src: img('fm-form-lender'),
@@ -98,14 +98,14 @@ export const CREATE_STEPS: Step[] = [
         cursor: S['fm-form-filled'].save,
         click: true,
         zoom: 1.8,
-        caption: 'Klik Simpan Pinjaman.',
+        caption: 'Klik Simpan utang.',
         duration: 80,
     },
     {
         src: img('fm-list-after'),
         focus: S['fm-list-after'].row,
         zoom: 1.3,
-        caption: 'Pinjaman tercatat dengan status Aktif. Sisa Pokok masih penuh karena belum ada angsuran.',
+        caption: 'Utang tercatat dengan status Aktif. Sisa Pokok masih penuh karena belum ada angsuran.',
         chime: true,
         duration: 130,
     },
@@ -126,7 +126,7 @@ export const PAY_STEPS: Step[] = [
         cursor: S['fm-list'].row,
         click: true,
         zoom: 1.3,
-        caption: 'Klik baris pinjaman untuk membuka detailnya. Ikon uang di kolom Aksi juga langsung membuka form bayar.',
+        caption: 'Klik baris utang untuk membuka detailnya. Ikon uang di kolom Aksi juga langsung membuka form bayar.',
         duration: 130,
     },
     {
@@ -148,7 +148,7 @@ export const PAY_STEPS: Step[] = [
         src: img('fm-pay-empty'),
         focus: S['fm-pay-empty'].summary,
         zoom: 1.6,
-        caption: 'Bagian atas menunjukkan Sisa Pokok dan Sisa Bunga pinjaman ini.',
+        caption: 'Bagian atas menunjukkan Sisa Pokok dan Sisa Bunga utang ini.',
         duration: 110,
     },
     {
@@ -217,7 +217,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].credit,
         zoom: 1.5,
-        caption: 'Saat pinjaman disimpan: satu transaksi masuk sebesar pokok, dengan referensi nomor pinjaman.',
+        caption: 'Saat utang disimpan: satu transaksi masuk sebesar pokok, dengan referensi nomor utang.',
         duration: 140,
     },
     {
@@ -231,7 +231,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-expenses'),
         focus: S['admin-expenses'].table,
         zoom: 1.25,
-        caption: 'Di Arus Kas › Pengeluaran hanya bunganya yang muncul (Beban Bunga Pinjaman). Pokok pinjaman bukan biaya.',
+        caption: 'Di Arus Kas › Pengeluaran hanya bunganya yang muncul (Beban Bunga Pinjaman). Pokok utang bukan biaya.',
         duration: 160,
     },
 ];
@@ -242,14 +242,14 @@ export const ADMIN_STEPS: Step[] = [
         src: img('admin-list'),
         focus: around(S['admin-list'].actions, S['admin-list'].paidRow),
         zoom: 1.5,
-        caption: 'Ikon Hapus hanya ada pada pinjaman yang belum dibayar pokoknya. Pinjaman Lunas tidak punya aksi apa pun.',
+        caption: 'Ikon Hapus hanya ada pada utang yang belum dibayar pokoknya. Utang Lunas tidak punya aksi apa pun.',
         duration: 140,
     },
     {
         src: img('admin-delete'),
         focus: S['admin-delete'].dialog,
         zoom: 1.6,
-        caption: 'Menghapus pinjaman tidak menghapus transaksi dana masuknya di rekening. Koreksi di Rekening Bank bila perlu.',
+        caption: 'Menghapus utang tidak menghapus transaksi dana masuknya di rekening. Koreksi di Rekening Bank bila perlu.',
         duration: 150,
     },
 ];

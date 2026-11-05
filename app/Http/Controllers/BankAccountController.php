@@ -141,7 +141,7 @@ class BankAccountController extends Controller
                     ($jumlahPembayaran > count($contoh) ? ', …' : '').')';
             }
             if ($jumlahPembayaranPinjaman > 0) {
-                $bagian[] = $jumlahPembayaranPinjaman.' pembayaran pinjaman';
+                $bagian[] = $jumlahPembayaranPinjaman.' pembayaran utang';
             }
 
             return redirect()->back()->withErrors([

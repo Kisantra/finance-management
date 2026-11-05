@@ -4,9 +4,9 @@ namespace Tests\Feature\Mcp;
 
 use App\Mcp\Servers\KeuanganServer;
 use App\Mcp\Tools\DaftarPengajuanDana;
-use App\Mcp\Tools\DaftarPinjaman;
 use App\Mcp\Tools\DaftarPiutang;
 use App\Mcp\Tools\DaftarReimbursement;
+use App\Mcp\Tools\DaftarUtang;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Client;
@@ -39,7 +39,7 @@ class AlatOperasionalTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ALAT = [DaftarReimbursement::class, DaftarPengajuanDana::class, DaftarPinjaman::class, DaftarPiutang::class];
+    private const ALAT = [DaftarReimbursement::class, DaftarPengajuanDana::class, DaftarUtang::class, DaftarPiutang::class];
 
     private const SEMUA_IZIN = [
         'use claude',
@@ -280,8 +280,8 @@ class AlatOperasionalTest extends TestCase
         $this->bayarPinjaman($mandiri, 2_500_000, 300_000, '2026-09-01');
         $this->pinjaman(['loan_number' => 'LOAN-00002', 'status' => 'paid_off']);
 
-        $hasil = $this->panggil(DaftarPinjaman::class, $this->pemilik);
-        $baris = collect($hasil['pinjaman'])->firstWhere('nomor', 'LOAN-00001');
+        $hasil = $this->panggil(DaftarUtang::class, $this->pemilik);
+        $baris = collect($hasil['utang'])->firstWhere('nomor', 'LOAN-00001');
 
         $this->assertSame('PT Bank Mandiri', $baris['pemberi_pinjaman']);
         $this->assertSame(['percentage', 12, 1_440_000], [$baris['bunga_tipe'], $baris['bunga_persen_per_tahun'], $baris['total_bunga']]);
@@ -301,7 +301,7 @@ class AlatOperasionalTest extends TestCase
             'Ringkasan jadwal di alat harus sama dengan jadwal yang ditampilkan panel jadwal pinjaman.'
         );
 
-        $this->assertNull(collect($hasil['pinjaman'])->firstWhere('nomor', 'LOAN-00002')['jadwal'], 'Pinjaman lunas tidak punya termin berikutnya.');
+        $this->assertNull(collect($hasil['utang'])->firstWhere('nomor', 'LOAN-00002')['jadwal'], 'Pinjaman lunas tidak punya termin berikutnya.');
     }
 
     /** Skenario sama dengan LoanControllerTest::test_ringkasan_sisa_pokok_hanya_mencakup_pinjaman_aktif. */
@@ -312,7 +312,7 @@ class AlatOperasionalTest extends TestCase
         $lunas = $this->pinjaman(['loan_number' => 'LN-LUNAS', 'lender_name' => 'KSP Mitra Usaha', 'principal_amount' => 5_000_000, 'status' => 'paid_off', 'maturity_date' => '2026-03-01']);
         $this->bayarPinjaman($lunas, 3_000_000, 900_000, '2026-03-01');
 
-        $hasil = $this->panggil(DaftarPinjaman::class, $this->pemilik);
+        $hasil = $this->panggil(DaftarUtang::class, $this->pemilik);
 
         $this->assertSame([2, 15_000_000], [$hasil['ringkasan']['jumlah'], $hasil['ringkasan']['total_pokok']]);
         $this->assertSame(['label' => 'Lunas', 'jumlah' => 1, 'pokok' => 5_000_000], $hasil['ringkasan']['per_status']['paid_off']);
@@ -320,11 +320,11 @@ class AlatOperasionalTest extends TestCase
         $this->assertSame([2_000_000, 150_000], [$hasil['ringkasan']['pokok_dibayar_aktif'], $hasil['ringkasan']['bunga_dibayar_aktif']]);
         $this->assertSame('2027-06-01', $hasil['ringkasan']['jatuh_tempo_akhir_terdekat']);
 
-        $nomor = fn (array $argumen): array => collect($this->panggil(DaftarPinjaman::class, $this->pemilik, $argumen)['pinjaman'])->pluck('nomor')->all();
+        $nomor = fn (array $argumen): array => collect($this->panggil(DaftarUtang::class, $this->pemilik, $argumen)['utang'])->pluck('nomor')->all();
         $this->assertSame(['LN-LUNAS'], $nomor(['status' => 'paid_off']));
         $this->assertSame(['LN-AKTIF'], $nomor(['kata_kunci' => 'mandiri']));
 
-        $hanyaLunas = $this->panggil(DaftarPinjaman::class, $this->pemilik, ['status' => 'paid_off']);
+        $hanyaLunas = $this->panggil(DaftarUtang::class, $this->pemilik, ['status' => 'paid_off']);
         $this->assertSame(0, $hanyaLunas['ringkasan']['sisa_pokok_aktif']);
         $this->assertNull($hanyaLunas['ringkasan']['jatuh_tempo_akhir_terdekat']);
     }
@@ -467,7 +467,7 @@ class AlatOperasionalTest extends TestCase
             }
         }
 
-        $this->alat(DaftarPinjaman::class, $this->staf)->assertHasErrors(['view loans']);
+        $this->alat(DaftarUtang::class, $this->staf)->assertHasErrors(['view loans']);
         $this->assertFalse(tenancy()->initialized);
     }
 
@@ -479,7 +479,7 @@ class AlatOperasionalTest extends TestCase
             ->assertHasErrors(['YYYY-MM-DD']);
         $this->alat(DaftarPengajuanDana::class, $this->pemilik, ['dari' => '2026-10-31', 'sampai' => '2026-10-01'])
             ->assertHasErrors(['tidak boleh lebih awal']);
-        $this->alat(DaftarPinjaman::class, $this->pemilik, ['halaman' => 0])
+        $this->alat(DaftarUtang::class, $this->pemilik, ['halaman' => 0])
             ->assertHasErrors(['halaman harus bilangan bulat mulai 1']);
         $this->alat(DaftarPiutang::class, $this->pemilik, ['jenis' => 'kasbon'])
             ->assertHasErrors(['employee_loan, company_loan']);

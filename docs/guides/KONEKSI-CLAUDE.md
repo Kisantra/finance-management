@@ -13,7 +13,7 @@ cocok untuk menjawab pertanyaan Anda, misalnya "berapa invoice yang lewat tempo 
 
 | Bisa | Tidak bisa |
 |------|-----------|
-| Membaca invoice, pembayaran, rekening & mutasi, arus kas, laba rugi, klien, layanan, invoice berulang, reimbursement, pengajuan dana, pinjaman, piutang | Menambah, mengubah, menghapus, menyetujui, atau membayar apa pun. Semua alat **hanya membaca**. |
+| Membaca invoice, pembayaran, rekening & mutasi, arus kas, laba rugi, klien, layanan, invoice berulang, reimbursement, pengajuan dana, utang, piutang | Menambah, mengubah, menghapus, menyetujui, atau membayar apa pun. Semua alat **hanya membaca**. |
 | Membandingkan beberapa perusahaan dalam satu grup | Membaca perusahaan yang Anda bukan anggotanya |
 | Menghitung, merangkum, membuat tabel, dan menjelaskan angka | Membuka berkas lampiran (bukti transfer, faktur). Claude hanya tahu ada atau tidaknya lampiran. |
 
@@ -87,7 +87,7 @@ Tombol **Izinkan** tidak muncul bila akun Anda belum punya izin `use claude` di 
 **Operasional**
 - "Reimbursement apa saja yang sudah disetujui tapi belum dibayar?"
 - "Pengajuan dana bulan ini berapa total yang sudah dicairkan?"
-- "Cicilan pinjaman yang jatuh tempo bulan depan berapa? Ada yang terlambat?"
+- "Cicilan utang yang jatuh tempo bulan depan berapa? Ada yang terlambat?"
 - "Kasbon karyawan mana yang masih aktif dan berapa sisanya?"
 
 **Grup (beberapa perusahaan)**
@@ -173,7 +173,7 @@ Aturan umum semua alat:
 | [`invoice-berulang`](#invoice-berulang) | Template & draf berulang | `view recurring-invoices` |
 | [`daftar-reimbursement`](#daftar-reimbursement) | Penggantian biaya karyawan | `view reimbursements` |
 | [`daftar-pengajuan-dana`](#daftar-pengajuan-dana) | Permintaan dana operasional | `view fund requests` |
-| [`daftar-pinjaman`](#daftar-pinjaman) | Utang perusahaan | `view loans` |
+| [`daftar-utang`](#daftar-utang) | Utang perusahaan (menu Utang) | `view loans` |
 | [`daftar-piutang`](#daftar-piutang) | Pinjaman yang diberikan perusahaan | `view receivables` |
 
 ### `daftar-perusahaan`
@@ -196,10 +196,10 @@ Gambaran keuangan satu periode dalam sekali baca.
   - `pemasukan` / `pengeluaran`: total periode + 5 kategori terbesar + "Lainnya";
   - `invoice`: belum dibayar, lewat tempo, 5 jatuh tempo terdekat;
   - `piutang`: aktif, lewat tempo, menunggu persetujuan, jatuh tempo terdekat;
-  - `pinjaman`: aktif dan sisa pokok, jatuh tempo terdekat;
+  - `utang`: aktif dan sisa pokok, jatuh tempo terdekat;
   - `reimbursement`, `pengajuan_dana`: antrean yang menunggu ditinjau/dibayar/dicairkan;
   - `tidak_ditampilkan`: bagian yang disembunyikan beserta izin yang dibutuhkan.
-- **Catatan:** invoice, piutang, pinjaman, dan antrean pengajuan adalah posisi hari ini, tidak
+- **Catatan:** invoice, piutang, utang, dan antrean pengajuan adalah posisi hari ini, tidak
   ikut periode.
 
 ### `laba-rugi`
@@ -373,17 +373,17 @@ Permintaan dana operasional sebelum dipakai (dicairkan per item dari rekening).
   `cakupan`.
 - **Catatan:** tanpa izin approve fund requests, hanya pengajuan Anda sendiri.
 
-### `daftar-pinjaman`
+### `daftar-utang`
 
-Pinjaman yang **diterima** perusahaan (utang ke bank atau pihak lain).
+Utang perusahaan (menu **Utang**): pinjaman yang **diterima** dari bank atau pihak lain.
 
-- **Contoh:** "Cicilan pinjaman bulan depan berapa?" · "Ada angsuran yang terlambat?"
+- **Contoh:** "Cicilan utang bulan depan berapa?" · "Ada angsuran yang terlambat?"
 - **Filter:** `status` (`active` berjalan, `paid_off` lunas), `kata_kunci` (nomor atau pemberi
   pinjaman), `halaman`.
-- **Jawaban:** per pinjaman: pemberi, pokok, jenis & tarif bunga, total bunga, tenor, mulai &
+- **Jawaban:** per utang: pemberi, pokok, jenis & tarif bunga, total bunga, tenor, mulai &
   jatuh tempo, dibayar, sisa pokok & bunga, dan jadwal (jumlah termin, termin lunas, termin
   berikutnya beserta angsurannya, termin terlambat, tunggakan). Ringkasan per status dan sisa
-  pokok pinjaman aktif.
+  pokok utang aktif.
 - **Catatan:** jadwal adalah rencana dari pokok, bunga, dan tenor; pembayaran dialokasikan ke
   termin paling awal.
 

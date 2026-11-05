@@ -1016,12 +1016,12 @@ return [
     'fund_request_unauthorized' => 'Anda tidak memiliki akses untuk aksi ini',
 
     // Loans
-    'loans' => 'Pinjaman',
-    'loan_management' => 'Manajemen Pinjaman',
-    'track_and_manage_loans' => 'Lacak dan kelola catatan pinjaman',
-    'loan_list' => 'Daftar Pinjaman',
-    'add_loan' => 'Tambah Pinjaman',
-    'loan_amount' => 'Jumlah Pinjaman',
+    'loans' => 'Utang',
+    'loan_management' => 'Manajemen Utang',
+    'track_and_manage_loans' => 'Lacak dan kelola catatan utang',
+    'loan_list' => 'Daftar Utang',
+    'add_loan' => 'Tambah Utang',
+    'loan_amount' => 'Jumlah Utang',
     'interest_rate' => 'Bunga',
     'loan_term' => 'Jangka Waktu',
     'monthly_payment' => 'Cicilan Bulanan',

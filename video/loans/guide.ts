@@ -3,56 +3,56 @@ import { ROLES } from '../roles';
 
 export const guide: ModuleGuide = {
     slug: 'loans',
-    title: 'Pinjaman',
+    title: 'Utang',
     group: 'Utang & Piutang',
     order: 10,
     path: '/loans',
     permission: 'view loans',
     summary:
-        'Pinjaman yang DITERIMA perusahaan dari bank, koperasi, atau perorangan. Saat dicatat, dana pokok otomatis masuk ke rekening; setiap angsuran pokok dan bunga otomatis keluar dari rekening sampai pinjaman lunas.',
+        'Utang perusahaan: pinjaman yang DITERIMA dari bank, koperasi, atau perorangan. Saat dicatat, dana pokok otomatis masuk ke rekening; setiap angsuran pokok dan bunga otomatis keluar dari rekening sampai utang lunas.',
     roles: [
         {
             role: ROLES.fm,
-            who: 'Pengelola pinjaman',
+            who: 'Pengelola utang',
             can: [
-                'Mencatat pinjaman baru + rekening penerima dana',
+                'Mencatat utang baru + rekening penerima dana',
                 'Mencatat angsuran pokok dan bunga',
-                'Mengubah pinjaman yang masih Aktif',
-                'Menghapus pinjaman yang belum pernah dibayar',
+                'Mengubah utang yang masih Aktif',
+                'Menghapus utang yang belum pernah dibayar',
             ],
         },
         {
             role: ROLES.admin,
             who: 'Akses penuh',
             can: ['Semua yang bisa dilakukan Finance manager', 'Memantau dampaknya ke rekening, arus kas, dan laba rugi'],
-            cannot: ['Staff tidak melihat menu Pinjaman'],
+            cannot: ['Staff tidak melihat menu Utang'],
         },
     ],
     flow: {
         steps: [
-            { label: 'Aktif', tone: 'act', role: ROLES.fm, what: 'Mencatat pinjaman, dana masuk ke rekening' },
+            { label: 'Aktif', tone: 'act', role: ROLES.fm, what: 'Mencatat utang, dana masuk ke rekening' },
             { label: 'Lunas', tone: 'pos', role: ROLES.fm, what: 'Membayar angsuran sampai sisa pokok habis' },
         ],
         note: '**Lunas otomatis** begitu sisa pokok habis. Tidak ada tombol tandai lunas, dan status tidak bisa kembali ke Aktif.',
     },
     tasks: [
         {
-            title: 'Mencatat pinjaman baru',
+            title: 'Mencatat utang baru',
             role: ROLES.fm,
             steps: [
-                'Buka **Utang & Piutang › Pinjaman**, lalu klik **Tambah pinjaman**.',
-                '**Nomor pinjaman** terisi otomatis (mis. LOAN-00004); boleh diubah asal belum dipakai. Isi **Pemberi pinjaman** dan **Jumlah pokok**.',
+                'Buka **Utang & Piutang › Utang**, lalu klik **Tambah utang**.',
+                '**Nomor utang** terisi otomatis (mis. LOAN-00004); boleh diubah asal belum dipakai. Isi **Pemberi pinjaman** dan **Jumlah pokok**.',
                 'Pilih **Cara hitung bunga**: **Persentase (% per tahun)** lalu isi **Suku bunga**, atau **Nominal tetap** lalu isi **Jumlah bunga** (total bunga untuk seluruh tenor).',
                 'Isi **Tenor (bulan)**. **Jatuh tempo** terisi otomatis dari **Tanggal mulai** + tenor, dan harus setelah tanggal mulai.',
                 'Pilih rekening di **Rekening penerima pencairan** (wajib): dana pokok dicatat masuk ke rekening ini pada tanggal mulai.',
-                'Isi **Tujuan pinjaman** dan unggah **Dokumen kontrak** bila ada (PDF, JPG, atau PNG, maksimal 5 MB), lalu klik **Simpan pinjaman**.',
+                'Isi **Tujuan pinjaman** dan unggah **Dokumen kontrak** bila ada (PDF, JPG, atau PNG, maksimal 5 MB), lalu klik **Simpan utang**.',
             ],
         },
         {
             title: 'Membayar angsuran',
             role: ROLES.fm,
             steps: [
-                'Klik baris pinjamannya untuk membuka panel rincian di sisi kanan, lalu klik **Catat pembayaran**.',
+                'Klik baris utangnya untuk membuka panel rincian di sisi kanan, lalu klik **Catat pembayaran**.',
                 'Pilih **Rekening pembayaran** (saldonya ikut tampil) dan **Tanggal pembayaran** (tidak boleh setelah hari ini).',
                 'Isi **Pembayaran pokok** dan/atau **Pembayaran bunga**; minimal salah satu harus lebih dari nol. Kolom **Pembayaran bunga** hanya muncul selama masih ada sisa bunga.',
                 'Isi **Nomor referensi** transfer dan **Catatan** bila perlu, lalu klik **Simpan pembayaran**. Sisa pokok dan jadwal angsuran langsung menyesuaikan.',
@@ -62,25 +62,25 @@ export const guide: ModuleGuide = {
             title: 'Melihat jadwal angsuran',
             role: ROLES.fm,
             steps: [
-                'Klik baris pinjamannya. Panel rincian terbuka di sisi kanan berisi pokok, total bunga, angsuran per bulan, progres pelunasan, dan **Jadwal angsuran**.',
+                'Klik baris utangnya. Panel rincian terbuka di sisi kanan berisi pokok, total bunga, angsuran per bulan, progres pelunasan, dan **Jadwal angsuran**.',
                 'Jadwalnya adalah **rencana** yang dibagi rata sepanjang tenor. Termin bertanda biru adalah yang perlu dibayar berikutnya; yang jatuh temponya sudah lewat ditandai **lewat N hari**.',
                 'Status per termin (**Lunas**, **Sebagian**, **Belum**) dihitung dengan menutup termin dari yang paling awal memakai pembayaran yang sudah masuk. Setiap pembayaran hanya mencatat pokok dan bunga, **tanpa nomor termin**, jadi sistem tidak bisa tahu satu pembayaran dimaksudkan untuk termin yang mana.',
                 'Baris paling bawah menjumlahkan seluruh termin: angkanya selalu sama persis dengan pokok + bunga.',
             ],
         },
         {
-            title: 'Mengubah atau menghapus pinjaman',
+            title: 'Mengubah atau menghapus utang',
             role: ROLES.fm,
             steps: [
-                'Buka panel rincian dengan mengklik baris pinjamannya. Tombol **Edit** hanya ada selama pinjaman **Aktif**; nomor pinjaman dan rekening penerima tidak bisa diubah.',
+                'Buka panel rincian dengan mengklik baris utangnya. Tombol **Edit** hanya ada selama utang **Aktif**; nomor utang dan rekening penerima tidak bisa diubah.',
                 'Tombol **Hapus** hanya muncul bila belum ada pokok yang dibayar, dan penghapusan ditolak bila sudah ada pembayaran apa pun.',
-                'Mengubah atau menghapus pinjaman **tidak** mengoreksi transaksi dana masuk yang sudah tercatat di rekening.',
+                'Mengubah atau menghapus utang **tidak** mengoreksi transaksi dana masuk yang sudah tercatat di rekening.',
             ],
         },
     ],
     impacts: [
         {
-            title: 'Saat pinjaman disimpan',
+            title: 'Saat utang disimpan',
             tone: 'act',
             items: [
                 '**1 transaksi bank masuk** sebesar pokok di Rekening Penerima, bertanggal Tanggal Mulai.',
@@ -102,8 +102,8 @@ export const guide: ModuleGuide = {
     ],
     records: [
         {
-            title: 'Transaksi bank saat pinjaman disimpan',
-            subtitle: 'Contoh dari pinjaman PT BPR Dana Makmur tadi, beserta asal setiap datanya.',
+            title: 'Transaksi bank saat utang disimpan',
+            subtitle: 'Contoh dari utang ke PT BPR Dana Makmur tadi, beserta asal setiap datanya.',
             rows: [
                 { label: 'Jenis', value: 'Masuk (kredit)', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Rekening', value: 'BCA - Operasional', source: 'Rekening Penerima', tone: 'pos' },
@@ -111,7 +111,7 @@ export const guide: ModuleGuide = {
                 { label: 'Jumlah', value: '+Rp 50.000.000', source: 'Jumlah Pokok', tone: 'pos' },
                 { label: 'Kategori', value: 'Penerimaan Pinjaman', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Deskripsi', value: 'Penerimaan pinjaman dari PT BPR Dana Makmur', source: 'Otomatis', tone: 'neutral' },
-                { label: 'Referensi', value: 'LOAN-00004', source: 'Nomor Pinjaman', tone: 'act' },
+                { label: 'Referensi', value: 'LOAN-00004', source: 'Nomor utang', tone: 'act' },
             ],
             note: 'Bunga tidak ikut dicatat di sini. Bunga baru menjadi transaksi saat dibayar lewat **Catat pembayaran**.',
         },
@@ -131,7 +131,7 @@ export const guide: ModuleGuide = {
     warnings: [
         {
             title: 'Edit & hapus tidak mengoreksi rekening',
-            body: 'Mengubah Jumlah Pokok / Tanggal Mulai atau menghapus pinjaman tidak mengubah transaksi dana masuk yang sudah tercatat. Koreksi manual di Rekening Bank. Status juga tidak dihitung ulang saat Jumlah Pokok diubah.',
+            body: 'Mengubah Jumlah Pokok / Tanggal Mulai atau menghapus utang tidak mengubah transaksi dana masuk yang sudah tercatat. Koreksi manual di Rekening Bank. Status juga tidak dihitung ulang saat Jumlah Pokok diubah.',
         },
         {
             title: 'Nominal bayar tidak dibatasi',
@@ -139,7 +139,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Pembayaran & Lunas tidak bisa dibatalkan',
-            body: 'Tidak ada tombol hapus pembayaran. Sisa pinjaman dihitung dari catatan pembayaran di modul ini, jadi menghapus transaksinya di Rekening Bank tidak mengembalikan sisa.',
+            body: 'Tidak ada tombol hapus pembayaran. Sisa utang dihitung dari catatan pembayaran di modul ini, jadi menghapus transaksinya di Rekening Bank tidak mengembalikan sisa.',
         },
         {
             title: 'Bayar sisa bunga sebelum Lunas',
@@ -152,11 +152,11 @@ export const guide: ModuleGuide = {
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
     matrix: [
-        { action: 'Melihat daftar pinjaman', cells: [false, true, true] },
-        { action: 'Mencatat pinjaman baru', cells: [false, true, true] },
+        { action: 'Melihat daftar utang', cells: [false, true, true] },
+        { action: 'Mencatat utang baru', cells: [false, true, true] },
         { action: 'Mencatat angsuran', cells: [false, true, true] },
-        { action: 'Mengubah pinjaman', cells: [false, 'Selama Aktif', 'Selama Aktif'] },
-        { action: 'Menghapus pinjaman', cells: [false, 'Belum dibayar', 'Belum dibayar'] },
+        { action: 'Mengubah utang', cells: [false, 'Selama Aktif', 'Selama Aktif'] },
+        { action: 'Menghapus utang', cells: [false, 'Belum dibayar', 'Belum dibayar'] },
     ],
     insightRoles: ['admin', 'finance manager'],
 };

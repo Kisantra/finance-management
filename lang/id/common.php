@@ -11,7 +11,7 @@ return [
     'bank_accounts' => 'Rekening Bank',
     'transactions' => 'Transaksi',
     'cash_flow' => 'Arus Kas',
-    'loans' => 'Pinjaman',
+    'loans' => 'Utang',
     'receivables' => 'Piutang',
     'reimbursements' => 'Penggantian',
     'fund_requests' => 'Pengajuan Dana',

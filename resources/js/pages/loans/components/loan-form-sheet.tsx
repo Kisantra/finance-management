@@ -107,10 +107,10 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(isEdit ? 'Pinjaman diperbarui' : 'Pinjaman dicatat');
+                toast.success(isEdit ? 'Utang diperbarui' : 'Utang dicatat');
                 onOpenChange(false);
             },
-            onError: () => toast.error('Pinjaman gagal disimpan'),
+            onError: () => toast.error('Utang gagal disimpan'),
         });
     };
 
@@ -121,7 +121,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
             <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
-                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit pinjaman' : 'Tambah pinjaman'}</SheetTitle>
+                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit utang' : 'Tambah utang'}</SheetTitle>
                         <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
                             {isEdit ? `${row!.loan_number} · nomor dan rekening pencairan tidak bisa diubah.` : 'Pencairannya langsung dicatat sebagai pemasukan di rekening yang dipilih.'}
                         </SheetDescription>
@@ -136,7 +136,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                     <div className={cn(FIELD, 'flex flex-col gap-5')}>
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <Input
-                                label="Nomor pinjaman"
+                                label="Nomor utang"
                                 value={data.loan_number}
                                 onChange={(e) => setData('loan_number', e.target.value)}
                                 error={errors.loan_number}
@@ -269,7 +269,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                         Batal
                     </Button>
                     <Button type="submit" form="loan-form" className={BTN.primary} loading={processing} disabled={processing}>
-                        {isEdit ? 'Simpan perubahan' : 'Simpan pinjaman'}
+                        {isEdit ? 'Simpan perubahan' : 'Simpan utang'}
                     </Button>
                 </div>
             </SheetContent>

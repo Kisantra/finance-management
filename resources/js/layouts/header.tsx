@@ -41,7 +41,7 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
     '/transaction-categories': [{ label: 'Operasional' }, { label: 'Kategori Transaksi' }],
     '/fund-requests': [{ label: 'Operasional' }, { label: 'Permintaan Dana' }],
     '/reimbursements': [{ label: 'Operasional' }, { label: 'Reimbursement' }],
-    '/loans': [{ label: 'Utang & Piutang' }, { label: 'Pinjaman' }],
+    '/loans': [{ label: 'Utang & Piutang' }, { label: 'Utang' }],
     '/receivables': [{ label: 'Utang & Piutang' }, { label: 'Piutang' }],
     '/reports/profit-loss': [{ label: 'Laporan' }, { label: 'Laba Rugi' }],
     '/feedbacks': [{ label: 'Administrasi' }, { label: 'Feedback' }],

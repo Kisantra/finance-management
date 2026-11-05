@@ -115,7 +115,7 @@ export const guide: ModuleGuide = {
             tone: 'pos',
             items: [
                 '**Pemasukan** = semua transaksi bank masuk (termasuk pinjaman yang diterima dan cicilan piutang) + pembayaran invoice.',
-                '**Pengeluaran** = semua transaksi bank keluar, termasuk pembayaran reimbursement, pencairan dana, cicilan pinjaman, dan piutang yang diberikan.',
+                '**Pengeluaran** = semua transaksi bank keluar, termasuk pembayaran reimbursement, pencairan dana, cicilan utang, dan piutang yang diberikan.',
                 '**Transfer antar rekening ikut terhitung** di kedua sisi.',
                 'Donat memecah per kategori; transaksi tanpa kategori masuk **Lainnya** atau **Tanpa kategori**.',
             ],

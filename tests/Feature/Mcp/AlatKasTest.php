@@ -143,7 +143,7 @@ class AlatKasTest extends TestCase
             'menunggu_persetujuan' => ['jumlah' => 1, 'pokok' => 3_000_000],
             'jatuh_tempo_terdekat' => '2026-10-31',
         ], $isi['piutang']);
-        $this->assertSame(['aktif' => ['jumlah' => 1, 'sisa_pokok' => 7_500_000], 'jatuh_tempo_terdekat' => '2027-06-01'], $isi['pinjaman']);
+        $this->assertSame(['aktif' => ['jumlah' => 1, 'sisa_pokok' => 7_500_000], 'jatuh_tempo_terdekat' => '2027-06-01'], $isi['utang']);
         $this->assertSame([
             'cakupan' => 'semua_pengajuan',
             'menunggu_review' => ['jumlah' => 1, 'nominal' => 250_000],
@@ -190,11 +190,11 @@ class AlatKasTest extends TestCase
         $respons = $this->panggil($terbatas, RingkasanKeuangan::class)->assertDontSee('22997500');
         $isi = $this->isi($respons);
 
-        foreach (['kas', 'pemasukan', 'pengeluaran', 'invoice', 'piutang', 'pinjaman', 'pengajuan_dana'] as $bagian) {
+        foreach (['kas', 'pemasukan', 'pengeluaran', 'invoice', 'piutang', 'utang', 'pengajuan_dana'] as $bagian) {
             $this->assertArrayNotHasKey($bagian, $isi);
         }
         $this->assertSame(
-            ['kas', 'pemasukan', 'pengeluaran', 'invoice', 'piutang', 'pinjaman', 'pengajuan_dana'],
+            ['kas', 'pemasukan', 'pengeluaran', 'invoice', 'piutang', 'utang', 'pengajuan_dana'],
             array_column($isi['tidak_ditampilkan'], 'bagian'),
         );
         $this->assertSame(['bagian' => 'kas', 'butuh_izin' => 'view bank-accounts'], $isi['tidak_ditampilkan'][0]);

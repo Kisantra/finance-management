@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 
 /**
- * Daftar pinjaman (utang perusahaan) untuk Claude.
+ * Daftar utang perusahaan (menu Utang, dulu "Pinjaman") untuk Claude: pinjaman yang DITERIMA.
  *
  * Tanpa pembatasan per baris: LoanController::index() menampilkan seluruh pinjaman kepada
  * setiap pemegang view loans. Angka mengikuti controller itu: sisa pokok = pokok − Σ pokok
@@ -24,19 +24,19 @@ use Laravel\Mcp\Request;
  * dipakai panel jadwal di aplikasi (LoanController::schedule()). Query daftar memuat
  * withSum('payments', ...) sehingga service memakai jumlah itu, bukan dua query per baris.
  */
-class DaftarPinjaman extends AlatKeuangan
+class DaftarUtang extends AlatKeuangan
 {
     private const PER_HALAMAN = 50;
 
-    /** Label sama dengan halaman Pinjaman (LoanStatusPill). */
+    /** Label sama dengan halaman Utang (LoanStatusPill). */
     private const STATUS = [
         'active' => 'Aktif',
         'paid_off' => 'Lunas',
     ];
 
-    protected string $name = 'daftar-pinjaman';
+    protected string $name = 'daftar-utang';
 
-    protected string $description = 'Daftar pinjaman yang DITERIMA perusahaan (utang ke bank/pihak lain): pemberi pinjaman, pokok, bunga, sudah dibayar, sisa pokok/bunga, dan ringkasan jadwal angsuran untuk pinjaman aktif (termin berikutnya, termin terlambat, tunggakan). Jadwal adalah rencana dari pokok, bunga, tenor, dan tanggal mulai; pembayaran dialokasikan ke termin dari yang paling awal karena pembayaran tidak dicatat per termin. Ringkasan dihitung atas SEMUA data yang cocok dengan filter; sisa pokok hanya dari pinjaman aktif. Saring dengan status atau kata kunci; 50 baris per halaman.';
+    protected string $description = 'Daftar utang perusahaan (menu Utang di aplikasi): pinjaman yang DITERIMA perusahaan dari bank/pihak lain. Per utang: pemberi pinjaman, pokok, bunga, sudah dibayar, sisa pokok/bunga, dan ringkasan jadwal angsuran untuk utang aktif (termin berikutnya, termin terlambat, tunggakan). Jadwal adalah rencana dari pokok, bunga, tenor, dan tanggal mulai; pembayaran dialokasikan ke termin dari yang paling awal karena pembayaran tidak dicatat per termin. Ringkasan dihitung atas SEMUA data yang cocok dengan filter; sisa pokok hanya dari utang aktif. Saring dengan status atau kata kunci; 50 baris per halaman.';
 
     protected function izin(): string
     {
@@ -49,7 +49,7 @@ class DaftarPinjaman extends AlatKeuangan
             'status' => $schema->string()->enum(array_keys(self::STATUS))
                 ->description('Saring status: active (masih berjalan) atau paid_off (lunas).'),
             'kata_kunci' => $schema->string()
-                ->description('Cari di nomor pinjaman atau nama pemberi pinjaman, mis. "mandiri".'),
+                ->description('Cari di nomor utang atau nama pemberi pinjaman, mis. "mandiri".'),
             'halaman' => $schema->integer()->min(1)
                 ->description('Nomor halaman, mulai 1 (50 baris per halaman).'),
         ];
@@ -119,7 +119,7 @@ class DaftarPinjaman extends AlatKeuangan
             'halaman' => $hasil->currentPage(),
             'per_halaman' => self::PER_HALAMAN,
             'total_halaman' => $hasil->lastPage(),
-            'pinjaman' => $hasil->getCollection()->map(function (Loan $l) use ($layanan) {
+            'utang' => $hasil->getCollection()->map(function (Loan $l) use ($layanan) {
                 $totalBunga = $layanan->totalBungaPinjaman($l);
                 $pokokDibayar = (int) ($l->payments_sum_principal_paid ?? 0);
                 $bungaDibayar = (int) ($l->payments_sum_interest_paid ?? 0);

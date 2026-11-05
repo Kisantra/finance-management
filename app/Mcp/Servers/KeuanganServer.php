@@ -7,9 +7,9 @@ use App\Mcp\Tools\DaftarKlien;
 use App\Mcp\Tools\DaftarLayanan;
 use App\Mcp\Tools\DaftarPengajuanDana;
 use App\Mcp\Tools\DaftarPerusahaan;
-use App\Mcp\Tools\DaftarPinjaman;
 use App\Mcp\Tools\DaftarPiutang;
 use App\Mcp\Tools\DaftarReimbursement;
+use App\Mcp\Tools\DaftarUtang;
 use App\Mcp\Tools\DetailInvoice;
 use App\Mcp\Tools\InvoiceBerulang;
 use App\Mcp\Tools\KategoriTransaksi;
@@ -55,7 +55,7 @@ class KeuanganServer extends Server
         InvoiceBerulang::class,
         DaftarReimbursement::class,
         DaftarPengajuanDana::class,
-        DaftarPinjaman::class,
+        DaftarUtang::class,
         DaftarPiutang::class,
     ];
 }
