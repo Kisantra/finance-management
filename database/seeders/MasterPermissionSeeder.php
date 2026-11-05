@@ -202,6 +202,9 @@ class MasterPermissionSeeder extends Seeder
             'manage company profile',
             // Invoice Settings (format penomoran)
             'manage invoice settings',
+
+            // Koneksi Claude (MCP, hanya baca) — admin & finance manager
+            'use claude',
         ];
 
         $newCount = 0;
@@ -260,6 +263,9 @@ class MasterPermissionSeeder extends Seeder
         $financeManagerPermissions = [
             // Dashboard
             'view dashboard',
+
+            // Koneksi Claude (MCP, hanya baca)
+            'use claude',
 
             // Clients
             'view clients',

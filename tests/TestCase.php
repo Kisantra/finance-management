@@ -74,6 +74,8 @@ abstract class TestCase extends BaseTestCase
         '/panduan',
         // Walkthrough pemasangan baru (sebelum ada perusahaan).
         '/setup',
+        // Koneksi Claude (routes/ai.php): server MCP + OAuth Passport + discovery.
+        '/mcp', '/oauth', '/.well-known',
         // Rute aset vendor stancl (stancl.tenancy.asset). Dorman selama
         // tenancy.filesystem.asset_helper_tenancy = false, tetapi tetap central.
         '/tenancy',

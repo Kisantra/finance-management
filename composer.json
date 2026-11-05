@@ -15,6 +15,8 @@
         "inertiajs/inertia-laravel": "^3.1",
         "intervention/image-laravel": "^1.5",
         "laravel/framework": "^12.0",
+        "laravel/mcp": "^0.9",
+        "laravel/passport": "^13.10",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.18",
         "maatwebsite/excel": "^3.1",

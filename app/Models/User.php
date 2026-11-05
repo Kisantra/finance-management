@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
+use Laravel\Passport\Contracts\OAuthenticatable;
+use Laravel\Passport\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
-class User extends Authenticatable
+class User extends Authenticatable implements OAuthenticatable
 {
-    use CentralConnection, HasFactory, HasRoles, Notifiable;
+    use CentralConnection, HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
         'name',

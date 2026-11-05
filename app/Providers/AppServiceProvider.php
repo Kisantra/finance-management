@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Mcp\PersetujuanClaude;
 use Carbon\Carbon;
+use Carbon\CarbonInterval;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationsStarted;
@@ -11,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +28,15 @@ class AppServiceProvider extends ServiceProvider
         // dashboard kini ber-parameter {company} sehingga tanpa konteks tenant
         // pembuatan URL-nya melempar UrlGenerationException (HTTP 500).
         RedirectIfAuthenticated::redirectUsing(fn () => route('choose-company'));
+
+        // Koneksi Claude (MCP, routes/ai.php) lewat OAuth Passport. Tabel oauth_* hidup di
+        // database PUSAT: tanpa ini, kode yang menyentuh token di dalam /c/{company}
+        // (tenancy aktif) mencarinya di database perusahaan. Token akses berumur pendek;
+        // refresh token 30 hari (setelah itu Claude meminta login & persetujuan ulang).
+        config(['passport.connection' => config('tenancy.database.central_connection')]);
+        Passport::tokensExpireIn(CarbonInterval::hour());
+        Passport::refreshTokensExpireIn(CarbonInterval::days(30));
+        Passport::authorizationView(fn (array $parameters) => PersetujuanClaude::tampilkan($parameters));
 
         // Testing memakai SATU database: migration tenant ikut dimuat ke DB test
         // (produksi/dev menjalankannya via tenants:migrate ke DB per perusahaan)
