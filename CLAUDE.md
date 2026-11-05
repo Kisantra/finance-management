@@ -204,6 +204,7 @@ Loading skeleton                  → Skeleton
 | Users | `/admin/users` | Index, Create, Edit, Delete |
 | Permissions/Roles | `/permissions` | Permissions + Roles CRUD |
 | Companies | `/admin/companies` | Provisioning perusahaan baru + anggota & peran tiap perusahaan (admin, kuota per organization; menu Administrasi › Perusahaan) |
+| Koneksi Claude | `/mcp/keuangan` (pusat), `/settings/claude` | Server MCP **hanya baca** untuk Claude + OAuth Passport; izin `use claude` (admin & FM). Lihat `docs/module/koneksi-claude.md` |
 
 ### Key Business Logic
 

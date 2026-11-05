@@ -29,6 +29,7 @@
 | [feedbacks.md](feedbacks.md) | Feedback/bug report internal | `/feedbacks` |
 | [admin-users-permissions.md](admin-users-permissions.md) | User, role, permission (Spatie) | `/admin/*` |
 | [settings.md](settings.md) | Profil, password, company, PDF template builder | `/settings/*` |
+| [koneksi-claude.md](koneksi-claude.md) | Koneksi Claude (MCP, hanya baca) + OAuth Passport | `/mcp/keuangan`, `/oauth/*`, `/settings/claude` |
 
 ## Peta Alur Data Lintas Modul
 

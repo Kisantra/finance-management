@@ -72,8 +72,8 @@ class JadwalAngsuranService
             pokok: (int) $loan->principal_amount,
             totalBunga: $this->totalBungaPinjaman($loan),
             mulai: $loan->start_date,
-            pokokTerbayar: (int) $loan->payments()->sum('principal_paid'),
-            bungaTerbayar: (int) $loan->payments()->sum('interest_paid'),
+            pokokTerbayar: $this->terbayar($loan, 'principal_paid'),
+            bungaTerbayar: $this->terbayar($loan, 'interest_paid'),
         );
     }
 
@@ -90,9 +90,24 @@ class JadwalAngsuranService
             pokok: (int) $receivable->principal_amount,
             totalBunga: $this->totalBungaPiutang($receivable),
             mulai: $receivable->loan_date,
-            pokokTerbayar: (int) $receivable->payments()->sum('principal_paid'),
-            bungaTerbayar: (int) $receivable->payments()->sum('interest_paid'),
+            pokokTerbayar: $this->terbayar($receivable, 'principal_paid'),
+            bungaTerbayar: $this->terbayar($receivable, 'interest_paid'),
         );
+    }
+
+    /**
+     * Jumlah terbayar suatu kolom pembayaran. Daftar yang memuat `withSum('payments', ...)`
+     * memakai hasil itu (tanpa query per baris); selain itu dijumlah langsung. Dicek dengan
+     * array_key_exists, bukan `??`: withSum tanpa pembayaran bernilai NULL, dan `??` akan
+     * diam-diam kembali menjalankan satu query per baris.
+     */
+    private function terbayar(Loan|Receivable $model, string $kolom): int
+    {
+        $alias = "payments_sum_{$kolom}";
+
+        return (int) (array_key_exists($alias, $model->getAttributes())
+            ? $model->getAttribute($alias)
+            : $model->payments()->sum($kolom));
     }
 
     /**

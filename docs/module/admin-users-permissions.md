@@ -98,6 +98,7 @@ Konvensi nama permission = `aksi + spasi + modul`. Modul dan aksinya:
 | Reports | `view profit-loss` |
 | PDF Templates | `manage pdf templates` |
 | Invoice Settings | `manage invoice settings` (format penomoran invoice) |
+| Koneksi Claude | `use claude` — menghubungkan Claude ke data keuangan (MCP, hanya baca); bawaan admin & finance manager. Lihat [koneksi-claude.md](koneksi-claude.md) |
 
 ### 3 Role Bawaan & Filosofinya
 

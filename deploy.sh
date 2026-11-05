@@ -386,7 +386,18 @@ main() {
         git merge --ff-only "$TARGET_COMMIT"
     }
 
+    # Kunci OAuth Passport (koneksi Claude, routes/ai.php). Dibuat SEKALI per server dan tidak
+    # pernah ditimpa: kunci baru membatalkan semua sambungan Claude yang sudah disetujui.
+    # Pasangan yang tidak lengkap dibuat ulang (setengah pasang memang sudah tidak bisa dipakai).
+    ensure_passport_keys() {
+        if [[ ! -s storage/oauth-private.key || ! -s storage/oauth-public.key ]]; then
+            php artisan passport:keys --force
+            chmod 600 storage/oauth-private.key
+        fi
+    }
+
     refresh_caches() {
+        ensure_passport_keys
         php artisan optimize:clear
         php artisan optimize
     }
@@ -780,6 +791,7 @@ main() {
         # cache database LAMA. Tanpa sinyal di sana, worker itu terus membaca antrean database lama.
         # Harus sebelum optimize: variabel lingkungan hanya menimpa .env selama config belum di-cache.
         DB_DATABASE="$LEGACY_DB" php artisan queue:restart
+        ensure_passport_keys
         php artisan optimize
         php artisan queue:restart
         php artisan permission:cache-reset

@@ -170,3 +170,4 @@ Tambahkan juga nama permission ke `MasterPermissionSeeder` agar instalasi baru i
 - Worker antrean berjalan terus (Supervisor): `php artisan queue:work`.
 - Cron scheduler: `* * * * * cd /path/aplikasi && php artisan schedule:run >> /dev/null 2>&1`.
 - `storage/` dan `bootstrap/cache/` bisa ditulis user web server; `chmod +x deploy.sh` bila bit executable hilang.
+- **Koneksi Claude (MCP):** PHP wajib memuat ekstensi `sodium` (cek `php -m | grep sodium`; tanpa itu `composer install` gagal). Kunci OAuth `storage/oauth-{private,public}.key` dibuat `deploy.sh` sekali bila belum ada dan **tidak pernah ditimpa**; jangan menghapusnya, karena kunci baru memutus semua sambungan Claude yang sudah disetujui. Cadangkan kedua berkas itu bersama `.env`. Detail: `docs/module/koneksi-claude.md`.
