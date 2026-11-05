@@ -13,6 +13,8 @@
 #   ./deploy.sh --yes      tanpa konfirmasi
 #   ./deploy.sh --force    pembaruan rutin walau tidak ada commit baru (mis. build ulang)
 #
+# deploy.sh memperbarui dirinya: bila deploy.sh di origin/main berbeda dari yang ada di server,
+# versi terbaru itu yang dijalankan, jadi langkah baru berlaku pada deploy yang sama.
 # Server yang masih memakai deploy.sh lama: jalankan versi baru ini satu kali dari folder
 # aplikasi:  git fetch origin && bash <(git show origin/main:deploy.sh)
 # Konversi yang berhenti di tengah dilanjutkan dengan perintah yang sama.
@@ -31,7 +33,7 @@ main() {
             -y | --yes) ASSUME_YES=1 ;;
             -f | --force) FORCE=1 ;;
             -h | --help)
-                sed -n '3,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+                sed -n '3,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
                 return 0
                 ;;
             *)
@@ -43,12 +45,27 @@ main() {
 
     # Folder aplikasi = folder skrip ini bila berisi artisan; selain itu folder kerja
     # (versi baru dijalankan lewat `bash <(git show origin/main:deploy.sh)` dari folder aplikasi).
-    local self_dir
-    self_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo .)")
+    local self_path self_dir
+    self_path=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo .)
+    self_dir=$(dirname "$self_path")
     if [[ -f "$self_dir/artisan" ]]; then cd "$self_dir"; fi
     if [[ ! -f artisan || ! -f .env ]]; then
         echo "Jalankan dari folder aplikasi (berisi artisan dan .env)."
         return 1
+    fi
+
+    # Pembaruan mandiri: bash menjalankan deploy.sh yang ada di disk, jadi tanpa ini langkah baru
+    # dari GitHub baru berlaku pada deploy BERIKUTNYA. Bila deploy.sh di origin/main berbeda,
+    # versi itu yang dijalankan sekarang. Versi yang dijalankan lewat `bash <(...)` bukan berkas
+    # biasa (-f gagal), jadi tidak memperbarui dirinya lagi.
+    local newest=""
+    if [[ -f "$self_path" && -z "${DEPLOY_SELF_UPDATED:-}" ]] && git fetch --quiet "$REMOTE" "$BRANCH" 2>/dev/null; then
+        newest=$(git rev-parse --verify --quiet "${REMOTE}/${BRANCH}:deploy.sh" || true)
+    fi
+    if [[ -n "$newest" && "$newest" != "$(git hash-object "$self_path")" ]]; then
+        echo "deploy.sh di ${REMOTE}/${BRANCH} berbeda dari yang ada di server: versi terbaru itu yang dijalankan."
+        DEPLOY_SELF_UPDATED=1 bash <(git cat-file blob "$newest") "$@"
+        return
     fi
 
     local TS LOG

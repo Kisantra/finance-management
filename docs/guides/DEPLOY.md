@@ -24,7 +24,7 @@ Nama, singkatan, dan kode URL perusahaan lain **selalu diatur di website**, tida
 git fetch origin && bash <(git show origin/main:deploy.sh)
 ```
 
-Sesudah itu cukup `./deploy.sh`. Kalau yang terlanjur dijalankan `./deploy.sh` lama, ia berhenti dengan aman di langkah migrasi (kode baru menolak `migrate` maupun `migrate:rollback` di database lama) dan situs tetap maintenance. **Jangan ikuti saran `migrate:rollback` yang dicetaknya.** Kembalikan kode (`git reset --hard <commit sebelumnya>`, `composer install`, `npm ci`, `npm run build`, `php artisan optimize:clear`, `php artisan up`), lalu jalankan perintah di atas.
+Sesudah itu cukup `./deploy.sh`. **`deploy.sh` memperbarui dirinya sendiri:** sebelum memilih mode, ia mengambil info dari GitHub; bila `deploy.sh` di `origin/main` berbeda dari yang ada di server, versi terbaru itu yang dijalankan (pesan "versi terbaru itu yang dijalankan" muncul di baris pertama). Jadi langkah deploy baru berlaku pada deploy yang sama, bukan baru pada deploy berikutnya. Ini berlaku setelah versi yang punya fitur ini sudah sekali terpasang di server. Kalau yang terlanjur dijalankan `./deploy.sh` lama, ia berhenti dengan aman di langkah migrasi (kode baru menolak `migrate` maupun `migrate:rollback` di database lama) dan situs tetap maintenance. **Jangan ikuti saran `migrate:rollback` yang dicetaknya.** Kembalikan kode (`git reset --hard <commit sebelumnya>`, `composer install`, `npm ci`, `npm run build`, `php artisan optimize:clear`, `php artisan up`), lalu jalankan perintah di atas.
 
 Istilah:
 
