@@ -18,10 +18,11 @@
 | `reference_number` | string, nullable | Prefix `TRF` menandai leg transfer. **Label untuk dibaca manusia saja** — bukan penanda pasangan |
 | `transfer_group_id` | char(26) nullable, index | ULID yang dibagi kedua kaki satu transfer. **Ini penanda pasangan yang sesungguhnya** |
 | `attachment_path` / `attachment_name` | string, nullable | Bukti transaksi di disk `public` |
+| `created_by` / `updated_by` | bigint nullable (created_by ber-index), **tanpa FK** | Id pengguna di database PUSAT yang mencatat / terakhir mengubah (trait `MencatatPengguna`). Kosong untuk data sebelum Nov 2026 dan untuk proses tanpa login. `updated_by` kosong = belum pernah diubah |
 
 ### `payments` (read-only di modul ini)
 
-`invoice_id`, `bank_account_id`, `amount`, `payment_date`, `payment_method`, `reference_number`, `attachment_path/name` — sumber kedua halaman Income; dibuat oleh modul Invoices.
+`invoice_id`, `bank_account_id`, `amount`, `payment_date`, `payment_method`, `reference_number`, `attachment_path/name`, `created_by`/`updated_by` (sama dengan `bank_transactions`) — sumber kedua halaman Income; dibuat oleh modul Invoices.
 
 ## Fitur
 

@@ -59,6 +59,7 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 
 ## Konvensi Lintas Modul
 
+- **Pencatat uang masuk/keluar**: `bank_transactions` dan `payments` punya `created_by`/`updated_by` (id pengguna PUSAT, tanpa FK) yang diisi trait `App\Models\Concerns\MencatatPengguna` dari pengguna login. Update massal lewat query builder tidak memicu trait itu: isi `updated_by` sendiri (contoh: kaki lawan transfer, pemindahan kategori saat hapus kategori). Nama pengguna dicari di pusat lewat `whereIn`, jangan join dari database perusahaan.
 - **Currency**: semua nominal disimpan `bigint` rupiah penuh (150000 = Rp 150.000), tanpa desimal.
 - **Permission**: Spatie Permission; gate di route (`can:...`), FormRequest, dan UI (`useCan`).
   Struktur lengkap: `database/seeders/MasterPermissionSeeder.php`.

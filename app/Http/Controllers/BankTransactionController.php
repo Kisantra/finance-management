@@ -290,6 +290,8 @@ class BankTransactionController extends Controller
                 ->update([
                     'transaction_date' => $validated['transaction_date'],
                     'description' => $validated['description'],
+                    // Update massal tidak memicu MencatatPengguna.
+                    'updated_by' => $request->user()->id,
                 ]);
         }
 

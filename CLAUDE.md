@@ -208,7 +208,7 @@ Loading skeleton                  → Skeleton
 
 ### Key Business Logic
 
-**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`
+**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`; `{KLIEN}` = alias klien, atau inisial nama bila kosong) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`; jatuh tempo = tanggal + termin (bawaan `company_profiles.default_due_days`, disetel dari form invoice baru)
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual

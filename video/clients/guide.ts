@@ -74,7 +74,7 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 'Klien **Aktif** bisa dipilih di invoice dan invoice berulang; klien **Perusahaan** yang aktif juga menjadi pilihan debitur di Piutang.',
-                'Inisial nama klien menjadi bagian nomor invoice saat invoice dikirim (format bawaan memakai token {KLIEN}).',
+                '**Alias** klien (mis. SMA) menjadi bagian nomor invoice saat invoice dikirim (token {KLIEN}); bila kosong dipakai inisial nama klien. Mengubah alias tidak mengubah nomor yang sudah terbit.',
                 'Invoice lama ikut menampilkan data klien terbaru (detail & PDF), tetapi nomor invoice yang sudah terbit tidak berubah.',
                 '**Tidak Aktif** hanya menyembunyikan klien dari pilihan; invoice, pembayaran, dan laporannya tetap.',
             ],

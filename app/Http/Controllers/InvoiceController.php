@@ -508,7 +508,7 @@ class InvoiceController extends Controller
     /**
      * Pilihan klien & layanan untuk editor invoice.
      *
-     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}}
+     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}, defaultDueDays: int}
      */
     private function formOptions(?int $includeClientId = null): array
     {
@@ -520,6 +520,8 @@ class InvoiceController extends Controller
                 'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
                 'rate' => (float) ($company?->ppn_rate ?? 0),
             ],
+            // Termin jatuh tempo bawaan; pemegang `manage invoice settings` bisa menggantinya dari form ini.
+            'defaultDueDays' => (int) ($company?->default_due_days ?? 14),
             'clients' => Client::where('status', Client::STATUS_ACTIVE)
                 ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
                 ->orderBy('name')

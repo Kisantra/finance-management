@@ -22,7 +22,7 @@ import { companyUrl } from '@/lib/company';
 import { resourceHref } from '@/lib/resource-modal';
 import { cn, formatCurrency, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { ColDef, CurrencyCell, ResizableTh, parseQty, useColumnResize } from '@/pages/invoices/components/item-table-helpers';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     Calendar,
@@ -720,6 +720,17 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
 
 // ─── Generate Modal ───────────────────────────────────────────────────────────
 
+/** Jatuh tempo bawaan dialog: hari ini + termin bawaan perusahaan (disetel dari form invoice baru). */
+function useDefaultDueDate(): () => string {
+    const { defaultDueDays } = usePage<{ defaultDueDays: number }>().props;
+
+    return () => {
+        const d = new Date();
+        d.setDate(d.getDate() + defaultDueDays);
+        return toLocalIso(d);
+    };
+}
+
 interface GenerateModalProps {
     open: boolean;
     onClose: () => void;
@@ -729,18 +740,15 @@ interface GenerateModalProps {
 }
 
 function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalProps) {
+    const defaultDue = useDefaultDueDate();
     const [issueDate, setIssueDate] = React.useState(toLocalIso(new Date()));
-    const [dueDate, setDueDate] = React.useState(() => {
-        const d = new Date(); d.setDate(d.getDate() + 30);
-        return toLocalIso(d);
-    });
+    const [dueDate, setDueDate] = React.useState(defaultDue);
     const [loading, setLoading] = React.useState(false);
 
     React.useEffect(() => {
         if (open) {
             setIssueDate(toLocalIso(new Date()));
-            const d = new Date(); d.setDate(d.getDate() + 30);
-            setDueDate(toLocalIso(d));
+            setDueDate(defaultDue());
         }
     }, [open]);
 
@@ -818,6 +826,7 @@ interface PublishModalProps {
 }
 
 function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) {
+    const defaultDue = useDefaultDueDate();
     const [issueDate, setIssueDate] = React.useState('');
     const [dueDate, setDueDate] = React.useState('');
     const [loading, setLoading] = React.useState(false);
@@ -828,8 +837,7 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
             if (invoice.due_date) {
                 setDueDate(invoice.due_date);
             } else {
-                const d = new Date(); d.setDate(d.getDate() + 30);
-                setDueDate(toLocalIso(d));
+                setDueDate(defaultDue());
             }
         }
     }, [open, invoice]);
@@ -910,7 +918,8 @@ interface BulkPublishModalProps {
 
 function BulkPublishModal({ open, onClose, onSuccess, selectedIds }: BulkPublishModalProps) {
     const [issueDate, setIssueDate] = React.useState(toLocalIso(new Date()));
-    const [dueDate, setDueDate] = React.useState(() => { const d = new Date(); d.setDate(d.getDate() + 30); return toLocalIso(d); });
+    const defaultDue = useDefaultDueDate();
+    const [dueDate, setDueDate] = React.useState(defaultDue);
     const [loading, setLoading] = React.useState(false);
 
     const handle = async () => {

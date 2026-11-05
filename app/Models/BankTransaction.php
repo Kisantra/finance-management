@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\MencatatPengguna;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 class BankTransaction extends Model
 {
-    use HasFactory;
+    use HasFactory, MencatatPengguna;
 
     protected $fillable = [
         'bank_account_id',

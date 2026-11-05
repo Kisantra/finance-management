@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateDefaultDueDaysRequest;
 use App\Http\Requests\Settings\UpdateInvoiceSettingsRequest;
 use App\Models\Client;
 use App\Models\CompanyProfile;
@@ -74,6 +75,19 @@ class InvoiceSettingsController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Format penomoran invoice disimpan. Berlaku untuk invoice yang dikirim setelah ini.');
+    }
+
+    /**
+     * Termin jatuh tempo bawaan, disetel langsung dari form invoice baru (tombol "Jadikan bawaan")
+     * agar tidak perlu membuka halaman lain. Dipakai invoice baru dan invoice berulang.
+     */
+    public function updateDueDays(UpdateDefaultDueDaysRequest $request): RedirectResponse
+    {
+        $hari = $request->integer('days');
+
+        CompanyProfile::current()->update(['default_due_days' => $hari]);
+
+        return redirect()->back()->with('success', "Termin bawaan disimpan: {$hari} hari.");
     }
 
     /**

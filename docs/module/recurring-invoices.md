@@ -125,7 +125,8 @@ Publish membuat baris `invoices` + `invoice_items` nyata (idempoten: bila sudah 
 
 ## Keterkaitan Antar Modul
 - **Invoices:** `publish()` menulis ke `invoices` + `invoice_items`; setelah itu invoice mengikuti alur normal (send, payment, PDF). `published_invoice_id` menautkan balik.
-- **Clients:** `client_id` di template & draft; inisial klien untuk nomor invoice dipakai saat invoice hasil publish dikirim.
+- **Clients:** `client_id` di template & draft; alias/inisial klien untuk nomor invoice dipakai saat invoice hasil publish dikirim.
+- **Termin bawaan:** draft tanpa `due_date` diberi jatuh tempo `issue_date + CompanyProfile::defaultDueDays()` saat publish (sebelum Nov 2026 selalu +30 hari); dialog Generate, Publish, dan Publish massal mengisi jatuh tempo awal = hari ini + termin bawaan (prop `defaultDueDays`).
 - **Services:** master pilihan item saat menyusun template/draft (snapshot, bukan FK).
 - **Clients:** menghapus klien (`Client::delete()` + FK `onDelete('cascade')`) ikut menghapus template & semua baris `recurring_invoices` klien itu — termasuk yang published — serta invoice klien itu.
 - **Invoices (hapus):** FK `published_invoice_id` `onDelete('set null')` — bila invoice hasil publish dihapus, baris recurring tetap `published` tanpa tautan, tidak bisa dihapus, dan bulan itu tidak bisa di-generate ulang untuk template tersebut.

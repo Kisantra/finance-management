@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -135,5 +136,42 @@ class ClientControllerTest extends TestCase
 
         $this->actingAs($this->viewer)->delete("/clients/{$client->id}")->assertForbidden();
         $this->assertDatabaseHas('clients', ['id' => $client->id]);
+    }
+
+    public function test_alias_disimpan_huruf_besar_dan_daftar_menampilkan_kode_nomor_invoice(): void
+    {
+        $this->actingAs($this->admin)->post('/clients', [
+            'name' => 'PT Sinar Mas Agro',
+            'alias' => ' smag1 ',
+            'type' => 'company',
+            'status' => 'Active',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('clients', ['name' => 'PT Sinar Mas Agro', 'alias' => 'SMAG1']);
+        Client::factory()->create(['name' => 'PT Bumi Raya Sentosa', 'type' => 'individual', 'alias' => null]);
+
+        $this->actingAs($this->admin)
+            ->get('/clients')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('clients.data.0.name', 'PT Bumi Raya Sentosa')
+                ->where('clients.data.0.alias', null)
+                ->where('clients.data.0.invoice_code', 'BRS')
+                ->where('clients.data.1.alias', 'SMAG1')
+                ->where('clients.data.1.invoice_code', 'SMAG1')
+            );
+    }
+
+    public function test_alias_ditolak_bila_berspasi_bertanda_baca_atau_lebih_dari_10_karakter(): void
+    {
+        foreach (['SM-A', 'S M A', 'ABCDEFGHIJK'] as $alias) {
+            $this->actingAs($this->admin)->post('/clients', [
+                'name' => 'Klien Uji',
+                'alias' => $alias,
+                'type' => 'individual',
+                'status' => 'Active',
+            ])->assertSessionHasErrors('alias');
+        }
+
+        $this->assertDatabaseMissing('clients', ['name' => 'Klien Uji']);
     }
 }

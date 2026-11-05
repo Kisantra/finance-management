@@ -61,7 +61,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Buka **Keuangan › Invoice**, lalu klik **Buat Invoice**.',
-                'Pilih **Klien**. **Tanggal invoice** terisi hari ini dan **Jatuh tempo** +14 hari; ubah bila perlu (jatuh tempo tidak boleh sebelum tanggal invoice).',
+                'Pilih **Klien**. **Tanggal invoice** terisi hari ini; **Jatuh tempo** dihitung dari **Termin (hari)** di sampingnya. Ubah termin dan jatuh tempo ikut bergeser, atau pilih tanggalnya langsung (tidak boleh sebelum tanggal invoice). Finance manager & admin bisa menekan **Jadikan N hari bawaan** agar invoice berikutnya memakai termin itu.',
                 'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty**, **Harga satuan**, dan **Satuan**.',
                 'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',

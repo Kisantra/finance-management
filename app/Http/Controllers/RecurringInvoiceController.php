@@ -7,6 +7,7 @@ use App\Http\Requests\StoreTemplateRequest;
 use App\Http\Requests\UpdateMonthlyRequest;
 use App\Http\Requests\UpdateTemplateRequest;
 use App\Models\Client;
+use App\Models\CompanyProfile;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringTemplate;
 use App\Models\Service;
@@ -109,6 +110,8 @@ class RecurringInvoiceController extends Controller
             'clients' => $clients,
             'services' => $services,
             'active_templates' => $activeTemplatesForSelect,
+            // Jatuh tempo bawaan dialog Generate/Publish = tanggal + termin bawaan perusahaan.
+            'defaultDueDays' => CompanyProfile::defaultDueDays(),
         ]);
     }
 

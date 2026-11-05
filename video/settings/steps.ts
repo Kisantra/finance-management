@@ -131,7 +131,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-numbering'),
         focus: S['fm-numbering'].tokens,
         zoom: 1.8,
-        caption: 'Chip token: {NO} nomor urut, {PT} singkatan perusahaan, {KLIEN} inisial klien, bulan, dan tahun.',
+        caption: 'Chip token: {NO} nomor urut, {PT} singkatan perusahaan, {KLIEN} alias atau inisial klien, bulan, dan tahun.',
         duration: 130,
     },
     {

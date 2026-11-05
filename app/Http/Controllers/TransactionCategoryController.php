@@ -202,7 +202,7 @@ class TransactionCategoryController extends Controller
 
         DB::transaction(function () use ($transactionCategory, $reassignTo, $inUse) {
             if ($inUse) {
-                $transactionCategory->transactions()->update(['category_id' => $reassignTo->id]);
+                $transactionCategory->transactions()->update(['category_id' => $reassignTo->id, 'updated_by' => auth()->id()]);
                 $transactionCategory->fundRequestItems()->update(['category_id' => $reassignTo->id]);
                 $transactionCategory->reimbursements()->update(['category_id' => $reassignTo->id]);
             }

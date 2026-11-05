@@ -29,6 +29,7 @@ class CompanyProfile extends Model
         'invoice_number_format',
         'invoice_number_padding',
         'invoice_number_reset',
+        'default_due_days',
     ];
 
     protected $casts = [
@@ -36,6 +37,7 @@ class CompanyProfile extends Model
         'is_pkp' => 'boolean',
         'ppn_rate' => 'decimal:2',
         'invoice_legacy_reviewed_at' => 'datetime',
+        'default_due_days' => 'integer',
     ];
 
     /**
@@ -104,6 +106,12 @@ class CompanyProfile extends Model
         $initials = array_map(fn ($word) => strtoupper(substr($word, 0, 1)), $filtered);
 
         return implode('', $initials) ?: 'CO';
+    }
+
+    /** Termin jatuh tempo bawaan dalam hari (invoice baru & invoice berulang tanpa jatuh tempo). */
+    public static function defaultDueDays(): int
+    {
+        return static::current()?->default_due_days ?? 14;
     }
 
     public static function current(): ?self

@@ -665,6 +665,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             Route::get('/invoice-numbering', [InvoiceSettingsController::class, 'edit'])->name('invoice-numbering');
             Route::put('/invoice-numbering', [InvoiceSettingsController::class, 'update'])->name('invoice-numbering.update');
             Route::post('/invoice-numbering/review', [InvoiceSettingsController::class, 'review'])->name('invoice-numbering.review');
+            Route::put('/invoice-numbering/due-days', [InvoiceSettingsController::class, 'updateDueDays'])->name('invoice-numbering.due-days');
         });
 
         // PDF Template Builder — gated by permission

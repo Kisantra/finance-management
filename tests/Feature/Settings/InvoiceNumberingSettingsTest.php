@@ -106,4 +106,36 @@ class InvoiceNumberingSettingsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('settings/index'));
     }
+
+    public function test_termin_bawaan_disetel_dari_form_invoice_hanya_oleh_pemegang_izin(): void
+    {
+        $this->actingAs($this->staff)->put('/settings/invoice-numbering/due-days', ['days' => 30])->assertForbidden();
+
+        $this->actingAs($this->manager)
+            ->put('/settings/invoice-numbering/due-days', ['days' => 30])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Termin bawaan disimpan: 30 hari.');
+        $this->assertSame(30, CompanyProfile::current()->default_due_days);
+
+        foreach ([-1, 366, 'tiga'] as $salah) {
+            $this->actingAs($this->manager)->put('/settings/invoice-numbering/due-days', ['days' => $salah])->assertSessionHasErrors('days');
+        }
+        $this->assertSame(30, CompanyProfile::current()->default_due_days);
+    }
+
+    public function test_form_invoice_membawa_termin_bawaan_perusahaan(): void
+    {
+        Permission::firstOrCreate(['name' => 'create invoices']);
+        $this->manager->givePermissionTo('create invoices');
+
+        $this->actingAs($this->manager)
+            ->get('/invoices/create')
+            ->assertInertia(fn (Assert $page) => $page->component('invoices/create')->where('defaultDueDays', 14));
+
+        CompanyProfile::current()->update(['default_due_days' => 21]);
+
+        $this->actingAs($this->manager)
+            ->get('/invoices/create')
+            ->assertInertia(fn (Assert $page) => $page->where('defaultDueDays', 21));
+    }
 }

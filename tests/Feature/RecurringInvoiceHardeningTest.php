@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
+use App\Models\CompanyProfile;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringTemplate;
 use App\Models\User;
@@ -229,5 +230,34 @@ class RecurringInvoiceHardeningTest extends TestCase
             (int) $invoice->subtotal,
             'Subtotal invoice harus mencakup semua baris, sama seperti invoice biasa.'
         );
+    }
+
+    public function test_publish_tanpa_jatuh_tempo_memakai_termin_bawaan_perusahaan(): void
+    {
+        CompanyProfile::factory()->create(['default_due_days' => 21]);
+
+        $recurring = RecurringInvoice::create([
+            'template_id' => $this->template()->id,
+            'client_id' => $this->klien->id,
+            'scheduled_date' => '2026-11-10',
+            'issue_date' => '2026-11-10',
+            'due_date' => null,
+            'status' => 'draft',
+            'invoice_data' => [
+                'total_amount' => 1_000_000,
+                'subtotal' => 1_000_000,
+                'items' => [[
+                    'service_name' => 'Jasa',
+                    'quantity' => 1,
+                    'unit' => 'bulan',
+                    'unit_price' => 1_000_000,
+                    'amount' => 1_000_000,
+                    'cogs_amount' => 0,
+                    'is_tax_deposit' => false,
+                ]],
+            ],
+        ]);
+
+        $this->assertSame('2026-12-01', $recurring->publish()->due_date->toDateString(), 'Sebelumnya selalu +30 hari.');
     }
 }

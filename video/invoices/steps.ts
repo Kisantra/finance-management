@@ -38,7 +38,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-create-empty'),
         focus: S['staff-create-empty'].detail,
         zoom: 1.25,
-        caption: 'Tanggal invoice terisi hari ini dan jatuh tempo 14 hari kemudian. Nomor belum ada: nomor resmi diberikan saat invoice terbit.',
+        caption: 'Tanggal invoice terisi hari ini dan jatuh tempo mengikuti termin bawaan (bisa diubah di samping jatuh tempo). Nomor belum ada: nomor resmi diberikan saat invoice terbit.',
         duration: 140,
     },
     {

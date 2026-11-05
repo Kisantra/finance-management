@@ -39,7 +39,7 @@ class InvoiceNumberService
     public const TOKENS = [
         'NO' => 'Nomor urut',
         'PT' => 'Singkatan perusahaan',
-        'KLIEN' => 'Inisial klien',
+        'KLIEN' => 'Alias/inisial klien',
         'BLN_ROMAWI' => 'Bulan romawi',
         'BLN' => 'Bulan 2 digit',
         'THN' => 'Tahun 4 digit',
@@ -248,12 +248,22 @@ class InvoiceNumberService
         return ($name ? $this->initials($name) : '') ?: 'SPI';
     }
 
-    /** Inisial klien (nama perusahaan untuk klien badan usaha); "XXX" bila tidak ditemukan. */
+    /** Kode klien di nomor invoice (lihat clientCode()); "XXX" bila klien tidak ditemukan. */
     public function clientInitials(int $clientId): string
     {
         $client = Client::find($clientId);
-        if (! $client) {
-            return 'XXX';
+
+        return $client ? $this->clientCode($client) : 'XXX';
+    }
+
+    /**
+     * Segmen {KLIEN}: alias klien bila diisi, selain itu inisial nama (nama perusahaan untuk klien
+     * badan usaha); "XXX" bila inisialnya kosong. Tanpa query, jadi aman dipakai per baris daftar.
+     */
+    public function clientCode(Client $client): string
+    {
+        if (filled($client->alias)) {
+            return strtoupper($client->alias);
         }
 
         $name = $client->type === 'company' && $client->company_name ? $client->company_name : $client->name;

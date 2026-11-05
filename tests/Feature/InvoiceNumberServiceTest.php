@@ -48,6 +48,17 @@ class InvoiceNumberServiceTest extends TestCase
         ]);
     }
 
+    public function test_alias_klien_menggantikan_inisial_dan_urutannya_tetap_terbaca(): void
+    {
+        $this->client->update(['alias' => 'SSRX']);
+        $this->sent('005/INV/KSN-SSRX/IX/2026', '2026-09-03');
+
+        $this->assertSame('006/INV/KSN-SSRX/IX/2026', $this->numbers->next(Carbon::parse('2026-09-20'), $this->client->id));
+
+        $this->client->update(['alias' => null]);
+        $this->assertSame('006/INV/KSN-SSR/IX/2026', $this->numbers->next(Carbon::parse('2026-09-20'), $this->client->id), 'Alias kosong kembali ke inisial nama.');
+    }
+
     public function test_default_format_matches_the_company_numbering(): void
     {
         $this->sent('015/INV/KSN-SSR/IX/2026', '2026-09-03');

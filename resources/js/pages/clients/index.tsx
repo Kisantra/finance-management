@@ -41,6 +41,9 @@ import type { SharedProps } from '@/types';
 interface Client {
     id: number;
     name: string;
+    alias: string | null;
+    /** Kode di nomor invoice: alias, atau inisial nama bila alias kosong (InvoiceNumberService::clientCode). */
+    invoice_code: string;
     type: 'individual' | 'company';
     email: string | null;
     NPWP: string | null;
@@ -92,6 +95,7 @@ interface Props extends SharedProps {
 
 const blankForm = {
     name: '',
+    alias: '',
     type: 'individual' as 'individual' | 'company',
     email: '',
     NPWP: '',
@@ -151,6 +155,16 @@ function ClientForm({
                             onChange={(e) => setData('name', e.target.value)}
                             error={errors.name}
                             placeholder="PT. Nama Perusahaan / Nama Individu"
+                        />
+
+                        <Input
+                            label="Alias"
+                            value={data.alias}
+                            onChange={(e) => setData('alias', e.target.value.toUpperCase())}
+                            error={errors.alias}
+                            maxLength={10}
+                            placeholder="Mis. SMA"
+                            hint="Kode klien di nomor invoice, mis. 001/INV/KSN-SMA/I/2026. Huruf dan angka, maks. 10. Kosongkan untuk memakai inisial nama."
                         />
 
                         <div className="space-y-1.5">
@@ -346,6 +360,7 @@ export default function ClientsIndex() {
     function openEdit(client: Client) {
         editForm.setData({
             name: client.name,
+            alias: client.alias ?? '',
             type: client.type,
             email: client.email ?? '',
             NPWP: client.NPWP ?? '',
@@ -499,7 +514,13 @@ export default function ClientsIndex() {
                                             {/* max-w + wrap-break-word: nama tanpa spasi (uji batas 255 karakter)
                                                 melebarkan tabel sampai kolom lain terdorong keluar layar. */}
                                             <td className="px-3 py-3 align-middle max-w-xs">
-                                                <div className="font-medium text-dark-900 dark:text-dark-50 wrap-break-word">{client.name}</div>
+                                                <div className="font-medium text-dark-900 dark:text-dark-50 wrap-break-word">
+                                                    {client.name}
+                                                    <span className="ml-2 rounded bg-secondary-100 px-1.5 py-0.5 align-middle font-mono text-[11px] font-normal text-dark-500 dark:bg-dark-700 dark:text-dark-300">
+                                                        <span className="sr-only">{client.alias ? 'Alias di nomor invoice: ' : 'Inisial di nomor invoice: '}</span>
+                                                        {client.invoice_code}
+                                                    </span>
+                                                </div>
                                                 {client.NPWP && <div className="text-xs text-dark-400 dark:text-dark-500 wrap-break-word">{client.NPWP}</div>}
                                             </td>
                                             <td className="px-3 py-3 align-middle">

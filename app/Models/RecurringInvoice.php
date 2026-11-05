@@ -121,7 +121,7 @@ class RecurringInvoice extends Model
             'ppn_amount' => $ppnAmount,
             'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
             'issue_date' => $this->issue_date ?? $this->scheduled_date,
-            'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(30),
+            'due_date' => $this->due_date ?? ($this->issue_date ?? $this->scheduled_date)->copy()->addDays(CompanyProfile::defaultDueDays()),
             'status' => 'draft',
         ]);
 

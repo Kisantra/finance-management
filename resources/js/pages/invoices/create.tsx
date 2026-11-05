@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
 import { ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
 import * as React from 'react';
@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AppLink } from '@/components/app-link';
+import { useCan } from '@/hooks/use-can';
 import { AppLayout } from '@/layouts/app-layout';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
@@ -72,6 +73,8 @@ interface EditorProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    /** Termin jatuh tempo bawaan perusahaan (hari setelah tanggal invoice). */
+    defaultDueDays: number;
     /** Ada = mode edit. `ppn_rate` = tarif tersimpan bila invoice sudah ber-PPN. */
     invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null };
     initialData?: InvoiceFormData;
@@ -92,8 +95,6 @@ const ZOOM_OPTIONS = [
     { value: 'fit' as const, label: 'Pas lebar' },
     { value: 'actual' as const, label: '100%' },
 ];
-
-const DEFAULT_TERM_DAYS = 14;
 
 function emptyItem(): ItemRow {
     return { client_id: null, service_name: '', quantity: '1', unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
@@ -198,7 +199,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -210,7 +211,7 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
             : initialData) ?? {
             client_id: null,
             issue_date: today,
-            due_date: addDays(today, DEFAULT_TERM_DAYS),
+            due_date: addDays(today, defaultDueDays),
             discount_type: 'fixed',
             discount_value: 0,
             discount_reason: '',
@@ -220,6 +221,8 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
         },
     );
     const { data, setData, errors, processing } = form;
+    const { can } = useCan();
+    const [savingTerm, setSavingTerm] = React.useState(false);
 
     const [multiClient, setMultiClient] = React.useState(initialMulti);
     const [discountOpen, setDiscountOpen] = React.useState((initialData?.discount_value ?? 0) > 0);
@@ -253,6 +256,29 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
     const termDays = data.issue_date && data.due_date
         ? Math.round((toDate(data.due_date)!.getTime() - toDate(data.issue_date)!.getTime()) / 86_400_000)
         : null;
+
+    /* ── termin: jatuh tempo = tanggal invoice + N hari, keduanya saling mengikuti ── */
+    const validTerm = termDays != null && termDays >= 0 && termDays <= 365 ? termDays : null;
+    const setTerm = (days: number) => setData('due_date', addDays(data.issue_date, days));
+    const setIssueDate = (iso: string) =>
+        setData((d) => ({ ...d, issue_date: iso, due_date: addDays(iso, validTerm ?? defaultDueDays) }));
+    const canSetDefaultTerm = !isEdit && can('manage invoice settings') && validTerm !== null && validTerm !== defaultDueDays;
+    const saveDefaultTerm = () => {
+        if (validTerm === null) return;
+        router.put(
+            companyUrl('/settings/invoice-numbering/due-days'),
+            { days: validTerm },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['defaultDueDays'],
+                onStart: () => setSavingTerm(true),
+                onSuccess: () => toast.success(`Termin bawaan disimpan: ${validTerm} hari`),
+                onError: (e) => toastErrors(e),
+                onFinish: () => setSavingTerm(false),
+            },
+        );
+    };
 
     /* ── item ── */
     const updateItem = (idx: number, patch: Partial<ItemRow>) =>
@@ -409,8 +435,9 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
                                     {isDraft && number && <span className="font-sans text-ob-ink-3">perkiraan</span>}
                                 </span>
                             </div>
-                            <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]')}>
+                            <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]')}>
                                 <Combobox
+                                    className="sm:col-span-3"
                                     label="Klien"
                                     options={clientOptions}
                                     value={data.client_id}
@@ -424,19 +451,40 @@ export function InvoiceEditor({ clients, services, ppn, invoice, initialData }: 
                                 <DatePicker
                                     label="Tanggal invoice"
                                     value={toDate(data.issue_date)}
-                                    onChange={(d) => setData('issue_date', d ? format(d, 'yyyy-MM-dd') : '')}
+                                    onChange={(d) => d && setIssueDate(format(d, 'yyyy-MM-dd'))}
                                     clearable={false}
                                     error={errors.issue_date}
                                 />
                                 <DatePicker
-                                    label={termDays != null && termDays >= 0 ? `Jatuh tempo · ${termDays} hari` : 'Jatuh tempo'}
+                                    label="Jatuh tempo"
                                     value={toDate(data.due_date)}
                                     onChange={(d) => setData('due_date', d ? format(d, 'yyyy-MM-dd') : '')}
                                     minDate={toDate(data.issue_date) ?? undefined}
                                     clearable={false}
                                     error={errors.due_date}
                                 />
+                                <Input
+                                    label="Termin (hari)"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    max={365}
+                                    value={validTerm ?? ''}
+                                    onChange={(e) => {
+                                        const days = Number.parseInt(e.target.value, 10);
+                                        if (Number.isInteger(days) && days >= 0 && days <= 365) setTerm(days);
+                                    }}
+                                    aria-describedby={canSetDefaultTerm ? 'inv-term-default' : undefined}
+                                />
                             </div>
+                            {canSetDefaultTerm && (
+                                <p id="inv-term-default" className="-mt-1 flex flex-wrap items-center justify-end gap-x-2 text-[13px] text-ob-ink-2">
+                                    Termin bawaan {defaultDueDays} hari.
+                                    <Button type="button" variant="link" size="sm" onClick={saveDefaultTerm} disabled={savingTerm}>
+                                        Jadikan {validTerm} hari bawaan
+                                    </Button>
+                                </p>
+                            )}
                             <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-ob-ink-2">
                                 <span className="min-w-0 truncate">
                                     {selectedClient
@@ -889,8 +937,8 @@ function PreviewPanel({
 
 /* ─────────────────────────────────── halaman ─── */
 
-function CreateInvoicePage({ clients, services, ppn }: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption }) {
-    return <InvoiceEditor clients={clients} services={services} ppn={ppn} />;
+function CreateInvoicePage({ clients, services, ppn, defaultDueDays }: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; defaultDueDays: number }) {
+    return <InvoiceEditor clients={clients} services={services} ppn={ppn} defaultDueDays={defaultDueDays} />;
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

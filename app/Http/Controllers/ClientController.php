@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
+use App\Services\InvoiceNumberService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,7 +20,7 @@ class ClientController extends Controller
      */
     private const KOLOM_URUT = ['name', 'type', 'email', 'NPWP', 'status', 'created_at'];
 
-    public function index(Request $request): Response
+    public function index(Request $request, InvoiceNumberService $numbers): Response
     {
         $search = $request->input('search');
         $type = $request->input('type');
@@ -41,6 +42,7 @@ class ClientController extends Controller
             // dan klien yang tidak cocok tetap muncul.
             ->when($search, fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
+                ->orWhere('alias', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
                 ->orWhere('NPWP', 'like', "%{$search}%")
             ))
@@ -54,6 +56,9 @@ class ClientController extends Controller
             ->through(fn (Client $client) => [
                 'id' => $client->id,
                 'name' => $client->name,
+                'alias' => $client->alias,
+                // Kode di nomor invoice: alias, atau inisial nama bila alias kosong.
+                'invoice_code' => $numbers->clientCode($client),
                 'type' => $client->type,
                 'email' => $client->email,
                 'NPWP' => $client->NPWP,

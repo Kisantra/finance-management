@@ -31,14 +31,16 @@ interface Props extends SharedProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    defaultDueDays: number;
 }
 
-function EditInvoicePage({ invoice, clients, services, ppn }: Props) {
+function EditInvoicePage({ invoice, clients, services, ppn, defaultDueDays }: Props) {
     return (
         <InvoiceEditor
             clients={clients}
             services={services}
             ppn={ppn}
+            defaultDueDays={defaultDueDays}
             invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate }}
             initialData={{
                 client_id: invoice.client_id,

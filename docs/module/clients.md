@@ -8,6 +8,7 @@
 | Kolom | Tipe/Catatan |
 |---|---|
 | `name` | string, wajib |
+| `alias` | string(10) nullable — kode klien di nomor invoice (segmen `{KLIEN}`). Disimpan huruf besar; hanya huruf/angka (`regex:/^[A-Z0-9]+$/` setelah `prepareForValidation` meng-uppercase & trim) karena pola penomoran membaca ulang nomor lama dengan `[A-Za-z0-9]+?`. **Tidak wajib unik**: nomor invoice tetap unik lewat nomor urutnya. Kosong = inisial nama (`InvoiceNumberService::clientCode()`). |
 | `type` | enum: `individual` \| `company` |
 | `email` | nullable, unique |
 | `NPWP` | string(20) nullable — Nomor Pokok Wajib Pajak; tampil di invoice PDF & detail invoice |
@@ -25,9 +26,9 @@ Catatan relasi: CLAUDE.md menyebut relasi self-referential owners/companies, tet
 
 ### Daftar Klien (Index)
 **Alur step-by-step:**
-1. GET `/clients` (`can:view clients`), query: `search` (name/email/NPWP), `type`, `status`, `per_page` (default 10), `sort` (default `name`), `direction`.
+1. GET `/clients` (`can:view clients`), query: `search` (name/alias/email/NPWP), `type`, `status`, `per_page` (default 10), `sort` (default `name`), `direction`.
 2. `ClientController::index()` memuat klien + `withCount('invoices')` + eager load invoice ringkas untuk menghitung `total_invoice_amount` dan `paid_invoice_amount` per klien.
-3. Stats: total, `Active`, per `type`.
+3. Stats: total, `Active`, per `type`. Tiap baris membawa `alias` dan `invoice_code` = kode yang benar-benar dipakai di nomor invoice (`InvoiceNumberService::clientCode()`, tanpa query per baris); tabel menampilkannya sebagai chip mono di samping nama.
 4. Respons `Inertia::render('clients/index', ...)`; UI: DataTable + StatsCard + tombol tambah/edit/hapus via dialog.
 
 **Penjelasan kode** (`app/Http/Controllers/ClientController.php`):
@@ -41,7 +42,7 @@ Catatan relasi: CLAUDE.md menyebut relasi self-referential owners/companies, tet
 Ringkasan penagihan per klien dihitung in-memory dari relasi yang di-load minimum kolom — inilah sumber kolom "total tagihan" dan "sudah dibayar" di tabel klien.
 
 ### Tambah Klien (Store)
-**Alur:** User klik "Tambah" → dialog form → POST `/clients` (`can:create clients`), validasi `StoreClientRequest` (`type in:individual,company`, `email unique:clients`, `status in:Active,Inactive`, field pajak nullable max 20). Controller menormalkan string kosong menjadi `null` (`array_map(fn ($v) => $v ?: null, $validated)`) sebelum `Client::create()`, lalu redirect back dengan flash `success` ("Klien berhasil ditambahkan.").
+**Alur:** User klik "Tambah" → dialog form → POST `/clients` (`can:create clients`), validasi `StoreClientRequest` (`type in:individual,company`, `email unique:clients`, `status in:Active,Inactive`, field pajak nullable max 20, `alias` huruf/angka maks. 10 dengan pesan khusus di `messages()`). Controller menormalkan string kosong menjadi `null` (`array_map(fn ($v) => $v ?: null, $validated)`) sebelum `Client::create()`, lalu redirect back dengan flash `success` ("Klien berhasil ditambahkan.").
 
 ### Ubah Klien (Update)
 **Alur:** PUT `/clients/{client}` (`can:edit clients`), validasi `UpdateClientRequest` — mewarisi `StoreClientRequest` tetapi meng-override aturan email menjadi `unique:clients,email,{id}` sehingga email milik klien itu sendiri tidak dianggap duplikat. Pola sama dengan store (normalisasi empty→null, `$client->update()`), redirect back.
