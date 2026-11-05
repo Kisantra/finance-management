@@ -76,4 +76,6 @@ OAuth dan izin `use claude` datang lewat `migrate` biasa. PHP produksi wajib pun
 
 - `tests/Feature/Mcp/KoneksiClaudeTest.php`: 401 + `WWW-Authenticate` tanpa token, discovery publik, `daftar-perusahaan` hanya yang berizin, penolakan alat, koneksi & team pulih setelah alat, `readOnlyHint`, halaman persetujuan.
 - `tests/Feature/Mcp/Alat*Test.php`: isi, filter, penolakan izin, dan aturan visibilitas per alat.
+- `tests/Feature/Mcp/PengaturanKoneksiClaudeTest.php`: sambungan aktif per klien, cabut hanya token milik sendiri, 404 untuk klien tanpa token.
+- **Guard izin:** `User::$guard_name = 'web'`. Di `/mcp/keuangan` middleware `auth:api` menjadikan `api` guard bawaan; tanpa properti itu Spatie mencari izin ber-guard `api` dan setiap cek gagal. Alat yang dipanggil langsung (`KeuanganServer::actingAs`) memakai guard `web`, jadi bug ini hanya tertangkap lewat HTTP + `Passport::actingAs` (`test_lewat_http_dengan_token_passport_izin_tetap_terbaca`) atau uji ujung ke ujung. Ditemukan 5 Nov 2026 saat uji ujung ke ujung di server QA.
 - Uji manual: `php artisan mcp:inspector mcp/keuangan` (butuh token Bearer) atau hubungkan Claude ke server QA.

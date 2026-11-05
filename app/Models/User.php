@@ -18,6 +18,15 @@ class User extends Authenticatable implements OAuthenticatable
 {
     use CentralConnection, HasApiTokens, HasFactory, HasRoles, Notifiable;
 
+    /**
+     * Semua role & permission ber-guard `web`. Tanpa ini Spatie mengikuti guard aktif:
+     * di /mcp/keuangan middleware auth:api menjadikan `api` bawaan, Spatie mencari izin
+     * ber-guard `api`, dan setiap cek izin koneksi Claude bernilai false.
+     *
+     * @var string
+     */
+    protected $guard_name = 'web';
+
     protected $fillable = [
         'name',
         'email',

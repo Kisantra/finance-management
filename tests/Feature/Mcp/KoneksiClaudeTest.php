@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Laravel\Passport\Client;
+use Laravel\Passport\Passport;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -87,6 +88,32 @@ class KoneksiClaudeTest extends TestCase
 
         $this->assertFalse(tenancy()->initialized, 'Koneksi harus kembali ke database pusat setelah alat selesai.');
         $this->assertSame(self::TEST_COMPANY, getPermissionsTeamId(), 'Team izin harus dipulihkan.');
+    }
+
+    /**
+     * Jalur sungguhan: HTTP + token Passport (guard `api`). Middleware auth:api menjadikan
+     * `api` guard bawaan, dan Spatie mencari izin di guard itu, padahal semua izin aplikasi
+     * ber-guard `web`, sehingga setiap cek bernilai false. Pemanggilan alat langsung
+     * (KeuanganServer::actingAs) memakai guard `web` dan tidak menangkap ini.
+     */
+    public function test_lewat_http_dengan_token_passport_izin_tetap_terbaca(): void
+    {
+        Passport::actingAs($this->admin, ['mcp:use']);
+        $header = ['Accept' => 'application/json, text/event-stream'];
+
+        $init = $this->postJson('/mcp/keuangan', [
+            'jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize',
+            'params' => ['protocolVersion' => '2025-06-18', 'capabilities' => (object) [], 'clientInfo' => ['name' => 'uji', 'version' => '1']],
+        ], $header)->assertOk();
+
+        $sesi = $init->headers->get('MCP-Session-Id');
+
+        $this->postJson('/mcp/keuangan', [
+            'jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call',
+            'params' => ['name' => 'daftar-perusahaan', 'arguments' => (object) []],
+        ], array_filter([...$header, 'MCP-Session-Id' => $sesi]))
+            ->assertOk()
+            ->assertSee(self::TEST_COMPANY);
     }
 
     public function test_setiap_alat_data_mengumumkan_diri_hanya_membaca(): void
