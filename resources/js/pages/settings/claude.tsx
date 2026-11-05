@@ -31,7 +31,7 @@ interface Connection {
 
 interface Props {
     connectorUrl: string;
-    companies: { kode: string; nama: string }[];
+    readableCompanies: { kode: string; nama: string }[];
     connections: Connection[];
     canUse: boolean;
 }
@@ -147,7 +147,7 @@ function SambunganItem({ connection, onCabut }: { connection: Connection; onCabu
     );
 }
 
-export default function KoneksiClaude({ connectorUrl, companies, connections, canUse }: Props) {
+export default function KoneksiClaude({ connectorUrl, readableCompanies, connections, canUse }: Props) {
     const { company } = usePage<SharedProps>().props;
     const [target, setTarget] = React.useState<Connection | null>(null);
     const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -171,7 +171,7 @@ export default function KoneksiClaude({ connectorUrl, companies, connections, ca
         });
     };
 
-    const adaPerusahaan = companies.length > 0;
+    const adaPerusahaan = readableCompanies.length > 0;
 
     return (
         <>
@@ -274,7 +274,7 @@ export default function KoneksiClaude({ connectorUrl, companies, connections, ca
                             <CardContent>
                                 {adaPerusahaan ? (
                                     <ul className="flex flex-col gap-2.5">
-                                        {companies.map((item) => (
+                                        {readableCompanies.map((item) => (
                                             <li key={item.kode} className="flex items-center gap-2.5 text-sm text-ob-ink">
                                                 <Building2 aria-hidden="true" className="h-4 w-4 shrink-0 text-ob-ink-3" />
                                                 <span className="min-w-0 truncate">{item.nama}</span>

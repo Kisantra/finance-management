@@ -30,7 +30,7 @@ class PersetujuanClaude
             'clientName' => $client->name,
             'redirectHost' => parse_url((string) $request->query('redirect_uri', ''), PHP_URL_HOST) ?: null,
             'userName' => $user?->name,
-            'companies' => $perusahaan->map(fn (Company $company) => ['kode' => $company->getKey(), 'nama' => $company->name])->values(),
+            'readableCompanies' => $perusahaan->map(fn (Company $company) => ['kode' => $company->getKey(), 'nama' => $company->name])->values(),
             'form' => [
                 'state' => (string) $request->query('state', ''),
                 'client_id' => (string) $client->getKey(),

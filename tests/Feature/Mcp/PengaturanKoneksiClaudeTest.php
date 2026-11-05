@@ -72,9 +72,9 @@ class PengaturanKoneksiClaudeTest extends TestCase
                 ->component('settings/claude')
                 ->where('connectorUrl', url('/mcp/keuangan'))
                 ->where('canUse', true)
-                ->has('companies', 1)
-                ->where('companies.0.kode', self::TEST_COMPANY)
-                ->where('companies.0.nama', 'Test Company')
+                ->has('readableCompanies', 1)
+                ->where('readableCompanies.0.kode', self::TEST_COMPANY)
+                ->where('readableCompanies.0.nama', 'Test Company')
                 ->has('connections', 2)
                 ->where('connections.0.id', $desktop->getKey())
                 ->where('connections.0.name', 'Claude Desktop')
@@ -139,7 +139,7 @@ class PengaturanKoneksiClaudeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('canUse', false)
-                ->has('companies', 0)
+                ->has('readableCompanies', 0)
                 ->has('connections', 1)
                 ->where('connections.0.id', $claude->getKey())
             );

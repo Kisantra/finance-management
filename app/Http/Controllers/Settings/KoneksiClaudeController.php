@@ -34,7 +34,7 @@ class KoneksiClaudeController extends Controller
 
         return Inertia::render('settings/claude', [
             'connectorUrl' => url('/mcp/keuangan'),
-            'companies' => $perusahaan->map(fn (Company $company) => ['kode' => $company->getKey(), 'nama' => $company->name])->values(),
+            'readableCompanies' => $perusahaan->map(fn (Company $company) => ['kode' => $company->getKey(), 'nama' => $company->name])->values(),
             'connections' => $this->sambunganAktif($user),
             'canUse' => $perusahaan->contains(fn (Company $company) => $company->getKey() === tenant()?->getTenantKey()),
         ]);

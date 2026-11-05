@@ -152,7 +152,7 @@ class KoneksiClaudeTest extends TestCase
                 ->where('clientName', 'Claude')
                 ->where('redirectHost', 'claude.ai')
                 ->where('form.state', 'abc123')
-                ->where('companies.0.kode', self::TEST_COMPANY)
+                ->where('readableCompanies.0.kode', self::TEST_COMPANY)
             );
     }
 }

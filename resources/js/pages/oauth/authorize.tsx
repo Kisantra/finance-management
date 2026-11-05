@@ -8,7 +8,7 @@ interface Props {
     clientName: string;
     redirectHost: string | null;
     userName: string | null;
-    companies: { kode: string; nama: string }[];
+    readableCompanies: { kode: string; nama: string }[];
     form: { state: string; client_id: string; auth_token: string };
     approveUrl: string;
     denyUrl: string;
@@ -29,9 +29,9 @@ const PERHATIKAN = [
  * Persetujuan OAuth saat Claude meminta akses (Passport GET /oauth/authorize).
  * Form HTML biasa, bukan Inertia: Passport menjawab dengan redirect ke domain Claude.
  */
-export default function OAuthAuthorize({ clientName, redirectHost, userName, companies, form, approveUrl, denyUrl }: Props) {
+export default function OAuthAuthorize({ clientName, redirectHost, userName, readableCompanies, form, approveUrl, denyUrl }: Props) {
     const csrf = getCsrfToken();
-    const allowed = companies.length > 0;
+    const allowed = readableCompanies.length > 0;
 
     const hidden = (
         <>
@@ -67,7 +67,7 @@ export default function OAuthAuthorize({ clientName, redirectHost, userName, com
                         </h2>
                         {allowed ? (
                             <ul className="mt-3 flex flex-col gap-2">
-                                {companies.map((company) => (
+                                {readableCompanies.map((company) => (
                                     <li key={company.kode} className="flex items-center gap-2.5 text-sm">
                                         <Building2 aria-hidden="true" className="h-4 w-4 shrink-0 text-ob-ink-3" />
                                         <span className="min-w-0 truncate">{company.nama}</span>
