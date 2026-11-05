@@ -5,6 +5,10 @@ Desktop, Claude di ponsel). Claude memanggil **alat** di aplikasi ini lewat Mode
 (MCP); semua alat **hanya membaca**. Login memakai OAuth (Laravel Passport): Claude mengarahkan
 pengguna ke halaman login aplikasi, pengguna menyetujui, Claude menerima token.
 
+**Panduan pengguna** (cara menghubungkan, contoh pertanyaan, referensi tiap alat dalam bahasa
+non-teknis): [`docs/guides/KONEKSI-CLAUDE.md`](../guides/KONEKSI-CLAUDE.md). Perubahan alat
+(argumen, isi jawaban, aturan) WAJIB ikut memperbarui panduan itu.
+
 ## Komponen
 
 | Bagian | Berkas | Isi |
