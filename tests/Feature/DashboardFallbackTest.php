@@ -52,6 +52,18 @@ class DashboardFallbackTest extends TestCase
             ->assertRedirectContains('/cash-flow/expenses');
     }
 
+    public function test_hanya_punya_view_fund_requests_mendarat_di_pengajuan_dana(): void
+    {
+        // Daftar pendaratan pernah memakai nama izin 'view fund-requests' (bertanda hubung),
+        // padahal izinnya 'view fund requests', sehingga modul ini tidak pernah terpilih.
+        Permission::findOrCreate('view fund requests', 'web');
+        $user = $this->userWithPermissions(['view fund requests']);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertRedirectContains('/fund-requests');
+    }
+
     public function test_tanpa_view_expense_tetap_mendarat_di_modul_lain_yang_boleh_dibuka(): void
     {
         $user = $this->userWithPermissions(['view feedbacks', 'create feedbacks']);

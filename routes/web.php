@@ -470,10 +470,14 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             'user_id' => $request->query('user_id') ? (int) $request->query('user_id') : null,
             'search' => $request->query('search'),
         ];
+        // Sama dengan FundRequestController::index(): tanpa izin menyetujui, hanya pengajuan
+        // sendiri. Tanpa ini staf (punya `view fund requests`) mengekspor milik semua orang.
+        if (! $request->user()->can('approve fund requests')) {
+            $filters['user_id'] = $request->user()->id;
+        }
         $showRequestor = (bool) $request->query('show_requestor', false);
 
-        $service = new FundRequestExportService;
-        $pdf = $service->generate($filters, $showRequestor);
+        $pdf = app(FundRequestExportService::class)->generate($filters, $showRequestor);
 
         $month = $filters['month'] ?? 'all';
         $filename = 'Rekap-Pengajuan-Dana-'.$month.'.pdf';
@@ -494,10 +498,13 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             'user_id' => $request->query('user_id') ? (int) $request->query('user_id') : null,
             'search' => $request->query('search'),
         ];
+        // Aturan visibilitas yang sama dengan rute unduh di atas.
+        if (! $request->user()->can('approve fund requests')) {
+            $filters['user_id'] = $request->user()->id;
+        }
         $showRequestor = (bool) $request->query('show_requestor', false);
 
-        $service = new FundRequestExportService;
-        $pdf = $service->generate($filters, $showRequestor);
+        $pdf = app(FundRequestExportService::class)->generate($filters, $showRequestor);
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',

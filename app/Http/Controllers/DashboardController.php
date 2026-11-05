@@ -89,7 +89,7 @@ class DashboardController extends Controller
         ['view services', 'services'],
         ['view bank-accounts', 'bank-accounts.index'],
         ['view reimbursements', 'reimbursements.index'],
-        ['view fund-requests', 'fund-requests.index'],
+        ['view fund requests', 'fund-requests.index'],
         ['view receivables', 'receivables.index'],
         ['view loans', 'loans.index'],
         ['view profit-loss', 'reports.profit-loss'],
