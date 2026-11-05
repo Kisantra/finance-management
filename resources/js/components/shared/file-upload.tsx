@@ -142,60 +142,47 @@ export function FileUpload({
 
     const showExisting = !value && !!existingFileName;
 
+    const fileRow = 'flex items-center gap-2.5 rounded-xl border border-ob-line bg-ob-inner px-3 py-2.5';
+    const fileLink =
+        'flex-1 truncate rounded-lg text-left text-sm text-ob-act underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
+    const removeBtn =
+        'shrink-0 rounded-full p-0.5 text-ob-ink-3 transition-colors duration-150 ease-out hover:bg-ob-late/10 hover:text-ob-late focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none';
+
     return (
         <div ref={containerRef} className={cn('w-full', className)}>
-            {label && (
-                <label className="mb-1.5 block text-sm font-medium text-dark-900 dark:text-dark-300">
-                    {label}
-                </label>
-            )}
+            {label && <label className="mb-1.5 block text-[13px] font-medium text-ob-ink-2">{label}</label>}
 
             {showExisting ? (
                 /* Existing file chip */
-                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800">
-                    <Paperclip className="w-4 h-4 shrink-0 text-dark-400 dark:text-dark-500" />
+                <div className={fileRow}>
+                    <Paperclip className="h-4 w-4 shrink-0 text-ob-ink-3" />
                     {existingFileUrl ? (
-                        <button
-                            type="button"
-                            onClick={() => openPreview(existingFileUrl, existingFileName!)}
-                            className="text-sm truncate text-primary-600 dark:text-primary-400 hover:underline flex-1 text-left"
-                        >
+                        <button type="button" onClick={() => openPreview(existingFileUrl, existingFileName!)} className={fileLink}>
                             {existingFileName}
                         </button>
                     ) : (
-                        <span className="text-sm truncate text-dark-700 dark:text-dark-300 flex-1">
-                            {existingFileName}
-                        </span>
+                        <span className="flex-1 truncate text-sm text-ob-ink">{existingFileName}</span>
                     )}
                     {onRemoveExisting && (
-                        <button
-                            type="button"
-                            onClick={onRemoveExisting}
-                            className="shrink-0 p-0.5 rounded text-dark-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                            aria-label="Hapus lampiran"
-                        >
-                            <X className="w-3.5 h-3.5" />
+                        <button type="button" onClick={onRemoveExisting} className={removeBtn} aria-label="Hapus lampiran">
+                            <X className="h-3.5 w-3.5" />
                         </button>
                     )}
                 </div>
             ) : value ? (
                 /* Newly-selected file chip */
-                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20">
-                    <Paperclip className="w-4 h-4 shrink-0 text-primary-600 dark:text-primary-400" />
-                    <button
-                        type="button"
-                        onClick={() => openPreview(URL.createObjectURL(value), value.name, true)}
-                        className="text-sm truncate text-primary-700 dark:text-primary-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline flex-1 text-left"
-                    >
+                <div className={fileRow}>
+                    <Paperclip className="h-4 w-4 shrink-0 text-ob-ink-3" />
+                    <button type="button" onClick={() => openPreview(URL.createObjectURL(value), value.name, true)} className={fileLink}>
                         {value.name}
                     </button>
                     <button
                         type="button"
                         onClick={() => { setSizeError(null); onChange?.(null); }}
-                        className="shrink-0 p-0.5 rounded text-primary-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        className={removeBtn}
                         aria-label="Hapus pilihan"
                     >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="h-3.5 w-3.5" />
                     </button>
                 </div>
             ) : (
@@ -205,54 +192,52 @@ export function FileUpload({
                     onMouseEnter={() => supportsImagePaste && setPasteHint(true)}
                     onMouseLeave={() => setPasteHint(false)}
                     className={cn(
-                        'relative flex flex-col items-center justify-center gap-2 px-4 py-5 rounded-xl border-2 border-dashed transition-colors',
+                        'relative flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-5',
+                        'transition-colors duration-150 ease-out motion-reduce:transition-none',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page',
                         isDragActive
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                            ? 'border-ob-act-fill bg-ob-act-fill/10'
                             : displayError
-                                ? 'border-red-400 dark:border-red-700 bg-red-50/50 dark:bg-red-900/10'
-                                : 'border-secondary-300 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800 hover:border-primary-400 dark:hover:border-primary-700 hover:bg-primary-50/50 dark:hover:bg-primary-900/10',
-                        disabled && 'opacity-50 cursor-not-allowed',
+                                ? 'border-ob-late bg-ob-inner hover:bg-ob-hover'
+                                : 'border-ob-line-strong bg-ob-inner hover:bg-ob-hover',
+                        disabled && 'pointer-events-none opacity-50',
                     )}
                 >
                     <input {...getInputProps()} />
 
                     <Upload className={cn(
-                        'w-5 h-5 transition-colors',
-                        isDragActive ? 'text-primary-600 dark:text-primary-400' : 'text-dark-400 dark:text-dark-500',
+                        'h-5 w-5 transition-colors duration-150 ease-out motion-reduce:transition-none',
+                        isDragActive ? 'text-ob-act' : 'text-ob-ink-3',
                     )} />
 
                     <div className="text-center">
-                        <p className="text-sm text-dark-600 dark:text-dark-400">
+                        <p className="text-sm text-ob-ink-2">
                             {isDragActive
                                 ? 'Lepaskan file di sini...'
                                 : (
                                     <>
-                                        <span className="text-primary-600 dark:text-primary-400 font-medium">Klik untuk memilih</span>
+                                        <span className="font-medium text-ob-act">Klik untuk memilih</span>
                                         {' '}atau drag & drop
                                     </>
                                 )}
                         </p>
-                        <p className="text-xs text-dark-400 dark:text-dark-500 mt-0.5">
+                        <p className="mt-0.5 text-xs text-ob-ink-3">
                             {acceptedFormats} · maks {maxSizeMb}MB
                         </p>
                     </div>
 
                     {/* Paste hint — appears on hover when images are accepted */}
                     {supportsImagePaste && pasteHint && !isDragActive && (
-                        <div className="absolute bottom-2 right-2 flex items-center gap-1 text-xs text-dark-400 dark:text-dark-500 bg-white dark:bg-dark-700 border border-secondary-200 dark:border-dark-600 rounded-lg px-2 py-1 shadow-sm pointer-events-none">
-                            <ClipboardPaste className="w-3 h-3" />
+                        <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-ob-line bg-ob-card px-2.5 py-1 text-xs text-ob-ink-2">
+                            <ClipboardPaste className="h-3 w-3" />
                             Ctrl+V untuk paste gambar
                         </div>
                     )}
                 </div>
             )}
 
-            {displayError && (
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{displayError}</p>
-            )}
-            {hint && !displayError && (
-                <p className="mt-1 text-xs text-dark-500 dark:text-dark-400">{hint}</p>
-            )}
+            {displayError && <p className="mt-1 text-xs text-ob-late">{displayError}</p>}
+            {hint && !displayError && <p className="mt-1 text-xs text-ob-ink-3">{hint}</p>}
 
             {/* File preview dialog */}
             {previewData && (

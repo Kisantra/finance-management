@@ -291,7 +291,7 @@ export default function PdfTemplatesIndex() {
                     <DialogHeader>
                         <DialogTitle>Template Baru</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-2">
+                    <div className="space-y-4 px-6 py-2">
                         <Input
                             label="Nama Template *"
                             value={createName}
@@ -336,7 +336,7 @@ export default function PdfTemplatesIndex() {
                     <DialogHeader>
                         <DialogTitle>Ubah Nama Template</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-2">
+                    <div className="space-y-4 px-6 py-2">
                         <Input
                             label="Nama Template *"
                             value={renameName}

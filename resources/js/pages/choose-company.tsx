@@ -26,7 +26,7 @@ export default function ChooseCompany({ memberships: companies }: Props) {
                         </p>
                     </div>
 
-                    <Card>
+                    <Card className="overflow-hidden">
                         <CardContent className="divide-y divide-secondary-200 p-0 dark:divide-dark-500">
                             {companies.map((company) => (
                                 <a

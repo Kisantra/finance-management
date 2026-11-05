@@ -3,6 +3,12 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/*
+ * Gaya Obsidian: panel menempel di kanan layar dengan sudut dalam rounded-l-3xl, latar hitam 60%.
+ * Seperti Dialog, panel tanpa padding: SheetHeader / SheetBody / SheetFooter membawa tepi 24 px.
+ * Garis header/footer dipertahankan karena keduanya diam di atas isi yang menggulir.
+ */
+
 const Sheet = DialogPrimitive.Root;
 const SheetTrigger = DialogPrimitive.Trigger;
 const SheetClose = DialogPrimitive.Close;
@@ -24,9 +30,9 @@ const SheetOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            'fixed inset-0 z-50 bg-black/40 backdrop-blur-sm',
-            'data-[state=open]:animate-dialog-overlay-show',
-            'data-[state=closed]:animate-dialog-overlay-hide',
+            'fixed inset-0 z-50 bg-black/60',
+            'motion-safe:data-[state=open]:animate-dialog-overlay-show',
+            'motion-safe:data-[state=closed]:animate-dialog-overlay-hide',
             className,
         )}
         {...props}
@@ -54,12 +60,11 @@ const SheetContent = React.forwardRef<
             className={cn(
                 'fixed right-0 top-0 z-50 h-full',
                 widthClasses[size],
-                'bg-white dark:bg-dark-700',
-                'border-l border-secondary-200 dark:border-dark-600',
-                'shadow-2xl',
+                'rounded-l-3xl border-l border-ob-line bg-ob-card text-ob-ink',
+                'shadow-xl shadow-black/20',
                 'flex flex-col',
-                'data-[state=open]:animate-sheet-slide-in',
-                'data-[state=closed]:animate-sheet-slide-out',
+                'motion-safe:data-[state=open]:animate-[sheet-slide-in_220ms_cubic-bezier(0.32,0.72,0,1)_forwards]',
+                'motion-safe:data-[state=closed]:animate-sheet-slide-out',
                 'focus:outline-none',
                 className,
             )}
@@ -67,9 +72,9 @@ const SheetContent = React.forwardRef<
         >
             {children}
             {!hideClose && (
-                <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:pointer-events-none dark:ring-offset-dark-700">
-                    <X className="h-4 w-4 text-dark-600 dark:text-dark-400" />
-                    <span className="sr-only">Close</span>
+                <DialogPrimitive.Close className="absolute right-6 top-6 inline-flex h-8 w-8 items-center justify-center rounded-full border border-ob-line bg-ob-card text-ob-ink transition-colors duration-150 ease-out hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page disabled:pointer-events-none disabled:opacity-50">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Tutup</span>
                 </DialogPrimitive.Close>
             )}
         </DialogPrimitive.Content>
@@ -77,10 +82,11 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = 'SheetContent';
 
+/** pr-16 memberi ruang untuk pil tutup (right-6, 32 px). */
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
     <div
         className={cn(
-            'flex flex-col space-y-1 px-6 py-4 border-b border-secondary-200 dark:border-dark-600 shrink-0',
+            'flex shrink-0 flex-col space-y-1 border-b border-ob-line pb-4 pl-6 pr-16 pt-6',
             className,
         )}
         {...props}
@@ -99,7 +105,7 @@ SheetBody.displayName = 'SheetBody';
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
     <div
         className={cn(
-            'flex items-center justify-end gap-3 px-6 py-4 border-t border-secondary-200 dark:border-dark-600 shrink-0',
+            'flex shrink-0 items-center justify-end gap-2 border-t border-ob-line px-6 pb-6 pt-4',
             className,
         )}
         {...props}
@@ -113,7 +119,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DialogPrimitive.Title
         ref={ref}
-        className={cn('text-base font-semibold text-dark-900 dark:text-dark-50 pr-6', className)}
+        className={cn('pr-6 text-lg font-semibold text-ob-ink', className)}
         {...props}
     />
 ));
@@ -125,7 +131,7 @@ const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DialogPrimitive.Description
         ref={ref}
-        className={cn('text-xs text-dark-500 dark:text-dark-400 mt-0.5', className)}
+        className={cn('mt-0.5 text-sm text-ob-ink-2', className)}
         {...props}
     />
 ));

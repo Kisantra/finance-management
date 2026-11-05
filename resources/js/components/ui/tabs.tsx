@@ -98,10 +98,10 @@ function Badge({ active, children, variant }: { active: boolean; children: React
     return (
         <span
             className={cn(
-                'ml-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold leading-tight transition-colors duration-200',
-                active
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                    : 'bg-zinc-200/70 text-dark-500 dark:bg-dark-600 dark:text-dark-400',
+                'ml-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1.5 text-xs font-semibold leading-tight transition-colors duration-200 ease-out',
+                !active && 'bg-ob-chip text-ob-ink-2',
+                // Pil aktif duduk di atas thumb terbalik; garis bawah aktif tetap di atas latar biasa.
+                active && (variant === 'pill' ? 'bg-ob-invert-ink/15 text-ob-invert-ink' : 'bg-ob-chip text-ob-ink'),
                 variant === 'pill' && 'py-px',
             )}
         >
@@ -123,16 +123,13 @@ function Tabs({ items, value, onChange, className, variant = 'pill', fullWidth =
         return (
             <div
                 ref={containerRef}
-                className={cn(
-                    'relative flex items-center border-b border-secondary-200 dark:border-dark-600',
-                    className,
-                )}
+                className={cn('relative flex items-center border-b border-ob-line', className)}
             >
                 {/* sliding underline (liquid stretch) */}
                 <span
                     aria-hidden
                     className={cn(
-                        '-bottom-px absolute h-0.5 rounded-full bg-primary-600 dark:bg-primary-400',
+                        '-bottom-px absolute h-0.5 rounded-full bg-ob-ink motion-reduce:transition-none!',
                         indicator.ready ? 'opacity-100' : 'opacity-0',
                     )}
                     style={{
@@ -150,10 +147,8 @@ function Tabs({ items, value, onChange, className, variant = 'pill', fullWidth =
                             type="button"
                             onClick={() => onChange(item.value)}
                             className={cn(
-                                'relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors duration-150',
-                                active
-                                    ? 'text-primary-700 dark:text-primary-400'
-                                    : 'text-dark-500 dark:text-dark-400 hover:text-dark-800 dark:hover:text-dark-200',
+                                'relative flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
+                                active ? 'text-ob-ink' : 'text-ob-ink-2 hover:text-ob-ink',
                             )}
                         >
                             {item.icon && <span className="h-4 w-4 shrink-0">{item.icon}</span>}
@@ -171,7 +166,9 @@ function Tabs({ items, value, onChange, className, variant = 'pill', fullWidth =
         <div
             ref={containerRef}
             className={cn(
-                'relative items-center gap-1 rounded-xl bg-zinc-100 p-1 ring-1 ring-inset ring-zinc-200 dark:bg-dark-700 dark:ring-dark-600',
+                // ring-inset (bukan border) menjaga offsetLeft tombol & indikator sejajar; tampilannya
+                // sama dengan trek pil Obsidian `border border-ob-line bg-ob-rail p-[3px]`.
+                'relative items-center gap-1 rounded-full bg-ob-rail p-1 ring-1 ring-inset ring-ob-line',
                 fullWidth ? 'flex w-full' : 'inline-flex',
                 className,
             )}
@@ -180,7 +177,7 @@ function Tabs({ items, value, onChange, className, variant = 'pill', fullWidth =
             <span
                 aria-hidden
                 className={cn(
-                    'absolute top-1 bottom-1 rounded-lg bg-white shadow-sm ring-1 ring-zinc-200/80 dark:bg-dark-900 dark:ring-dark-500',
+                    'absolute top-1 bottom-1 rounded-full bg-ob-invert motion-reduce:transition-none!',
                     indicator.ready ? 'opacity-100' : 'opacity-0',
                 )}
                 style={{
@@ -198,11 +195,9 @@ function Tabs({ items, value, onChange, className, variant = 'pill', fullWidth =
                         type="button"
                         onClick={() => onChange(item.value)}
                         className={cn(
-                            'relative z-10 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200',
+                            'relative z-10 flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
                             fullWidth && 'flex-1 justify-center',
-                            active
-                                ? 'text-dark-900 dark:text-dark-50'
-                                : 'text-dark-500 dark:text-dark-400 hover:text-dark-800 dark:hover:text-dark-200',
+                            active ? 'text-ob-invert-ink' : 'text-ob-ink-2 hover:text-ob-ink',
                         )}
                     >
                         {item.icon && <span className="h-4 w-4 shrink-0">{item.icon}</span>}
@@ -225,12 +220,7 @@ interface TabsPanelProps {
 function TabsPanel({ value, activeValue, children, className }: TabsPanelProps) {
     if (value !== activeValue) return null;
     return (
-        <div
-            className={cn(
-                'animate-in fade-in-0 slide-in-from-bottom-1 duration-150',
-                className,
-            )}
-        >
+        <div className={cn('ob-fade-in', className)}>
             {children}
         </div>
     );

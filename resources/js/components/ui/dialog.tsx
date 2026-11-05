@@ -3,6 +3,13 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+/*
+ * Gaya Obsidian: panel kartu rounded-3xl di atas latar hitam 60%, tombol tutup berupa pil ikon.
+ * Panel sengaja tanpa padding: tepi 24 px dibawa DialogHeader (pt-6), isi (px-6) dan
+ * DialogFooter (pb-6), karena banyak dialog menyusun header–isi–footer sendiri. Dialog yang
+ * tidak memakai header/footer bawaan cukup menambahkan className="p-6".
+ */
+
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
@@ -26,9 +33,9 @@ const DialogOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            'fixed inset-0 z-50 bg-black/40 backdrop-blur-sm',
-            'data-[state=open]:animate-dialog-overlay-show',
-            'data-[state=closed]:animate-dialog-overlay-hide',
+            'fixed inset-0 z-50 bg-black/60',
+            'motion-safe:data-[state=open]:animate-dialog-overlay-show',
+            'motion-safe:data-[state=closed]:animate-dialog-overlay-hide',
             className,
         )}
         {...props}
@@ -59,21 +66,20 @@ const DialogContent = React.forwardRef<
                 'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
                 'w-full',
                 sizeClasses[size],
-                'bg-white dark:bg-dark-700',
-                'rounded-xl border border-secondary-200 dark:border-dark-600',
-                'shadow-xl',
-                'max-h-[90vh] overflow-y-auto',
-                'data-[state=open]:animate-dialog-content-show',
-                'data-[state=closed]:animate-dialog-content-hide',
+                'rounded-3xl border border-ob-line bg-ob-card text-ob-ink',
+                'shadow-xl shadow-black/20',
+                'max-h-[90vh] overflow-y-auto focus:outline-none',
+                'motion-safe:data-[state=open]:animate-dialog-content-show',
+                'motion-safe:data-[state=closed]:animate-dialog-content-hide',
                 className,
             )}
             {...props}
         >
             {children}
             {!hideClose && (
-                <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1 opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:pointer-events-none dark:ring-offset-dark-700">
-                    <X className="h-4 w-4 text-dark-600 dark:text-dark-400" />
-                    <span className="sr-only">Close</span>
+                <DialogPrimitive.Close className="absolute right-6 top-6 inline-flex h-8 w-8 items-center justify-center rounded-full border border-ob-line bg-ob-card text-ob-ink transition-colors duration-150 ease-out hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page disabled:pointer-events-none disabled:opacity-50">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Tutup</span>
                 </DialogPrimitive.Close>
             )}
         </DialogPrimitive.Content>
@@ -81,10 +87,11 @@ const DialogContent = React.forwardRef<
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
+/** pr-16 memberi ruang untuk pil tutup (right-6, 32 px). */
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
     <div
         className={cn(
-            'flex flex-col space-y-1.5 px-6 py-4 border-b border-secondary-200 dark:border-dark-600',
+            'flex flex-col space-y-1.5 border-b border-ob-line pb-4 pl-6 pr-16 pt-6',
             className,
         )}
         {...props}
@@ -95,7 +102,7 @@ DialogHeader.displayName = 'DialogHeader';
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
     <div
         className={cn(
-            'flex flex-col-reverse sm:flex-row sm:justify-end gap-3 px-6 py-4 border-t border-secondary-200 dark:border-dark-600',
+            'flex flex-col-reverse gap-2 border-t border-ob-line px-6 pb-6 pt-4 sm:flex-row sm:justify-end',
             className,
         )}
         {...props}
@@ -109,7 +116,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DialogPrimitive.Title
         ref={ref}
-        className={cn('text-lg font-semibold text-dark-900 dark:text-dark-50', className)}
+        className={cn('text-lg font-semibold text-ob-ink', className)}
         {...props}
     />
 ));
@@ -121,7 +128,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DialogPrimitive.Description
         ref={ref}
-        className={cn('text-sm text-dark-600 dark:text-dark-400', className)}
+        className={cn('text-sm leading-relaxed text-ob-ink-2', className)}
         {...props}
     />
 ));

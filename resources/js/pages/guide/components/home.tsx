@@ -177,6 +177,7 @@ function Contents() {
 
                 {groups.length === 0 ? (
                     <EmptyState
+                        className="mt-12"
                         title="Tidak ada modul yang cocok"
                         description={`Tidak ada modul atau tugas yang mengandung “${query.trim()}”. Coba kata lain, mis. “transfer” atau “invoice”.`}
                         action={

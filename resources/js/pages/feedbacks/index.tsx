@@ -335,7 +335,7 @@ function FeedbackFormDialog({
                         )}
                     </div>
 
-                    <DialogFooter className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
+                    <DialogFooter className="px-6 py-4">
                         <Button type="button" variant="zinc" onClick={() => onOpenChange(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
                             Batal
                         </Button>
@@ -437,7 +437,7 @@ function RespondDialog({
                         </div>
                     </div>
 
-                    <DialogFooter className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
+                    <DialogFooter className="px-6 py-4">
                         <Button type="button" variant="zinc" onClick={() => onOpenChange(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
                             Batal
                         </Button>
@@ -574,7 +574,7 @@ function ShowFeedbackDialog({
                     )}
                 </div>
 
-                <DialogFooter className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
+                <DialogFooter className="px-6 py-4">
                     <div className="flex flex-wrap items-center justify-end gap-2 w-full">
                         {canManage && feedback.status !== 'closed' && (
                             <DropdownMenu>

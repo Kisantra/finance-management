@@ -10,8 +10,8 @@ export interface ColorInputProps {
 }
 
 /**
- * ColorInput — swatch + hex text field for Archipelago design system.
- * Tokens: dark-800 bg, dark-600 ring/border, primary-500 focus, rounded-md components.
+ * ColorInput — swatch + hex text field bergaya Obsidian (field ob-inner bertepi ob-line).
+ * Sengaja ringkas (h-8, teks 12 px) karena dipakai di panel properti editor template yang padat.
  */
 function ColorInput({ value, onChange, label, error, className }: ColorInputProps) {
     const id = React.useId();
@@ -39,20 +39,16 @@ function ColorInput({ value, onChange, label, error, className }: ColorInputProp
     return (
         <div className={cn('w-full', className)}>
             {label && (
-                <label
-                    htmlFor={id}
-                    className="mb-1.5 block text-sm font-medium text-dark-900 dark:text-dark-300"
-                >
+                <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-ob-ink-2">
                     {label}
                 </label>
             )}
             <div
                 className={cn(
-                    'flex items-center gap-2 h-8 w-full rounded-md border px-1.5 transition-colors',
-                    'bg-white dark:bg-dark-800',
-                    error
-                        ? 'border-red-500 dark:border-red-500 focus-within:ring-2 focus-within:ring-red-500/20'
-                        : 'border-secondary-200 dark:border-dark-600 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500',
+                    'flex h-8 w-full items-center gap-2 rounded-xl border bg-ob-inner px-1.5',
+                    'transition-colors duration-150 ease-out motion-reduce:transition-none',
+                    error ? 'border-ob-late' : 'border-ob-line',
+                    'focus-within:ring-2 focus-within:ring-ob-act-fill focus-within:ring-offset-2 focus-within:ring-offset-ob-page',
                 )}
             >
                 {/* Native color picker — hidden chrome, shows as swatch */}
@@ -63,11 +59,15 @@ function ColorInput({ value, onChange, label, error, className }: ColorInputProp
                         onChange(e.target.value);
                         setText(e.target.value.toUpperCase());
                     }}
-                    className="h-5 w-5 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-0 appearance-none"
+                    className={cn(
+                        'h-5 w-5 shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent p-0',
+                        '[&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-ob-line-strong',
+                        '[&::-moz-color-swatch]:rounded [&::-moz-color-swatch]:border-ob-line-strong',
+                    )}
                     tabIndex={-1}
                     aria-hidden
                 />
-                {/* Hex text field */}
+                {/* Hex text field — border/padding/ring plugin forms dinetralkan; cincin fokus ada di wadah. */}
                 <input
                     id={id}
                     type="text"
@@ -78,12 +78,12 @@ function ColorInput({ value, onChange, label, error, className }: ColorInputProp
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') commitText((e.target as HTMLInputElement).value);
                     }}
-                    className="flex-1 min-w-0 bg-transparent text-xs tabular-nums uppercase text-dark-900 dark:text-dark-50 outline-none placeholder:text-dark-400"
+                    className="min-w-0 flex-1 border-0 bg-transparent p-0 text-xs uppercase tabular-nums text-ob-ink outline-none placeholder:text-ob-ink-3 focus:outline-none focus:ring-0"
                     placeholder="#000000"
                     spellCheck={false}
                 />
             </div>
-            {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="mt-1 text-xs text-ob-late">{error}</p>}
         </div>
     );
 }

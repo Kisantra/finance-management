@@ -9,19 +9,23 @@ interface EmptyStateProps {
     className?: string;
 }
 
+/* State kosong Obsidian: tepi putus-putus, satu kalimat yang mengajarkan, maksimal satu aksi. */
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
     return (
-        <div className={cn('flex flex-col items-center justify-center py-16 px-4 text-center', className)}>
+        <div
+            className={cn(
+                'flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-ob-line-strong p-8 text-center',
+                className,
+            )}
+        >
             {icon && (
-                <div className="h-16 w-16 rounded-xl bg-secondary-100 dark:bg-dark-700 flex items-center justify-center mb-4 text-dark-400 dark:text-dark-500">
+                <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-lg bg-ob-chip text-ob-ink-2 [&_svg]:h-5 [&_svg]:w-5">
                     {icon}
                 </div>
             )}
-            <h3 className="text-lg font-semibold text-dark-900 dark:text-dark-50 mb-1">{title}</h3>
-            {description && (
-                <p className="text-sm text-dark-500 dark:text-dark-400 max-w-sm mb-6">{description}</p>
-            )}
-            {action && <div>{action}</div>}
+            <h3 className="text-[15px] font-semibold text-ob-ink">{title}</h3>
+            {description && <p className="max-w-sm text-[13px] leading-relaxed text-ob-ink-2">{description}</p>}
+            {action && <div className="mt-2">{action}</div>}
         </div>
     );
 }

@@ -8,23 +8,15 @@ interface PageHeaderProps {
     className?: string;
 }
 
+/* Judul halaman Obsidian (sama dengan SettingsLayout): 26/600 tanpa gradient; aksi turun baris di layar sempit. */
 export function PageHeader({ title, description, action, className }: PageHeaderProps) {
     return (
-        <div
-            className={cn(
-                'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4',
-                className,
-            )}
-        >
-            <div className="space-y-1">
-                <h1 className="text-4xl font-bold bg-linear-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent">
-                    {title}
-                </h1>
-                {description && (
-                    <p className="text-gray-600 dark:text-zinc-400 text-lg">{description}</p>
-                )}
+        <div className={cn('flex flex-wrap items-start justify-between gap-4', className)}>
+            <div className="min-w-0">
+                <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{title}</h1>
+                {description && <p className="mt-1 max-w-[65ch] text-sm text-ob-ink-2">{description}</p>}
             </div>
-            {action && <div className="shrink-0">{action}</div>}
+            {action && <div className="max-w-full shrink-0">{action}</div>}
         </div>
     );
 }

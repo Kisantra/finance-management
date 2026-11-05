@@ -49,12 +49,13 @@ const TYPE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>>
     payment_deleted: Trash2,
 };
 
+/* Tile ikon Obsidian (seperti StatsCard): latar chip netral, warna nada hanya di ikonnya. */
 const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-    blue: { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
-    green: { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-600 dark:text-green-400' },
-    yellow: { bg: 'bg-yellow-50 dark:bg-yellow-900/30', text: 'text-yellow-600 dark:text-yellow-400' },
-    red: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400' },
-    gray: { bg: 'bg-secondary-100 dark:bg-dark-700', text: 'text-dark-500 dark:text-dark-400' },
+    blue: { bg: 'bg-ob-chip', text: 'text-ob-act' },
+    green: { bg: 'bg-ob-chip', text: 'text-ob-pos' },
+    yellow: { bg: 'bg-ob-chip', text: 'text-ob-wait' },
+    red: { bg: 'bg-ob-chip', text: 'text-ob-late' },
+    gray: { bg: 'bg-ob-chip', text: 'text-ob-ink-2' },
 };
 
 function timeAgo(iso: string): string {
@@ -144,15 +145,15 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent size="md" className="p-0 flex flex-col">
-                <SheetHeader className="px-6 py-4 border-b border-secondary-200 dark:border-dark-600 bg-secondary-50/60 dark:bg-dark-800/60">
+                <SheetHeader>
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
-                                <Bell className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                            <div className="h-10 w-10 shrink-0 rounded-lg bg-ob-chip text-ob-ink-2 flex items-center justify-center">
+                                <Bell className="w-5 h-5" />
                             </div>
                             <div>
-                                <SheetTitle className="text-base">Semua Notifikasi</SheetTitle>
-                                <SheetDescription>
+                                <SheetTitle>Semua Notifikasi</SheetTitle>
+                                <SheetDescription className="text-[13px]">
                                     {total} total · {unreadCount} belum dibaca
                                 </SheetDescription>
                             </div>
@@ -169,20 +170,20 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                 <div className="flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                            <Loader2 className="w-6 h-6 animate-spin text-ob-ink-3" />
                         </div>
                     ) : items.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                            <div className="h-16 w-16 rounded-xl bg-secondary-100 dark:bg-dark-700 flex items-center justify-center mb-4">
-                                <Bell className="w-7 h-7 text-dark-400 dark:text-dark-500" />
+                        <div className="m-6 flex flex-col items-center justify-center rounded-2xl border border-dashed border-ob-line-strong py-16 px-6 text-center">
+                            <div className="h-12 w-12 rounded-lg bg-ob-chip text-ob-ink-2 flex items-center justify-center mb-4">
+                                <Bell className="w-5 h-5" />
                             </div>
-                            <h3 className="text-base font-semibold text-dark-900 dark:text-dark-50">Tidak ada notifikasi</h3>
-                            <p className="text-sm text-dark-500 dark:text-dark-400 mt-1 max-w-xs">
+                            <h3 className="text-[15px] font-semibold text-ob-ink">Tidak ada notifikasi</h3>
+                            <p className="text-[13px] text-ob-ink-2 mt-1 max-w-xs">
                                 Notifikasi tentang invoice, pembayaran, dan feedback akan muncul di sini.
                             </p>
                         </div>
                     ) : (
-                        <ul className="divide-y divide-secondary-100 dark:divide-dark-600">
+                        <ul className="divide-y divide-ob-line-soft">
                             {items.map((item) => {
                                 const Icon = TYPE_ICON_MAP[item.type] ?? Bell;
                                 const colors = COLOR_MAP[item.color] ?? COLOR_MAP.gray;
@@ -193,11 +194,11 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                                             type="button"
                                             onClick={() => openItem(item)}
                                             className={cn(
-                                                'w-full text-left flex items-start gap-3 px-6 py-4 hover:bg-secondary-50 dark:hover:bg-dark-800/60 transition-colors',
-                                                isUnread && 'bg-primary-50/40 dark:bg-primary-900/10',
+                                                'w-full text-left flex items-start gap-3 px-6 py-4 transition-colors duration-150 ease-out hover:bg-ob-hover focus-visible:outline-none focus-visible:bg-ob-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ob-act-fill',
+                                                isUnread && 'bg-ob-inner',
                                             )}
                                         >
-                                            <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', colors.bg)}>
+                                            <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', colors.bg)}>
                                                 <Icon className={cn('w-5 h-5', colors.text)} />
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -205,19 +206,19 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                                                     <p className={cn(
                                                         'text-sm leading-snug',
                                                         isUnread
-                                                            ? 'font-semibold text-dark-900 dark:text-dark-50'
-                                                            : 'text-dark-700 dark:text-dark-300',
+                                                            ? 'font-semibold text-ob-ink'
+                                                            : 'font-medium text-ob-ink-2',
                                                     )}>
                                                         {item.title}
                                                     </p>
                                                     {isUnread && (
-                                                        <span className="h-2 w-2 rounded-full bg-primary-500 shrink-0 mt-1.5" />
+                                                        <span className="h-2 w-2 rounded-full bg-ob-act-fill shrink-0 mt-1.5" />
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-dark-500 dark:text-dark-400 mt-1 line-clamp-2">
+                                                <p className="text-xs text-ob-ink-2 mt-1 line-clamp-2">
                                                     {item.message}
                                                 </p>
-                                                <p className="text-[10px] text-dark-400 dark:text-dark-500 mt-2 tabular-nums">
+                                                <p className="text-xs text-ob-ink-3 mt-2 tabular-nums">
                                                     {timeAgo(item.created_at)}
                                                 </p>
                                             </div>
@@ -229,7 +230,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                     )}
 
                     {hasMore && !loading && (
-                        <div className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600">
+                        <div className="px-6 py-4 border-t border-ob-line">
                             <Button
                                 variant="outline"
                                 onClick={loadMore}

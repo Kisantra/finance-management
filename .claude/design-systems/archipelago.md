@@ -1,4 +1,6 @@
-# Archipelago Design System
+# Design System — Obsidian (aktif) · Archipelago (warisan)
+
+> **Status 5 Nov 2026: Obsidian adalah design system aktif untuk seluruh aplikasi.** Token `ob-*`, aturan bentuk, dan gaya tiap komponen katalog ada di bagian **Obsidian** di akhir dokumen ini. Semua komponen `components/ui` dan `components/shared` memakai gaya Obsidian sebagai bawaan. Bagian Archipelago di bawah (warna `primary-*`/`dark-*`, `PageHeader` bergradient, kartu `dark-700`) tinggal **warisan** untuk halaman yang belum dimigrasi: jangan dipakai di kode baru, dan saat menyentuh halaman lama, migrasikan sekalian ke Obsidian.
 
 This document is the single visual language for this application. Apply it to every page you build or redesign — match these tokens, layouts, and component patterns exactly. **Never invent a new color, spacing value, radius, or layout when one already exists here**; cross-app consistency matters more than local cleverness. Exact values (hex, px) are canonical; values marked † are inferred.
 
@@ -308,9 +310,9 @@ const TYPE_OPTIONS: SegmentedOption<FeedbackType>[] = [
 
 ---
 
-## Obsidian (redesign 25 Sep 2026) — berlaku untuk halaman & komponen baru
+## Obsidian — design system aktif (redesign 25 Sep 2026; komponen katalog sejak 5 Nov 2026)
 
-Gaya "dark soft-surface": permukaan berlapis, tepi 1 px tembus, satu aksen biru, tanpa bayangan dan tanpa gradient. Mockup final ada di kanvas desain "Kisantra Dashboard Redesign" (artboard Layout, Dashboard, Komponen, Navigasi, Grafik, Terang). Halaman yang memakainya: Ringkasan (`resources/js/pages/dashboard.tsx`), rel navigasi (`layouts/sidebar.tsx`), header (`layouts/header.tsx`), Invoice, Pengaturan, dan Reimbursement (daftar + drawer `#reimbursement/{id}`). Halaman lain dimigrasi bertahap; jangan mencampur dua gaya dalam satu halaman.
+Gaya "dark soft-surface": permukaan berlapis, tepi 1 px tembus, satu aksen biru, tanpa gradient; kartu tanpa bayangan (hanya panel melayang yang berbayang, lihat tabel komponen). Mockup final ada di kanvas desain "Kisantra Dashboard Redesign" (artboard Layout, Dashboard, Komponen, Navigasi, Grafik, Terang). Halaman yang sudah Obsidian: Ringkasan (`resources/js/pages/dashboard.tsx`), rel navigasi (`layouts/sidebar.tsx`), header (`layouts/header.tsx`), Invoice, Reimbursement, Piutang, Pinjaman, Panduan, Penomoran invoice, dan Perusahaan (`admin/companies`) — ditambah seluruh komponen katalog. Halaman lain masih berkerangka Archipelago dan dimigrasi bertahap; jangan mencampur dua gaya dalam satu halaman.
 
 ### Token (satu set variabel, dua nilai per tema)
 
@@ -338,7 +340,7 @@ Chip status = latar `bg-ob-<tone>/12` + teks `text-ob-<tone>` + titik (status fi
 - **Radius**: kartu `rounded-3xl` (24), kartu-dalam `rounded-2xl` (16), kontrol `rounded-xl` (12), tile ikon `rounded-lg` (8), pil `rounded-full`. Tidak ada nilai lain.
 - **Kartu**: padding 22 px, header 32 px (judul 16/600 + hitungan 13/500 `text-ob-ink-2`) agar baseline sejajar antar kartu; komponen `Widget` di `components/dashboard/widget.tsx`.
 - **Tinggi tetap di xl**; di bawah xl kartu mengikuti isi. Daftar dinamis menggulir di dalam kartu (`ScrollList`: viewport kelipatan baris persis, `tabindex=0`, `aria-label "N item, dapat digulir"`, fade 12 px hanya saat masih ada sisa). Hitungan "3 dari N" di header.
-- **Tipografi**: satu keluarga, Plus Jakarta Sans (400–800), `font-variant-numeric: tabular-nums` global. Judul halaman 26/600 tanpa gradient; angka pahlawan 40/600; teks minimum 12 px. `PageHeader` bergradient hanya untuk halaman lama.
+- **Tipografi**: satu keluarga, Plus Jakarta Sans (400–800), `font-variant-numeric: tabular-nums` global. Judul halaman 26/600 tanpa gradient; angka pahlawan 40/600; teks minimum 12 px. `PageHeader` kini bergaya Obsidian (tanpa gradient).
 - **Tepi**, bukan bayangan; tepi putus-putus hanya untuk placeholder/state kosong; tekstur garis miring (`.ob-hatch`) = pengeluaran / di luar rentang.
 - **Navigasi**: rel 76 px (ikon grup + badge) ↔ 260 px (ikon + panel label, pil jembatan untuk grup aktif, satu grup terbuka, kartu ruang kerja dengan pengalih tema); pintasan `[`. Header: breadcrumb kiri, kontrol pil `bg-ob-rail` kanan, tanpa garis bawah.
 - **Gerak**: 150–220 ms ease-out; `ob-fade-in` untuk flyout/sub-menu; semua dimatikan pada `prefers-reduced-motion` (`.ob-motion`).
@@ -350,3 +352,38 @@ Chip status = latar `bg-ob-<tone>/12` + teks `text-ob-<tone>` + titik (status fi
   - grup pil status = satu baris yang bisa digeser: `ob-no-scrollbar flex max-w-full overflow-x-auto` + pil `shrink-0 whitespace-nowrap`, induk flex-nya `min-w-0 max-w-full`;
   - kepala `Widget` memakai `min-h-8 flex-wrap` agar aksi boleh turun baris;
   - daftar data di bawah `md` memakai daftar bertumpuk (judul + nominal / meta + status), tabel mulai `md` (contoh: Reimbursement).
+
+### Komponen katalog — gaya bawaan Obsidian
+
+Komponen `components/ui/*` dan `components/shared/*` sudah bergaya Obsidian tanpa perlu ditimpa. Kelas `FIELD`, `BTN`, `SURFACE` di `pages/invoices/components/ob.tsx` tetap boleh dipakai (hasilnya sama), tetapi halaman baru cukup memakai komponennya apa adanya. **Props dan varian tidak berubah** dari katalog di `CLAUDE.md`; yang berubah hanya tampilannya.
+
+Prinsip yang berlaku untuk semua komponen:
+- Hanya kelas `ob-*`. Tanpa awalan `dark:` (variabel `--ob-*` sudah berganti per tema), tanpa hex, tanpa gradient.
+- Fokus: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page`.
+- Transisi `transition-colors duration-150 ease-out`; overlay masuk dengan `ob-fade-in`; semuanya mati pada `prefers-reduced-motion`.
+- Nonaktif: `disabled:pointer-events-none disabled:opacity-50`.
+- Kartu dan kontrol tanpa bayangan. Panel melayang (menu, popover, daftar pilihan, kalender, dialog) memakai `shadow-xl shadow-black/20`, mengikuti menu akun di `layouts/header.tsx`.
+
+| Komponen | Gaya Obsidian |
+|----------|---------------|
+| `Button` | Pil `rounded-full font-semibold`. `primary`/`blue`: `bg-ob-act-fill text-white hover:bg-ob-act-fill/90`. `zinc`/`outline`: `border border-ob-line bg-ob-card text-ob-ink hover:bg-ob-hover`. `ghost`: `text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink`. `link`: `text-ob-act underline-offset-4 hover:underline`. `red`/`green`/`yellow`: tinta nada, mis. `bg-ob-late/12 text-ob-late hover:bg-ob-late/20` (hijau = `ob-pos`, kuning = `ob-wait`), karena teks putih di atas merah tema gelap tidak terbaca. Ukuran: `sm` h-8 px-3 text-xs · `md` h-10 px-4 text-sm · `lg` h-11 px-5 text-sm · `xl` h-12 px-6 text-base · `icon` h-10 w-10. |
+| `Input`, `Textarea`, `CurrencyInput`, pemicu `Combobox` & `DatePicker` | `h-[42px] rounded-xl border border-ob-line bg-ob-inner px-3.5 text-sm text-ob-ink placeholder:text-ob-ink-3`, fokus cincin `ob-act-fill`. Label `mb-1.5 text-[13px] font-medium text-ob-ink-2`; hint `text-xs text-ob-ink-3`; error = tepi `border-ob-late` + pesan `text-xs text-ob-late`. Prefiks (Rp, ikon) `bg-ob-chip text-ob-ink-2`. Textarea tingginya mengikuti isi. |
+| `Checkbox` | 16 px, `rounded` (kontrol mikro), `border border-ob-line-strong bg-ob-inner`; tercentang `border-ob-act-fill bg-ob-act-fill text-white`. |
+| `Switch` | Lintasan `rounded-full bg-ob-chip` bertepi `ob-line-strong`, kenop `bg-ob-ink-3` (kenop putih di atas lintasan terang hanya ±1,3:1); aktif `bg-ob-act-fill` dengan kenop putih. |
+| `Slider` | Lintasan `bg-ob-chip`, isi `bg-ob-act-fill`, kenop putih bertepi `border-ob-line-strong`. |
+| `Tabs`, `SegmentedControl` | Wadah `rounded-full border border-ob-line bg-ob-rail p-[3px]` (sama dengan grup pil yang sudah ada); item pil `text-ob-ink-2 hover:text-ob-ink`; aktif `bg-ob-invert text-ob-invert-ink`. `activeClassName` per opsi tetap dihormati. `Label` lepas (di samping checkbox/switch) tanpa margin bawah; label bawaan field memakai `mb-1.5`. |
+| `Badge` | Chip `rounded-full px-2.5 py-0.5 text-xs font-semibold`. `green`/`emerald` → `bg-ob-pos/12 text-ob-pos`; `red` → `ob-late`; `orange` → `ob-neg`; `yellow` → `ob-wait`; `blue` → `ob-act`; `default`/`zinc`/`purple` → `bg-ob-chip text-ob-ink-2`; `outline` → `border border-ob-line text-ob-ink-2`. |
+| `Card` | `rounded-3xl border border-ob-line bg-ob-card text-ob-ink`; header & konten padding 22 px; judul 16/600, deskripsi 13 `text-ob-ink-2`. |
+| `Dialog`, `Sheet` | Panel `rounded-3xl border border-ob-line bg-ob-card text-ob-ink shadow-xl shadow-black/20` **tanpa padding**: header, isi, dan footer masing-masing memberi `px-6` sendiri (header mulai `pt-6`, footer selesai `pb-6`, pemisah `border-ob-line`) — pola ini dipakai ±25 dialog yang ada. Latar `bg-black/60` tanpa blur; judul 18/600, deskripsi 14 `text-ob-ink-2`; tombol tutup = pil ikon berlabel "Tutup". Sheet menempel di sisi layar dengan sudut dalam `rounded-l-3xl`/`rounded-r-3xl`. |
+| `Popover`, `DropdownMenu`, daftar `Combobox`, kalender `DatePicker` | Panel `rounded-2xl border border-ob-line bg-ob-card p-2 text-ob-ink`; item `rounded-xl px-3 py-2 text-sm text-ob-ink hover:bg-ob-hover`; pemisah `bg-ob-line`. Kalender mengikuti `components/dashboard/range-calendar.tsx` (hari terpilih `bg-ob-act-fill text-white`, rentang `bg-ob-act-fill/15`, luar bulan `text-ob-ink-3`). |
+| `Tooltip` | `rounded-lg bg-ob-invert px-2.5 py-1.5 text-xs text-ob-invert-ink`. |
+| `Avatar` | `rounded-full bg-ob-chip text-ob-ink-2 font-bold`. |
+| `Skeleton` | `animate-pulse rounded-xl bg-ob-chip`, berbentuk baris. |
+| `Separator`, `ScrollArea` | `bg-ob-line`; thumb gulir `bg-ob-line-strong`. |
+| `PageHeader` | Judul 26/600 `text-ob-ink` tanpa gradient; deskripsi 14 `text-ob-ink-2`; aksi di kanan, turun baris di layar sempit. |
+| `StatsCard` | Kartu Obsidian; tile ikon `rounded-lg bg-ob-chip`, warna ikon dari prop `color` (`green`/`emerald` → `ob-pos`, `red` → `ob-late`, `orange` → `ob-neg`, `yellow` → `ob-wait`, `blue` → `ob-act`, lainnya `ob-ink-2`); label 13 `text-ob-ink-2`; nilai 24/600 tabular. |
+| `DataTable` | Kepala `border-b border-ob-line text-left text-xs font-medium text-ob-ink-3`; sel `py-2.5`; baris `border-b border-ob-line-soft hover:bg-ob-hover` (mengikuti `pages/invoices/index.tsx`). |
+| `Pagination` | Tombol halaman pil `h-8 min-w-8 rounded-full text-sm text-ob-ink-2 hover:bg-ob-hover`; aktif `bg-ob-invert text-ob-invert-ink`; ringkasan 13 `text-ob-ink-3`. |
+| `EmptyState` | `rounded-2xl border border-dashed border-ob-line-strong p-8 text-center`; tile ikon chip; judul 15/600; satu kalimat 13 `text-ob-ink-2`; maksimal satu aksi. |
+| `FormSection` | Judul 16/600 `text-ob-ink`, deskripsi 13 `text-ob-ink-2`, pemisah `border-ob-line`. |
+| `FileUpload` | Zona `rounded-2xl border border-dashed border-ob-line-strong bg-ob-inner hover:bg-ob-hover`; berkas terpilih = baris `rounded-xl bg-ob-inner`. |

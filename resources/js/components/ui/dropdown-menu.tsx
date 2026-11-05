@@ -10,11 +10,14 @@ const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
 const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
+/* Panel melayang Obsidian (mengikuti menu akun di header). Radix memindahkan fokus ke item saat
+   kursor lewat, jadi focus: sekaligus menjadi state hover. Warna teks fokus sengaja tidak dipatok
+   agar item berwarna (mis. text-ob-late untuk hapus) tetap merah saat disorot. */
 const contentClasses =
-    'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 p-1 shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2';
+    'z-50 min-w-[8rem] overflow-hidden rounded-2xl border border-ob-line bg-ob-card p-2 text-ob-ink shadow-xl shadow-black/20 outline-none ob-fade-in';
 
 const itemClasses =
-    'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-dark-700 dark:text-dark-300 outline-none transition-colors focus:bg-zinc-100 dark:focus:bg-dark-600 focus:text-dark-900 dark:focus:text-dark-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
+    'relative flex cursor-pointer select-none items-center gap-2 rounded-xl px-3 py-2 text-sm text-ob-ink outline-none transition-colors duration-150 ease-out focus:bg-ob-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
 
 const DropdownMenuContent = React.forwardRef<
     React.ElementRef<typeof DropdownMenuPrimitive.Content>,
@@ -49,7 +52,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DropdownMenuPrimitive.Separator
         ref={ref}
-        className={cn('-mx-1 my-1 h-px bg-secondary-200 dark:bg-dark-600', className)}
+        className={cn('my-1 h-px bg-ob-line', className)}
         {...props}
     />
 ));
@@ -62,7 +65,7 @@ const DropdownMenuLabel = React.forwardRef<
     <DropdownMenuPrimitive.Label
         ref={ref}
         className={cn(
-            'px-2.5 py-1.5 text-xs font-semibold text-dark-500 dark:text-dark-400',
+            'px-3 py-1.5 text-xs font-semibold text-ob-ink-3',
             inset && 'pl-8',
             className,
         )}
@@ -77,11 +80,11 @@ const DropdownMenuSubTrigger = React.forwardRef<
 >(({ className, inset, children, ...props }, ref) => (
     <DropdownMenuPrimitive.SubTrigger
         ref={ref}
-        className={cn(itemClasses, inset && 'pl-8', className)}
+        className={cn(itemClasses, 'data-[state=open]:bg-ob-hover', inset && 'pl-8', className)}
         {...props}
     >
         {children}
-        <ChevronRight className="ml-auto h-4 w-4" />
+        <ChevronRight className="ml-auto h-4 w-4 text-ob-ink-3" />
     </DropdownMenuPrimitive.SubTrigger>
 ));
 DropdownMenuSubTrigger.displayName = DropdownMenuPrimitive.SubTrigger.displayName;

@@ -107,14 +107,14 @@ export function Combobox({
     /* trigger display label */
     const triggerContent = multiple
         ? multiValue.length === 0
-            ? <span className="text-dark-400 dark:text-dark-500 truncate">{placeholder}</span>
+            ? <span className="truncate text-ob-ink-3">{placeholder}</span>
             : multiValue.length === 1
-              ? <span className="text-dark-900 dark:text-dark-50 truncate">{selectedMultiple[0]?.label}</span>
+              ? <span className="truncate text-ob-ink">{selectedMultiple[0]?.label}</span>
               : <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 shrink-0">
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-ob-act/12 px-1.5 py-0.5 text-xs font-semibold text-ob-act">
                         {multiValue.length}
                     </span>
-                    <span className="text-dark-900 dark:text-dark-50 truncate text-sm">
+                    <span className="truncate text-sm text-ob-ink">
                         {selectedMultiple.map((o) => o.label).join(', ')}
                     </span>
                 </div>
@@ -123,10 +123,7 @@ export function Combobox({
     return (
         <div className={cn('w-full', className)}>
             {label && (
-                <label
-                    htmlFor={inputId}
-                    className="mb-1.5 block text-sm font-medium text-dark-900 dark:text-dark-300"
-                >
+                <label htmlFor={inputId} className="mb-1.5 block text-[13px] font-medium text-ob-ink-2">
                     {label}
                 </label>
             )}
@@ -137,18 +134,16 @@ export function Combobox({
                         type="button"
                         disabled={disabled}
                         className={cn(
-                            'flex h-10 w-full items-center justify-between rounded-xl border px-3 text-sm text-left transition-all duration-150',
-                            'bg-white dark:bg-dark-800',
+                            'flex h-[42px] w-full items-center justify-between rounded-xl border bg-ob-inner px-3.5 text-left text-sm',
+                            'transition-colors duration-150 ease-out motion-reduce:transition-none',
                             error
-                                ? 'border-red-400 dark:border-red-500 ring-2 ring-red-500/10'
+                                ? 'border-ob-late'
                                 : open
-                                  ? 'border-primary-500 ring-2 ring-primary-500/15 dark:border-primary-500'
-                                  : 'border-secondary-200 dark:border-dark-600 hover:border-secondary-300 dark:hover:border-dark-500',
-                            'focus-visible:outline-none',
-                            'disabled:cursor-not-allowed disabled:bg-secondary-50 dark:disabled:bg-dark-700 disabled:opacity-60',
-                            hasValue
-                                ? 'text-dark-900 dark:text-dark-50'
-                                : 'text-dark-400 dark:text-dark-500',
+                                  ? 'border-ob-act-fill/50'
+                                  : 'border-ob-line hover:border-ob-line-strong',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page',
+                            'disabled:pointer-events-none disabled:opacity-50',
+                            hasValue ? 'text-ob-ink' : 'text-ob-ink-3',
                         )}
                     >
                         <div className="flex-1 min-w-0 flex items-center">{triggerContent}</div>
@@ -175,37 +170,41 @@ export function Combobox({
                                             }
                                         }
                                     }}
-                                    className="rounded-md p-1 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors"
+                                    className="rounded-full p-1 text-ob-ink-3 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
                                 >
                                     <X className="h-3 w-3" />
                                 </span>
                             )}
                             <ChevronDown
                                 className={cn(
-                                    'h-4 w-4 text-dark-400 transition-transform duration-200',
+                                    'h-4 w-4 text-ob-ink-3 transition-transform duration-200 ease-out motion-reduce:transition-none',
                                     open && 'rotate-180',
                                 )}
                             />
                         </div>
                     </button>
                 </PopoverTrigger>
-                <PopoverContent className={cn('p-0 overflow-hidden min-w-(--radix-popover-trigger-width)', popoverWidth ?? 'w-(--radix-popover-trigger-width)')} align="start">
+                {/* Panel (rounded-2xl, ob-card, bayangan, ob-fade-in) dari PopoverContent; di sini hanya lebar & padding nol untuk baris cari. */}
+                <PopoverContent
+                    className={cn('min-w-(--radix-popover-trigger-width) overflow-hidden p-0', popoverWidth ?? 'w-(--radix-popover-trigger-width)')}
+                    align="start"
+                >
                     <CommandPrimitive shouldFilter={false}>
-                        <div className="flex items-center px-3 border-b border-secondary-100 dark:border-dark-600">
-                            <Search className="h-3.5 w-3.5 shrink-0 text-dark-400 mr-2.5" />
+                        <div className="flex items-center border-b border-ob-line px-3">
+                            <Search className="mr-2.5 h-3.5 w-3.5 shrink-0 text-ob-ink-3" />
                             <CommandPrimitive.Input
                                 value={search}
                                 onValueChange={setSearch}
                                 placeholder={searchPlaceholder}
-                                className="flex h-9 w-full bg-transparent py-2 text-sm text-dark-900 dark:text-dark-300 placeholder:text-dark-400 outline-none focus:outline-none focus:ring-0 border-0"
+                                className="flex h-9 w-full border-0 bg-transparent py-2 text-sm text-ob-ink outline-none placeholder:text-ob-ink-3 focus:outline-none focus:ring-0"
                             />
                         </div>
                         <CommandPrimitive.List
-                            className="max-h-60 overflow-y-auto p-1.5"
+                            className="max-h-60 overflow-y-auto p-2"
                             onWheel={(e) => e.stopPropagation()}
                         >
                             {filtered.length === 0 && (
-                                <p className="py-8 text-center text-sm text-dark-400 dark:text-dark-500">
+                                <p className="py-8 text-center text-[13px] text-ob-ink-2">
                                     {emptyText}
                                 </p>
                             )}
@@ -213,7 +212,7 @@ export function Combobox({
                                 option.disabled ? (
                                     <div
                                         key={option.value}
-                                        className="px-2.5 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-dark-400 dark:text-dark-500 select-none"
+                                        className="select-none px-3 pb-1 pt-3 text-xs font-semibold text-ob-ink-3"
                                     >
                                         {option.label}
                                     </div>
@@ -231,18 +230,19 @@ export function Combobox({
                                         }
                                     }}
                                     className={cn(
-                                        'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors',
-                                        isSelected(option)
-                                            ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                                            : 'text-dark-700 dark:text-dark-300 hover:bg-zinc-50 dark:hover:bg-dark-600 aria-selected:bg-zinc-50 dark:aria-selected:bg-dark-600',
+                                        'flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ob-ink outline-none',
+                                        'transition-colors duration-150 ease-out motion-reduce:transition-none',
+                                        'hover:bg-ob-hover aria-selected:bg-ob-hover',
+                                        isSelected(option) && 'font-semibold',
                                     )}
                                 >
+                                    {/* Penanda pilihan = Checkbox mini (16 px, rounded, aktif ob-act-fill). */}
                                     <div
                                         className={cn(
-                                            'h-4 w-4 shrink-0 flex items-center justify-center rounded',
+                                            'h-4 w-4 shrink-0 flex items-center justify-center rounded border',
                                             isSelected(option)
-                                                ? 'bg-primary-600 dark:bg-primary-500 text-white'
-                                                : 'border border-secondary-300 dark:border-dark-500 text-transparent',
+                                                ? 'border-ob-act-fill bg-ob-act-fill text-white'
+                                                : 'border-ob-line-strong bg-ob-inner text-transparent',
                                         )}
                                     >
                                         <Check className="h-3 w-3" />
@@ -250,7 +250,7 @@ export function Combobox({
                                     <div className="min-w-0">
                                         <div className="truncate">{option.label}</div>
                                         {option.description && (
-                                            <div className="text-xs text-dark-400 dark:text-dark-500 truncate">
+                                            <div className="truncate text-xs font-normal text-ob-ink-3">
                                                 {option.description}
                                             </div>
                                         )}
@@ -260,14 +260,14 @@ export function Combobox({
                             )}
                         </CommandPrimitive.List>
                         {multiple && multiValue.length > 0 && (
-                            <div className="border-t border-secondary-100 dark:border-dark-600 p-1.5">
+                            <div className="border-t border-ob-line p-2">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         (onChange as (v: (string | number)[]) => void)([]);
                                         setOpen(false);
                                     }}
-                                    className="w-full px-2.5 py-1.5 text-xs font-medium text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-600 rounded-lg transition-colors text-left"
+                                    className="w-full rounded-xl px-3 py-1.5 text-left text-xs font-medium text-ob-ink-2 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
                                 >
                                     Hapus semua pilihan ({multiValue.length})
                                 </button>
@@ -276,8 +276,8 @@ export function Combobox({
                     </CommandPrimitive>
                 </PopoverContent>
             </Popover>
-            {error && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {hint && !error && <p className="mt-1.5 text-xs text-dark-500 dark:text-dark-400">{hint}</p>}
+            {error && <p className="mt-1.5 text-xs text-ob-late">{error}</p>}
+            {hint && !error && <p className="mt-1.5 text-xs text-ob-ink-3">{hint}</p>}
         </div>
     );
 }

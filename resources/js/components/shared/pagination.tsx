@@ -45,11 +45,9 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
     const pages = getPageNumbers(current_page, last_page);
 
     const btnBase =
-        'flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40';
-    const btnDefault =
-        'border border-secondary-200 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-zinc-100 dark:hover:bg-dark-600 bg-white dark:bg-dark-800';
-    const btnActive =
-        'bg-primary-600 text-white border border-primary-600 hover:bg-primary-700 font-semibold';
+        'flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-sm transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page disabled:pointer-events-none disabled:opacity-50';
+    const btnDefault = 'text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink';
+    const btnActive = 'bg-ob-invert font-semibold text-ob-invert-ink';
 
     return (
         <div
@@ -58,20 +56,20 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                 className,
             )}
         >
-            <p className="text-sm text-dark-500 dark:text-dark-400 order-2 sm:order-1">
+            <p className="text-[13px] text-ob-ink-3 order-2 sm:order-1">
                 {from != null && to != null ? (
                     <>
-                        Menampilkan <span className="font-medium text-dark-700 dark:text-dark-300">{from}</span>–
-                        <span className="font-medium text-dark-700 dark:text-dark-300">{to}</span> dari{' '}
-                        <span className="font-medium text-dark-700 dark:text-dark-300">{total}</span> data
+                        Menampilkan <span className="font-medium text-ob-ink-2">{from}</span>–
+                        <span className="font-medium text-ob-ink-2">{to}</span> dari{' '}
+                        <span className="font-medium text-ob-ink-2">{total}</span> data
                     </>
                 ) : (
-                    <>Total <span className="font-medium">{total}</span> data</>
+                    <>Total <span className="font-medium text-ob-ink-2">{total}</span> data</>
                 )}
             </p>
 
             <div className="flex items-center gap-1 order-1 sm:order-2">
-                <button
+                <button type="button"
                     onClick={() => onPageChange(1)}
                     disabled={current_page === 1}
                     className={cn(btnBase, btnDefault)}
@@ -79,7 +77,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                 >
                     <ChevronsLeft className="h-4 w-4" />
                 </button>
-                <button
+                <button type="button"
                     onClick={() => onPageChange(current_page - 1)}
                     disabled={current_page === 1}
                     className={cn(btnBase, btnDefault)}
@@ -92,13 +90,14 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     page === '...' ? (
                         <span
                             key={`ellipsis-${idx}`}
-                            className="flex h-8 w-8 items-center justify-center text-sm text-dark-400 dark:text-dark-500"
+                            className="flex h-8 w-8 items-center justify-center text-sm text-ob-ink-3"
                         >
                             …
                         </span>
                     ) : (
-                        <button
+                        <button type="button"
                             key={page}
+                            aria-current={page === current_page ? 'page' : undefined}
                             onClick={() => onPageChange(page as number)}
                             className={cn(
                                 btnBase,
@@ -110,7 +109,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     ),
                 )}
 
-                <button
+                <button type="button"
                     onClick={() => onPageChange(current_page + 1)}
                     disabled={current_page === last_page}
                     className={cn(btnBase, btnDefault)}
@@ -118,7 +117,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>
-                <button
+                <button type="button"
                     onClick={() => onPageChange(last_page)}
                     disabled={current_page === last_page}
                     className={cn(btnBase, btnDefault)}

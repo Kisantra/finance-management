@@ -10,61 +10,40 @@ interface StatsCardProps {
     inModal?: boolean;
 }
 
-const colorMap = {
-    blue:    { accent: 'bg-blue-500',    icon: 'text-blue-500' },
-    green:   { accent: 'bg-green-500',   icon: 'text-green-500' },
-    emerald: { accent: 'bg-emerald-500', icon: 'text-emerald-500' },
-    purple:  { accent: 'bg-purple-500',  icon: 'text-purple-500' },
-    red:     { accent: 'bg-red-500',     icon: 'text-red-500' },
-    yellow:  { accent: 'bg-yellow-500',  icon: 'text-yellow-500' },
-    orange:  { accent: 'bg-orange-500',  icon: 'text-orange-500' },
-    indigo:  { accent: 'bg-indigo-500',  icon: 'text-indigo-500' },
+/* Satu makna per hue (Obsidian); warna tanpa makna semantik (ungu, indigo) jatuh ke netral. */
+const iconTone: Record<NonNullable<StatsCardProps['color']>, string> = {
+    blue: 'text-ob-act',
+    green: 'text-ob-pos',
+    emerald: 'text-ob-pos',
+    red: 'text-ob-late',
+    orange: 'text-ob-neg',
+    yellow: 'text-ob-wait',
+    purple: 'text-ob-ink-2',
+    indigo: 'text-ob-ink-2',
 };
 
 export function StatsCard({ label, value, icon, color = 'blue', className, inModal = false }: StatsCardProps) {
-    const colors = colorMap[color];
-
-    const content = (
-        <>
-            <div className={cn('h-1', colors.accent)} />
-            <div className={inModal ? 'p-4' : 'p-5'}>
-                <div className="flex items-start justify-between mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                        {label}
-                    </p>
-                    <span className={cn('[&_svg]:w-5 [&_svg]:h-5 shrink-0', colors.icon)}>
-                        {icon}
-                    </span>
-                </div>
-                <p className="text-2xl font-bold tabular-nums leading-none text-dark-900 dark:text-dark-50">
-                    {value}
-                </p>
-            </div>
-        </>
-    );
-
-    if (inModal) {
-        return (
-            <div
-                className={cn(
-                    'rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden bg-white dark:bg-dark-700',
-                    className,
-                )}
-            >
-                {content}
-            </div>
-        );
-    }
-
     return (
         <div
             className={cn(
-                'rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden',
-                'bg-white dark:bg-dark-700 hover:shadow-md transition-shadow',
+                'flex items-start justify-between gap-3 border border-ob-line',
+                // Di dalam modal (latar kartu) tampil sebagai kartu-dalam.
+                inModal ? 'rounded-2xl bg-ob-inner p-4' : 'rounded-3xl bg-ob-card p-[22px]',
                 className,
             )}
         >
-            {content}
+            <div className="flex min-w-0 flex-col gap-1.5">
+                <p className="text-[13px] leading-tight text-ob-ink-2">{label}</p>
+                <p className="text-2xl font-semibold leading-tight tracking-[-0.01em] tabular-nums text-ob-ink">{value}</p>
+            </div>
+            <span
+                className={cn(
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ob-chip [&_svg]:h-4 [&_svg]:w-4',
+                    iconTone[color] ?? 'text-ob-ink-2',
+                )}
+            >
+                {icon}
+            </span>
         </div>
     );
 }

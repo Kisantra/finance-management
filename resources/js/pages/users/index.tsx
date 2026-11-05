@@ -434,7 +434,7 @@ function UserFormDialog({
                         </div>
                     </div>
 
-                    <DialogFooter className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
+                    <DialogFooter className="px-6 py-4">
                         <Button
                             type="button"
                             variant="zinc"

@@ -6,7 +6,8 @@ import {
     getCoreRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown, Loader2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Pagination } from './pagination';
 
@@ -64,13 +65,14 @@ export function DataTable<TData>({
 
     return (
         <div className={cn('space-y-4', className)}>
-            <div className="overflow-x-auto rounded-xl border border-secondary-200 dark:border-dark-600">
+            {/* relative: teks sr-only (absolut) di dalam tabel tetap terpotong wadah ini, tidak melebarkan halaman. */}
+            <div className="relative overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr
                                 key={headerGroup.id}
-                                className="border-b border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-700"
+                                className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3"
                             >
                                 {headerGroup.headers.map((header) => {
                                     const canSort = header.column.getCanSort();
@@ -79,9 +81,11 @@ export function DataTable<TData>({
                                     return (
                                         <th
                                             key={header.id}
+                                            aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined}
                                             className={cn(
-                                                'px-4 py-3 text-left text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wide whitespace-nowrap select-none',
-                                                canSort && 'cursor-pointer hover:text-dark-900 dark:hover:text-dark-200',
+                                                'whitespace-nowrap px-3 py-2.5 font-medium select-none',
+                                                canSort && 'cursor-pointer transition-colors duration-150 ease-out hover:text-ob-ink',
+                                                sorted && 'font-semibold text-ob-ink',
                                             )}
                                             onClick={
                                                 canSort
@@ -114,24 +118,22 @@ export function DataTable<TData>({
                             </tr>
                         ))}
                     </thead>
-                    <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
+                    <tbody aria-busy={loading}>
                         {loading ? (
-                            <tr>
-                                <td
-                                    colSpan={columns.length}
-                                    className="py-16 text-center text-dark-500 dark:text-dark-400"
-                                >
-                                    <div className="flex items-center justify-center gap-2">
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                        <span className="text-sm">Memuat...</span>
-                                    </div>
-                                </td>
-                            </tr>
+                            /* Memuat = kerangka berbentuk baris, bukan spinner. */
+                            Array.from({ length: 5 }, (_, i) => (
+                                <tr key={`skeleton-${i}`} className="border-b border-ob-line-soft">
+                                    <td colSpan={columns.length} className="px-3 py-2.5">
+                                        {i === 0 && <span className="sr-only">Memuat...</span>}
+                                        <Skeleton className="h-9 rounded-xl bg-ob-inner" />
+                                    </td>
+                                </tr>
+                            ))
                         ) : table.getRowModel().rows.length === 0 ? (
                             <tr>
                                 <td
                                     colSpan={columns.length}
-                                    className="py-16 text-center text-sm text-dark-500 dark:text-dark-400"
+                                    className="px-3 py-16 text-center text-[13px] text-ob-ink-2"
                                 >
                                     {emptyMessage}
                                 </td>
@@ -140,12 +142,12 @@ export function DataTable<TData>({
                             table.getRowModel().rows.map((row) => (
                                 <tr
                                     key={row.id}
-                                    className="bg-white dark:bg-dark-800 hover:bg-secondary-50 dark:hover:bg-dark-700 transition-colors"
+                                    className="border-b border-ob-line-soft transition-colors duration-150 ease-out hover:bg-ob-hover"
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <td
                                             key={cell.id}
-                                            className="px-4 py-3 text-dark-700 dark:text-dark-300"
+                                            className="px-3 py-2.5 text-ob-ink"
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,

@@ -71,7 +71,7 @@ Di React, gunakan komponen `CurrencyInput` (lihat React Component Catalog) yang 
 
 **CRITICAL: Semua page baru atau redesign HARUS mengikuti design system ini untuk konsistensi.**
 
-**Satu-satunya sumber kebenaran:** `.claude/design-systems/archipelago.md` — **baca file ini terlebih dahulu** sebelum membuat atau memodifikasi UI apa pun. File itu memuat token warna (primary + dark scale, sinkron dengan `resources/css/app.css`), konvensi className, tipografi, spacing, radius, pola layout per jenis halaman, interactive states, motion, dan pemetaan ke shadcn/ui. Jangan menyalin nilai token ke dokumen lain; rujuk file itu.
+**Satu-satunya sumber kebenaran:** `.claude/design-systems/archipelago.md` — **baca file ini terlebih dahulu** sebelum membuat atau memodifikasi UI apa pun. Design system yang **aktif adalah Obsidian** (bagian akhir file itu: token `ob-*` sinkron dengan `resources/css/app.css`, aturan bentuk, dan gaya tiap komponen katalog). Bagian Archipelago di awal file hanya warisan untuk halaman yang belum dimigrasi; jangan dipakai di kode baru. Jangan menyalin nilai token ke dokumen lain; rujuk file itu.
 
 ---
 
@@ -79,11 +79,13 @@ Di React, gunakan komponen `CurrencyInput` (lihat React Component Catalog) yang 
 
 **CRITICAL: Semua halaman React WAJIB menggunakan komponen yang ada sebelum menulis raw HTML/JSX. Jangan pernah menulis `<select>`, `<input type="date">`, `<input>` biasa, atau pola UI lainnya secara manual jika sudah ada komponen yang tersedia.**
 
-Semua komponen sudah dikustomisasi penuh sesuai Archipelago design system. Referensi token yang berlaku:
-- `primary-*` — aksen utama biru
-- `dark-50` hingga `dark-950` — dark mode zinc scale
-- `secondary-200` / `dark-600` — border/divider
-- `rounded-xl` — radius standar semua container
+Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per komponen: `archipelago.md` › Obsidian › "Komponen katalog — gaya bawaan Obsidian"); halaman cukup memakainya apa adanya. Token yang berlaku:
+- `ob-page` / `ob-card` / `ob-inner` / `ob-chip` / `ob-hover` — permukaan berlapis (halaman → kartu → isi kartu → chip/tile → hover)
+- `ob-ink` / `ob-ink-2` / `ob-ink-3` — teks utama / sekunder / paling redup
+- `ob-line` / `ob-line-soft` / `ob-line-strong` — tepi 1 px
+- `ob-act-fill` — tombol primer & cincin fokus; `ob-pos` · `ob-neg` · `ob-wait` · `ob-late` · `ob-act` — nada status (satu hue satu makna)
+- Radius: kartu `rounded-3xl`, kartu-dalam `rounded-2xl`, kontrol `rounded-xl`, tombol & chip `rounded-full`
+- Tanpa awalan `dark:` — variabel `--ob-*` berganti sendiri per tema
 
 ### Komponen UI Primitif (`@/components/ui/`)
 
@@ -93,31 +95,31 @@ Semua komponen sudah dikustomisasi penuh sesuai Archipelago design system. Refer
 | `Badge` | `@/components/ui/badge` | Status tag manual | Variants: `default`, `blue`, `green`, `emerald`, `yellow`, `orange`, `red`, `purple`, `zinc`, `outline`. |
 | `Input` | `@/components/ui/input` | `<input>` biasa | Props: `label`, `hint`, `error`, `icon`, `iconRight`. |
 | `Textarea` | `@/components/ui/textarea` | `<textarea>` biasa | Props: `label`, `hint`, `error`. |
-| `Checkbox` | `@/components/ui/checkbox` | `<input type="checkbox">` | `primary-600` checked state. |
-| `Switch` | `@/components/ui/switch` | Toggle HTML manual | `primary-600` on, `dark-600` off. |
+| `Checkbox` | `@/components/ui/checkbox` | `<input type="checkbox">` | Tercentang `ob-act-fill`. |
+| `Switch` | `@/components/ui/switch` | Toggle HTML manual | Aktif `ob-act-fill`, mati `ob-chip`. |
 | `ColorInput` | `@/components/ui/color-input` | **`<input type="color">` + hex text manual — WAJIB** | Swatch + hex field combo. Props: `value`, `onChange`, `label`, `error`. Stores lowercase hex string. |
 | `Slider` | `@/components/ui/slider` | **`<input type="range">` manual — WAJIB** | Styled range with optional suffix label. Props: `value`, `onChange`, `min`, `max`, `step`, `label`, `suffix`, `disabled`. |
 | `SegmentedControl` | `@/components/ui/segmented-control` | **Tombol pilihan segmented/radio manual** | Pilihan eksklusif berbentuk grup tombol (mis. tipe/prioritas/status). Props: `options` (`{value,label,icon?,activeClassName?}`), `value`, `onChange`, `columns`, `layout` (`stack`\|`inline`), `label`, `error`. Generic atas tipe value. |
-| `Label` | `@/components/ui/label` | `<label>` manual | `dark-900 dark:text-dark-300`. |
+| `Label` | `@/components/ui/label` | `<label>` manual | 13 px `text-ob-ink-2`. |
 | `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. |
-| `DatePicker` | `@/components/ui/date-picker` | **`<input type="date">` — WAJIB** | Indonesian locale, `primary-600` selected, react-day-picker v10. Single: `value`, `onChange`. Range: tambah `mode="range"`, `value={from,to}`, `placeholderTo`. |
+| `DatePicker` | `@/components/ui/date-picker` | **`<input type="date">` — WAJIB** | Indonesian locale, hari terpilih `ob-act-fill`, react-day-picker v10. Single: `value`, `onChange`. Range: tambah `mode="range"`, `value={from,to}`, `placeholderTo`. |
 | `Dialog` | `@/components/ui/dialog` | Modal HTML manual | Sizes: `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, `4xl`, `full`. Exports: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`. |
-| `Card` | `@/components/ui/card` | Div wrapper manual | `dark-700`, `rounded-xl`, `shadow-sm`. Exports: `Card`, `CardContent`, `CardHeader`, `CardTitle`, `CardDescription`, `CardFooter`. |
+| `Card` | `@/components/ui/card` | Div wrapper manual | `bg-ob-card`, `rounded-3xl`, tepi `ob-line`, tanpa bayangan. Exports: `Card`, `CardContent`, `CardHeader`, `CardTitle`, `CardDescription`, `CardFooter`. |
 | `Tabs` | `@/components/ui/tabs` | Tab custom HTML | Pill/segment style. Props: `items`, `value`, `onChange`. Export `TabsPanel` untuk content. |
-| `Popover` | `@/components/ui/popover` | Tooltip/flyout manual | `dark-700` bg, `rounded-xl`. Exports: `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor`. |
-| `DropdownMenu` | `@/components/ui/dropdown-menu` | Dropdown manual | `dark-700` panel, `dark-600` hover. Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, dll. |
+| `Popover` | `@/components/ui/popover` | Tooltip/flyout manual | Panel melayang `bg-ob-card`, `rounded-2xl`. Exports: `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor`. |
+| `DropdownMenu` | `@/components/ui/dropdown-menu` | Dropdown manual | Panel `bg-ob-card`, hover `ob-hover`. Exports: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, dll. |
 | `Tooltip` | `@/components/ui/tooltip` | `title=` attribute | Exports: `Tooltip`, `TooltipContent`, `TooltipProvider`, `TooltipTrigger`. |
-| `Avatar` | `@/components/ui/avatar` | Initials div manual | `primary-100/900` fallback bg. Exports: `Avatar`, `AvatarImage`, `AvatarFallback`. |
-| `Skeleton` | `@/components/ui/skeleton` | Loading state manual | `dark-700` animate-pulse. |
-| `ScrollArea` | `@/components/ui/scroll-area` | `overflow-y-auto` manual | `dark-600` scrollbar thumb. Exports: `ScrollArea`, `ScrollBar`. |
-| `Separator` | `@/components/ui/separator` | `<hr>` / border manual | `secondary-200 dark:dark-600`. Horizontal dan vertical. |
+| `Avatar` | `@/components/ui/avatar` | Initials div manual | Fallback `bg-ob-chip`. Exports: `Avatar`, `AvatarImage`, `AvatarFallback`. |
+| `Skeleton` | `@/components/ui/skeleton` | Loading state manual | `bg-ob-chip` animate-pulse, berbentuk baris. |
+| `ScrollArea` | `@/components/ui/scroll-area` | `overflow-y-auto` manual | Thumb `ob-line-strong`. Exports: `ScrollArea`, `ScrollBar`. |
+| `Separator` | `@/components/ui/separator` | `<hr>` / border manual | `ob-line`. Horizontal dan vertical. |
 
 ### Komponen Shared (`@/components/shared/`)
 
 | Komponen | Import | Keterangan |
 |----------|--------|------------|
-| `PageHeader` | `@/components/shared/page-header` | Header halaman dengan gradient title. Props: `title`, `description`, `action`. WAJIB di semua halaman utama. |
-| `StatsCard` | `@/components/shared/stats-card` | Stats card horizontal. Props: `title`, `value`, `icon`, `color` (`blue`\|`green`\|`purple`\|`red`\|`emerald`\|`yellow`\|`orange`\|`zinc`), `inModal` (boolean). |
+| `PageHeader` | `@/components/shared/page-header` | Header halaman: judul 26/600 tanpa gradient. Props: `title`, `description`, `action`. WAJIB di semua halaman utama. |
+| `StatsCard` | `@/components/shared/stats-card` | Stats card horizontal. Props: `label`, `value`, `icon`, `color` (`blue`\|`green`\|`purple`\|`red`\|`emerald`\|`yellow`\|`orange`\|`indigo` — mewarnai ikon saja, ungu & indigo jadi netral), `inModal` (boolean). |
 | `FormSection` | `@/components/shared/form-section` | Section header dalam form. Props: `title`, `description`. |
 | `DataTable` | `@/components/shared/data-table` | Tabel data dengan sorting. Props: `columns`, `data`, `loading`, `emptyState`. Berbasis `@tanstack/react-table`. |
 | `Pagination` | `@/components/shared/pagination` | Pagination navigasi. Props: `currentPage`, `lastPage`, `perPage`, `total`, `onPageChange`. |
@@ -201,7 +203,7 @@ Loading skeleton                  → Skeleton
 | Settings | `/settings/*` | Hub, Profile, Password, Company, Penomoran Invoice, PDF Templates |
 | Users | `/admin/users` | Index, Create, Edit, Delete |
 | Permissions/Roles | `/permissions` | Permissions + Roles CRUD |
-| Companies | `/admin/companies` | Provisioning perusahaan baru (admin, kuota per organization) |
+| Companies | `/admin/companies` | Provisioning perusahaan baru + anggota & peran tiap perusahaan (admin, kuota per organization; menu Administrasi › Perusahaan) |
 
 ### Key Business Logic
 

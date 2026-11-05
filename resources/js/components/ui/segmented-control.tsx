@@ -5,7 +5,7 @@ export interface SegmentedOption<T extends string = string> {
     value: T;
     label: string;
     icon?: React.ReactNode;
-    /** Tailwind classes applied when this option is active. Defaults to primary accent. */
+    /** Tailwind classes applied when this option is active. Defaults to the inverted Obsidian pill (bg-ob-invert). */
     activeClassName?: string;
 }
 
@@ -20,7 +20,7 @@ interface SegmentedControlProps<T extends string = string> {
     columns?: 2 | 3 | 4 | 5 | 6;
     /** "stack" places icon above label (taller cards); "inline" is a single compact row. */
     layout?: 'stack' | 'inline';
-    /** "pill" = trek Obsidian (latar rel, pil aktif terbalik); default "card" untuk halaman lama. */
+    /** "card" (default) = opsi berupa kartu terpisah; "pill" = trek Obsidian (latar rel, pil aktif terbalik). */
     variant?: 'card' | 'pill';
     disabled?: boolean;
     className?: string;
@@ -34,11 +34,15 @@ const COLS: Record<number, string> = {
     6: 'grid-cols-6',
 };
 
-const DEFAULT_ACTIVE =
-    'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-300';
+const ITEM_BASE =
+    'font-medium transition-colors duration-150 ease-out motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page disabled:pointer-events-none disabled:opacity-50';
 
-const INACTIVE =
-    'border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:border-primary-300 dark:hover:border-primary-700';
+/** Opsi aktif bawaan: terbalik (gelap di tema terang, terang di tema gelap), sama dengan pil aktif rel. */
+const PILL_ACTIVE = 'bg-ob-invert font-semibold text-ob-invert-ink';
+const PILL_INACTIVE = 'text-ob-ink-2 hover:text-ob-ink';
+
+const CARD_ACTIVE = 'border-ob-invert bg-ob-invert font-semibold text-ob-invert-ink';
+const CARD_INACTIVE = 'border-ob-line bg-ob-inner text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink';
 
 export function SegmentedControl<T extends string = string>({
     options,
@@ -58,11 +62,7 @@ export function SegmentedControl<T extends string = string>({
 
     return (
         <div className={cn('w-full', className)}>
-            {label && (
-                <label className="mb-1.5 block text-sm font-medium text-dark-900 dark:text-dark-300">
-                    {label}
-                </label>
-            )}
+            {label && <label className="mb-1.5 block text-[13px] font-medium text-ob-ink-2">{label}</label>}
 
             <div
                 role="radiogroup"
@@ -70,6 +70,7 @@ export function SegmentedControl<T extends string = string>({
                 className={cn(
                     'grid',
                     COLS[cols] ?? 'grid-cols-3',
+                    /* Trek sama dengan grup pil halaman Obsidian: tepi 1 px + padding 3 px = jarak 4 px. */
                     pill ? 'gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]' : 'gap-2',
                 )}
             >
@@ -84,19 +85,19 @@ export function SegmentedControl<T extends string = string>({
                             disabled={disabled}
                             onClick={() => onChange(opt.value)}
                             className={cn(
-                                'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+                                ITEM_BASE,
                                 pill
-                                    ? 'flex h-9 items-center justify-center gap-2 rounded-full px-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill'
+                                    ? 'flex h-9 items-center justify-center gap-2 rounded-full px-3 text-[13px]'
                                     : layout === 'stack'
                                       ? 'flex flex-col items-center gap-1.5 rounded-xl border p-3'
                                       : 'flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-xs',
                                 pill
                                     ? active
-                                        ? opt.activeClassName ?? 'bg-ob-invert font-semibold text-ob-invert-ink'
-                                        : 'text-ob-ink-2 hover:text-ob-ink'
+                                        ? opt.activeClassName ?? PILL_ACTIVE
+                                        : PILL_INACTIVE
                                     : active
-                                      ? opt.activeClassName ?? DEFAULT_ACTIVE
-                                      : INACTIVE,
+                                      ? opt.activeClassName ?? CARD_ACTIVE
+                                      : CARD_INACTIVE,
                             )}
                         >
                             {opt.icon && <span className="shrink-0">{opt.icon}</span>}
@@ -108,8 +109,8 @@ export function SegmentedControl<T extends string = string>({
                 })}
             </div>
 
-            {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {hint && !error && <p className="mt-1 text-xs text-dark-500 dark:text-dark-400">{hint}</p>}
+            {error && <p className="mt-1 text-xs text-ob-late">{error}</p>}
+            {hint && !error && <p className="mt-1 text-xs text-ob-ink-3">{hint}</p>}
         </div>
     );
 }

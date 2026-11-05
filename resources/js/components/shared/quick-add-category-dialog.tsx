@@ -30,6 +30,11 @@ interface Props {
 
 type Mode = 'child' | 'group';
 
+const MODE_BUTTON =
+    'flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page';
+const MODE_ACTIVE = 'bg-ob-invert font-semibold text-ob-invert-ink';
+const MODE_IDLE = 'font-medium text-ob-ink-2 hover:text-ob-ink';
+
 export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions, onAdded }: Props) {
     const [mode, setMode] = React.useState<Mode>('child');
     const [label, setLabel] = React.useState('');
@@ -102,26 +107,22 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
             <DialogContent size="sm">
                 <DialogHeader>
                     <div className="flex items-center gap-3 py-1">
-                        <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-primary-50 dark:bg-primary-900/20">
-                            <Plus className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                        <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-ob-chip text-ob-ink-2">
+                            <Plus className="w-4 h-4" />
                         </div>
-                        <DialogTitle className="text-base font-semibold text-dark-900 dark:text-dark-50">
-                            Tambah Kategori
-                        </DialogTitle>
+                        <DialogTitle>Tambah Kategori</DialogTitle>
                     </div>
                 </DialogHeader>
 
                 <div className="px-6 py-4 space-y-4">
-                    {/* Mode toggle */}
-                    <div className="flex items-center gap-1 p-1 bg-secondary-100 dark:bg-dark-800 rounded-xl">
+                    {/* Mode toggle — trek pil Obsidian, sama dengan SegmentedControl variant="pill". */}
+                    <div className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
                         <button
                             type="button"
                             onClick={() => switchMode('child')}
                             className={[
-                                'flex items-center gap-1.5 flex-1 justify-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-                                mode === 'child'
-                                    ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-dark-50 shadow-sm border border-secondary-200 dark:border-dark-600'
-                                    : 'text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200',
+                                MODE_BUTTON,
+                                mode === 'child' ? MODE_ACTIVE : MODE_IDLE,
                             ].join(' ')}
                         >
                             <Tag className="w-3 h-3 shrink-0" />
@@ -131,10 +132,8 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                             type="button"
                             onClick={() => switchMode('group')}
                             className={[
-                                'flex items-center gap-1.5 flex-1 justify-center px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-                                mode === 'group'
-                                    ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-dark-50 shadow-sm border border-secondary-200 dark:border-dark-600'
-                                    : 'text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200',
+                                MODE_BUTTON,
+                                mode === 'group' ? MODE_ACTIVE : MODE_IDLE,
                             ].join(' ')}
                         >
                             <FolderOpen className="w-3 h-3 shrink-0" />
@@ -155,7 +154,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                     )}
 
                     {mode === 'group' && (
-                        <p className="text-xs text-dark-400 dark:text-dark-500">
+                        <p className="text-xs text-ob-ink-3">
                             Kelompok digunakan untuk mengelompokkan sub kategori — tidak bisa dipilih langsung saat mencatat transaksi.
                         </p>
                     )}

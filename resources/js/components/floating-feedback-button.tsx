@@ -18,17 +18,29 @@ import { FormSection } from '@/components/shared/form-section';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 
+/*
+ * Warna pilihan aktif = nada chip Obsidian, dipetakan sama seperti Badge di halaman Feedback
+ * (merah → ob-late, biru → ob-act, kuning → ob-wait, zinc → chip netral). Tepi ikut nada agar
+ * tetap terbaca bila SegmentedControl memakai bentuk kartu bertepi.
+ */
+const TONE_ACTIVE = {
+    late: 'border-ob-late/40 bg-ob-late/12 font-semibold text-ob-late',
+    act: 'border-ob-act/40 bg-ob-act/12 font-semibold text-ob-act',
+    wait: 'border-ob-wait/40 bg-ob-wait/12 font-semibold text-ob-wait',
+    neutral: 'border-ob-line-strong bg-ob-chip font-semibold text-ob-ink',
+};
+
 const TYPE_OPTIONS: SegmentedOption<'bug' | 'feature' | 'feedback'>[] = [
-    { value: 'bug', label: 'Bug', icon: <Bug className="w-5 h-5" />, activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400' },
-    { value: 'feature', label: 'Fitur', icon: <Lightbulb className="w-5 h-5" />, activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400' },
-    { value: 'feedback', label: 'Saran', icon: <MessageCircle className="w-5 h-5" />, activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-400 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
+    { value: 'bug', label: 'Bug', icon: <Bug className="w-5 h-5" />, activeClassName: TONE_ACTIVE.late },
+    { value: 'feature', label: 'Fitur', icon: <Lightbulb className="w-5 h-5" />, activeClassName: TONE_ACTIVE.act },
+    { value: 'feedback', label: 'Saran', icon: <MessageCircle className="w-5 h-5" />, activeClassName: TONE_ACTIVE.neutral },
 ];
 
 const PRIORITY_OPTIONS: SegmentedOption<'low' | 'medium' | 'high' | 'critical'>[] = [
-    { value: 'low', label: 'Rendah', activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-300 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
-    { value: 'medium', label: 'Sedang', activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-300' },
-    { value: 'high', label: 'Tinggi', activeClassName: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500 text-yellow-700 dark:text-yellow-300' },
-    { value: 'critical', label: 'Kritis', activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300' },
+    { value: 'low', label: 'Rendah', activeClassName: TONE_ACTIVE.neutral },
+    { value: 'medium', label: 'Sedang', activeClassName: TONE_ACTIVE.act },
+    { value: 'high', label: 'Tinggi', activeClassName: TONE_ACTIVE.wait },
+    { value: 'critical', label: 'Kritis', activeClassName: TONE_ACTIVE.late },
 ];
 
 interface FormData {
@@ -83,14 +95,14 @@ export function FloatingFeedbackButton() {
                 onClick={() => setOpen(true)}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
-                className="fixed bottom-6 right-6 z-40 h-12 rounded-full bg-primary-600 text-white shadow-lg hover:shadow-xl hover:bg-primary-700 transition-all flex items-center justify-center pl-3.5 pr-4 gap-2 group"
+                className="fixed bottom-6 right-6 z-40 h-12 rounded-full bg-ob-act-fill text-white shadow-xl shadow-black/20 hover:bg-ob-act-fill/90 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page flex items-center justify-center pl-3.5 pr-4 gap-2 group"
                 title="Kirim Feedback"
                 aria-label="Kirim Feedback"
             >
                 <MessageSquare className="w-5 h-5 shrink-0" />
                 <span
                     className={cn(
-                        'overflow-hidden whitespace-nowrap transition-all duration-300 text-sm font-semibold',
+                        'overflow-hidden whitespace-nowrap transition-all duration-200 ease-out motion-reduce:transition-none text-sm font-semibold',
                         hovered ? 'max-w-32 opacity-100' : 'max-w-0 opacity-0',
                     )}
                 >
@@ -101,16 +113,16 @@ export function FloatingFeedbackButton() {
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent size="lg" className="p-0 overflow-hidden">
                     <form onSubmit={submit}>
-                        <DialogHeader className="px-6 pt-6 pb-2">
+                        <DialogHeader>
                             <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center shrink-0">
-                                    <MessageSquare className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                                <div className="h-11 w-11 rounded-lg bg-ob-chip text-ob-ink-2 flex items-center justify-center shrink-0">
+                                    <MessageSquare className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
+                                    <DialogTitle>
                                         Kirim Feedback
                                     </DialogTitle>
-                                    <p className="text-sm text-dark-500 dark:text-dark-400">
+                                    <p className="text-sm text-ob-ink-2">
                                         Laporkan bug, ajukan fitur, atau berikan saran
                                     </p>
                                 </div>
@@ -169,7 +181,7 @@ export function FloatingFeedbackButton() {
                             </FormSection>
                         </div>
 
-                        <DialogFooter className="px-6 py-4 border-t border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
+                        <DialogFooter>
                             <Button type="button" variant="zinc" onClick={() => setOpen(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
                                 Batal
                             </Button>

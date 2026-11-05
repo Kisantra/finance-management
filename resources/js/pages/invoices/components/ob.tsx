@@ -122,14 +122,12 @@ export function Avatar({ name, className }: { name: string; className?: string }
 
 /* ─── kelas bersama ─── */
 
-/** Pembungkus field: menyelaraskan Input/Combobox/DatePicker/CurrencyInput dengan token Obsidian. */
-export const FIELD = cn(
-    '[&_label]:mb-1.5 [&_label]:text-[13px] [&_label]:font-medium [&_label]:text-ob-ink-2',
-    '[&_input]:h-[42px] [&_input]:border-ob-line [&_input]:bg-ob-inner [&_input]:text-ob-ink [&_input]:placeholder:text-ob-ink-3 [&_input]:focus:ring-ob-act-fill',
-    '[&_textarea]:rounded-xl [&_textarea]:border-ob-line [&_textarea]:bg-ob-inner [&_textarea]:text-ob-ink [&_textarea]:placeholder:text-ob-ink-3 [&_textarea]:focus:ring-ob-act-fill',
-    '[&_button]:h-[42px] [&_button]:border-ob-line [&_button]:bg-ob-inner [&_button]:text-ob-ink',
-    '[&_.rounded-l-xl]:border-ob-line [&_.rounded-l-xl]:bg-ob-chip [&_.rounded-l-xl]:text-ob-ink-2',
-);
+/**
+ * Pembungkus field. Sejak 5 Nov 2026 komponen katalog sudah bergaya Obsidian sendiri, jadi yang
+ * tersisa hanya gaya label (untuk <label> tulisan tangan di dalam pembungkus). Aturan warna tepi
+ * lama dihapus: pemilih turunan menang atas kelas komponen dan menutupi tepi merah saat error.
+ */
+export const FIELD = '[&_label]:mb-1.5 [&_label]:text-[13px] [&_label]:font-medium [&_label]:text-ob-ink-2';
 
 /** Field ringkas di dalam baris item (tinggi 34). */
 export const FIELD_SM = cn(

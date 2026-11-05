@@ -55,6 +55,53 @@ const MONTH_NAMES_FULL = Array.from({ length: 12 }, (_, i) =>
     format(new Date(2024, i, 1), 'MMMM', { locale: idLocale }),
 );
 
+/* ─── Obsidian classes ─────────────────────────────────── */
+/*
+ * Tokens are the --ob-* variables in resources/css/app.css; they swap per theme, so there are
+ * no dark-mode variants. Floating panel = the menus in layouts/header.tsx; tiles, today marker,
+ * range and round nav buttons = the dashboard calendar (components/dashboard/range-calendar.tsx).
+ */
+
+/** Focus ring inside the panel; the offset matches bg-ob-card so it stays visible on blue fills. */
+const FOCUS_RING =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-card';
+
+const PANEL =
+    'rounded-2xl border border-ob-line bg-ob-card p-2 text-ob-ink shadow-xl shadow-black/20 ob-fade-in ob-motion';
+
+const NAV_BUTTON = cn(
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ob-line bg-ob-inner text-ob-ink-2 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink disabled:pointer-events-none disabled:opacity-50',
+    FOCUS_RING,
+);
+
+/** Day / month tile. */
+const TILE = cn(
+    'relative flex h-[34px] w-9 items-center justify-center rounded-[10px] border border-ob-line-soft bg-ob-inner p-0 text-[13px] font-medium text-ob-ink transition-colors duration-150 ease-out hover:border-ob-line-strong hover:bg-ob-hover',
+    FOCUS_RING,
+);
+
+/** Today / current month: blue edge + small dot under the number. */
+const TILE_TODAY =
+    "border-ob-act-fill/60 hover:border-ob-act-fill/60 after:absolute after:bottom-[4px] after:h-1 after:w-1 after:rounded-full after:bg-ob-act after:content-['']";
+
+const TILE_SELECTED =
+    'border-transparent bg-ob-act-fill font-semibold text-white hover:border-transparent hover:bg-ob-act-fill after:bg-white';
+
+/*
+ * react-day-picker puts modifier classes on the day <td>, so they style its button through
+ * [&>button]. Every day of a range is also "selected": the range-middle classes carry
+ * [aria-selected] to outrank DAY_SELECTED, and the today edge/dot colour skips selected days
+ * so the selection always wins (white dot on the blue fill).
+ */
+const DAY_SELECTED =
+    '[&>button]:border-transparent [&>button]:bg-ob-act-fill [&>button]:font-semibold [&>button]:text-white [&>button]:hover:border-transparent [&>button]:hover:bg-ob-act-fill [&>button]:after:bg-white';
+
+const DAY_RANGE_MIDDLE =
+    '[&[aria-selected]>button]:border-ob-act-fill/35 [&[aria-selected]>button]:bg-ob-act-fill/15 [&[aria-selected]>button]:font-medium [&[aria-selected]>button]:text-ob-ink [&[aria-selected]>button]:hover:border-ob-act-fill/50 [&[aria-selected]>button]:hover:bg-ob-act-fill/25 [&[aria-selected]>button]:after:bg-ob-act';
+
+const DAY_TODAY =
+    "[&>button]:after:absolute [&>button]:after:bottom-[4px] [&>button]:after:h-1 [&>button]:after:w-1 [&>button]:after:rounded-full [&>button]:after:content-[''] [&:not([aria-selected])>button]:border-ob-act-fill/60 [&:not([aria-selected])>button]:after:bg-ob-act";
+
 /* ─── Inline calendar header dropdown ──────────────────── */
 
 function CalendarDropdown({
@@ -76,22 +123,25 @@ function CalendarDropdown({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-semibold text-dark-900 dark:text-dark-50 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
+                    className={cn(
+                        'flex h-8 items-center gap-1 rounded-full px-2.5 text-[15px] font-semibold capitalize text-ob-ink transition-colors duration-150 ease-out hover:bg-ob-hover data-[state=open]:bg-ob-hover',
+                        FOCUS_RING,
+                    )}
                 >
                     {label}
                     <ChevronDown
                         className={cn(
-                            'h-3 w-3 text-dark-400 transition-transform duration-150',
+                            'h-3.5 w-3.5 text-ob-ink-3 transition-transform duration-150',
                             open && 'rotate-180',
                         )}
                     />
                 </button>
             </PopoverTrigger>
             <PopoverContent
-                className={cn('p-1.5 max-h-52 overflow-y-auto', isMany ? 'w-28' : 'w-44')}
+                className={cn(PANEL, 'ob-scroll max-h-56', isMany ? 'w-28' : 'w-44')}
                 align="center"
             >
-                <div className={cn(isMany ? 'flex flex-col gap-0.5' : 'grid grid-cols-3 gap-0.5')}>
+                <div className={cn(isMany ? 'flex flex-col gap-1' : 'grid grid-cols-3 gap-1')}>
                     {options.map((opt) => (
                         <button
                             key={opt.value}
@@ -101,10 +151,11 @@ function CalendarDropdown({
                                 setOpen(false);
                             }}
                             className={cn(
-                                'px-2 py-1.5 rounded-lg text-sm text-center transition-colors',
+                                'rounded-xl px-2 py-2 text-center text-sm transition-colors duration-150 ease-out',
+                                FOCUS_RING,
                                 opt.value === selected
-                                    ? 'bg-primary-600 text-white font-medium'
-                                    : 'text-dark-700 dark:text-dark-300 hover:bg-zinc-50 dark:hover:bg-dark-600',
+                                    ? 'bg-ob-act-fill font-semibold text-white'
+                                    : 'text-ob-ink hover:bg-ob-hover',
                             )}
                         >
                             {opt.label}
@@ -149,13 +200,13 @@ function MonthCaptionInner({
     );
 
     return (
-        <div className="flex items-center justify-between px-1 pb-3">
+        <div className="flex items-center justify-between pb-3">
             <button
                 type="button"
                 disabled={!previousMonth}
                 onClick={() => previousMonth && goToMonth(previousMonth)}
                 aria-label="Bulan sebelumnya"
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className={NAV_BUTTON}
             >
                 <ChevronLeft className="h-4 w-4" />
             </button>
@@ -180,7 +231,7 @@ function MonthCaptionInner({
                 disabled={!nextMonth}
                 onClick={() => nextMonth && goToMonth(nextMonth)}
                 aria-label="Bulan berikutnya"
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className={NAV_BUTTON}
             >
                 <ChevronRight className="h-4 w-4" />
             </button>
@@ -210,19 +261,19 @@ function MonthGrid({
     const selectedMonth = selectedValue ? parseInt(selectedValue.split('-')[1]) - 1 : null;
 
     return (
-        <div className="p-3 w-56">
+        <div className="w-52 p-1">
             {/* Year navigation */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex items-center justify-between">
                 <button
                     type="button"
                     disabled={year <= fromYear}
                     onClick={() => onYearChange(year - 1)}
                     aria-label="Tahun sebelumnya"
-                    className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={NAV_BUTTON}
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="text-sm font-semibold text-dark-900 dark:text-dark-50 tabular-nums">
+                <span className="text-[15px] font-semibold text-ob-ink tabular-nums">
                     {year}
                 </span>
                 <button
@@ -230,14 +281,14 @@ function MonthGrid({
                     disabled={year >= toYear}
                     onClick={() => onYearChange(year + 1)}
                     aria-label="Tahun berikutnya"
-                    className="h-8 w-8 flex items-center justify-center rounded-lg text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 hover:text-dark-900 dark:hover:text-dark-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={NAV_BUTTON}
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>
             </div>
 
             {/* Month grid — 3 columns × 4 rows */}
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-3 gap-1.5">
                 {MONTH_NAMES_SHORT.map((name, idx) => {
                     const isSelected = selectedYear === year && selectedMonth === idx;
                     const isCurrentMonth = now.getFullYear() === year && now.getMonth() === idx;
@@ -252,12 +303,10 @@ function MonthGrid({
                             }}
                             title={MONTH_NAMES_FULL[idx]}
                             className={cn(
-                                'py-2 rounded-lg text-sm text-center font-medium transition-colors',
-                                isSelected
-                                    ? 'bg-primary-600 text-white hover:bg-primary-700'
-                                    : isCurrentMonth
-                                      ? 'text-primary-600 dark:text-primary-400 hover:bg-zinc-100 dark:hover:bg-dark-600'
-                                      : 'text-dark-700 dark:text-dark-300 hover:bg-zinc-100 dark:hover:bg-dark-600',
+                                TILE,
+                                'h-9 w-full',
+                                isCurrentMonth && TILE_TODAY,
+                                isSelected && TILE_SELECTED,
                             )}
                         >
                             {name}
@@ -325,39 +374,25 @@ export function DatePicker(props: DatePickerProps) {
     /* trigger label */
     const triggerLabel = isMonth ? (
         monthValue ? (
-            <span className="text-dark-900 dark:text-dark-50 truncate">
+            <span className="truncate text-ob-ink">
                 {MONTH_NAMES_FULL[parseInt(monthValue.split('-')[1]) - 1]}{' '}
                 {monthValue.split('-')[0]}
             </span>
         ) : (
-            <span className="text-dark-400 dark:text-dark-500">{placeholder}</span>
+            <span className="text-ob-ink-3">{placeholder}</span>
         )
     ) : isRange ? (
         !rangeValue?.from && !rangeValue?.to ? (
-            <span className="text-dark-400 dark:text-dark-500">{placeholder}</span>
+            <span className="text-ob-ink-3">{placeholder}</span>
         ) : (
             <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span
-                    className={cn(
-                        'truncate',
-                        rangeValue?.from
-                            ? 'text-dark-900 dark:text-dark-50'
-                            : 'text-dark-400 dark:text-dark-500',
-                    )}
-                >
+                <span className={cn('truncate', rangeValue?.from ? 'text-ob-ink' : 'text-ob-ink-3')}>
                     {rangeValue?.from
                         ? format(rangeValue.from, 'dd MMM yyyy', { locale: idLocale })
                         : placeholder}
                 </span>
-                <span className="text-dark-300 dark:text-dark-500 shrink-0">→</span>
-                <span
-                    className={cn(
-                        'truncate',
-                        rangeValue?.to
-                            ? 'text-dark-900 dark:text-dark-50'
-                            : 'text-dark-400 dark:text-dark-500',
-                    )}
-                >
+                <span className="shrink-0 text-ob-ink-3">→</span>
+                <span className={cn('truncate', rangeValue?.to ? 'text-ob-ink' : 'text-ob-ink-3')}>
                     {rangeValue?.to
                         ? format(rangeValue.to, 'dd MMM yyyy', { locale: idLocale })
                         : (props as DatePickerRangeProps).placeholderTo ?? 'Tanggal akhir...'}
@@ -365,12 +400,7 @@ export function DatePicker(props: DatePickerProps) {
             </div>
         )
     ) : (
-        <span
-            className={cn(
-                'truncate',
-                singleValue ? 'text-dark-900 dark:text-dark-50' : 'text-dark-400 dark:text-dark-500',
-            )}
-        >
+        <span className={cn('truncate', singleValue ? 'text-ob-ink' : 'text-ob-ink-3')}>
             {singleValue ? format(singleValue, 'dd MMM yyyy', { locale: idLocale }) : placeholder}
         </span>
     );
@@ -450,7 +480,7 @@ export function DatePicker(props: DatePickerProps) {
             {label && (
                 <label
                     htmlFor={inputId}
-                    className="mb-1.5 block text-sm font-medium text-dark-900 dark:text-dark-300"
+                    className="mb-1.5 block text-[13px] font-medium text-ob-ink-2"
                 >
                     {label}
                 </label>
@@ -462,23 +492,20 @@ export function DatePicker(props: DatePickerProps) {
                         type="button"
                         disabled={disabled}
                         className={cn(
-                            'flex h-10 w-full items-center rounded-xl border px-3 text-sm text-left transition-all duration-150',
-                            'bg-white dark:bg-dark-800',
+                            'flex h-[42px] w-full items-center rounded-xl border bg-ob-inner px-3.5 text-left text-sm text-ob-ink transition-colors duration-150 ease-out motion-reduce:transition-none',
                             error
-                                ? 'border-red-400 dark:border-red-500 ring-2 ring-red-500/10'
+                                ? 'border-ob-late'
                                 : open
-                                  ? 'border-primary-500 ring-2 ring-primary-500/15 dark:border-primary-500'
-                                  : 'border-secondary-200 dark:border-dark-600 hover:border-secondary-300 dark:hover:border-dark-500',
-                            'focus-visible:outline-none',
-                            'disabled:cursor-not-allowed disabled:bg-secondary-50 dark:disabled:bg-dark-700 disabled:opacity-60',
+                                  ? 'border-ob-act-fill/50'
+                                  : 'border-ob-line hover:border-ob-line-strong',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page',
+                            'disabled:pointer-events-none disabled:opacity-50',
                         )}
                     >
                         <CalendarDays
                             className={cn(
-                                'h-4 w-4 shrink-0 mr-2.5 transition-colors',
-                                hasValue
-                                    ? 'text-primary-500 dark:text-primary-400'
-                                    : 'text-dark-400 dark:text-dark-500',
+                                'mr-2.5 h-4 w-4 shrink-0 transition-colors duration-150 motion-reduce:transition-none',
+                                hasValue ? 'text-ob-ink-2' : 'text-ob-ink-3',
                             )}
                         />
                         <div className="flex-1 min-w-0 flex items-center">{triggerLabel}</div>
@@ -486,9 +513,10 @@ export function DatePicker(props: DatePickerProps) {
                             <span
                                 role="button"
                                 tabIndex={0}
+                                aria-label="Hapus tanggal"
                                 onClick={handleClear}
                                 onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
-                                className="ml-1.5 shrink-0 rounded-md p-1 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors"
+                                className="ml-1.5 shrink-0 rounded-full p-1 text-ob-ink-3 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
                             >
                                 <X className="h-3 w-3" />
                             </span>
@@ -497,7 +525,7 @@ export function DatePicker(props: DatePickerProps) {
                 </PopoverTrigger>
 
                 <PopoverContent
-                    className="w-auto p-0"
+                    className={cn(PANEL, 'w-auto')}
                     align="start"
                     onInteractOutside={(e) => {
                         const target = e.target as HTMLElement;
@@ -535,45 +563,45 @@ export function DatePicker(props: DatePickerProps) {
                             ]}
                             components={{ MonthCaption: MonthCaptionComponent as any }}
                             classNames={{
-                                root: 'p-3',
+                                root: 'p-1',
                                 months: 'flex flex-col',
                                 month: 'space-y-0',
                                 month_caption: '',
                                 caption_label: 'hidden',
                                 nav: 'hidden',
                                 month_grid: 'w-full border-collapse',
-                                weekdays: 'flex',
-                                weekday:
-                                    'text-dark-400 dark:text-dark-500 w-9 font-medium text-[0.8rem] text-center',
-                                weeks: '',
-                                week: 'flex w-full mt-2',
-                                day: 'h-9 w-9 text-center text-sm p-0 relative',
-                                day_button:
-                                    'h-9 w-9 p-0 font-normal rounded-xl hover:bg-zinc-100 dark:hover:bg-dark-600 text-dark-900 dark:text-dark-200 flex items-center justify-center text-sm transition-colors',
-                                selected: '!bg-primary-600 !text-white hover:!bg-primary-700',
-                                today: '!font-bold !text-primary-600 dark:!text-primary-400',
-                                outside: 'opacity-30',
-                                disabled: 'opacity-30 cursor-not-allowed',
-                                range_start: '!rounded-r-none',
-                                range_end: '!rounded-l-none',
-                                range_middle:
-                                    '!bg-primary-100 dark:!bg-primary-900/30 !rounded-none !text-primary-900 dark:!text-primary-100 hover:!bg-primary-200 dark:hover:!bg-primary-900/50',
+                                weekdays: 'flex gap-1.5',
+                                weekday: 'w-9 pb-1 text-center text-xs font-medium text-ob-ink-3',
+                                weeks: 'flex flex-col gap-1.5',
+                                week: 'flex gap-1.5',
+                                day: 'relative h-[34px] w-9 p-0 text-center text-[13px]',
+                                day_button: TILE,
+                                selected: DAY_SELECTED,
+                                today: DAY_TODAY,
+                                outside: '[&>button]:border-transparent [&>button]:bg-transparent [&>button]:text-ob-ink-3',
+                                disabled: '[&>button]:pointer-events-none [&>button]:opacity-50',
+                                range_start: '',
+                                range_end: '',
+                                range_middle: DAY_RANGE_MIDDLE,
                             }}
                         />
                         {isRange && (
-                            <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-1 border-t border-secondary-200 dark:border-dark-600">
-                                <span className="text-xs text-dark-400 dark:text-dark-500">
+                            <div className="mt-1 flex items-center justify-between gap-3 border-t border-ob-line px-1 pt-2.5 pb-0.5">
+                                <span className="text-xs text-ob-ink-2">
                                     {draftRange.from && draftRange.to
                                         ? `${format(draftRange.from, 'dd MMM', { locale: idLocale })} → ${format(draftRange.to, 'dd MMM yyyy', { locale: idLocale })}`
                                         : draftRange.from
                                           ? `${format(draftRange.from, 'dd MMM yyyy', { locale: idLocale })} → ...`
                                           : 'Pilih tanggal awal'}
                                 </span>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex shrink-0 items-center gap-1.5">
                                     <button
                                         type="button"
                                         onClick={() => setOpen(false)}
-                                        className="px-3 py-1.5 text-xs font-medium rounded-lg text-dark-600 dark:text-dark-400 hover:bg-zinc-100 dark:hover:bg-dark-600 transition-colors"
+                                        className={cn(
+                                            'h-8 rounded-full px-3 text-xs font-semibold text-ob-ink-2 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink',
+                                            FOCUS_RING,
+                                        )}
                                     >
                                         Batal
                                     </button>
@@ -581,7 +609,10 @@ export function DatePicker(props: DatePickerProps) {
                                         type="button"
                                         disabled={!draftRange.from || !draftRange.to}
                                         onClick={commitRange}
-                                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        className={cn(
+                                            'h-8 rounded-full bg-ob-act-fill px-3 text-xs font-semibold text-white transition-colors duration-150 ease-out hover:bg-ob-act-fill/90 disabled:pointer-events-none disabled:opacity-50',
+                                            FOCUS_RING,
+                                        )}
                                     >
                                         Terapkan
                                     </button>
@@ -593,10 +624,8 @@ export function DatePicker(props: DatePickerProps) {
                 </PopoverContent>
             </Popover>
 
-            {error && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {hint && !error && (
-                <p className="mt-1.5 text-xs text-dark-500 dark:text-dark-400">{hint}</p>
-            )}
+            {error && <p className="mt-1.5 text-xs text-ob-late">{error}</p>}
+            {hint && !error && <p className="mt-1.5 text-xs text-ob-ink-3">{hint}</p>}
         </div>
     );
 }
