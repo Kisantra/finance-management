@@ -1,20 +1,38 @@
 /* Shared types for the bank-accounts page family */
 
+/** `bank` = rekening bank, `cash` = kas tunai / kas kecil (nomor diisi kode KAS-xxxx, bank "Tunai"). */
+export type AccountType = 'bank' | 'cash';
+
 export interface AccountListItem {
     id: number;
+    type: AccountType;
     account_name: string;
     account_number: string;
     bank_name: string;
     branch: string | null;
     initial_balance: number;
     balance: number;
+    /** Penanggung jawab kas (id pengguna pusat); null untuk rekening bank. */
+    custodian_id: number | null;
+    custodian_name: string | null;
+    /** Plafon kas kecil; null = tanpa plafon. */
+    cash_limit: number | null;
+    /** Plafon − saldo bila saldo di bawah plafon; 0 bila tidak perlu diisi ulang. */
+    refill_amount: number;
     trend: 'up' | 'down';
 }
 
 export interface OverallSummary {
     total_balance: number;
+    total_bank: number;
+    total_cash: number;
     income: number;
     expense: number;
+}
+
+export interface CustodianOption {
+    value: number;
+    label: string;
 }
 
 export interface AccountStats {

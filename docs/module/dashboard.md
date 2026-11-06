@@ -8,7 +8,7 @@ Dashboard **tidak punya tabel sendiri** — seluruhnya agregasi read-only dari t
 
 | Tabel | Dipakai untuk |
 |-------|---------------|
-| `bank_accounts` (+ `payments`, `bank_transactions`) | Total saldo (computed accessor `balance` — TIDAK tersimpan), daftar rekening |
+| `bank_accounts` (+ `payments`, `bank_transactions`) | Total saldo (computed accessor `balance` — TIDAK tersimpan) beserta rincian Bank / Kas per kolom `type`, daftar rekening |
 | `bank_transactions` | Pemasukan/pengeluaran bulan ini, grafik cash flow 6 bulan, pengeluaran per kategori, transaksi terbaru |
 | `payments` | Total pendapatan sepanjang waktu, pembayaran invoice tertunda, feed transaksi |
 | `invoices` + `invoice_items` | Invoice tertunda (`sent`, `partially_paid`, `overdue`), HPP (`cogs_amount`), basis PP (item non `is_tax_deposit`) |
@@ -57,7 +57,8 @@ Perilaku ini dites di `tests/Feature/DashboardAccessTest.php`:
 1. `getStats($start, $end)` dengan rentang `startOfMonth()`–`endOfMonth()` bulan berjalan.
 2. **Invarian pemasukan:** `income_this_month` = `bank_transactions` kredit **+** `payments` dalam rentang, konsisten dengan rumus saldo rekening (`initial_balance + payments + tx credit − tx debit`). `expenses_this_month` = `bank_transactions` debit. `net_this_month` = selisihnya.
 3. `pending_invoices_count` / `pending_invoices_amount` = jumlah & sisa tagihan invoice `sent`/`partially_paid`/`overdue`.
-4. UI: angka besar 40 px = `total_balance` (stok); di bawahnya tiga figur Pemasukan / Pengeluaran / Arus bersih bulan berjalan (arus). Angka ini **tidak** diulang di kartu lain.
+4. **Rincian Kas & Bank:** `total_bank` dan `total_cash` dihitung dari memo `rekening()` yang sama (`BankAccount::withBalance()`, tanpa query tambahan): kas = akun `type = cash` (`isCash()`), `total_bank = total_balance − total_cash` sehingga jumlahnya selalu cocok.
+5. UI: angka besar 40 px = `total_balance` (stok); tepat di bawahnya "Total saldo · Bank Rp … · Kas Rp …" (+ "grafik: …" bila filter rekening aktif); lalu tiga figur Pemasukan / Pengeluaran / Arus bersih bulan berjalan (arus). Angka ini **tidak** diulang di kartu lain.
 
 ### Grafik Arus Kas (periode & filter rekening)
 
@@ -103,8 +104,8 @@ Tes: `tests/Feature/DashboardChartTest.php` (tiap periode, batas rentang, fallba
 
 ### Daftar Rekening Bank
 
-1. `getBankAccounts()` mengembalikan semua rekening (nama, bank, nomor, `balance` computed), urut saldo terbesar.
-2. UI: viewport 3 baris (210 px) yang menggulir di dalam kartu; header "3 dari N".
+1. `getBankAccounts()` mengembalikan semua akun Kas & Bank (`type`, nama, bank, nomor, `balance` computed), urut saldo terbesar.
+2. UI: viewport 3 baris (210 px) yang menggulir di dalam kartu; header "3 dari N". Akun kas tampil dengan tile `KAS` dan subjudul "Kas tunai" (bukan "Tunai · KAS-0001").
 
 ### Invoice Belum Dibayar (top 5)
 
@@ -161,7 +162,7 @@ if ($user->can('disburse fund requests')) {
 ## Keterkaitan Antar Modul
 
 - **Cash Flow** — fallback redirect menuju `cash-flow.expenses`; grafik & stats bulanan bersumber dari `bank_transactions` yang dikelola modul Cash Flow / Bank Accounts.
-- **Bank Accounts** — semua angka saldo memakai accessor `balance` computed (`initial_balance + payments credit + tx credit - tx debit`); dashboard tidak pernah membaca saldo tersimpan.
+- **Kas & Bank (Bank Accounts)** — semua angka saldo memakai accessor `balance` computed (`initial_balance + payments credit + tx credit - tx debit`); dashboard tidak pernah membaca saldo tersimpan. Rincian Bank / Kas mengikuti kolom `bank_accounts.type` (lihat `docs/module/bank-accounts.md` › Jenis akun Kas & Bank).
 - **Invoices & Payments** — overview pendapatan, laba, outstanding, HPP, PP, invoice tertunda.
 - **Reimbursements & Fund Requests** — tidak dibaca `DashboardController` lagi; antreannya hanya tampil sebagai badge rel navigasi via shared prop `actionCounts`. Pembayaran reimbursement & pencairan dana tetap masuk angka Pengeluaran karena tercatat sebagai `bank_transactions` debit.
 - **Loans & Receivables** — penerimaan pinjaman / cicilan piutang (kredit) dan cicilan pinjaman / piutang yang diberikan (debit) adalah `bank_transactions`, jadi ikut angka Pemasukan/Pengeluaran bulan ini, grafik, dan donat.
@@ -187,4 +188,4 @@ if ($user->can('disburse fund requests')) {
 - `resources/js/components/dashboard/` — `cash-flow-chart.tsx`, `donut-chart.tsx`, `widget.tsx` (kartu, daftar gulir, state kosong/gagal, pil status), `range-calendar.tsx` (kalender periode Arus Kas)
 - `app/Http/Middleware/HandleInertiaRequests.php` — shared prop `actionCounts` (badge sidebar) & `auth.permissions`
 - `app/Models/BankAccount.php` — accessor `balance` computed yang menjadi dasar semua angka saldo
-- `tests/Feature/DashboardAccessTest.php`, `DashboardTest.php`, `DashboardChartTest.php`
+- `tests/Feature/DashboardAccessTest.php`, `DashboardTest.php`, `DashboardChartTest.php`, `KasBankTest.php` (rincian Total Bank / Total Kas)

@@ -248,7 +248,7 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                         <EmptyState
                             icon={<ArrowLeftRight className="w-7 h-7" />}
                             title="Belum ada transfer"
-                            description="Buat transfer pertama Anda dari halaman Rekening Bank."
+                            description="Buat transfer pertama Anda dari halaman Kas & Bank."
                         />
                     ) : (
                         <div className="overflow-x-auto">

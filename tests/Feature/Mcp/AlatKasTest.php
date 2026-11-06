@@ -102,6 +102,8 @@ class AlatKasTest extends TestCase
         // Saldo = saldo awal + pembayaran + kredit − debit (semua waktu); arus = semua mutasi November.
         $this->assertSame([
             'total_saldo' => 22_997_500,
+            'total_bank' => 22_997_500,
+            'total_kas' => 0,
             'jumlah_rekening' => 2,
             'uang_masuk' => 8_500_000,
             'uang_keluar' => 2_002_500,
@@ -170,6 +172,8 @@ class AlatKasTest extends TestCase
         $this->assertSame(['dari' => '2026-10-01', 'sampai' => '2026-10-31'], $isi['periode']);
         $this->assertSame([
             'total_saldo' => 22_997_500,
+            'total_bank' => 22_997_500,
+            'total_kas' => 0,
             'jumlah_rekening' => 2,
             'uang_masuk' => 2_000_000,
             'uang_keluar' => 500_000,

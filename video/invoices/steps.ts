@@ -325,7 +325,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].account,
         zoom: 1.8,
-        caption: 'Keuangan › Rekening Bank: saldo BCA - Operasional langsung bertambah. Saldo dihitung dari saldo awal + pembayaran + transaksi.',
+        caption: 'Keuangan › Kas & Bank: saldo BCA - Operasional langsung bertambah. Saldo dihitung dari saldo awal + pembayaran + transaksi.',
         duration: 150,
     },
     {

@@ -16,7 +16,7 @@
 | [recurring-invoices.md](recurring-invoices.md) | Template recurring, generate bulanan, publish | `/recurring-invoices` |
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
-| [bank-accounts.md](bank-accounts.md) | Rekening bank, saldo terhitung, transaksi | `/bank-accounts` |
+| [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), saldo terhitung, transaksi | `/bank-accounts` |
 | [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Transfer, export PDF | `/cash-flow/*` |
 | [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete | `/transaction-categories` |
 | [fund-requests.md](fund-requests.md) | Permintaan dana: workflow + pencairan | `/fund-requests` |
@@ -45,7 +45,7 @@ Alur yang menghasilkan mutasi kas:
 ```
 Invoice ──(payment)──────────────────────────► payments ─────────┐
 Fund Request ──(disburse, 1 debit per item)──► bank_transactions │
-Reimbursement ──(pay, per pembayaran)────────► bank_transactions ├──► Saldo Bank
+Reimbursement ──(pay, per pembayaran)────────► bank_transactions ├──► Saldo Kas & Bank
 Loan ──(create: credit FIN-LOAN-IN)──────────► bank_transactions │    (computed)
      ──(pay: debit FIN-LOAN-OUT+EXP-INTEREST)► bank_transactions │
 Receivable ──(cair: debit FIN-RCV-OUT)───────► bank_transactions │
@@ -60,6 +60,7 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 ## Konvensi Lintas Modul
 
 - **Pencatat uang masuk/keluar**: `bank_transactions` dan `payments` punya `created_by`/`updated_by` (id pengguna PUSAT, tanpa FK) yang diisi trait `App\Models\Concerns\MencatatPengguna` dari pengguna login. Update massal lewat query builder tidak memicu trait itu: isi `updated_by` sendiri (contoh: kaki lawan transfer, pemindahan kategori saat hapus kategori). Nama pengguna dicari di pusat lewat `whereIn`, jangan join dari database perusahaan.
+- **Jenis akun Kas & Bank**: `bank_accounts.type` = `bank` (rekening) atau `cash` (kas tunai/kas kecil). Akun kas tetap punya `account_number` (kode `KAS-0001`, diisi model) dan `bank_name` `Tunai`, sehingga picker & label `nama — bank` di modul lain tidak perlu diubah; kenali kas lewat `type`/`isCash()`, bukan lewat nama bank. `custodian_id` (penanggung jawab) juga id pengguna PUSAT tanpa FK: nama lewat `BankAccount::custodianNames()` (`whereIn`), keanggotaan lewat `User::memberOfCurrentCompany()`. Total saldo di mana pun dirinci Total Bank + Total Kas memakai `withBalance()`. Detail di [bank-accounts.md](bank-accounts.md).
 - **Currency**: semua nominal disimpan `bigint` rupiah penuh (150000 = Rp 150.000), tanpa desimal.
 - **Permission**: Spatie Permission; gate di route (`can:...`), FormRequest, dan UI (`useCan`).
   Struktur lengkap: `database/seeders/MasterPermissionSeeder.php`.

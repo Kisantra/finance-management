@@ -4,11 +4,11 @@ import { around, SCREENS, SHOTS, type ShotName } from './shots';
 const img = (name: ShotName) => SCREENS[name];
 const S = SHOTS;
 
-/** Mengenal halaman Rekening Bank. */
+/** Mengenal halaman Kas & Bank. */
 export const TOUR_STEPS: Step[] = [
     {
         src: img('fm-overview'),
-        caption: 'Buka Keuangan › Rekening Bank. Kiri: daftar rekening dan ringkasan total. Kanan: detail rekening yang dipilih.',
+        caption: 'Buka Keuangan › Kas & Bank. Kiri: daftar rekening dan ringkasan total. Kanan: detail rekening yang dipilih.',
         duration: 120,
     },
     {

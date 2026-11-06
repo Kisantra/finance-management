@@ -11,22 +11,124 @@ class BankAccount extends Model
 {
     use HasFactory;
 
+    /** Rekening bank (jenis bawaan; semua baris sebelum ada kolom `type`). */
+    public const TYPE_BANK = 'bank';
+
+    /** Kas tunai / kas kecil: tanpa nomor rekening, boleh punya penanggung jawab dan plafon. */
+    public const TYPE_CASH = 'cash';
+
+    /**
+     * Isi `bank_name` akun kas. Label rekening di modul lain disusun `nama — bank`, jadi kas
+     * terbaca "Kas Kecil Kantor — Tunai" tanpa perubahan di modul-modul itu.
+     */
+    public const CASH_BANK_NAME = 'Tunai';
+
+    /** Awalan kode pengganti nomor rekening akun kas: KAS-0001, KAS-0002, ... */
+    public const CASH_CODE_PREFIX = 'KAS-';
+
     protected $fillable = [
+        'type',
         'account_name',
         'account_number',
         'bank_name',
         'branch',
         'initial_balance',
+        'custodian_id',
+        'cash_limit',
+    ];
+
+    protected $attributes = [
+        'type' => self::TYPE_BANK,
     ];
 
     protected $casts = [
         'initial_balance' => 'integer',
+        'custodian_id' => 'integer',
+        'cash_limit' => 'integer',
     ];
 
     protected $appends = ['balance'];
 
     /** Kolom bantu hasil withBalance(); internal, jangan ikut terserialisasi ke frontend. */
     protected $hidden = ['payments_sum', 'credits_sum', 'debits_sum'];
+
+    /**
+     * Akun kas tanpa nomor rekening / nama bank diisi otomatis, di jalur mana pun akun dibuat
+     * (form, seeder, tinker): `account_number` dan `bank_name` NOT NULL dan dipakai label di
+     * banyak modul. Nomor yang sudah ada tidak pernah diganti.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (BankAccount $akun): void {
+            if (! $akun->isCash()) {
+                return;
+            }
+
+            if (blank($akun->bank_name)) {
+                $akun->bank_name = self::CASH_BANK_NAME;
+            }
+
+            if (blank($akun->account_number)) {
+                $akun->account_number = self::generateCashCode();
+            }
+        });
+    }
+
+    public function isCash(): bool
+    {
+        return $this->type === self::TYPE_CASH;
+    }
+
+    /**
+     * Kode unik pengganti nomor rekening untuk akun kas, melanjutkan kode KAS- terbesar yang
+     * sudah ada (KAS-0001, KAS-0002, ...). Nomor rekening divalidasi unik di semua akun.
+     */
+    public static function generateCashCode(): string
+    {
+        $terpakai = static::query()
+            ->where('account_number', 'like', self::CASH_CODE_PREFIX.'%')
+            ->pluck('account_number')
+            ->map(fn ($kode): string => strtoupper((string) $kode));
+
+        $nomor = (int) $terpakai
+            ->map(fn (string $kode): int => (int) substr($kode, strlen(self::CASH_CODE_PREFIX)))
+            ->max();
+
+        do {
+            $kode = self::CASH_CODE_PREFIX.str_pad((string) ++$nomor, 4, '0', STR_PAD_LEFT);
+        } while ($terpakai->contains($kode));
+
+        return $kode;
+    }
+
+    /**
+     * Kekurangan kas kecil terhadap plafonnya (plafon − saldo): nominal yang perlu diisi ulang.
+     * 0 untuk rekening bank, kas tanpa plafon, atau saldo yang sudah mencapai plafon.
+     *
+     * @param  int|null  $balance  saldo yang sudah dihitung, agar tidak dihitung dua kali
+     */
+    public function refillAmount(?int $balance = null): int
+    {
+        if (! $this->isCash() || ! $this->cash_limit) {
+            return 0;
+        }
+
+        return max(0, $this->cash_limit - ($balance ?? $this->balance));
+    }
+
+    /**
+     * Nama penanggung jawab per id untuk sekumpulan akun. Pengguna hidup di database PUSAT:
+     * dicari lewat whereIn, tidak di-join dari database perusahaan.
+     *
+     * @param  iterable<BankAccount>  $accounts
+     * @return array<int, string>
+     */
+    public static function custodianNames(iterable $accounts): array
+    {
+        $ids = collect($accounts)->pluck('custodian_id')->filter()->map(fn ($id): int => (int) $id)->unique()->values();
+
+        return $ids->isEmpty() ? [] : User::query()->whereIn('id', $ids)->pluck('name', 'id')->all();
+    }
 
     /**
      * Hitung saldo sebagai subquery skalar, satu statement untuk berapa pun jumlah rekening.

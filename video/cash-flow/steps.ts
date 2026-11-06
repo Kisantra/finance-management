@@ -237,7 +237,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: around(S['admin-bank'].bca, S['admin-bank'].bni),
         zoom: 1.5,
-        caption: 'Di Keuangan › Rekening Bank, saldo BNI turun dan BCA naik. Saldo selalu dihitung ulang dari semua transaksinya.',
+        caption: 'Di Keuangan › Kas & Bank, saldo BNI turun dan BCA naik. Saldo selalu dihitung ulang dari semua transaksinya.',
         duration: 160,
     },
     {

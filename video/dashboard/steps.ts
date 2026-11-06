@@ -172,7 +172,7 @@ export const FM_STEPS: Step[] = [
         focus: S['fm-bottom'].accountsLink,
         cursor: S['fm-bottom'].accountsLink,
         zoom: 2.2,
-        caption: 'Semua rekening membuka Rekening Bank untuk mencocokkan saldo dengan mutasi bank.',
+        caption: 'Semua rekening membuka Kas & Bank untuk mencocokkan saldo dengan mutasi bank.',
     },
     {
         src: img('fm-bottom'),
@@ -211,7 +211,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].total,
         zoom: 1.9,
-        caption: 'Di Keuangan › Rekening Bank, Ringkasan Total menunjukkan angka yang sama.',
+        caption: 'Di Keuangan › Kas & Bank, Ringkasan Total menunjukkan angka yang sama.',
         duration: 130,
     },
     {

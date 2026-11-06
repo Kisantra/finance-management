@@ -32,7 +32,7 @@ export const guide: ModuleGuide = {
             can: [
                 'Semua yang bisa dilihat Staff',
                 'Lanjut ke **Lihat pengeluaran / pemasukan**, **Semua rekening**, dan **Laporan Laba Rugi**',
-                'Melihat arus satu rekening lewat filter rekening, lalu mencocokkan mutasinya di **Rekening Bank**',
+                'Melihat arus satu rekening lewat filter rekening, lalu mencocokkan mutasinya di **Kas & Bank**',
             ],
         },
         {
@@ -50,7 +50,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Klik **Ringkasan** di menu. Halaman ini juga yang terbuka pertama kali setelah masuk.',
-                'Kartu **Arus Kas**: angka besar adalah **Total saldo** semua rekening saat ini. Di bawahnya **Pemasukan**, **Pengeluaran**, dan **Arus bersih** bulan berjalan.',
+                'Kartu **Arus Kas**: angka besar adalah **Total saldo** semua rekening dan kas saat ini; tepat di bawahnya rinciannya, **Bank** (rekening bank) dan **Kas** (kas tunai). Lalu **Pemasukan**, **Pengeluaran**, dan **Arus bersih** bulan berjalan.',
                 'Strip **Sepanjang waktu** di paling bawah merangkum **Pendapatan**, **HPP**, **Laba kotor**, dan **Est. PPh final 0,5%** sejak awal pencatatan.',
                 'Baris atas halaman menampilkan jam data diambil (**data per …**). Muat ulang halaman untuk angka terbaru.',
             ],
@@ -105,7 +105,7 @@ export const guide: ModuleGuide = {
             title: 'Saldo & rekening',
             tone: 'act',
             items: [
-                '**Total saldo** = saldo awal rekening + pembayaran invoice + transaksi masuk − transaksi keluar.',
+                '**Total saldo** = saldo awal rekening + pembayaran invoice + transaksi masuk − transaksi keluar, dirinci **Bank** dan **Kas** sesuai jenis akun di Kas & Bank.',
                 'Saldo **tidak disimpan**; dihitung ulang setiap kali halaman dibuka.',
                 'Menghapus atau mengubah transaksi lama langsung mengubah saldo dan grafik bulan lalu.',
             ],
@@ -136,9 +136,9 @@ export const guide: ModuleGuide = {
             title: 'Asal setiap angka di Ringkasan',
             subtitle: 'Tidak ada angka yang diketik di halaman ini. Semuanya dihitung dari modul berikut.',
             rows: [
-                { label: 'Total saldo', value: 'Saldo awal + pembayaran invoice + masuk − keluar', source: 'Rekening Bank', tone: 'act' },
-                { label: 'Pemasukan', value: 'Transaksi masuk + pembayaran invoice (bulan ini)', source: 'Rekening Bank + Invoice', tone: 'pos' },
-                { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini)', source: 'Rekening Bank', tone: 'pos' },
+                { label: 'Total saldo', value: 'Saldo awal + pembayaran invoice + masuk − keluar, dirinci Bank / Kas', source: 'Kas & Bank', tone: 'act' },
+                { label: 'Pemasukan', value: 'Transaksi masuk + pembayaran invoice (bulan ini)', source: 'Kas & Bank + Invoice', tone: 'pos' },
+                { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini)', source: 'Kas & Bank', tone: 'pos' },
                 { label: 'Invoice Belum Dibayar', value: 'Sisa tagihan invoice terkirim / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Pendapatan', value: 'Semua pembayaran invoice, sejak awal', source: 'Invoice', tone: 'wait' },
                 { label: 'Laba kotor', value: 'Pendapatan − PPN yang sudah dibayar − HPP item invoice lunas / sebagian', source: 'Invoice', tone: 'wait' },

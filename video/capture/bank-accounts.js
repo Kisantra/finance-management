@@ -87,10 +87,10 @@ async (page) => {
   const m = await open('fm@qc.test');
   await m.goto(BASE + '/bank-accounts?account=1');
   const header = () => ({
-    create: m.getByRole('button', { name: 'Tambah Rekening' }).first(),
+    create: m.getByRole('button', { name: 'Tambah Akun' }).first(),
     tutorial: m.getByRole('button', { name: 'Tutorial' }),
-    sidebar: parentOf(parentOf(m.getByRole('heading', { name: 'Rekening', exact: true }))),
-    accountList: m.getByRole('heading', { name: 'Rekening', exact: true }).locator('xpath=../..'),
+    sidebar: parentOf(parentOf(m.getByRole('heading', { name: 'Akun', exact: true }))),
+    accountList: m.getByRole('heading', { name: 'Akun', exact: true }).locator('xpath=../..'),
     total: parentOf(m.getByRole('heading', { name: 'Ringkasan Total' })),
     actions: parentOf(m.getByRole('button', { name: 'Pengeluaran', exact: true })),
     expense: m.getByRole('button', { name: 'Pengeluaran', exact: true }),
@@ -105,7 +105,7 @@ async (page) => {
 
   /* ── Tambah rekening (bertahap untuk efek ketik) ── */
   const exists = (await m.getByRole('button', { name: /BRI - Proyek Klien/ }).count()) > 0;
-  await m.getByRole('button', { name: 'Tambah Rekening' }).first().click();
+  await m.getByRole('button', { name: 'Tambah Akun' }).first().click();
   const acc = () => ({
     dialog: top(m),
     name: top(m).getByPlaceholder('Mis. PT Kisantra Solidaritas'),
@@ -130,7 +130,7 @@ async (page) => {
   if (!exists) {
     await top(m).getByRole('button', { name: 'Tambah Rekening' }).click();
     await m.getByRole('heading', { name: 'BRI - Proyek Klien' }).waitFor();
-    await m.getByRole('button', { name: 'Tambah Rekening' }).first().click();
+    await m.getByRole('button', { name: 'Tambah Akun' }).first().click();
     await top(m).getByPlaceholder('Mis. PT Kisantra Solidaritas').fill('Jago - Kas Kecil');
     await top(m).getByPlaceholder('1234567890').fill('102938475610');
     await top(m).getByPlaceholder('BCA, Mandiri, BNI...').fill('Bank Jago');

@@ -396,7 +396,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].account,
         zoom: 1.8,
-        caption: 'Di Keuangan › Rekening Bank, saldo rekening sumber langsung berkurang sebesar total yang dicairkan.',
+        caption: 'Di Keuangan › Kas & Bank, saldo rekening sumber langsung berkurang sebesar total yang dicairkan.',
         duration: 140,
     },
     {

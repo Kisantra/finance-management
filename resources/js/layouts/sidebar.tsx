@@ -84,7 +84,7 @@ const NAV: NavGroup[] = [
         items: [
             { label: 'Invoice', href: '/invoices', permission: 'view invoices', matchPrefix: '/invoices' },
             { label: 'Invoice Berulang', href: '/recurring-invoices', permission: 'view recurring-invoices', matchPrefix: '/recurring-invoices' },
-            { label: 'Rekening Bank', href: '/bank-accounts', permission: 'view bank-accounts', matchPrefix: '/bank-accounts' },
+            { label: 'Kas & Bank', href: '/bank-accounts', permission: 'view bank-accounts', matchPrefix: '/bank-accounts' },
         ],
     },
     {

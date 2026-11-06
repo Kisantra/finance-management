@@ -192,7 +192,7 @@ Loading skeleton                  → Skeleton
 | Services | `/services` | Index, Create, Edit, Delete |
 | Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
-| Bank Accounts | `/bank-accounts` | Index, Create, Edit, Delete, Transactions |
+| Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
 | Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh) + menu Transfer & Penyesuaian |
 | Tx Categories | `/transaction-categories` | Index, Create, Update, Delete |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
@@ -212,6 +212,7 @@ Loading skeleton                  → Skeleton
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual
+**Kas & Bank:** `bank_accounts.type` = `bank` | `cash`; akun kas tanpa nomor/bank diisi model `KAS-0001` + `Tunai` (kolom tetap NOT NULL), `custodian_id` = user pusat tanpa FK, `cash_limit` = plafon; total saldo dirinci Total Bank + Total Kas
 **Bank Balance:** COMPUTED dynamically — `initial_balance + payments(credit) + tx(credit) - tx(debit)` — NOT stored. Untuk daftar/total WAJIB `BankAccount::withBalance()` (1 query); tanpa itu accessor menjalankan 3 query agregat **per rekening** dan `$appends` memanggilnya tiap serialisasi
 **Receivable Debtor:** Polymorphic — User OR Client
 
@@ -226,7 +227,7 @@ Loading skeleton                  → Skeleton
 | Invoice | `app/Models/Invoice.php` | Accessors: amount_paid, amount_remaining, total_cogs, gross_profit; `updateStatus()` |
 | InvoiceItem | `app/Models/InvoiceItem.php` | Fields: quantity, unit, unit_price, cogs_amount, is_tax_deposit |
 | Payment | `app/Models/Payment.php` | belongsTo Invoice + BankAccount |
-| BankAccount | `app/Models/BankAccount.php` | balance = computed accessor, NOT stored |
+| BankAccount | `app/Models/BankAccount.php` | balance = computed accessor, NOT stored; `type` bank\|cash, `isCash()`, `refillAmount()`, `custodianNames()` |
 | BankTransaction | `app/Models/BankTransaction.php` | transaction_type: `credit` \| `debit` |
 | TransactionCategory | `app/Models/TransactionCategory.php` | Hierarchical (parent_code); accessor: `full_path` |
 | Reimbursement | `app/Models/Reimbursement.php` | submit/approve/reject/recordPayment + canEdit/canDelete/canSubmit/canReview/canPay |

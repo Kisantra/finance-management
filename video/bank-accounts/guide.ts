@@ -3,7 +3,7 @@ import { ROLES } from '../roles';
 
 export const guide: ModuleGuide = {
     slug: 'bank-accounts',
-    title: 'Rekening Bank',
+    title: 'Kas & Bank',
     group: 'Keuangan',
     order: 30,
     path: '/bank-accounts',
@@ -11,15 +11,16 @@ export const guide: ModuleGuide = {
     // Video peluncuran 45,6 dtk (sumber: video/launch/bank-accounts.html).
     overview: { src: '/videos/panduan/rekening-bank.mp4', poster: '/videos/panduan/rekening-bank-poster.jpg', seconds: 45 },
     summary:
-        'Daftar rekening bank perusahaan beserta saldo terkininya. Dari sini Anda menambah rekening, mencatat pemasukan, pengeluaran, dan transfer antar rekening, lalu memantau arus uang tiap rekening. Saldo tidak pernah diketik: aplikasi selalu menghitungnya dari saldo awal ditambah semua uang masuk dan dikurangi semua uang keluar. Staff tidak punya akses ke modul ini.',
+        'Daftar rekening bank dan kas tunai (kas kecil) perusahaan beserta saldo terkininya. Dari sini Anda menambah rekening atau kas, mencatat pemasukan, pengeluaran, dan transfer antar akun, mengisi ulang kas kecil sampai plafonnya, lalu memantau arus uang tiap akun. Saldo tidak pernah diketik: aplikasi selalu menghitungnya dari saldo awal ditambah semua uang masuk dan dikurangi semua uang keluar. Staff tidak punya akses ke modul ini.',
     roles: [
         {
             role: ROLES.fm,
-            who: 'Pengelola rekening',
+            who: 'Pengelola kas & rekening',
             can: [
-                'Menambah, mengedit, dan menghapus rekening',
-                'Mencatat pemasukan & pengeluaran ke rekening',
-                'Transfer antar rekening (dengan biaya admin)',
+                'Menambah, mengedit, dan menghapus rekening bank & kas tunai',
+                'Mengatur penanggung jawab dan plafon kas kecil',
+                'Mencatat pemasukan & pengeluaran ke rekening atau kas',
+                'Transfer antar akun (dengan biaya admin), termasuk **Isi ulang** kas kecil',
                 'Menghapus transaksi & export laporan kas PDF',
             ],
             cannot: [
@@ -35,23 +36,44 @@ export const guide: ModuleGuide = {
     ],
     tasks: [
         {
-            title: 'Menambah rekening',
+            title: 'Menambah rekening bank',
             role: ROLES.fm,
             steps: [
-                'Buka **Keuangan › Rekening Bank**, lalu klik **Tambah Rekening**.',
-                'Isi **Nama Pemilik Rekening**, **Nomor Rekening** (tidak boleh sama dengan rekening lain), **Nama Bank**, dan **Cabang** (opsional).',
+                'Buka **Keuangan › Kas & Bank**, lalu klik **Tambah Akun**.',
+                'Pada **Jenis**, pilih **Bank**.',
+                'Isi **Nama Pemilik Rekening**, **Nomor Rekening** (tidak boleh sama dengan akun lain), **Nama Bank**, dan **Cabang** (opsional).',
                 'Isi **Saldo Awal**: saldo rekening pada saat mulai dicatat di aplikasi.',
-                'Klik **Tambah Rekening**. Rekening baru langsung terpilih di panel **Rekening**.',
+                'Klik **Tambah Rekening**. Rekening baru langsung terpilih di panel **Akun**.',
             ],
         },
         {
-            title: 'Membaca kondisi sebuah rekening',
+            title: 'Menambah kas kecil',
             role: ROLES.fm,
             steps: [
-                'Klik rekening di panel **Rekening**. Saldo di bawah namanya adalah saldo terkini.',
-                'Kartu **Pemasukan**, **Pengeluaran**, dan **Arus Bersih** menghitung semua uang masuk & keluar rekening (termasuk transfer). Pilih bulan di kolom **Semua bulan** untuk satu periode.',
+                'Klik **Tambah Akun**, lalu pada **Jenis** pilih **Kas**. Kolom nomor rekening, nama bank, dan cabang hilang karena kas tidak membutuhkannya.',
+                'Isi **Nama Kas**, mis. "Kas Kecil Kantor". Aplikasi memberi kode **KAS-0001** sebagai pengganti nomor rekening dan nama bank **Tunai**, jadi di modul lain kas ini terbaca "Kas Kecil Kantor — Tunai".',
+                'Pilih **Penanggung Jawab**, yaitu anggota perusahaan yang memegang uangnya, lalu isi **Plafon** (batas saldo kas kecil; kosongkan bila tidak ada).',
+                'Isi **Saldo Awal** = uang tunai yang ada saat mulai dicatat, lalu klik **Tambah Kas**. Di daftar, kas bertanda ikon dompet dan label **Kas**.',
+                'Rekening "bank" yang selama ini dipakai sebagai kas (mis. "CASH 0000") cukup diubah lewat **Edit Rekening** → **Jenis** **Kas**: saldo dan transaksinya tetap.',
+            ],
+        },
+        {
+            title: 'Mengisi ulang kas kecil',
+            role: ROLES.fm,
+            steps: [
+                'Kas yang saldonya di bawah plafon menampilkan **Perlu isi ulang Rp …** di panel **Akun** (= plafon − saldo).',
+                'Pilih kas itu, lalu klik **Isi ulang**. Dialog **Transfer** terbuka dengan **Rekening Tujuan** = kas ini, **Jumlah Transfer** = kekurangannya, dan **Biaya Admin** Rp 0.',
+                'Pilih **Rekening Sumber** (rekening bank asal uang) dan **Kategori** transfer, periksa jumlahnya, lalu klik **Lakukan Transfer**.',
+            ],
+        },
+        {
+            title: 'Membaca kondisi sebuah akun',
+            role: ROLES.fm,
+            steps: [
+                'Klik akun di panel **Akun**. Saldo di bawah namanya adalah saldo terkini; **Ringkasan Total** memisahkan **Total Bank** dan **Total Kas**.',
+                'Kartu **Pemasukan**, **Pengeluaran**, dan **Arus Bersih** menghitung semua uang masuk & keluar akun (termasuk transfer). Pilih bulan di kolom **Semua bulan** untuk satu periode.',
                 'Grafik **Pemasukan vs Pengeluaran** menampilkan 12 bulan terakhir; **Breakdown Kategori** menampilkan 6 kategori uang keluar terbesar (termasuk transfer).',
-                'Tab **Transaksi** berisi semua transaksi bank rekening ini; tab **Pembayaran** berisi pembayaran invoice yang masuk ke rekening ini.',
+                'Tab **Transaksi** berisi semua transaksi akun ini; tab **Pembayaran** berisi pembayaran invoice yang masuk ke akun ini.',
                 'Lencana **Naik/Turun** hanya membandingkan transaksi masuk bulan ini dengan bulan lalu (tanpa pembayaran invoice).',
             ],
         },
@@ -59,17 +81,17 @@ export const guide: ModuleGuide = {
             title: 'Mencatat pemasukan atau pengeluaran',
             role: ROLES.fm,
             steps: [
-                'Pilih rekening, lalu klik **Pengeluaran** atau **Pemasukan**.',
+                'Pilih rekening atau kas, lalu klik **Pengeluaran** atau **Pemasukan**.',
                 'Periksa **Rekening**, pilih **Kategori** (sub kategori; kategori baru bisa dibuat lewat **+ Tambah**), isi **Jumlah** dan **Tanggal**.',
                 'Isi **Deskripsi**, **Nomor Referensi** (opsional), dan **Lampiran Bukti** (PDF, JPG, atau PNG, maksimal 5 MB).',
                 'Klik **Simpan Pengeluaran** / **Simpan Pemasukan**. Form dikosongkan agar bisa mencatat transaksi berikutnya; klik **Tutup** bila selesai.',
             ],
         },
         {
-            title: 'Transfer antar rekening',
+            title: 'Transfer antar akun',
             role: ROLES.fm,
             steps: [
-                'Pilih rekening sumber, lalu klik **Transfer**.',
+                'Pilih rekening atau kas sumber, lalu klik **Transfer**.',
                 'Pilih **Rekening Sumber**, **Rekening Tujuan**, **Kategori** (kategori bertipe Transfer), dan **Tanggal**.',
                 'Isi **Jumlah Transfer** (yang diterima rekening tujuan) dan **Biaya Admin** (awalnya Rp 2.500; ditambahkan ke debit rekening sumber).',
                 'Isi **Deskripsi**, unggah **Bukti Transfer** bila ada, periksa **Total Debit**, lalu klik **Lakukan Transfer**.',
@@ -84,12 +106,12 @@ export const guide: ModuleGuide = {
             ],
         },
         {
-            title: 'Mengedit, menghapus, atau mencetak laporan rekening',
+            title: 'Mengedit, menghapus, atau mencetak laporan akun',
             role: ROLES.fm,
             steps: [
-                'Pilih rekening, lalu klik menu **•••** di samping tombol **Transfer**.',
-                '**Edit Rekening**: ubah data rekening. Mengubah **Saldo Awal** menggeser saldo terkini sebesar selisihnya.',
-                '**Export PDF**: laporan kas rekening ini untuk semua waktu (filter bulan di halaman tidak ikut).',
+                'Pilih akun, lalu klik menu **•••** di samping tombol **Transfer**.',
+                '**Edit Rekening** / **Edit Kas**: ubah data akun, termasuk **Jenis**, penanggung jawab, dan plafon kas. Mengubah **Saldo Awal** menggeser saldo terkini sebesar selisihnya.',
+                '**Export PDF**: laporan kas akun ini untuk semua waktu (filter bulan di halaman tidak ikut).',
                 '**Hapus Rekening**: aplikasi tetap menghapus rekening yang sudah berisi transaksi (kecuali yang pernah dipakai membayar utang), jadi gunakan hanya untuk rekening yang belum pernah dipakai. Baca bagian peringatan sebelum menghapus.',
             ],
         },
@@ -100,17 +122,17 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 '**1 transaksi bank** masuk (credit) atau keluar (debit).',
-                'Saldo rekening dan Total Saldo di **Dashboard** langsung berubah; saldo selalu dihitung ulang dari semua transaksi.',
+                'Saldo akun dan Total Saldo di **Dashboard** (beserta rinciannya: Bank / Kas) langsung berubah; saldo selalu dihitung ulang dari semua transaksi.',
                 'Tampil di **Arus Kas › Pemasukan / Pengeluaran** bila kategorinya bertipe Pemasukan / Pengeluaran.',
                 'Masuk **Laba Rugi** sesuai Grup L/R kategorinya; kategori Pemasukan/Pengeluaran tanpa grup masuk panel **Perlu Diklasifikasi** dan belum dihitung.',
             ],
         },
         {
-            title: 'Saat transfer',
+            title: 'Saat transfer / isi ulang kas',
             tone: 'wait',
             items: [
                 '**2 transaksi bank** dengan nomor referensi TRF yang sama: keluar di sumber, masuk di tujuan.',
-                'Sumber berkurang jumlah + biaya admin; tujuan bertambah jumlah transfer.',
+                'Sumber berkurang jumlah + biaya admin; tujuan bertambah jumlah transfer. **Isi ulang** kas kecil adalah transfer yang sama.',
                 'Tampil di **Arus Kas › Transfer & Penyesuaian**.',
                 '**Tidak masuk Laba Rugi**, termasuk biaya adminnya.',
             ],
@@ -162,22 +184,26 @@ export const guide: ModuleGuide = {
             body: 'Referensi berawalan TRF dianggap transfer: saat dihapus, semua transaksi dengan nomor referensi yang sama ikut terhapus.',
         },
         {
+            title: 'Plafon & penanggung jawab kas hanya informasi',
+            body: 'Aplikasi tidak menolak pengeluaran saat saldo kas di bawah plafon (atau negatif), dan penanggung jawab tidak membatasi siapa yang mencatat: siapa pun yang punya izin Pemasukan/Pengeluaran bisa mencatat ke akun kas. Hitung uang fisiknya secara berkala.',
+        },
+        {
             title: 'Biaya admin transfer tidak masuk Laba Rugi',
             body: 'Biaya admin ikut kategori Transfer. Bila ingin tercatat sebagai beban, isi **Biaya Admin** Rp 0 lalu catat **Pengeluaran** terpisah dengan kategori biaya bank.',
         },
         {
             title: 'Pemasukan di halaman ini ≠ pendapatan',
-            body: 'Kartu Pemasukan/Pengeluaran menghitung semua uang masuk/keluar rekening, termasuk transfer antar rekening. Untuk pendapatan dan beban, lihat **Laporan › Laba Rugi**.',
+            body: 'Kartu Pemasukan/Pengeluaran menghitung semua uang masuk/keluar akun, termasuk transfer antar akun dan isi ulang kas. Untuk pendapatan dan beban, lihat **Laporan › Laba Rugi**.',
         },
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
     matrix: [
         { action: 'Melihat saldo, grafik & transaksi', cells: [false, true, true] },
-        { action: 'Menambah & mengedit rekening', cells: [false, true, true] },
+        { action: 'Menambah & mengedit rekening atau kas', cells: [false, true, true] },
         { action: 'Mencatat pemasukan & pengeluaran', cells: [false, true, true] },
-        { action: 'Transfer antar rekening', cells: [false, true, true] },
+        { action: 'Transfer antar akun & isi ulang kas', cells: [false, true, true] },
         { action: 'Menghapus transaksi', cells: [false, true, true] },
-        { action: 'Menghapus rekening', cells: [false, true, true] },
+        { action: 'Menghapus rekening atau kas', cells: [false, true, true] },
         { action: 'Export laporan kas PDF', cells: [false, true, true] },
     ],
     insightRoles: ['admin', 'finance manager'],

@@ -1,6 +1,8 @@
-# Modul: Bank Accounts (Rekening Bank)
+# Modul: Kas & Bank (Bank Accounts)
 
-> Modul CRUD rekening bank sekaligus pusat monitoring kas per rekening: daftar akun dengan saldo terkini, statistik income/expense per periode, chart 12 bulan, breakdown kategori pengeluaran, tab riwayat transaksi & pembayaran invoice, serta export laporan kas PDF. Route prefix utama `/bank-accounts` (halaman single-page Inertia `bank-accounts/index`). Seluruh grup digate `can:view bank-accounts`; mutasi digate granular `can:create|edit|delete bank-accounts`. **Saldo TIDAK PERNAH disimpan di database** — selalu dihitung dinamis dari `initial_balance + payments + transaksi credit − transaksi debit`.
+> Menu **Keuangan › Kas & Bank** (dulu "Rekening Bank"; route, nama route, dan izin tetap `bank-accounts`). Satu tabel `bank_accounts` menampung dua jenis akun: **rekening bank** (`type = bank`) dan **kas tunai / kas kecil** (`type = cash`) dengan penanggung jawab dan plafon — lihat [Jenis akun Kas & Bank](#jenis-akun-kas--bank).
+>
+> Modul CRUD akun sekaligus pusat monitoring kas per akun: daftar akun dengan saldo terkini, statistik income/expense per periode, chart 12 bulan, breakdown kategori pengeluaran, tab riwayat transaksi & pembayaran invoice, serta export laporan kas PDF. Route prefix utama `/bank-accounts` (halaman single-page Inertia `bank-accounts/index`). Seluruh grup digate `can:view bank-accounts`; mutasi digate granular `can:create|edit|delete bank-accounts`. **Saldo TIDAK PERNAH disimpan di database** — selalu dihitung dinamis dari `initial_balance + payments + transaksi credit − transaksi debit`.
 
 ## Tabel Database
 
@@ -9,12 +11,17 @@
 | Kolom | Tipe | Keterangan |
 |-------|------|------------|
 | `id` | bigint PK | — |
-| `account_name` | string | Nama pemilik/label rekening |
-| `account_number` | string, **unique** | Nomor rekening |
-| `bank_name` | string | Nama bank |
-| `branch` | string, nullable | Cabang |
+| `type` | string(10), default `bank` | `bank` = rekening bank, `cash` = kas tunai / kas kecil. Baris lama otomatis `bank` (nilai bawaan migrasi `2026_11_06_113009`) |
+| `account_name` | string | Nama pemilik/label rekening, atau nama kas ("Kas Kecil Kantor") |
+| `account_number` | string, **unique** (validasi) | Nomor rekening; akun kas tanpa nomor diberi kode `KAS-0001`, `KAS-0002`, … oleh model |
+| `bank_name` | string | Nama bank; akun kas tanpa nama bank diisi `Tunai` oleh model |
+| `branch` | string, nullable | Cabang (hanya rekening bank; form kas mengosongkannya) |
 | `initial_balance` | bigint (cast `integer`) | Saldo awal, rupiah penuh tanpa desimal |
+| `custodian_id` | unsignedBigInteger, nullable | Penanggung jawab kas = id pengguna **pusat**, tanpa FK. `null` untuk rekening bank |
+| `cash_limit` | bigint, nullable | Plafon kas kecil (rupiah penuh). `null` = tanpa plafon / rekening bank |
 | `created_at`/`updated_at` | timestamp | — |
+
+`account_number` dan `bank_name` sengaja tetap **NOT NULL** walau kas tidak membutuhkannya: modul lain (picker rekening, Arus Kas, ekspor, PDF, MCP) menyusun label `nama — bank` dan tidak perlu menangani `null`.
 
 **Tidak ada kolom `balance`.** Saldo adalah accessor (`$appends = ['balance']`) di `app/Models/BankAccount.php`.
 
@@ -25,6 +32,35 @@ Tabel terkait (bukan milik modul ini tapi menjadi sumber saldo):
 - `loan_payments` — `bank_account_id` FK **tanpa cascade** (restrict) (`database/migrations/2025_11_26_083021_create_loan_payments_table.php`)
 
 ## Fitur
+
+### Jenis akun Kas & Bank
+
+Menggantikan kebiasaan "kas palsu" (rekening bank bernama mis. "CASH 0000"). Sengaja ramping: **tanpa izin baru** (semua lewat `view/create/edit/delete bank-accounts`) dan **belum ada opname** (hitung fisik kas).
+
+**Aturan data** (`app/Models/BankAccount.php`):
+
+1. Konstanta `TYPE_BANK = 'bank'`, `TYPE_CASH = 'cash'`, `CASH_BANK_NAME = 'Tunai'`, `CASH_CODE_PREFIX = 'KAS-'`; `$attributes` membuat model baru bertipe `bank`; helper `isCash()`.
+2. Listener `saving` di `booted()`: untuk akun kas, `bank_name` kosong → `Tunai`, `account_number` kosong → `generateCashCode()` (melanjutkan kode `KAS-` terbesar yang ada, 4 digit). Berlaku di jalur mana pun (form, factory `cash()`, seeder, tinker). Nomor yang sudah terisi **tidak pernah diganti**.
+3. `refillAmount(?int $balance)` = `max(0, cash_limit − saldo)` untuk kas berplafon, 0 selain itu. Saldo yang sudah dihitung boleh dioper agar tidak dihitung dua kali.
+4. `BankAccount::custodianNames($akun)` = peta id → nama penanggung jawab lewat `User::whereIn` di database pusat (tanpa join, tanpa relasi Eloquent — konvensi yang sama dengan `created_by`). Id yang penggunanya sudah dihapus ditampilkan "Pengguna dihapus".
+
+**Validasi** (`StoreBankAccountRequest`, `UpdateBankAccountRequest` — pesan berbahasa Indonesia):
+
+- `type` wajib `bank|cash`; bila tidak dikirim (klien lama) `prepareForValidation()` mengisinya `bank`.
+- Rekening bank: `account_number` & `bank_name` **wajib** seperti dulu. Kas: keduanya `nullable`. `account_number` tetap unik di semua akun (Update mengabaikan akun sendiri lewat `uniqueAccountNumber()`).
+- `custodian_id` & `cash_limit` memakai `exclude_unless:type,cash`: untuk rekening bank keduanya tidak divalidasi dan tidak ikut `validated()`. Untuk kas: `custodian_id` harus **anggota perusahaan aktif** — closure memanggil `User::memberOfCurrentCompany()` (database pusat), bukan rule `exists`; `cash_limit` integer ≥ 0.
+
+**Penyimpanan** (`BankAccountController::accountAttributes()`): kas tanpa nama bank dikirim `null` agar model mengisi `Tunai`; kas tanpa nomor **tidak menimpa** nomor yang tersimpan (kode `KAS-` saat edit, atau nomor lama saat rekening diubah menjadi kas), dan akun kas baru diberi kode oleh model; plafon `0` disimpan `null`; rekening bank selalu `custodian_id = cash_limit = null`.
+
+**Label di modul lain**: tidak ada perubahan di picker Transaksi, Pembayaran invoice, Permintaan Dana, Reimbursement, Utang, Piutang, Arus Kas — karena `bank_name = Tunai`, kas otomatis terbaca "Kas Kecil Kantor — Tunai (Rp …)" atau "Kas Kecil Kantor (Tunai)". Ringkasan (dashboard) menampilkan "Kas tunai" + tile `KAS` untuk akun kas.
+
+**UI** (`resources/js/pages/bank-accounts/`):
+
+- `account-form-dialog.tsx`: `SegmentedControl` **Jenis** (Bank / Kas). Kas menampilkan **Penanggung Jawab** (`Combobox` dari prop `custodianOptions`) dan **Plafon** (`CurrencyInput`), menyembunyikan nomor rekening, nama bank, dan cabang; kolom tersembunyi dikirim kosong lewat `transform()`. Mengganti Kas → Bank mengosongkan nilai bawaan `Tunai`/`KAS-…` agar diisi data sebenarnya. Penanggung jawab yang sudah bukan anggota tetap tampil sebagai "(bukan anggota lagi)" agar penolakan server bisa dipahami.
+- Daftar akun (`account-sidebar.tsx`, desktop & ponsel): ikon dompet + label **Kas** untuk kas, subjudul "Kas tunai · {penanggung jawab}", dan **Perlu isi ulang Rp …** bila saldo di bawah plafon. Ringkasan Total memuat **Total Bank** dan **Total Kas** di bawah Total Saldo.
+- Header akun terpilih: badge **Kas**, penanggung jawab, baris "Plafon Rp … · perlu isi ulang Rp …", dan tombol **Isi ulang** (butuh `create transfer`) yang membuka **dialog Transfer yang sama** dengan prop `preset` (tujuan = kas ini, jumlah = plafon − saldo, biaya admin 0, deskripsi "Isi ulang {nama}"). Transaksinya transfer biasa (`POST /bank-transactions/transfer`).
+
+Tes: `tests/Feature/KasBankTest.php`.
 
 ### Saldo Dinamis (Computed Balance)
 
@@ -74,9 +110,9 @@ public function getBalanceAttribute(): int
 2. Request `GET /bank-accounts` → route name `bank-accounts.index` → middleware `auth` + `can:view bank-accounts` (`routes/web.php`).
 3. `BankAccountController::index()` memuat semua akun dengan `with(['transactions', 'payments'])` supaya accessor `balance` dan kalkulasi trend berjalan di memori.
 4. Per akun dihitung `trend` (`up`/`down`) dengan membandingkan total transaksi **credit** bulan ini vs bulan lalu.
-5. `overallSummary` (sidebar) dihitung lintas semua akun: `total_balance`, `income` (Σ payments + Σ credit), `expense` (Σ debit) via satu `selectRaw SUM(CASE ...)`.
+5. `overallSummary` (sidebar) dihitung lintas semua akun: `total_balance`, `total_bank` & `total_cash` (rincian per jenis dari koleksi yang sama, `total_bank = total_balance − total_cash`, tanpa query tambahan), `income` (Σ payments + Σ credit), `expense` (Σ debit) via satu `selectRaw SUM(CASE ...)`. Tiap akun juga membawa `type`, `custodian_id`, `custodian_name` (satu `whereIn` ke database pusat untuk semua akun), `cash_limit`, `refill_amount`.
 6. Jika ada akun terpilih (default: akun pertama), `buildAccountDetail()` menghasilkan: `period` (bulan terpilih atau "semua waktu"), `stats` (total_income/total_expense/net_cashflow/transaction_count), `chart_months` (12 bulan income vs expense), dan `category_breakdown` (top 6 kategori debit untuk donut chart).
-7. Respons `Inertia::render('bank-accounts/index', [...])` → halaman React `resources/js/pages/bank-accounts/index.tsx` merender sidebar akun (`account-sidebar.tsx`) + panel detail.
+7. Respons `Inertia::render('bank-accounts/index', [...])` → halaman React `resources/js/pages/bank-accounts/index.tsx` merender sidebar akun (`account-sidebar.tsx`) + panel detail. Prop `custodianOptions` (anggota perusahaan, `User::memberOfCurrentCompany()`) berupa closure — hanya dihitung saat halaman dimuat penuh, dan kosong bagi pengguna tanpa `create`/`edit bank-accounts`.
 8. Ganti akun/bulan di UI memicu `router.get()` partial reload `only: ['detail', 'filters']` (index.tsx baris ~88) — hanya prop detail yang dihitung ulang.
 
 **Penjelasan kode** (`app/Http/Controllers/BankAccountController.php`):
@@ -84,8 +120,13 @@ public function getBalanceAttribute(): int
 ```php
 $accounts = BankAccount::with(['transactions', 'payments'])->get();
 ...
+$totalBalance = (int) $accountsData->sum('balance');
+$totalCash = (int) $accountsData->where('type', BankAccount::TYPE_CASH)->sum('balance');
+
 $overallSummary = [
-    'total_balance' => (int) $accountsData->sum('balance'),
+    'total_balance' => $totalBalance,
+    'total_bank' => $totalBalance - $totalCash,
+    'total_cash' => $totalCash,
     'income' => (int) Payment::sum('amount') + (int) ($overallTrxStats->credit_total ?? 0),
     'expense' => (int) ($overallTrxStats->debit_total ?? 0),
 ];
@@ -93,34 +134,36 @@ $overallSummary = [
 
 Chart dirender di `resources/js/pages/bank-accounts/components/account-charts.tsx` menggunakan `react-apexcharts`: bar chart income vs expense 12 bulan (`chart_months`) dan donut breakdown kategori pengeluaran (`category_breakdown`). Filter bulan pada chart mengirim ulang query `month` ke controller.
 
-### Create Rekening
+### Create Akun (Rekening / Kas)
 
 **Alur step-by-step:**
 
-1. User klik tombol tambah akun → dialog `account-form-dialog.tsx` (CurrencyInput untuk saldo awal).
-2. `POST /bank-accounts` payload `{account_name, account_number, bank_name, branch?, initial_balance}`.
+1. User klik **Tambah Akun** → dialog `account-form-dialog.tsx`, pilih **Jenis** Bank atau Kas (CurrencyInput untuk saldo awal & plafon).
+2. `POST /bank-accounts` payload `{type, account_name, account_number, bank_name, branch?, initial_balance, custodian_id?, cash_limit?}` (kas mengirim nomor/bank/cabang kosong).
 3. Middleware `can:create bank-accounts`.
-4. Validasi `StoreBankAccountRequest` (`app/Http/Requests/StoreBankAccountRequest.php`): `account_number` wajib **unique:bank_accounts**, `initial_balance` `integer|min:0`.
-5. `BankAccount::create()` — satu insert, tidak ada pencatatan saldo lain.
+4. Validasi `StoreBankAccountRequest` (`app/Http/Requests/StoreBankAccountRequest.php`): bank → `account_number` & `bank_name` wajib; kas → opsional; `account_number` **unik**; `initial_balance` `integer|min:0`; kas → `custodian_id` anggota perusahaan, `cash_limit` `integer|min:0` (detail di [Jenis akun Kas & Bank](#jenis-akun-kas--bank)).
+5. `BankAccount::create($this->accountAttributes(...))` — satu insert (model mengisi `Tunai`/`KAS-0001` untuk kas), tidak ada pencatatan saldo lain.
 6. Redirect ke `bank-accounts.index?account={id baru}` dengan flash `success` (`__('pages.account_created_successfully')`).
 7. UI: akun baru langsung terpilih di sidebar.
 
-### Update Rekening
+### Update Akun
 
 **Alur step-by-step:**
 
-1. User klik edit pada akun → dialog form terisi data lama.
+1. User klik **Edit Rekening** / **Edit Kas** pada akun → dialog form terisi data lama. **Jenis** boleh diganti (rekening "kas palsu" → Kas tanpa kehilangan saldo/transaksi; Kas → Bank mewajibkan nomor & nama bank lagi).
 2. `PUT /bank-accounts/{bankAccount}` payload sama dengan create.
 3. Middleware `can:edit bank-accounts`.
-4. Validasi `UpdateBankAccountRequest` — extends Store, tapi rule unique mengecualikan akun sendiri:
+4. Validasi `UpdateBankAccountRequest` — extends Store, hanya rule unique yang mengecualikan akun sendiri:
 
 ```php
 // app/Http/Requests/UpdateBankAccountRequest.php
-$rules['account_number'] = ['required', 'string', 'max:255',
-    "unique:bank_accounts,account_number,{$this->route('bankAccount')->id}"];
+protected function uniqueAccountNumber(): Unique
+{
+    return Rule::unique('bank_accounts', 'account_number')->ignore($this->route('bankAccount'));
+}
 ```
 
-5. `$bankAccount->update([...])` → `redirect()->back()` + flash success.
+5. `$bankAccount->update($this->accountAttributes(...))` → `redirect()->back()` + flash success. Kas tanpa nomor mempertahankan nomor/kode yang tersimpan.
 6. Mengubah `initial_balance` otomatis menggeser saldo terkini karena saldo selalu dihitung ulang.
 
 ### Delete Rekening
@@ -197,34 +240,40 @@ Detail aturan & efeknya ke Arus Kas / Laba Rugi ada di `docs/module/cash-flow.md
 
 **Alur step-by-step:**
 
-1. User klik **Export PDF** di menu `•••` rekening terpilih → `window.open('/bank-account/export/pdf?bank_account_id={id}')` — dari halaman ini **hanya** `bank_account_id` yang dikirim (filter bulan halaman tidak ikut), jadi laporannya selalu semua waktu. Endpoint juga menerima `month`, `year`, `start_date`, `end_date` (dipakai halaman Cash Flow lewat `/cash-flow/export/pdf`); `/bank-account/export/pdf/preview` untuk stream inline.
+1. User klik **Export PDF** di menu `•••` akun terpilih → `window.open('/bank-account/export/pdf?bank_account_id={id}')` — dari halaman ini **hanya** `bank_account_id` yang dikirim (filter bulan halaman tidak ikut), jadi laporannya selalu semua waktu. Endpoint juga menerima `month`, `year`, `start_date`, `end_date` (dipakai halaman Cash Flow lewat `/cash-flow/export/pdf`); `/bank-account/export/pdf/preview` untuk stream inline.
 2. Middleware `can:view bank-accounts`.
 3. `CashFlowExportController::exportPdf()` menormalkan filter via `parseFilters()` (menerima `start_date`/`end_date` **atau** alias `date_from`/`date_to`, `bank_account_id` tunggal **atau** `bank_accounts` comma-separated).
 4. `CashFlowExportService::generatePdf()` membangun data (saldo awal per tanggal mulai, gabungan bank_transactions + payments terurut tanggal, saldo akhir) lalu render Blade `resources/views/pdf/cash-flow-report.blade.php` via DomPDF.
-5. Respons: `$pdf->download($filename)` — nama file mengikuti filter, mis. `cash-flow-2026-01-01-to-2026-01-31-account-2.pdf`, `cash-flow-semua-waktu-account-2.pdf` (dari halaman Rekening Bank), atau `cash-flow-semua-waktu.pdf` tanpa filter.
+5. Respons: `$pdf->download($filename)` — nama file mengikuti filter, mis. `cash-flow-2026-01-01-to-2026-01-31-account-2.pdf`, `cash-flow-semua-waktu-account-2.pdf` (dari halaman Kas & Bank), atau `cash-flow-semua-waktu.pdf` tanpa filter.
 
 Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori) ada di `docs/module/cash-flow.md` karena controller & service-nya dibagi dengan modul Cash Flow.
 
 ### Panduan & video tutorial
 
-1. Tombol **Tutorial** (`<TutorialButton slug="bank-accounts" />`) di header halaman, di samping **Tambah Rekening**, membuka video per role; halaman publik `/panduan/bank-accounts` memuat panduan teks yang sama. Staff tidak punya akses modul ini, jadi hanya ada video **Finance manager** dan **Admin**.
-2. Isi panduan: `video/bank-accounts/guide.ts` (peran, tugas, dampak lintas modul, isi transaksi transfer, peringatan, matriks akses). Video: `video/bank-accounts/tutorial.tsx` (komposisi `BankAccountsFinanceManager` — mengenal halaman, tambah rekening, pemasukan & pengeluaran, transfer, riwayat; `BankAccountsAdmin` — peran, dampak, isi transaksi transfer, jejak di Arus Kas & Laba Rugi, peringatan, edit & hapus rekening, ringkasan hak akses), langkah walkthrough `steps.ts`, koordinat `shots.ts`, screenshot `screens/*.webp`. Video "Sekilas" = field `overview` di `guide.ts` → `public/videos/panduan/rekening-bank.mp4` (+ poster), sumber `video/launch/bank-accounts.html`.
+1. Tombol **Tutorial** (`<TutorialButton slug="bank-accounts" />`) di header halaman, di samping **Tambah Akun**, membuka video per role; halaman publik `/panduan/bank-accounts` memuat panduan teks yang sama. Staff tidak punya akses modul ini, jadi hanya ada video **Finance manager** dan **Admin**.
+2. Isi panduan: `video/bank-accounts/guide.ts` (judul **Kas & Bank**; peran, tugas — termasuk **Menambah kas kecil** dan **Mengisi ulang kas kecil** —, dampak lintas modul, isi transaksi transfer, peringatan — termasuk plafon & penanggung jawab yang hanya informasi —, matriks akses). Screenshot `screens/*.webp` masih tampilan sebelum jenis akun Kas (belum diambil ulang); caption `steps.ts` hanya diperbarui jalur menunya. Video: `video/bank-accounts/tutorial.tsx` (komposisi `BankAccountsFinanceManager` — mengenal halaman, tambah rekening, pemasukan & pengeluaran, transfer, riwayat; `BankAccountsAdmin` — peran, dampak, isi transaksi transfer, jejak di Arus Kas & Laba Rugi, peringatan, edit & hapus rekening, ringkasan hak akses), langkah walkthrough `steps.ts`, koordinat `shots.ts`, screenshot `screens/*.webp`. Video "Sekilas" = field `overview` di `guide.ts` → `public/videos/panduan/rekening-bank.mp4` (+ poster), sumber `video/launch/bank-accounts.html`.
 3. Video Admin menjelaskan dampak: transaksi → saldo → Arus Kas (Pemasukan / Pengeluaran / Transfer & Penyesuaian) → Laba Rugi (per `pl_group`, panel Perlu Diklasifikasi), pasangan transaksi transfer `TRF…`, serta peringatan hapus rekening (cascade `bank_transactions` + `payments` + `reimbursement_payments`, status invoice/reimbursement/permintaan dana tidak ikut kembali) dan ubah saldo awal.
-4. Ambil ulang screenshot bila UI/alur berubah: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8013`), jalankan `video/capture/bank-accounts.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py bank-accounts` dan salin koordinat hasilnya ke `shots.ts`. Skrip membuat rekening "BRI - Proyek Klien" & "Jago - Kas Kecil" beserta transaksinya di DB QC (langkah yang datanya sudah ada dilewati — pada jalankan ulang, `fm-account-new` sudah memperlihatkan saldo setelah transaksi, karena itu caption langkahnya menyebut "contoh ini sudah berisi transaksi"; ambil di DB QC segar agar layar sesuai alur). Jalankan sebelum `video/capture/transaction-categories.js`.
+4. Ambil ulang screenshot bila UI/alur berubah (skrip sudah memakai label baru **Tambah Akun** dan panel **Akun**): jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --port=8013`), jalankan `video/capture/bank-accounts.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py bank-accounts` dan salin koordinat hasilnya ke `shots.ts`. Skrip membuat rekening "BRI - Proyek Klien" & "Jago - Kas Kecil" beserta transaksinya di DB QC (langkah yang datanya sudah ada dilewati — pada jalankan ulang, `fm-account-new` sudah memperlihatkan saldo setelah transaksi, karena itu caption langkahnya menyebut "contoh ini sudah berisi transaksi"; ambil di DB QC segar agar layar sesuai alur). Jalankan sebelum `video/capture/transaction-categories.js`.
 5. **Perubahan UI/alur/hak akses modul ini harus diikuti ambil ulang screenshot + perbarui `guide.ts`/`steps.ts`.** Pratinjau: `npm run video`.
 
 ## Keterkaitan Antar Modul
 
+- **Dashboard (Ringkasan)** — kartu Arus Kas menampilkan Total saldo beserta rincian **Bank** / **Kas** (`stats.total_bank`, `stats.total_cash` dari `BankAccount::withBalance()`); kartu Rekening menandai akun kas ("Kas tunai", tile `KAS`). Lihat `docs/module/dashboard.md`.
+- **Koneksi Claude (MCP)** — `rekening-bank` mengirim `jenis` (`bank`/`kas`), `total_bank`/`total_kas`, dan untuk kas `penanggung_jawab`, `plafon`, `kurang_dari_plafon`; `ringkasan-keuangan` bagian `kas` memuat `total_bank`/`total_kas`. Lihat `docs/module/koneksi-claude.md`.
 - **Invoices/Payments** — pembayaran invoice menambah saldo rekening (komponen `payments` pada rumus saldo) dan tampil di tab Pembayaran.
 - **Cash Flow** — semua transaksi income/expense/transfer dibuat lewat endpoint `bank-transactions.*` (lihat `docs/module/cash-flow.md`) dan langsung memengaruhi saldo.
 - **Loans & Receivables** — `LoanController`/`ReceivableController` membuat `BankTransaction` otomatis (pencairan, cicilan, bunga) pada rekening terpilih; `loan_payments` juga ber-FK ke `bank_accounts` (tanpa cascade → rekening yang pernah dipakai membayar pinjaman tidak bisa dihapus).
 - **Reimbursements & Fund Requests** — pembayaran reimbursement (`ReimbursementController::pay`) dan pencairan dana (`FundRequestController`, satu transaksi per item) membuat `BankTransaction` debit; ikut tampil di tab Transaksi dan bisa dihapus dari sana tanpa mengembalikan status di modul asal.
 - **Transaction Categories** — breakdown donut per kategori join ke `transaction_categories`.
 - **Company Profile** — header laporan PDF (`CompanyProfile::current()`).
-- Endpoint helper `GET /api/bank-accounts` (`routes/web.php`) menyediakan opsi `{label, value}` untuk Combobox lintas modul. Catatan: route ini (beserta `/api/transaction-categories` & `/api/clients`) didefinisikan **di luar** grup `auth`, jadi bisa diakses tanpa login.
+- Endpoint helper `GET /api/bank-accounts` (`routes/web.php`) menyediakan opsi `{label, value}` untuk Combobox lintas modul (label `nama (bank)`, kas → "Kas Kecil (Tunai)"). Route ini (beserta `/api/transaction-categories` & `/api/clients`) berada di grup `/c/{company}` (login + keanggotaan perusahaan) dan masing-masing digate izin lihat modulnya (`/api/bank-accounts`: `can:view bank-accounts`).
 
 ## Invarian & Jebakan
 
+- **Akun kas tetap punya `account_number` & `bank_name`.** Jangan mengubah kolom itu menjadi nullable atau menyaring `bank_name = 'Tunai'` untuk mengenali kas — pakai `type`/`isCash()`. Pengisian otomatis ada di listener `saving` model; update massal lewat query builder melewatinya.
+- **`custodian_id` = id pengguna pusat tanpa FK** (sama dengan `created_by`): cari namanya lewat `BankAccount::custodianNames()` / `User::whereIn`, jangan join `users` dari database perusahaan. Validasi keanggotaan lewat `User::memberOfCurrentCompany()`, bukan rule `exists`.
+- **Plafon & penanggung jawab hanya informasi.** Tidak ada pemblokiran transaksi saat saldo kas melewati/di bawah plafon, dan penanggung jawab tidak membatasi siapa yang mencatat transaksi ke kas. Isi ulang = transfer biasa (masuk Arus Kas › Transfer & Penyesuaian, tidak masuk Laba Rugi).
+- **Total Kas + Total Bank = Total Saldo**; `total_bank` dihitung sebagai selisih supaya jumlahnya selalu cocok.
 - **Saldo tidak pernah disimpan.** Jangan pernah menambah kolom `balance` atau meng-update saldo secara manual; semua fitur (export, stats, chart) mengandalkan formula yang sama. Saldo salah = periksa `transaction_type` transaksi, bukan tabel akun.
 - **Jangan pernah mengakses `balance` massal tanpa salah satu jalur murah.** `$appends = ['balance']` membuat setiap serialisasi memicu 3 sum query bila relasi belum dimuat. Untuk daftar/total pakai `BankAccount::withBalance()` (1 query); pakai `with(['transactions','payments'])` hanya bila baris transaksinya memang diperlukan, seperti perhitungan tren di `index()`.
 - **Delete akun = cascade.** Menghapus rekening ikut menghapus seluruh `bank_transactions` dan `payments`-nya (berantai ke `reimbursement_payments`) tanpa konfirmasi tambahan di backend dan tanpa menghitung ulang status invoice/reimbursement/permintaan dana; sebaliknya gagal dengan error FK (500) bila ada `loan_payments`.
@@ -237,13 +286,14 @@ Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori)
 
 | File | Peran |
 |------|-------|
-| `app/Models/BankAccount.php` | Accessor `balance` (rumus saldo dinamis), relasi transactions/payments/loanPayments |
+| `app/Models/BankAccount.php` | Accessor `balance` (rumus saldo dinamis), relasi transactions/payments/loanPayments, jenis akun (`TYPE_*`, `isCash()`, pengisian `Tunai`/`KAS-xxxx`, `refillAmount()`, `custodianNames()`) |
+| `database/migrations/tenant/2026_11_06_113009_add_kas_columns_to_bank_accounts_table.php` | Kolom `type`, `custodian_id`, `cash_limit` |
 | `app/Http/Controllers/BankAccountController.php` | Index (stats, chart, breakdown), store, update, destroy |
 | `app/Http/Controllers/BankTransactionController.php` | Endpoint JSON `indexTransactions()` & `indexPayments()` untuk tab detail; `store`/`transfer`/`destroy`/`bulkDestroy` dipakai dialog & tab di halaman ini (dibagi dengan Cash Flow) |
-| `app/Http/Requests/StoreBankAccountRequest.php` / `UpdateBankAccountRequest.php` | Validasi CRUD akun (unique account_number) |
+| `app/Http/Requests/StoreBankAccountRequest.php` / `UpdateBankAccountRequest.php` | Validasi CRUD akun: jenis, nomor/bank wajib hanya untuk bank, unique account_number, penanggung jawab anggota perusahaan, plafon |
 | `app/Http/Controllers/CashFlowExportController.php` + `app/Services/CashFlowExportService.php` | Export PDF laporan kas |
 | `resources/views/pdf/cash-flow-report.blade.php` | Template PDF laporan kas |
 | `routes/web.php` | Grup route `can:view bank-accounts` + granular create/edit/delete |
 | `resources/js/pages/bank-accounts/index.tsx` | Halaman utama (partial reload `only: ['detail', ...]`) |
-| `resources/js/pages/bank-accounts/components/` | `account-sidebar`, `account-charts` (ApexCharts), `transactions-tab`, `payments-tab`, `account-form-dialog`, `transaction-form-dialog`, `transfer-dialog` |
-| `tests/Feature/BankAccountControllerTest.php` | Test feature modul ini |
+| `resources/js/pages/bank-accounts/components/` | `account-sidebar` (+ `AccountTypeIcon`, `accountSubtitle`), `account-charts` (ApexCharts), `transactions-tab`, `payments-tab`, `account-form-dialog`, `transaction-form-dialog`, `transfer-dialog` (prop `preset` untuk Isi ulang) |
+| `tests/Feature/BankAccountControllerTest.php`, `tests/Feature/KasBankTest.php` | Test feature modul ini (KasBankTest: jenis akun, nilai bawaan kas, validasi, total Kas/Bank, MCP) |

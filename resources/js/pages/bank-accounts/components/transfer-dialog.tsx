@@ -21,13 +21,25 @@ import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import type { AccountPickerItem, CategoryOption } from '../types';
 
+/** Isian awal untuk alur khusus, mis. Isi ulang kas kecil dari halaman Kas & Bank. */
+export interface TransferPreset {
+    toAccountId?: number | null;
+    amount?: number;
+    adminFee?: number;
+    description?: string;
+}
+
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     accounts: AccountPickerItem[];
     /** Pre-fill the "from" account. */
     fromAccountId?: number | null;
+    /** Pre-fill tujuan, jumlah, biaya admin, dan deskripsi. */
+    preset?: TransferPreset | null;
 }
+
+const DEFAULT_ADMIN_FEE = 2500;
 
 interface FormShape {
     from_account_id: number | null;
@@ -44,16 +56,16 @@ function todayIso() {
     return toLocalIso(new Date());
 }
 
-export function TransferDialog({ open, onOpenChange, accounts, fromAccountId }: Props) {
+export function TransferDialog({ open, onOpenChange, accounts, fromAccountId, preset }: Props) {
     const [categories, setCategories] = React.useState<CategoryOption[]>([]);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<FormShape>({
         from_account_id: fromAccountId ?? null,
-        to_account_id: null,
+        to_account_id: preset?.toAccountId ?? null,
         category_id: null,
-        amount: 0,
-        admin_fee: 2500,
-        description: '',
+        amount: preset?.amount ?? 0,
+        admin_fee: preset?.adminFee ?? DEFAULT_ADMIN_FEE,
+        description: preset?.description ?? '',
         transfer_date: todayIso(),
         attachment: null,
     });
@@ -62,18 +74,19 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId }: 
         if (open) {
             setData({
                 from_account_id: fromAccountId ?? null,
-                to_account_id: null,
+                to_account_id: preset?.toAccountId ?? null,
                 category_id: null,
-                amount: 0,
-                admin_fee: 2500,
-                description: '',
+                amount: preset?.amount ?? 0,
+                admin_fee: preset?.adminFee ?? DEFAULT_ADMIN_FEE,
+                description: preset?.description ?? '',
                 transfer_date: todayIso(),
                 attachment: null,
             });
             clearErrors();
         }
+        // Bergantung pada nilai preset, bukan objeknya: objek baru tiap render akan mengosongkan isian.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, fromAccountId]);
+    }, [open, fromAccountId, preset?.toAccountId, preset?.amount, preset?.adminFee, preset?.description]);
 
     React.useEffect(() => {
         if (!open) return;

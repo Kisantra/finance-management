@@ -34,7 +34,7 @@ const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
         { label: 'Buat Baru' },
     ],
     '/recurring-invoices': [{ label: 'Keuangan' }, { label: 'Invoice Berulang' }],
-    '/bank-accounts': [{ label: 'Keuangan' }, { label: 'Rekening Bank' }],
+    '/bank-accounts': [{ label: 'Keuangan' }, { label: 'Kas & Bank' }],
     '/cash-flow/all': [{ label: 'Arus Kas' }, { label: 'Pemasukan & Pengeluaran' }],
     '/cash-flow/income': [
         { label: 'Arus Kas' },

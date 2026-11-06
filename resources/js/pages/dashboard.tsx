@@ -27,6 +27,9 @@ interface FinancialOverview {
 
 interface Stats {
     total_balance: number;
+    /** Rincian total_balance: rekening bank + kas tunai. */
+    total_bank: number;
+    total_cash: number;
     income_this_month: number;
     expenses_this_month: number;
     net_this_month: number;
@@ -53,6 +56,8 @@ interface CategoryExpense {
 
 interface BankAccount {
     id: number;
+    /** `cash` = kas tunai (bank "Tunai", nomor berupa kode KAS-xxxx). */
+    type: 'bank' | 'cash';
     name: string;
     bank: string;
     account_number: string;
@@ -292,7 +297,7 @@ export default function Dashboard() {
                         <div className="flex flex-col gap-1.5">
                             <p className="text-[40px] font-semibold leading-none tracking-[-0.01em] text-ob-ink">{formatCurrency(stats.total_balance)}</p>
                             <p className="text-[13px] text-ob-ink-2">
-                                Total saldo · {bankAccounts.length} rekening
+                                Total saldo · Bank {formatCurrency(stats.total_bank)} · Kas {formatCurrency(stats.total_cash)}
                                 {cashFlowChart.account && <span className="text-ob-ink-3"> · grafik: {cashFlowChart.account.label}</span>}
                             </p>
                         </div>
@@ -539,11 +544,11 @@ export default function Dashboard() {
                                         className="flex h-[62px] items-center gap-3 rounded-2xl border border-ob-line-soft bg-ob-inner px-3.5 text-ob-ink transition-colors hover:bg-ob-hover"
                                     >
                                         <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-ob-chip text-xs font-bold text-ob-ink-2">
-                                            {bankAbbrev(acc.bank)}
+                                            {acc.type === 'cash' ? 'KAS' : bankAbbrev(acc.bank)}
                                         </span>
                                         <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
                                             <span className="truncate text-[13px] font-semibold">{acc.name}</span>
-                                            <span className="truncate text-xs text-ob-ink-3">{acc.bank} · {acc.account_number}</span>
+                                            <span className="truncate text-xs text-ob-ink-3">{acc.type === 'cash' ? 'Kas tunai' : `${acc.bank} · ${acc.account_number}`}</span>
                                         </span>
                                         <span className={cn('shrink-0 text-sm font-semibold', acc.balance <= 0 && 'text-ob-ink-2')}>{formatCurrency(acc.balance)}</span>
                                     </AppLink>

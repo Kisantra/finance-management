@@ -1,7 +1,19 @@
 import { Building2, ChevronRight, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import * as React from 'react';
+import { Badge } from '@/components/ui/badge';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { AccountListItem, OverallSummary } from '../types';
+
+/** Ikon jenis akun: gedung = rekening bank, dompet = kas tunai. */
+export function AccountTypeIcon({ account, className }: { account: Pick<AccountListItem, 'type'>; className?: string }) {
+    return account.type === 'cash' ? <Wallet className={className} /> : <Building2 className={className} />;
+}
+
+/** Baris kedua kartu akun: nama bank untuk rekening, penanggung jawab untuk kas. */
+export function accountSubtitle(account: AccountListItem): string {
+    if (account.type !== 'cash') return account.bank_name;
+    return account.custodian_name ? `Kas tunai · ${account.custodian_name}` : 'Kas tunai';
+}
 
 interface Props {
     accounts: AccountListItem[];
@@ -23,7 +35,7 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                     <div className="px-4 py-3 border-b border-secondary-200 dark:border-dark-600 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                            Rekening
+                            Akun
                         </h3>
                         <span className="text-xs text-dark-500 dark:text-dark-400 font-medium">
                             {accounts.length}
@@ -44,7 +56,7 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                             className="group w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 border-dashed border-zinc-300 dark:border-dark-600 hover:border-primary-400 dark:hover:border-primary-500 text-dark-400 dark:text-dark-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                         >
                             <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
-                            <span className="text-xs font-medium">Tambah Rekening</span>
+                            <span className="text-xs font-medium">Tambah Akun</span>
                         </button>
                     </div>
                 </div>
@@ -55,7 +67,9 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                         Ringkasan Total
                     </h4>
 
-                    <SummaryRow label="Total Saldo" value={overall.total_balance} bold accent="primary" icon={<Wallet className="w-3.5 h-3.5" />} />
+                    <SummaryRow label="Total Saldo" value={overall.total_balance} bold accent="primary" />
+                    <SummaryRow label="Total Bank" value={overall.total_bank} accent="primary" icon={<Building2 className="w-3.5 h-3.5" />} />
+                    <SummaryRow label="Total Kas" value={overall.total_cash} accent="primary" icon={<Wallet className="w-3.5 h-3.5" />} />
 
                     <div className="h-px bg-secondary-200 dark:bg-dark-600" />
 
@@ -99,7 +113,7 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
             <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
                     <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-linear-to-br from-primary-400 to-primary-600 shadow-sm">
-                        <Building2 className="w-4 h-4 text-white" />
+                        <AccountTypeIcon account={account} className="w-4 h-4 text-white" />
                     </div>
                     {active && (
                         <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary-500 ring-2 ring-white dark:ring-dark-700" />
@@ -107,14 +121,17 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className={cn(
-                        'font-semibold text-sm truncate',
-                        active ? 'text-primary-900 dark:text-primary-100' : 'text-dark-900 dark:text-dark-50',
-                    )}>
-                        {account.account_name}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={cn(
+                            'font-semibold text-sm truncate',
+                            active ? 'text-primary-900 dark:text-primary-100' : 'text-dark-900 dark:text-dark-50',
+                        )}>
+                            {account.account_name}
+                        </span>
+                        {account.type === 'cash' && <Badge variant="outline" size="sm" className="shrink-0">Kas</Badge>}
                     </div>
                     <div className="text-xs text-dark-500 dark:text-dark-400 truncate">
-                        {account.bank_name}
+                        {accountSubtitle(account)}
                     </div>
                 </div>
 
@@ -145,6 +162,12 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
                     )}
                 />
             </div>
+
+            {account.refill_amount > 0 && (
+                <div className="mt-1 pl-12 text-xs font-medium text-ob-wait">
+                    Perlu isi ulang {formatCurrency(account.refill_amount)}
+                </div>
+            )}
         </button>
     );
 }
@@ -233,20 +256,25 @@ export function MobileAccountSwitcher({
                             >
                                 <div className="flex items-center gap-2.5 mb-2">
                                     <div className="h-8 w-8 bg-linear-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center shrink-0">
-                                        <Building2 className="w-4 h-4 text-white" />
+                                        <AccountTypeIcon account={account} className="w-4 h-4 text-white" />
                                     </div>
                                     <div className="min-w-0">
                                         <div className="font-semibold text-sm text-dark-900 dark:text-dark-50 truncate">
                                             {account.account_name}
                                         </div>
-                                        <div className="text-xs text-dark-500 dark:text-dark-400">
-                                            {account.bank_name}
+                                        <div className="text-xs text-dark-500 dark:text-dark-400 truncate">
+                                            {accountSubtitle(account)}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-sm font-bold text-dark-900 dark:text-dark-50 tabular-nums">
                                     {formatCurrency(account.balance)}
                                 </div>
+                                {account.refill_amount > 0 && (
+                                    <div className="mt-0.5 text-xs font-medium text-ob-wait truncate">
+                                        Isi ulang {formatCurrency(account.refill_amount)}
+                                    </div>
+                                )}
                             </button>
                         );
                     })}
@@ -265,6 +293,10 @@ export function MobileAccountSwitcher({
                 <CompactStat label="Total Saldo" value={overall.total_balance} tone="primary" />
                 <CompactStat label="Pemasukan" value={overall.income} tone="green" />
                 <CompactStat label="Pengeluaran" value={overall.expense} tone="red" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <CompactStat label="Total Bank" value={overall.total_bank} tone="primary" />
+                <CompactStat label="Total Kas" value={overall.total_cash} tone="primary" />
             </div>
         </div>
     );

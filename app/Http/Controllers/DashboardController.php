@@ -115,7 +115,9 @@ class DashboardController extends Controller
      */
     private function getStats(Carbon $start, Carbon $end): array
     {
-        $totalBalance = $this->rekening()->sum(fn ($a) => $a->balance);
+        $totalBalance = (int) $this->rekening()->sum(fn ($a) => $a->balance);
+        // Rincian Kas & Bank dari koleksi yang sama (withBalance, tanpa query tambahan).
+        $totalCash = (int) $this->rekening()->filter(fn (BankAccount $a) => $a->isCash())->sum(fn ($a) => $a->balance);
 
         $income = BankTransaction::where('transaction_type', 'credit')
             ->whereBetween('transaction_date', [$start, $end])
@@ -135,6 +137,8 @@ class DashboardController extends Controller
         // perbandingan ketat di TypeScript berperilaku beda antar-field.
         return [
             'total_balance' => $totalBalance,
+            'total_bank' => $totalBalance - $totalCash,
+            'total_cash' => $totalCash,
             'income_this_month' => (int) $income,
             'expenses_this_month' => (int) $expenses,
             'net_this_month' => (int) ($income - $expenses),
@@ -340,6 +344,7 @@ class DashboardController extends Controller
         return $this->rekening()
             ->map(fn ($a) => [
                 'id' => $a->id,
+                'type' => $a->type,
                 'name' => $a->account_name,
                 'bank' => $a->bank_name,
                 'account_number' => $a->account_number,

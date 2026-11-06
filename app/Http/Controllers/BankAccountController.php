@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateBankAccountRequest;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Payment;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,12 +23,13 @@ class BankAccountController extends Controller
 
         // Load accounts with eager relationships for balance + trend calculation
         $accounts = BankAccount::with(['transactions', 'payments'])->get();
+        $custodianNames = BankAccount::custodianNames($accounts);
 
         // Batch trend calculation using already-loaded transactions (cross-database compatible)
         $thisMonthKey = now()->format('Y-n');
         $lastMonthKey = now()->subMonth()->format('Y-n');
 
-        $accountsData = $accounts->map(function (BankAccount $account) use ($thisMonthKey, $lastMonthKey) {
+        $accountsData = $accounts->map(function (BankAccount $account) use ($thisMonthKey, $lastMonthKey, $custodianNames) {
             $credits = $account->transactions->where('transaction_type', 'credit');
             $thisMonthTotal = $credits
                 ->filter(fn ($t) => date('Y-n', strtotime($t->transaction_date)) === $thisMonthKey)
@@ -36,14 +38,23 @@ class BankAccountController extends Controller
                 ->filter(fn ($t) => date('Y-n', strtotime($t->transaction_date)) === $lastMonthKey)
                 ->sum('amount');
 
+            $balance = $account->balance;
+
             return [
                 'id' => $account->id,
+                'type' => $account->type,
                 'account_name' => $account->account_name,
                 'account_number' => $account->account_number,
                 'bank_name' => $account->bank_name,
                 'branch' => $account->branch,
                 'initial_balance' => $account->initial_balance,
-                'balance' => $account->balance,
+                'balance' => $balance,
+                'custodian_id' => $account->custodian_id,
+                'custodian_name' => $account->custodian_id
+                    ? ($custodianNames[$account->custodian_id] ?? 'Pengguna dihapus')
+                    : null,
+                'cash_limit' => $account->cash_limit,
+                'refill_amount' => $account->refillAmount($balance),
                 'trend' => $thisMonthTotal >= $lastMonthTotal ? 'up' : 'down',
             ];
         });
@@ -59,8 +70,14 @@ class BankAccountController extends Controller
                 SUM(CASE WHEN transaction_type = 'debit' THEN amount ELSE 0 END) as debit_total
             ")->first();
 
+        // Total Kas + Total Bank = Total Saldo; bank = semua yang bukan kas.
+        $totalBalance = (int) $accountsData->sum('balance');
+        $totalCash = (int) $accountsData->where('type', BankAccount::TYPE_CASH)->sum('balance');
+
         $overallSummary = [
-            'total_balance' => (int) $accountsData->sum('balance'),
+            'total_balance' => $totalBalance,
+            'total_bank' => $totalBalance - $totalCash,
+            'total_cash' => $totalCash,
             'income' => (int) Payment::sum('amount') + (int) ($overallTrxStats->credit_total ?? 0),
             'expense' => (int) ($overallTrxStats->debit_total ?? 0),
         ];
@@ -78,20 +95,15 @@ class BankAccountController extends Controller
                 'account' => $selectedAccountId,
                 'month' => $selectedMonth,
             ],
+            // Pilihan penanggung jawab kas (form tambah/edit). Closure: tidak dihitung ulang saat
+            // partial reload ganti rekening/bulan.
+            'custodianOptions' => fn (): array => $this->custodianOptions($request),
         ]);
     }
 
     public function store(StoreBankAccountRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $account = BankAccount::create([
-            'account_name' => $validated['account_name'],
-            'account_number' => $validated['account_number'],
-            'bank_name' => $validated['bank_name'],
-            'branch' => ($validated['branch'] ?? null) ?: null,
-            'initial_balance' => $validated['initial_balance'],
-        ]);
+        $account = BankAccount::create($this->accountAttributes($request->validated()));
 
         return redirect()
             ->route('bank-accounts.index', ['account' => $account->id])
@@ -100,15 +112,7 @@ class BankAccountController extends Controller
 
     public function update(UpdateBankAccountRequest $request, BankAccount $bankAccount): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $bankAccount->update([
-            'account_name' => $validated['account_name'],
-            'account_number' => $validated['account_number'],
-            'bank_name' => $validated['bank_name'],
-            'branch' => ($validated['branch'] ?? null) ?: null,
-            'initial_balance' => $validated['initial_balance'],
-        ]);
+        $bankAccount->update($this->accountAttributes($request->validated()));
 
         return redirect()->back()->with('success', __('pages.account_updated_successfully'));
     }
@@ -155,6 +159,61 @@ class BankAccountController extends Controller
         return redirect()
             ->route('bank-accounts.index')
             ->with('success', __('pages.account_deleted_successfully'));
+    }
+
+    /**
+     * Kolom yang disimpan dari input tervalidasi.
+     *
+     * Kas tanpa nama bank dikirim kosong agar model mengisinya "Tunai"; kas tanpa nomor tidak
+     * menimpa nomor yang sudah tersimpan (kode KAS- atau nomor lama saat rekening diubah menjadi
+     * kas), dan akun kas baru diberi kode KAS-0001 oleh model. Penanggung jawab & plafon hanya
+     * untuk kas; plafon 0 berarti tanpa plafon.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function accountAttributes(array $validated): array
+    {
+        $kas = $validated['type'] === BankAccount::TYPE_CASH;
+        // filled(), bukan `?:` — nomor rekening "0" tetap nomor yang sah.
+        $teks = fn (string $kolom): ?string => filled($validated[$kolom] ?? null) ? $validated[$kolom] : null;
+
+        $attributes = [
+            'type' => $validated['type'],
+            'account_name' => $validated['account_name'],
+            'account_number' => $teks('account_number'),
+            'bank_name' => $teks('bank_name'),
+            'branch' => $teks('branch'),
+            'initial_balance' => $validated['initial_balance'],
+            'custodian_id' => $kas ? ($validated['custodian_id'] ?? null) : null,
+            'cash_limit' => $kas ? (($validated['cash_limit'] ?? null) ?: null) : null,
+        ];
+
+        if ($kas && $attributes['account_number'] === null) {
+            unset($attributes['account_number']);
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Anggota perusahaan ini sebagai pilihan penanggung jawab kas, hanya untuk yang boleh
+     * menambah/mengedit akun. Pengguna hidup di database PUSAT (scope memberOfCurrentCompany).
+     *
+     * @return list<array{value: int, label: string}>
+     */
+    private function custodianOptions(Request $request): array
+    {
+        $user = $request->user();
+
+        if (! $user?->can('create bank-accounts') && ! $user?->can('edit bank-accounts')) {
+            return [];
+        }
+
+        return User::query()->memberOfCurrentCompany()->orderBy('name')->get(['id', 'name'])
+            ->map(fn (User $member): array => ['value' => $member->id, 'label' => $member->name])
+            ->values()
+            ->all();
     }
 
     /**

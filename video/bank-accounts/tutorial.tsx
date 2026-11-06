@@ -6,7 +6,7 @@ import { ADMIN_IMPACT_STEPS, ADMIN_STEPS, CREATE_STEPS, EXPENSE_STEPS, HISTORY_S
 
 /* Modul tanpa status (tidak ada FlowScene). Staff tidak punya akses, jadi hanya Finance manager & Admin. */
 
-const outro = { id: 'outro', frames: 90, node: <Outro where="Keuangan › Rekening Bank" action="Tambah Rekening" /> };
+const outro = { id: 'outro', frames: 90, node: <Outro where="Keuangan › Kas & Bank" action="Tambah Akun" /> };
 
 export const TUTORIALS: Tutorials = {
     fm: buildTutorial('BankAccountsFinanceManager', ROLES.fm, [
@@ -24,10 +24,10 @@ export const TUTORIALS: Tutorials = {
         { id: 'impact', frames: impactSceneFrames(guide.impacts!), node: <ImpactScene impacts={guide.impacts!} subtitle="Saldo tidak pernah diketik: setiap transaksi langsung mengubah saldo, lalu Arus Kas dan Laba Rugi sesuai kategorinya." />, chapter: 'Dampak' },
         { id: 'record', frames: recordSceneFrames(guide.records![0]), node: <RecordScene record={guide.records![0]} />, chapter: 'Transaksi transfer' },
         walk('walk-impact', ADMIN_IMPACT_STEPS, ROLES.admin, 'Jejak di modul lain'),
-        // 7 peringatan tidak muat satu layar (kartu terakhir terpotong): dibagi 4 + 3.
+        // 8 peringatan tidak muat satu layar (kartu terakhir terpotong): dibagi 4 + 4.
         { id: 'warnings', frames: warningsSceneFrames(4), node: <WarningsScene warnings={guide.warnings!.slice(0, 4)} />, chapter: 'Perhatian' },
         { id: 'warnings-2', frames: warningsSceneFrames(guide.warnings!.length - 4), node: <WarningsScene warnings={guide.warnings!.slice(4)} title="Yang perlu diperhatikan Admin (lanjutan)" /> },
-        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Edit & hapus rekening'),
+        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Edit & hapus akun'),
         { id: 'recap', frames: 300, node: <RecapScene guide={guide} />, chapter: 'Ringkasan hak akses' },
         outro,
     ]),

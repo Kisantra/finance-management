@@ -210,7 +210,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].account,
         zoom: 1.7,
-        caption: 'Di Keuangan › Rekening Bank, saldo BCA - Operasional ikut naik saat dana pinjaman masuk dan turun saat angsuran dibayar.',
+        caption: 'Di Keuangan › Kas & Bank, saldo BCA - Operasional ikut naik saat dana pinjaman masuk dan turun saat angsuran dibayar.',
         duration: 150,
     },
     {

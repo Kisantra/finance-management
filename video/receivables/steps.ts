@@ -320,7 +320,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-bank'),
         focus: S['admin-bank'].account,
         zoom: 1.7,
-        caption: 'Di Keuangan › Rekening Bank, saldo turun saat piutang dicairkan dan naik saat cicilan ditransfer.',
+        caption: 'Di Keuangan › Kas & Bank, saldo turun saat piutang dicairkan dan naik saat cicilan ditransfer.',
         duration: 140,
     },
     {

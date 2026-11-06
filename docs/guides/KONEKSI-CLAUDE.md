@@ -192,7 +192,8 @@ Gambaran keuangan satu periode dalam sekali baca.
 - **Contoh:** "Ringkas keuangan bulan ini." · "Bagaimana posisi keuangan kuartal 3?"
 - **Filter:** periode `dari`–`sampai` (bawaan: bulan berjalan).
 - **Jawaban** (tiap bagian hanya bila Anda punya izin modulnya):
-  - `kas`: total saldo saat ini, jumlah rekening, uang masuk/keluar periode, arus bersih;
+  - `kas`: total saldo saat ini (dirinci rekening bank dan kas tunai), jumlah rekening, uang
+    masuk/keluar periode, arus bersih;
   - `pemasukan` / `pengeluaran`: total periode + 5 kategori terbesar + "Lainnya";
   - `invoice`: belum dibayar, lewat tempo, 5 jatuh tempo terdekat;
   - `piutang`: aktif, lewat tempo, menunggu persetujuan, jatuh tempo terdekat;
@@ -215,12 +216,14 @@ Laporan laba rugi, sama dengan **Laporan › Laba Rugi** di aplikasi.
 
 ### `rekening-bank`
 
-Semua rekening bank beserta saldo saat ini.
+Semua akun **Kas & Bank** (rekening bank dan kas tunai / kas kecil) beserta saldo saat ini.
 
-- **Contoh:** "Saldo tiap rekening berapa?"
+- **Contoh:** "Saldo tiap rekening berapa?" · "Kas kecil mana yang perlu diisi ulang?"
 - **Filter:** tidak ada.
-- **Jawaban:** total saldo, jumlah rekening, lalu per rekening: id, nama, bank, nomor, cabang,
-  saldo awal, saldo sekarang. Saldo = saldo awal + pembayaran invoice masuk + transaksi masuk −
+- **Jawaban:** total saldo (beserta total bank dan total kas), jumlah rekening, lalu per akun:
+  id, jenis (`bank` / `kas`), nama, bank, nomor, cabang, saldo awal, saldo sekarang; untuk kas
+  juga penanggung jawab, plafon, dan kekurangan dari plafon. Akun kas bernama bank "Tunai" dengan
+  nomor berupa kode KAS-xxxx. Saldo = saldo awal + pembayaran invoice masuk + transaksi masuk −
   transaksi keluar.
 
 ### `mutasi-rekening`
