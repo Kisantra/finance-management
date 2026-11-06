@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RespondFeedbackRequest extends FormRequest
 {
@@ -15,7 +16,8 @@ class RespondFeedbackRequest extends FormRequest
     {
         return [
             'response' => ['required', 'string', 'max:5000'],
-            'status' => ['required', 'in:in_progress,resolved,closed'],
+            // Bug yang sudah diteruskan: statusnya mengikuti tiket Watchpost, jadi tidak diisi di sini.
+            'status' => [Rule::requiredIf(fn () => ! $this->route('feedback')?->statusIkutWatchpost()), 'nullable', 'in:in_progress,resolved,closed'],
         ];
     }
 }

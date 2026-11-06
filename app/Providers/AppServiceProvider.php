@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Mcp\PersetujuanClaude;
+use App\Services\ErrorReportService;
 use Carbon\Carbon;
 use Carbon\CarbonInterval;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Kisantra\Watchpost\Facades\Watchpost;
 use Laravel\Passport\Passport;
 use RuntimeException;
 
@@ -40,6 +42,15 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensExpireIn(CarbonInterval::hour());
         Passport::refreshTokensExpireIn(CarbonInterval::days(30));
         Passport::authorizationView(fn (array $parameters) => PersetujuanClaude::tampilkan($parameters));
+
+        // Watchpost: setiap error membawa kode ERR-… yang tampil di halaman error (sama
+        // dengan error_id di laravel.log) dan perusahaan tempat ia terjadi, supaya laporan
+        // pengguna "muncul ERR-…" bisa dicari di Watchpost. Di luar request web (queue,
+        // console) tidak ada halaman error yang menampilkan kode itu.
+        Watchpost::context(fn (): array => array_filter([
+            'error_id' => request()->route() !== null ? ErrorReportService::referenceId(request()) : null,
+            'company' => tenancy()->initialized ? tenant()->getTenantKey() : null,
+        ]));
 
         // Testing memakai SATU database: migration tenant ikut dimuat ke DB test
         // (produksi/dev menjalankannya via tenants:migrate ke DB per perusahaan)

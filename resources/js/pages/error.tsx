@@ -20,6 +20,7 @@ import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn, copyText } from '@/lib/utils';
+import { watchpostTrail } from '@/lib/watchpost';
 
 interface ReportField {
     label: string;
@@ -45,6 +46,8 @@ interface Props {
     report_url: string | null;
     report: {
         id: string;
+        /** Trace request ini di Watchpost; laporan yang membawanya menempel ke tiket error-nya. */
+        trace_id: string | null;
         summary: string;
         page: string;
         fields: ReportField[];
@@ -88,7 +91,9 @@ export default function ErrorPage({ status, title, description, home_url, home_l
         description: report.markdown.slice(0, 5000),
         type: 'bug',
         priority: status >= 500 ? 'high' : 'medium',
-        page_url: report.page.slice(0, 500),
+        page_url: report.page.slice(0, 2000),
+        trace_id: report.trace_id,
+        error_id: report.id,
     });
 
     async function handleCopy() {
@@ -100,6 +105,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
         if (!report_url) return;
 
         setSendFailed(false);
+        http.transform((data) => ({ ...data, breadcrumbs: watchpostTrail() }));
         http.post(report_url, {
             onSuccess: (data) => setSentId((data as { id: number }).id),
             onError: () => setSendFailed(true),

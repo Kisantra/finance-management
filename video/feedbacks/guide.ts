@@ -111,6 +111,7 @@ export const guide: ModuleGuide = {
             items: [
                 'Status **Terbuka**; pengirim, alamat halaman asal, dan lampiran tercatat.',
                 'Notifikasi **Feedback Baru** ke setiap Admin dan Finance manager.',
+                'Tipe **Bug** otomatis diteruskan ke **Watchpost** tim IT sebagai tiket, beserta halaman, jejak langkah, dan lampirannya. Fitur dan Saran tidak.',
                 'Tidak mengubah data keuangan apa pun.',
             ],
         },
@@ -122,6 +123,15 @@ export const guide: ModuleGuide = {
                 'Status maju ke Diproses, Selesai, atau Ditutup.',
                 'Notifikasi **Tanggapan Feedback** ke pengirim.',
                 'Pengirim tidak bisa lagi mengedit atau menghapus.',
+            ],
+        },
+        {
+            title: 'Saat tim IT memperbarui tiket Watchpost',
+            tone: 'act',
+            items: [
+                'Khusus **Bug** yang sudah diteruskan: statusnya ikut tiket (Diproses, Selesai, atau Ditutup bila diabaikan), paling lambat semenit kemudian.',
+                'Notifikasi **Laporan Bug Diperbarui** ke pengirim setiap kali statusnya berubah.',
+                'Status bug ini tidak bisa diubah dari aplikasi. **Tanggapi** tetap bisa untuk menulis balasan.',
             ],
         },
         {
@@ -140,7 +150,8 @@ export const guide: ModuleGuide = {
             subtitle: 'Contoh feedback dari Staff, beserta asal setiap datanya.',
             rows: [
                 { label: 'Pengirim', value: 'Staf Uji', source: 'Otomatis', tone: 'neutral' },
-                { label: 'URL halaman', value: '/dashboard (halaman saat tombol diklik)', source: 'Otomatis', tone: 'neutral' },
+                { label: 'URL halaman', value: '/dashboard (halaman saat tombol diklik, termasuk detail yang sedang terbuka)', source: 'Otomatis', tone: 'neutral' },
+                { label: 'Tiket Watchpost', value: '#12 (hanya untuk Bug, terlihat oleh pengelola)', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Tipe · Prioritas', value: 'Fitur · Sedang', source: 'Form feedback', tone: 'act' },
                 { label: 'Status', value: 'Terbuka → Diproses', source: 'Dialog Tanggapi', tone: 'pos' },
                 { label: 'Tanggapan', value: 'Terima kasih, usulan ini masuk rencana rilis November.', source: 'Dialog Tanggapi', tone: 'pos' },
@@ -150,6 +161,10 @@ export const guide: ModuleGuide = {
         },
     ],
     warnings: [
+        {
+            title: 'Status Bug diatur tim IT di Watchpost',
+            body: 'Laporan **Bug** dikirim ke Watchpost sekali saat dikirim, lalu statusnya mengikuti tiket di sana. Mengedit, menanggapi, atau menghapus feedback di sini tidak mengubah tiketnya.',
+        },
         {
             title: 'Edit Tanggapan menimpa yang lama',
             body: 'Tidak ada riwayat percakapan. Tanggapan baru menggantikan tanggapan sebelumnya, dan pengirim mendapat notifikasi lagi.',

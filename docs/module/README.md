@@ -26,7 +26,7 @@
 | [profit-loss.md](profit-loss.md) | Laporan Laba Rugi (basis kas, pl_group) | `/reports/profit-loss` |
 | [dashboard.md](dashboard.md) | Dashboard & redirect fallback permission | `/dashboard` |
 | [notifications.md](notifications.md) | Notifikasi in-app (bell + drawer) | `/notifications` |
-| [feedbacks.md](feedbacks.md) | Feedback/bug report internal | `/feedbacks` |
+| [feedbacks.md](feedbacks.md) | Feedback/bug report internal; laporan Bug diteruskan ke Watchpost | `/feedbacks` |
 | [admin-users-permissions.md](admin-users-permissions.md) | User, role, permission (Spatie) | `/admin/*` |
 | [settings.md](settings.md) | Profil, password, company, PDF template builder | `/settings/*` |
 | [koneksi-claude.md](koneksi-claude.md) | Koneksi Claude (MCP, hanya baca) + OAuth Passport | `/mcp/keuangan`, `/oauth/*`, `/settings/claude` |

@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Kisantra\Watchpost\Facades\Watchpost;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -243,7 +244,7 @@ class ErrorReportService
     }
 
     /**
-     * @return array{id: string, summary: string, page: string, fields: list<array{label: string, value: string}>, technical: array<string, mixed>|null, markdown: string}
+     * @return array{id: string, trace_id: string|null, summary: string, page: string, fields: list<array{label: string, value: string}>, technical: array<string, mixed>|null, markdown: string}
      */
     private function report(int $status, string $title, Throwable $e, Request $request): array
     {
@@ -267,6 +268,8 @@ class ErrorReportService
 
         return [
             'id' => $id,
+            // Trace request ini di Watchpost: laporan yang membawanya menempel ke tiket error-nya.
+            'trace_id' => Watchpost::traceId(),
             'summary' => "Error {$status} di {$page}",
             'page' => $this->pagePath($request),
             'fields' => $fields,

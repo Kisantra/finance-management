@@ -1,12 +1,12 @@
 # Modul: Feedbacks
 
-> Sistem umpan balik internal: user melaporkan bug, mengajukan fitur, atau memberi saran lewat tombol feedback melayang yang ada di semua halaman; admin meninjau di halaman `/feedbacks` (tab All/My), menanggapi, dan mengubah status `open → in_progress → resolved → closed`. Route prefix `/feedbacks`, digate permission `view feedbacks` (grup) plus `create/edit/delete/respond/manage feedbacks` per aksi.
+> Sistem umpan balik internal: user melaporkan bug, mengajukan fitur, atau memberi saran lewat tombol feedback melayang yang ada di semua halaman; admin meninjau di halaman `/feedbacks` (tab All/My), menanggapi, dan mengubah status `open → in_progress → resolved → closed`. Route prefix `/feedbacks`, digate permission `view feedbacks` (grup) plus `create/edit/delete/respond/manage feedbacks` per aksi. Laporan bertipe **Bug** juga diteruskan ke **Watchpost** (pemantau error tim IT) menjadi tiket, lewat antrean (lihat "Penerusan ke Watchpost").
 
 ## Tabel Database
 
 | Tabel | Kolom | Keterangan |
 |-------|-------|------------|
-| `feedbacks` | `user_id`, `title`, `description`, `type` enum(`bug`,`feature`,`feedback`), `priority` enum(`low`,`medium`,`high`,`critical`), `status` enum(`open`,`in_progress`,`resolved`,`closed`), `page_url`, `attachment_path`, `attachment_name`, `admin_response`, `responded_by` (FK users), `responded_at` | Nama tabel eksplisit `protected $table = 'feedbacks'`. Lampiran di disk `public` folder `feedbacks/`. |
+| `feedbacks` | `user_id`, `company_id` (slug perusahaan, tanpa FK), `title`, `description`, `type` enum(`bug`,`feature`,`feedback`), `priority` enum(`low`,`medium`,`high`,`critical`), `status` enum(`open`,`in_progress`,`resolved`,`closed`), `page_url` (≤2000: path + query + `#hash`), `trace_id` (uuid Watchpost, dari halaman error), `error_id` (`ERR-…` halaman error), `breadcrumbs` (json, jejak langkah dari skrip browser Watchpost), `user_agent`, `attachment_path`, `attachment_name`, `watchpost_ticket_id`, `watchpost_ticket_number` (`#12`), `watchpost_ticket_url`, `admin_response`, `responded_by` (FK users), `responded_at` | Tabel di database **pusat** (`CentralConnection`); isolasi per perusahaan hanya lewat `company_id` + `scopeForCurrentCompany()`. Nama tabel eksplisit `protected $table = 'feedbacks'`. Lampiran di disk `public` folder `feedbacks/`, yang di dalam `/c/{company}` menunjuk storage perusahaan (`storage/tenant{slug}/app/public`). |
 
 ## Model `Feedback` (`app/Models/Feedback.php`) — Ringkasan Perilaku
 
@@ -25,15 +25,15 @@
 **Alur step-by-step:**
 1. `resources/js/layouts/app-layout.tsx` me-render `<FloatingFeedbackButton />` di setiap halaman aplikasi (tombol bulat kanan-bawah, `fixed bottom-6 right-6`).
 2. Klik tombol → Dialog form: `SegmentedControl` tipe (Bug/Fitur/Saran) dan prioritas (Rendah–Kritis), `Input` judul, `Textarea` deskripsi, `FileUpload` lampiran (jpg/jpeg/png/pdf, max 5 MB).
-3. Saat dialog terbuka, `page_url` **otomatis diisi** `window.location.pathname` — admin jadi tahu di halaman mana masalah terjadi.
-4. Submit → `post('/feedbacks', { forceFormData: true })`; sukses → toast Sonner + reset form.
+3. Saat dialog terbuka, `page_url` **otomatis diisi** `currentPageUrl()` (`resources/js/lib/watchpost.ts`): path + query + `#hash`, jadi detail yang terbuka sebagai modal (`#invoice/12`) dan filter aktif ikut tercatat.
+4. Submit → `transform()` menambahkan `breadcrumbs` dari `watchpostTrail()` (langkah terakhir di tab itu, dari skrip browser package Watchpost; kosong bila Watchpost tidak aktif), lalu `post('/feedbacks', { forceFormData: true })`; sukses → toast Sonner + reset form.
 
 **Penjelasan kode** (`resources/js/components/floating-feedback-button.tsx`):
 
 ```tsx
 React.useEffect(() => {
     if (open) {
-        setData('page_url', window.location.pathname);
+        setData('page_url', currentPageUrl());
     } else {
         clearErrors();
     }
@@ -44,14 +44,18 @@ React.useEffect(() => {
 
 **Alur step-by-step:**
 1. Request dari floating button (atau halaman feedbacks) → middleware `can:view feedbacks` (grup) + `can:create feedbacks`.
-2. Validasi `StoreFeedbackRequest` (`app/Http/Requests/StoreFeedbackRequest.php`): `title` max 255, `description` max 5000, `type` in `bug,feature,feedback`, `priority` in `low,medium,high,critical`, `page_url` nullable max 500, `attachment` nullable file `mimes:jpg,jpeg,png,pdf` max 5120 KB.
-3. Dalam `DB::transaction`: file (bila ada) disimpan `$file->store('feedbacks', 'public')` dengan nama asli disimpan di `attachment_name`; `Feedback::create()` dengan `user_id = auth()->id()` dan `status = 'open'`.
-4. `notifyAdmins($feedback)`: loop semua user role `admin`/`finance manager` → `AppNotification::notify(..., 'feedback_submitted', ...)` berisi `{feedback_id, url}`.
-5. Redirect back + flash "Feedback berhasil dikirim. Terima kasih atas masukannya."
+2. Validasi `StoreFeedbackRequest` (`app/Http/Requests/StoreFeedbackRequest.php`): `title` max 255, `description` max 5000, `type` in `bug,feature,feedback`, `priority` in `low,medium,high,critical`, `page_url` nullable max 2000, `trace_id` nullable uuid, `error_id` nullable `ERR-` + 10 huruf/angka kapital, `breadcrumbs` nullable array ≤50 (`type` in `page,click,submit,request`, `label` ≤200, `at` tanggal), `attachment` nullable file `mimes:jpg,jpeg,png,pdf` max 5120 KB. `UpdateFeedbackRequest` membuang semua field konteks ini (milik saat laporan dikirim, bukan bahan edit).
+3. Dalam `DB::transaction`: file (bila ada) disimpan `$file->store('feedbacks', 'public')` dengan nama asli disimpan di `attachment_name`; `Feedback::create()` dengan `user_id = auth()->id()`, `company_id = tenant()`, konteks di atas, `user_agent` dari request, dan `status = 'open'`.
+4. `notifyAdmins($feedback)`: user role `admin`/`finance manager` **anggota perusahaan ini** (`memberOfCurrentCompany()`) → `AppNotification::notify(..., 'feedback_submitted', ...)` berisi `{feedback_id, url}`. Tanpa cakupan itu judul feedback bocor ke admin perusahaan lain.
+5. Bila `type = bug`: `KirimLaporanBugKeWatchpost::dispatch($feedback->id)` setelah transaksi (lihat bagian berikut).
+6. Redirect back + flash "Feedback berhasil dikirim. Terima kasih atas masukannya."
    **Kecuali** request meminta JSON (`wantsJson()`) → `201 {"id": <feedback_id>}`. Dipakai tombol
    "Laporkan ke Tim IT" di halaman error (`useHttp`): redirect `back()` di sana justru memuat ulang
    halaman yang sedang error. Laporan dari halaman error berupa `type=bug`, `priority` `high` untuk
-   5xx / `medium` untuk lainnya, dengan deskripsi Markdown berisi ID referensi `ERR-…`.
+   5xx / `medium` untuk lainnya, dengan deskripsi Markdown berisi ID referensi `ERR-…`, plus
+   `error_id` (ID yang sama), `trace_id` (prop `report.trace_id` dari `Watchpost::traceId()`, trace
+   request yang error itu) dan `breadcrumbs` (`watchpostTrail()` saat tombol ditekan). Berkat
+   `trace_id`, laporan ini menempel ke tiket error yang sama di Watchpost.
 
 **Penjelasan kode** (`app/Http/Controllers/FeedbackController.php`):
 
@@ -69,6 +73,33 @@ $feedback = Feedback::create([
 ]);
 $this->notifyAdmins($feedback);
 ```
+
+### Penerusan ke Watchpost (laporan Bug)
+
+Watchpost adalah panel pemantau error tim IT (`kisantra/watchpost-laravel` ≥ 1.2, `WATCHPOST_URL`/`WATCHPOST_TOKEN` di `.env`, lihat `docs/guides/DEPLOY.md`). Laporan **Bug** dikirim ke `POST {WATCHPOST_URL}/api/ingest/tickets` agar tim bekerja di satu tempat; Fitur dan Saran tetap hanya di aplikasi.
+
+**Alur step-by-step** (`app/Jobs/KirimLaporanBugKeWatchpost.php`):
+1. `store()` men-dispatch job berisi **ID** feedback (bukan model) setelah feedback tersimpan. Di produksi job masuk antrean `database`; `QueueTenancyBootstrapper` memulihkan konteks perusahaan di worker, sehingga disk `public` menunjuk storage perusahaan pemilik lampiran.
+2. `handle()` berhenti bila `Watchpost::reportsBugs()` false (environment bukan `production`, URL/token kosong, atau `WATCHPOST_TICKETS=false`), bila feedback sudah dihapus, bukan bug, atau sudah punya `watchpost_ticket_id`.
+3. Menyusun `BugReport`: `reference = "feedback-{id}"` (ID unik se-instalasi, tabel pusat), judul, deskripsi apa adanya, pelapor (nama + email user pusat), prioritas dipetakan `low→low`, `medium→normal`, `high→high`, `critical→urgent`, `company = "{nama} ({slug})"`, `page_url`, `trace_id`, `error_id`, `breadcrumbs`, `user_agent`, dan path lampiran bila berkasnya ada. Package menambahkan platform asal (`APP_NAME`, `APP_URL`, environment, commit).
+4. Watchpost menjawab tiket: baru (tipe Perbaikan bug), atau tiket error yang sama bila `trace_id` cocok. Job menyimpan `watchpost_ticket_id`, `watchpost_ticket_number`, `watchpost_ticket_url`.
+5. Belum terkirim (`reportBug()` = `null`: Watchpost mati, menolak, timeout) → `release()` dengan jeda 1 menit, 5 menit, 15 menit, 1 jam; `tries = 5`; `failed()` mencatat `Log::warning`. Feedback-nya tidak pernah ikut gagal. Mengirim ulang aman: Watchpost mengembalikan tiket yang sama untuk `reference` yang sama.
+
+**Kode ERR di setiap error.** `AppServiceProvider` mendaftarkan `Watchpost::context()` berisi `error_id` (`ErrorReportService::referenceId()`, sama dengan yang tampil di halaman error dan di `laravel.log`; hanya untuk request web) dan `company` (slug). Laporan pengguna "muncul ERR-…" bisa dicari di detail error Watchpost.
+
+**Di layar.** Detail feedback menampilkan "Diteruskan ke Watchpost: tiket #12 · status mengikuti tiket ini" (tautan) **hanya** untuk pemegang `manage feedbacks`; prop `showFeedback.watchpost` bernilai `null` untuk yang lain.
+
+### Status dari Watchpost kembali ke pelapor (Fase 2)
+
+**Alur step-by-step:**
+1. Scheduler menjalankan `watchpost:sync-tickets` (package ≥ 1.3) tiap menit, di **konteks pusat** (tanpa tenancy). Command itu menarik `GET {WATCHPOST_URL}/api/ingest/tickets/updates?since=…` (kursor di cache `watchpost:tickets:since`) dan memicu event `Kisantra\Watchpost\Events\TicketUpdated` per tiket yang berubah. Watchpost hanya ditanya bila ada listener.
+2. `App\Listeners\PerbaruiFeedbackDariWatchpost` (ditemukan otomatis oleh event discovery) mengambil ID dari `references` (`feedback-{id}`), lalu memperbarui feedback `type = bug` yang `watchpost_ticket_id`-nya sama dengan tiket itu **atau masih kosong** (job pengirim belum sempat mencatat).
+3. Status dipetakan `open→open`, `in_progress→in_progress`, `resolved→resolved`, `ignored→closed`; nomor & URL tiket ikut diperbarui (laporan bisa menempel ke tiket error).
+4. Hanya bila statusnya **berubah**: notifikasi `feedback_responded` "Laporan Bug Diperbarui" ke pelapor, dengan `company_id` = perusahaan feedback (parameter baru `AppNotification::notify(..., $companyId)`, karena listener berjalan tanpa tenant) dan tautan `/c/{company}/feedbacks?show={id}`. Tiket yang sama sering datang berulang (komentar, detik kursor); perbandingan status mencegah notifikasi ganda.
+
+**Status bug yang sudah diteruskan hanya baca di aplikasi** (`Feedback::statusIkutWatchpost()` = bug + `watchpost_ticket_id` terisi):
+- `POST /feedbacks/{id}/status` ditolak dengan flash error "Status laporan ini mengikuti tiket Watchpost #12 dan diatur tim IT di sana."; dropdown **Ubah Status** disembunyikan.
+- **Tanggapi** tetap bisa: `RespondFeedbackRequest` tidak mewajibkan `status` untuk bug yang diteruskan dan controller mengabaikan status kiriman; dialog menampilkan catatan, bukan pilihan status. Prop `showFeedback.status_ikut_watchpost` untuk semua pengguna.
 
 ### Daftar Feedback — Tab All / My (`GET /feedbacks`)
 
@@ -171,11 +202,12 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 
 ## Keterkaitan Antar Modul
 
-- **Notifications**: create → `feedback_submitted` ke semua admin/FM; respond → `feedback_responded` ke pemilik. `data.url` menunjuk `route('feedbacks.index')` sehingga klik notifikasi membuka halaman feedback.
+- **Watchpost** (sistem luar, tim IT): laporan Bug → tiket (`KirimLaporanBugKeWatchpost`); setiap error membawa `error_id` + `company` (`Watchpost::context` di `AppServiceProvider`); halaman error membawa `trace_id` (`ErrorReportService`).
+- **Notifications**: create → `feedback_submitted` ke admin/FM perusahaan ini; respond → `feedback_responded` ke pemilik. `data.url` menunjuk `route('feedbacks.index')` sehingga klik notifikasi membuka halaman feedback.
 - **Permissions/Roles**: penerima broadcast dicari via `User::role(['admin', 'finance manager'])`; seluruh gating memakai permission `... feedbacks` dari `MasterPermissionSeeder`.
 - **Layout React**: `FloatingFeedbackButton` dipasang di `resources/js/layouts/app-layout.tsx` — muncul di semua halaman ber-layout aplikasi.
 - **i18n**: label type/priority/status dari `lang/*/feedback.php` (`__('feedback.type_bug')`, dst.).
-- **Storage**: lampiran di disk `public` (`feedbacks/`), diakses via `Storage::url` — butuh `php artisan storage:link`.
+- **Storage**: lampiran di disk `public` (`feedbacks/`) milik perusahaan (`storage/tenant{slug}/app/public`), dilayani route `/c/{company}/storage/{path}`; `Storage::url` sudah ber-prefix perusahaan (tidak lewat `storage:link`).
 
 ## Invarian & Jebakan
 
@@ -185,8 +217,12 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 - **Tampilkan deskripsi lewat `safe_description` / `safe_admin_response`** — jangan render `description` mentah (mengandung HTML user, sanitasi whitelist ada di model).
 - Hapus feedback otomatis menghapus lampirannya (hook `deleting`) — jangan hapus baris via query builder massal (`Feedback::where(...)->delete()`) karena hook model tidak terpanggil dan file yatim tertinggal.
 - `page_url` diisi otomatis oleh frontend dari `window.location.pathname` — nullable, jangan diasumsikan selalu ada.
-- Notifikasi ke admin dikirim **di dalam transaksi** create — gagal notifikasi menggagalkan pembuatan feedback (rollback).
+- Notifikasi ke admin dikirim **di dalam transaksi** create — gagal notifikasi menggagalkan pembuatan feedback (rollback). Transaksinya dibuka di **koneksi pusat** (`DB::connection((new Feedback)->getConnectionName())`): `DB::transaction()` biasa memakai database perusahaan di dalam `/c/{company}` sehingga tidak melindungi tabel pusat (diperbaiki 6 Nov 2026, dikunci `tests/Tenancy/FeedbackTransaksiPusatTest.php`).
 - Nama tabel `feedbacks` dideklarasikan eksplisit karena bukan bentuk jamak standar Laravel (`feedback`).
+- **Hanya Bug yang diteruskan ke Watchpost**, sekali (`watchpost_ticket_id` terisi = selesai). Edit feedback setelah terkirim, tanggapan, dan hapus feedback **tidak** dikirim ke tiket. Arah sebaliknya ada: **status** tiket kembali ke feedback lewat `watchpost:sync-tickets`, dan Watchpost menjadi satu-satunya sumber status bug yang diteruskan.
+- Listener berjalan **tanpa tenancy**: jangan memakai `tenant()`, `route()` tanpa parameter `company`, atau `AppNotification::notify()` tanpa `$companyId` di sana.
+- Job wajib di-dispatch dari konteks perusahaan dan menerima **ID**: lampiran dibaca dari storage perusahaan yang dipulihkan `QueueTenancyBootstrapper` (dikunci `tests/Tenancy/LaporanBugWatchpostTenantTest.php`).
+- Prioritas Finance ≠ prioritas Watchpost: peta ada di `KirimLaporanBugKeWatchpost::PRIORITAS`. Menambah prioritas baru di sini wajib menambah petanya (BugReport menolak nilai di luar `low/normal/high/urgent`).
 
 ## File Kunci
 
@@ -199,3 +235,5 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 - `resources/js/pages/feedbacks/index.tsx`
 - `lang/id/feedback.php` (label i18n)
 - `tests/Feature/FeedbackControllerTest.php`
+- `app/Jobs/KirimLaporanBugKeWatchpost.php`, `app/Listeners/PerbaruiFeedbackDariWatchpost.php`, `resources/js/lib/watchpost.ts`
+- `tests/Feature/FeedbackWatchpostTest.php`, `tests/Feature/StatusTiketWatchpostTest.php`, `tests/Tenancy/LaporanBugWatchpostTenantTest.php`, `tests/Tenancy/FeedbackTransaksiPusatTest.php`
