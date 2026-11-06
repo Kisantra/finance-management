@@ -6,6 +6,7 @@ use App\Http\Requests\ChangeStatusFeedbackRequest;
 use App\Http\Requests\RespondFeedbackRequest;
 use App\Http\Requests\StoreFeedbackRequest;
 use App\Http\Requests\UpdateFeedbackRequest;
+use App\Jobs\KirimLaporanBugKeWatchpost;
 use App\Models\AppNotification;
 use App\Models\Feedback;
 use App\Models\User;
@@ -14,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -100,7 +102,9 @@ class FeedbackController extends Controller
     {
         $validated = $request->validated();
 
-        $feedback = DB::transaction(function () use ($validated, $request) {
+        // Transaksi di koneksi PUSAT: feedbacks dan notifikasinya tinggal di sana, sedangkan
+        // DB::transaction() biasa memakai koneksi default, yaitu database perusahaan.
+        $feedback = DB::connection((new Feedback)->getConnectionName())->transaction(function () use ($validated, $request) {
             $attachmentPath = null;
             $attachmentName = null;
 
@@ -118,6 +122,10 @@ class FeedbackController extends Controller
                 'type' => $validated['type'],
                 'priority' => $validated['priority'],
                 'page_url' => $validated['page_url'] ?? null,
+                'trace_id' => $validated['trace_id'] ?? null,
+                'error_id' => $validated['error_id'] ?? null,
+                'breadcrumbs' => $validated['breadcrumbs'] ?? null,
+                'user_agent' => Str::limit((string) $request->userAgent(), 500, '') ?: null,
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
                 'status' => 'open',
@@ -127,6 +135,12 @@ class FeedbackController extends Controller
 
             return $feedback;
         });
+
+        // Bug diteruskan ke Watchpost tim IT lewat antrean, setelah tersimpan:
+        // Watchpost yang lambat atau mati tidak boleh menahan pengguna.
+        if ($feedback->type === 'bug') {
+            KirimLaporanBugKeWatchpost::dispatch($feedback->id);
+        }
 
         // Halaman error mengirim laporan tanpa berpindah halaman (useHttp, Accept JSON):
         // redirect back() di sana akan memuat ulang halaman yang justru sedang error.
@@ -189,7 +203,10 @@ class FeedbackController extends Controller
 
         $validated = $request->validated();
 
-        $feedback->respond(auth()->id(), $validated['response'], $validated['status']);
+        // Status bug yang sudah diteruskan mengikuti tiket Watchpost; tanggapan tetap boleh.
+        $status = $feedback->statusIkutWatchpost() ? null : $validated['status'];
+
+        $feedback->respond(auth()->id(), $validated['response'], $status);
 
         AppNotification::notify(
             $feedback->user_id,
@@ -206,6 +223,10 @@ class FeedbackController extends Controller
     {
         $this->pastikanMilikPerusahaanAktif($feedback);
         abort_unless(auth()->user()->can('manage feedbacks'), 403);
+
+        if ($feedback->statusIkutWatchpost()) {
+            return redirect()->back()->with('error', "Status laporan ini mengikuti tiket Watchpost {$feedback->watchpost_ticket_number} dan diatur tim IT di sana.");
+        }
 
         $validated = $request->validated();
 
@@ -293,6 +314,12 @@ class FeedbackController extends Controller
             $base['responder'] = $f->responder ? [
                 'id' => $f->responder->id,
                 'name' => $f->responder->name,
+            ] : null;
+            $base['status_ikut_watchpost'] = $f->statusIkutWatchpost();
+            // Tiket di Watchpost (alat internal tim IT) hanya untuk pengelola feedback.
+            $base['watchpost'] = $f->watchpost_ticket_number !== null && auth()->user()->can('manage feedbacks') ? [
+                'number' => $f->watchpost_ticket_number,
+                'url' => $f->watchpost_ticket_url,
             ] : null;
         }
 

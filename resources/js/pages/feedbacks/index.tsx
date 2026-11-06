@@ -87,6 +87,10 @@ interface FullFeedback extends FeedbackRow {
     admin_response: string | null;
     responded_at: string | null;
     responder: { id: number; name: string } | null;
+    /** Tiket di Watchpost tim IT; hanya dikirim ke pengelola feedback. */
+    watchpost: { number: string; url: string | null } | null;
+    /** Bug yang sudah diteruskan: statusnya diatur tim IT di Watchpost, bukan di sini. */
+    status_ikut_watchpost: boolean;
 }
 
 interface PaginatedFeedbacks {
@@ -421,6 +425,12 @@ function RespondDialog({
                             placeholder="Tuliskan tanggapan untuk pengguna..."
                             autoFocus
                         />
+                        {feedback?.status_ikut_watchpost ? (
+                            <p className="text-xs text-dark-500 dark:text-dark-400">
+                                Status laporan ini mengikuti tiket Watchpost{feedback.watchpost ? ` ${feedback.watchpost.number}` : ''} yang
+                                dikerjakan tim IT. Tanggapan Anda tetap terkirim ke pelapor.
+                            </p>
+                        ) : (
                         <div className="space-y-1.5">
                             <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">Status Baru *</label>
                             <Combobox
@@ -435,6 +445,7 @@ function RespondDialog({
                             />
                             {errors.status && <p className="text-xs text-red-600 dark:text-red-400">{errors.status}</p>}
                         </div>
+                        )}
                     </div>
 
                     <DialogFooter className="px-6 py-4">
@@ -541,6 +552,25 @@ function ShowFeedbackDialog({
                         </div>
                     )}
 
+                    {feedback.watchpost && (
+                        <div className="text-xs text-dark-500 dark:text-dark-400">
+                            <span className="font-semibold">Diteruskan ke Watchpost:</span>{' '}
+                            {feedback.watchpost.url ? (
+                                <a
+                                    href={feedback.watchpost.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-mono font-medium text-primary-600 dark:text-primary-400 hover:underline"
+                                >
+                                    tiket {feedback.watchpost.number}
+                                </a>
+                            ) : (
+                                <span className="font-mono">tiket {feedback.watchpost.number}</span>
+                            )}
+                            {feedback.status_ikut_watchpost && ' · status mengikuti tiket ini'}
+                        </div>
+                    )}
+
                     {feedback.attachment_url && (
                         <div>
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 mb-2">
@@ -576,7 +606,7 @@ function ShowFeedbackDialog({
 
                 <DialogFooter className="px-6 py-4">
                     <div className="flex flex-wrap items-center justify-end gap-2 w-full">
-                        {canManage && feedback.status !== 'closed' && (
+                        {canManage && feedback.status !== 'closed' && !feedback.status_ikut_watchpost && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" size="sm">

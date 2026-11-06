@@ -23,8 +23,15 @@ class Feedback extends Model
         'priority',
         'status',
         'page_url',
+        'trace_id',
+        'error_id',
+        'breadcrumbs',
+        'user_agent',
         'attachment_path',
         'attachment_name',
+        'watchpost_ticket_id',
+        'watchpost_ticket_number',
+        'watchpost_ticket_url',
         'admin_response',
         'responded_by',
         'responded_at',
@@ -32,6 +39,7 @@ class Feedback extends Model
 
     protected $casts = [
         'responded_at' => 'datetime',
+        'breadcrumbs' => 'array',
     ];
 
     // =====================================
@@ -124,6 +132,15 @@ class Feedback extends Model
     public function isClosed(): bool
     {
         return $this->status === 'closed';
+    }
+
+    /**
+     * Bug yang sudah menjadi tiket di Watchpost: statusnya diatur tim IT di sana
+     * dan ditarik ke sini (PerbaruiFeedbackDariWatchpost), bukan diubah di aplikasi.
+     */
+    public function statusIkutWatchpost(): bool
+    {
+        return $this->type === 'bug' && $this->watchpost_ticket_id !== null;
     }
 
     public function canEdit(): bool

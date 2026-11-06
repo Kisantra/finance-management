@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/shared/file-upload';
 import { FormSection } from '@/components/shared/form-section';
 import { companyUrl } from '@/lib/company';
+import { currentPageUrl, watchpostTrail } from '@/lib/watchpost';
 import { cn } from '@/lib/utils';
 
 /*
@@ -56,7 +57,7 @@ export function FloatingFeedbackButton() {
     const [open, setOpen] = React.useState(false);
     const [hovered, setHovered] = React.useState(false);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<FormData>({
+    const { data, setData, post, transform, processing, errors, reset, clearErrors } = useForm<FormData>({
         title: '',
         description: '',
         type: 'feedback',
@@ -67,7 +68,7 @@ export function FloatingFeedbackButton() {
 
     React.useEffect(() => {
         if (open) {
-            setData('page_url', window.location.pathname);
+            setData('page_url', currentPageUrl());
         } else {
             clearErrors();
         }
@@ -76,6 +77,8 @@ export function FloatingFeedbackButton() {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
+        // Jejak dibaca saat dikirim, supaya langkah sebelum dialog dibuka ikut tercatat.
+        transform((current) => ({ ...current, breadcrumbs: watchpostTrail() }));
         post(companyUrl('/feedbacks'), {
             preserveScroll: true,
             forceFormData: true,

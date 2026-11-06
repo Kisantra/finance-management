@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d21420a6fd376e1c603c2399c7cfbfe8",
+    "content-hash": "fbc3e696be63b4413a02f9a779df2bef",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -2161,16 +2161,16 @@
         },
         {
             "name": "kisantra/watchpost-laravel",
-            "version": "v1.1.0",
+            "version": "v1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Kisantra/watchpost-laravel.git",
-                "reference": "40ef785c381a297e7bb12abdac4f0af8b29d3ade"
+                "reference": "899e6dd88d3b648e490773017b6952cc1a2701a7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Kisantra/watchpost-laravel/zipball/40ef785c381a297e7bb12abdac4f0af8b29d3ade",
-                "reference": "40ef785c381a297e7bb12abdac4f0af8b29d3ade",
+                "url": "https://api.github.com/repos/Kisantra/watchpost-laravel/zipball/899e6dd88d3b648e490773017b6952cc1a2701a7",
+                "reference": "899e6dd88d3b648e490773017b6952cc1a2701a7",
                 "shasum": ""
             },
             "require": {
@@ -2213,10 +2213,10 @@
             ],
             "description": "Kirim error, health check, dan heartbeat website Laravel ke Kisantra Watchpost.",
             "support": {
-                "source": "https://github.com/Kisantra/watchpost-laravel/tree/v1.1.0",
+                "source": "https://github.com/Kisantra/watchpost-laravel/tree/v1.2.0",
                 "issues": "https://github.com/Kisantra/watchpost-laravel/issues"
             },
-            "time": "2026-11-01T11:17:22+00:00"
+            "time": "2026-11-06T02:45:30+00:00"
         },
         {
             "name": "laravel/framework",

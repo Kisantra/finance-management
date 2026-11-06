@@ -155,11 +155,16 @@ class AppNotification extends Model
     // FACTORY METHODS
     // =====================================
 
-    public static function notify(int $userId, string $type, string $title, string $message, array $data = []): self
+    /**
+     * `$companyId` wajib diisi bila dipanggil di luar konteks perusahaan (scheduler,
+     * listener event): tanpa itu `company_id` NULL dan notifikasi muncul di setiap
+     * perusahaan tempat penerimanya menjadi anggota.
+     */
+    public static function notify(int $userId, string $type, string $title, string $message, array $data = [], ?string $companyId = null): self
     {
         return self::create([
             'user_id' => $userId,
-            'company_id' => tenant()?->getTenantKey(),
+            'company_id' => $companyId ?? tenant()?->getTenantKey(),
             'type' => $type,
             'title' => $title,
             'message' => $message,
