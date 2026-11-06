@@ -79,6 +79,8 @@ abstract class TestCase extends BaseTestCase
         // Rute aset vendor stancl (stancl.tenancy.asset). Dorman selama
         // tenancy.filesystem.asset_helper_tenancy = false, tetapi tetap central.
         '/tenancy',
+        // Package kisantra/watchpost-laravel: skrip browser + laporan klien.
+        '/watchpost',
         // Lensa grup lintas perusahaan. BELUM ADA RUTENYA — entri ini mendahului
         // fiturnya supaya /grup tidak pernah ikut ter-prefix saat dibuat nanti.
         '/grup',

@@ -14,6 +14,7 @@
         "google-gemini-php/laravel": "^2.0",
         "inertiajs/inertia-laravel": "^3.1",
         "intervention/image-laravel": "^1.5",
+        "kisantra/watchpost-laravel": "^1.1",
         "laravel/framework": "^12.0",
         "laravel/mcp": "^0.9",
         "laravel/passport": "^13.10",
@@ -94,5 +95,10 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": [{
+        "name": "watchpost",
+        "type": "vcs",
+        "url": "https://github.com/Kisantra/watchpost-laravel.git"
+    }]
 }
