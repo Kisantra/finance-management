@@ -69,6 +69,14 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
     const [deleteAccount, setDeleteAccount] = React.useState<AccountListItem | null>(null);
     const [deleteProcessing, setDeleteProcessing] = React.useState(false);
 
+    /*
+     * Tombol kelola akun mengikuti izin route-nya (create/edit/delete bank-accounts). Dulu selalu
+     * tampil, sehingga pengguna hanya-lihat baru tahu ditolak setelah halaman 403 (QA UX-02).
+     */
+    const canEditAccount = can('edit bank-accounts');
+    const canDeleteAccount = can('delete bank-accounts');
+    const openCreate = can('create bank-accounts') ? () => setCreateOpen(true) : undefined;
+
     const [txType, setTxType] = React.useState<'credit' | 'debit' | null>(null);
     const [transferOpen, setTransferOpen] = React.useState(false);
     /* Isi ulang kas kecil = dialog Transfer yang sama, tujuan & jumlah sudah terisi. */
@@ -156,10 +164,12 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                     action={
                         <div className="flex items-center gap-2 flex-wrap">
                             <TutorialButton slug="bank-accounts" />
-                            <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
-                                <Plus className="w-4 h-4" />
-                                Tambah Akun
-                            </Button>
+                            {openCreate && (
+                                <Button variant="primary" size="md" onClick={openCreate}>
+                                    <Plus className="w-4 h-4" />
+                                    Tambah Akun
+                                </Button>
+                            )}
                         </div>
                     }
                 />
@@ -169,12 +179,18 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                         <EmptyState
                             icon={<Building2 className="w-7 h-7" />}
                             title="Belum ada akun"
-                            description="Mulai dengan menambahkan rekening bank atau kas tunai pertama Anda untuk melacak transaksi."
+                            description={
+                                openCreate
+                                    ? 'Mulai dengan menambahkan rekening bank atau kas tunai pertama Anda untuk melacak transaksi.'
+                                    : 'Belum ada rekening bank atau kas tunai yang dicatat perusahaan ini.'
+                            }
                             action={
-                                <Button onClick={() => setCreateOpen(true)}>
-                                    <Plus className="w-4 h-4" />
-                                    Tambah Akun
-                                </Button>
+                                openCreate && (
+                                    <Button onClick={openCreate}>
+                                        <Plus className="w-4 h-4" />
+                                        Tambah Akun
+                                    </Button>
+                                )
                             }
                         />
                     </div>
@@ -186,7 +202,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                             selectedAccountId={filters.account}
                             overall={overallSummary}
                             onSelect={selectAccount}
-                            onCreate={() => setCreateOpen(true)}
+                            onCreate={openCreate}
                         />
 
                         {/* Master-detail grid */}
@@ -196,26 +212,31 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                 selectedAccountId={filters.account}
                                 overall={overallSummary}
                                 onSelect={selectAccount}
-                                onCreate={() => setCreateOpen(true)}
+                                onCreate={openCreate}
                             />
 
                             <div className="lg:col-span-9 space-y-6">
                                 {selectedAccount && detail ? (
                                     <>
-                                        {/* Selected account header */}
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                            <div className="flex items-center gap-3 min-w-0">
+                                        {/*
+                                          * Header akun terpilih. Blok judul punya lebar dasar sendiri (basis 24rem):
+                                          * bila tombol aksi tidak muat di sebelahnya, tombol turun ke baris bawah
+                                          * alih-alih memotong nama akun & penanggung jawab (QA UX-01, 1280 px).
+                                          */}
+                                        <div className="flex flex-wrap items-center justify-between gap-4">
+                                            <div className="flex min-w-0 flex-1 basis-96 items-start gap-3">
                                                 <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 bg-linear-to-br from-primary-400 to-primary-600 shadow-md shadow-primary-200/40 dark:shadow-primary-900/30">
                                                     <AccountTypeIcon account={selectedAccount} className="w-6 h-6 text-white" />
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <h2 className="text-xl font-bold text-dark-900 dark:text-dark-50 truncate">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                        <h2 className="min-w-0 break-words text-xl font-bold leading-tight text-dark-900 dark:text-dark-50">
                                                             {selectedAccount.account_name}
                                                         </h2>
                                                         {selectedIsCash && <Badge variant="outline" className="shrink-0">Kas</Badge>}
+                                                        <TrendBadge trend={selectedAccount.trend} />
                                                     </div>
-                                                    <p className="text-sm text-dark-500 dark:text-dark-400 truncate">
+                                                    <p className="mt-0.5 break-words text-sm text-dark-500 dark:text-dark-400">
                                                         {selectedIsCash ? (
                                                             <>
                                                                 Kas tunai
@@ -240,10 +261,11 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                     </p>
                                                     {selectedIsCash && !!selectedAccount.cash_limit && (
                                                         <p className="mt-0.5 text-xs text-ob-ink-2">
-                                                            Plafon {formatCurrency(selectedAccount.cash_limit)}
+                                                            Plafon <span className="whitespace-nowrap">{formatCurrency(selectedAccount.cash_limit)}</span>
                                                             {selectedAccount.refill_amount > 0 ? (
                                                                 <span className="font-medium text-ob-wait">
-                                                                    {' '}· perlu isi ulang {formatCurrency(selectedAccount.refill_amount)}
+                                                                    {' '}· perlu isi ulang{' '}
+                                                                    <span className="whitespace-nowrap">{formatCurrency(selectedAccount.refill_amount)}</span>
                                                                 </span>
                                                             ) : (
                                                                 ' · saldo sudah mencapai plafon'
@@ -251,7 +273,6 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         </p>
                                                     )}
                                                 </div>
-                                                <TrendBadge trend={selectedAccount.trend} />
                                             </div>
 
                                             <div className="flex items-center gap-2 flex-wrap">
@@ -292,6 +313,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                     </Button>
                                                 )}
 
+                                                {/* Export PDF hanya butuh view bank-accounts (izin halaman ini), jadi menu ini tidak pernah kosong. */}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="outline" size="icon">
@@ -299,22 +321,28 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onClick={() => setEditAccount(selectedAccount)}>
-                                                            <Pencil className="w-4 h-4" />
-                                                            {selectedIsCash ? 'Edit Kas' : 'Edit Rekening'}
-                                                        </DropdownMenuItem>
+                                                        {canEditAccount && (
+                                                            <DropdownMenuItem onClick={() => setEditAccount(selectedAccount)}>
+                                                                <Pencil className="w-4 h-4" />
+                                                                {selectedIsCash ? 'Edit Kas' : 'Edit Rekening'}
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         <DropdownMenuItem onClick={exportPdf}>
                                                             <Download className="w-4 h-4" />
                                                             Export PDF
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            onClick={() => setDeleteAccount(selectedAccount)}
-                                                            className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                            {selectedIsCash ? 'Hapus Kas' : 'Hapus Rekening'}
-                                                        </DropdownMenuItem>
+                                                        {canDeleteAccount && (
+                                                            <>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={() => setDeleteAccount(selectedAccount)}
+                                                                    className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                    {selectedIsCash ? 'Hapus Kas' : 'Hapus Rekening'}
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
@@ -372,13 +400,15 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
             </div>
 
             {/* Dialogs */}
-            <AccountFormDialog open={createOpen} onOpenChange={setCreateOpen} custodianOptions={custodianOptions} />
-            <AccountFormDialog
-                open={editAccount !== null}
-                onOpenChange={(open) => !open && setEditAccount(null)}
-                account={editAccount}
-                custodianOptions={custodianOptions}
-            />
+            {openCreate && <AccountFormDialog open={createOpen} onOpenChange={setCreateOpen} custodianOptions={custodianOptions} />}
+            {canEditAccount && (
+                <AccountFormDialog
+                    open={editAccount !== null}
+                    onOpenChange={(open) => !open && setEditAccount(null)}
+                    account={editAccount}
+                    custodianOptions={custodianOptions}
+                />
+            )}
             <ConfirmDialog
                 open={deleteAccount !== null}
                 onOpenChange={(open) => !open && setDeleteAccount(null)}

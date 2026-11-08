@@ -57,8 +57,9 @@ Menggantikan kebiasaan "kas palsu" (rekening bank bernama mis. "CASH 0000"). Sen
 **UI** (`resources/js/pages/bank-accounts/`):
 
 - `account-form-dialog.tsx`: `SegmentedControl` **Jenis** (Bank / Kas). Kas menampilkan **Penanggung Jawab** (`Combobox` dari prop `custodianOptions`) dan **Plafon** (`CurrencyInput`), menyembunyikan nomor rekening, nama bank, dan cabang; kolom tersembunyi dikirim kosong lewat `transform()`. Mengganti Kas → Bank mengosongkan nilai bawaan `Tunai`/`KAS-…` agar diisi data sebenarnya. Penanggung jawab yang sudah bukan anggota tetap tampil sebagai "(bukan anggota lagi)" agar penolakan server bisa dipahami.
-- Daftar akun (`account-sidebar.tsx`, desktop & ponsel): ikon dompet + label **Kas** untuk kas, subjudul "Kas tunai · {penanggung jawab}", dan **Perlu isi ulang Rp …** bila saldo di bawah plafon. Ringkasan Total memuat **Total Bank** dan **Total Kas** di bawah Total Saldo.
-- Header akun terpilih: badge **Kas**, penanggung jawab, baris "Plafon Rp … · perlu isi ulang Rp …", dan tombol **Isi ulang** (butuh `create transfer`) yang membuka **dialog Transfer yang sama** dengan prop `preset` (tujuan = kas ini, jumlah = plafon − saldo, biaya admin 0, deskripsi "Isi ulang {nama}"). Transaksinya transfer biasa (`POST /bank-transactions/transfer`).
+- Daftar akun (`account-sidebar.tsx`, desktop & ponsel): ikon dompet untuk kas, **Perlu isi ulang Rp …** bila saldo di bawah plafon. **Nama akun selalu utuh** — mendapat baris sendiri dan turun baris, tidak pernah dipotong: pada layar 1280 px dengan menu terbuka teks di daftar desktop hanya ±120 px, dan dulu label Kas di samping nama memotong semua kas menjadi "Kas …" sehingga tidak terbedakan (QA UX-01, 9 Nov 2026). Baris kedua berisi label **Kas** + nama penanggung jawab (rekening bank: nama bank) + ikon tren; di daftar desktop baris ini satu baris dan yang tidak muat dipotong dengan **Tooltip** berisi teks lengkap ("Penanggung jawab: …", juga selalu utuh di header akun terpilih), sedangkan di kartu ponsel (`AccountSubtitle`) teksnya turun baris. Ringkasan Total memuat **Total Bank** dan **Total Kas** di bawah Total Saldo; di ponsel ubinnya dua kolom — Total Saldo selebar baris, lalu Total Bank | Total Kas dan Pemasukan | Pengeluaran — karena tiga kolom memotong angka ("Rp 51.500.…"). Batas yang tersisa: di bawah ±1200 px dengan menu terbuka (mis. 1024 px, kartu daftar ±150 px) nama turun 2–3 baris dan saldo besar bisa melebihi kartu — kondisi itu sudah ada sebelum perbaikan ini; menciutkan menu (pintasan `[`) melebarkan daftar.
+- Header akun terpilih: nama, badge **Kas**, dan lencana Naik/Turun dalam satu baris yang boleh turun; subjudul (bank · nomor, atau "Kas tunai · Penanggung jawab: …"), baris "Plafon Rp … · perlu isi ulang Rp …", dan tombol **Isi ulang** (butuh `create transfer`) yang membuka **dialog Transfer yang sama** dengan prop `preset` (tujuan = kas ini, jumlah = plafon − saldo, biaya admin 0, deskripsi "Isi ulang {nama}"). Transaksinya transfer biasa (`POST /bank-transactions/transfer`). Blok judul punya lebar dasar 24rem: bila tombol aksi tidak muat di sebelahnya, tombol turun ke baris bawah alih-alih memotong nama dan penanggung jawab.
+- Tombol kelola akun mengikuti izin route-nya (QA UX-02): **Tambah Akun** (header, kondisi kosong, kartu putus-putus di daftar, kartu **Tambah** di ponsel) hanya untuk `create bank-accounts`; **Edit Rekening/Kas** untuk `edit bank-accounts`; **Hapus Rekening/Kas** untuk `delete bank-accounts`. **Export PDF** hanya butuh `view bank-accounts` (izin halaman ini), jadi menu ••• tidak pernah kosong. Server tetap menolak dengan 403 bila route dipanggil langsung.
 
 Tes: `tests/Feature/KasBankTest.php`.
 
@@ -138,7 +139,7 @@ Chart dirender di `resources/js/pages/bank-accounts/components/account-charts.ts
 
 **Alur step-by-step:**
 
-1. User klik **Tambah Akun** → dialog `account-form-dialog.tsx`, pilih **Jenis** Bank atau Kas (CurrencyInput untuk saldo awal & plafon).
+1. User klik **Tambah Akun** (hanya tampil bagi pemegang `create bank-accounts`) → dialog `account-form-dialog.tsx`, pilih **Jenis** Bank atau Kas (CurrencyInput untuk saldo awal & plafon).
 2. `POST /bank-accounts` payload `{type, account_name, account_number, bank_name, branch?, initial_balance, custodian_id?, cash_limit?}` (kas mengirim nomor/bank/cabang kosong).
 3. Middleware `can:create bank-accounts`.
 4. Validasi `StoreBankAccountRequest` (`app/Http/Requests/StoreBankAccountRequest.php`): bank → `account_number` & `bank_name` wajib; kas → opsional; `account_number` **unik**; `initial_balance` `integer|min:0`; kas → `custodian_id` anggota perusahaan, `cash_limit` `integer|min:0` (detail di [Jenis akun Kas & Bank](#jenis-akun-kas--bank)).
@@ -150,7 +151,7 @@ Chart dirender di `resources/js/pages/bank-accounts/components/account-charts.ts
 
 **Alur step-by-step:**
 
-1. User klik **Edit Rekening** / **Edit Kas** pada akun → dialog form terisi data lama. **Jenis** boleh diganti (rekening "kas palsu" → Kas tanpa kehilangan saldo/transaksi; Kas → Bank mewajibkan nomor & nama bank lagi).
+1. User klik **Edit Rekening** / **Edit Kas** di menu ••• akun (hanya tampil bagi pemegang `edit bank-accounts`) → dialog form terisi data lama. **Jenis** boleh diganti (rekening "kas palsu" → Kas tanpa kehilangan saldo/transaksi; Kas → Bank mewajibkan nomor & nama bank lagi).
 2. `PUT /bank-accounts/{bankAccount}` payload sama dengan create.
 3. Middleware `can:edit bank-accounts`.
 4. Validasi `UpdateBankAccountRequest` — extends Store, hanya rule unique yang mengecualikan akun sendiri:
@@ -170,7 +171,7 @@ protected function uniqueAccountNumber(): Unique
 
 **Alur step-by-step:**
 
-1. User konfirmasi hapus via `ConfirmDialog`.
+1. User klik **Hapus Rekening** / **Hapus Kas** di menu ••• (hanya tampil bagi pemegang `delete bank-accounts`), lalu konfirmasi via `ConfirmDialog`.
 2. `DELETE /bank-accounts/{bankAccount}` → middleware `can:delete bank-accounts`.
 3. `BankAccountController::destroy()` memanggil `$bankAccount->delete()` **tanpa guard tambahan**.
 4. Efek DB: `bank_transactions` dan `payments` milik akun ikut terhapus (FK cascade), berantai ke `reimbursement_payments` (FK `bank_transaction_id` cascade); `fund_requests.bank_transaction_id` menjadi `null` (nullOnDelete). Karena terjadi di level DB, event Eloquent tidak jalan: status invoice, `amount_paid`/`payment_status` reimbursement, dan status permintaan dana **tidak dihitung ulang**, dan file lampiran tertinggal di storage. Jika akun punya `loan_payments`, delete **gagal di level DB** (FK tanpa cascade) dan tidak ditangkap controller (respons error 500).
@@ -295,5 +296,5 @@ Detail lengkap perilaku export (mode SEMUA WAKTU, chunking DomPDF, limit memori)
 | `resources/views/pdf/cash-flow-report.blade.php` | Template PDF laporan kas |
 | `routes/web.php` | Grup route `can:view bank-accounts` + granular create/edit/delete |
 | `resources/js/pages/bank-accounts/index.tsx` | Halaman utama (partial reload `only: ['detail', ...]`) |
-| `resources/js/pages/bank-accounts/components/` | `account-sidebar` (+ `AccountTypeIcon`, `accountSubtitle`), `account-charts` (ApexCharts), `transactions-tab`, `payments-tab`, `account-form-dialog`, `transaction-form-dialog`, `transfer-dialog` (prop `preset` untuk Isi ulang) |
+| `resources/js/pages/bank-accounts/components/` | `account-sidebar` (+ `AccountTypeIcon`, `AccountSubtitle`), `account-charts` (ApexCharts), `transactions-tab`, `payments-tab`, `account-form-dialog`, `transaction-form-dialog`, `transfer-dialog` (prop `preset` untuk Isi ulang) |
 | `tests/Feature/BankAccountControllerTest.php`, `tests/Feature/KasBankTest.php` | Test feature modul ini (KasBankTest: jenis akun, nilai bawaan kas, validasi, total Kas/Bank, MCP) |
