@@ -97,8 +97,9 @@ Tombol **Izinkan** tidak muncul bila akun Anda belum punya izin `use claude` di 
 
 - **Nominal dalam rupiah penuh**, tanpa desimal. Tanggal berformat tahun-bulan-tanggal.
 - **Dua arti "pemasukan".** Ringkasan memberi dua angka berbeda dengan nama berbeda:
-  - `kas.uang_masuk / uang_keluar`: semua uang yang masuk/keluar rekening, termasuk transfer
-    antar rekening sendiri dan pencairan pinjaman (sama dengan kartu Arus Kas di Ringkasan).
+  - `kas.uang_masuk / uang_keluar`: semua uang yang masuk/keluar perusahaan, termasuk pencairan
+    pinjaman, tetapi **tanpa** transfer antar rekening/kas sendiri (isi ulang kas juga transfer);
+    biaya admin transfer tetap uang keluar (sama dengan kartu Arus Kas di Ringkasan).
   - `pemasukan / pengeluaran`: hanya transaksi berkategori pemasukan/pengeluaran dan pembayaran
     invoice (sama dengan halaman Arus Kas).
 - **Laba rugi berbasis kas**: pendapatan invoice diakui saat dibayar, setelah dikurangi titipan

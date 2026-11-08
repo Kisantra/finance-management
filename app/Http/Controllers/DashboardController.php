@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection as SupportCollection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,6 +34,24 @@ class DashboardController extends Controller
     }
 
     private const PENDING = ['sent', 'partially_paid', 'overdue'];
+
+    /** Irisan donat Pengeluaran untuk sisa debit transfer bertautan (jumlah + biaya admin − yang pindah). */
+    private const BIAYA_ADMIN_TRANSFER = 'Biaya admin transfer';
+
+    /**
+     * Kelompok transfer antar akun sendiri per rentang (BankTransaction::internalTransferGroups()),
+     * dipakai kartu Arus Kas dan kedua donat bulan berjalan: dihitung sekali per request.
+     *
+     * @var array<string, SupportCollection<int, object>>
+     */
+    private array $transferAntarAkun = [];
+
+    /** @return SupportCollection<int, object{date: string, linked: string|null, category: string|null, credit: int, debit: int, internal: int}> */
+    private function transferAntarAkun(Carbon $start, Carbon $end): SupportCollection
+    {
+        return $this->transferAntarAkun[$start->toDateTimeString().'|'.$end->toDateTimeString()]
+            ??= BankTransaction::internalTransferGroups($start, $end);
+    }
 
     public function __invoke(DashboardChartRequest $request): Response|RedirectResponse
     {
@@ -111,7 +130,9 @@ class DashboardController extends Controller
 
     /**
      * Invarian pemasukan (docs/module/dashboard.md): kredit bank + pembayaran invoice,
-     * konsisten dengan rumus saldo rekening. Pengeluaran = debit bank.
+     * konsisten dengan rumus saldo rekening. Pengeluaran = debit bank. Transfer antar akun
+     * sendiri dikurangkan dari kedua sisi (biaya adminnya tetap pengeluaran), sehingga
+     * Pemasukan − Pengeluaran tetap = perubahan total saldo.
      */
     private function getStats(Carbon $start, Carbon $end): array
     {
@@ -119,14 +140,18 @@ class DashboardController extends Controller
         // Rincian Kas & Bank dari koleksi yang sama (withBalance, tanpa query tambahan).
         $totalCash = (int) $this->rekening()->filter(fn (BankAccount $a) => $a->isCash())->sum(fn ($a) => $a->balance);
 
-        $income = BankTransaction::where('transaction_type', 'credit')
+        $pindahAntarAkun = (int) $this->transferAntarAkun($start, $end)->sum('internal');
+
+        $income = (int) BankTransaction::where('transaction_type', 'credit')
             ->whereBetween('transaction_date', [$start, $end])
             ->sum('amount')
-            + Payment::whereBetween('payment_date', [$start, $end])->sum('amount');
+            + (int) Payment::whereBetween('payment_date', [$start, $end])->sum('amount')
+            - $pindahAntarAkun;
 
-        $expenses = BankTransaction::where('transaction_type', 'debit')
+        $expenses = (int) BankTransaction::where('transaction_type', 'debit')
             ->whereBetween('transaction_date', [$start, $end])
-            ->sum('amount');
+            ->sum('amount')
+            - $pindahAntarAkun;
 
         $pendingCount = Invoice::whereIn('status', self::PENDING)->count();
         $pendingTotal = Invoice::whereIn('status', self::PENDING)->sum('total_amount');
@@ -200,6 +225,16 @@ class DashboardController extends Controller
         }
         foreach ($debits as $row) {
             $place(Carbon::parse($row->transaction_date), (int) $row->amount, $expenses);
+        }
+
+        // Semua rekening: transfer antar akun sendiri bukan pemasukan/pengeluaran (sama dengan kartu
+        // Arus Kas). Dengan filter satu rekening transfer tetap dihitung: bagi rekening itu, uangnya
+        // memang masuk/keluar.
+        if (! $account) {
+            foreach (BankTransaction::internalTransferGroups($from, $to) as $group) {
+                $place(Carbon::parse($group->date), -$group->internal, $income);
+                $place(Carbon::parse($group->date), -$group->internal, $expenses);
+            }
         }
 
         $accountModel = $account ? BankAccount::find($account) : null;
@@ -299,6 +334,11 @@ class DashboardController extends Controller
      * Pemasukan menyertakan pembayaran invoice sebagai satu kategori, sama dengan rumus pemasukan
      * di kartu Arus Kas (kredit bank + pembayaran invoice).
      *
+     * Kaki transfer (kategori bertipe transfer) tidak dijumlah per baris: dari tiap kelompok
+     * transfer hanya sisanya setelah yang pindah antar akun dikurangkan — biaya admin pada transfer
+     * bertautan menjadi irisan "Biaya admin transfer", kaki tanpa lawan tetap di kategorinya. Jumlah
+     * irisan tetap sama dengan angka Pemasukan/Pengeluaran di kartu Arus Kas.
+     *
      * @return list<array{name: string, value: int}>
      */
     private function getByCategory(string $type, Carbon $start, Carbon $end): array
@@ -306,6 +346,7 @@ class DashboardController extends Controller
         $grouped = BankTransaction::where('transaction_type', $type)
             ->whereBetween('transaction_date', [$start, $end])
             ->whereNotNull('category_id')
+            ->whereHas('category', fn ($q) => $q->where('type', '!=', 'transfer'))
             ->with('category')
             ->get()
             ->groupBy('category_id')
@@ -314,6 +355,21 @@ class DashboardController extends Controller
                 'value' => (int) $group->sum('amount'),
             ])
             ->values();
+
+        $sisaTransfer = [];
+        foreach ($this->transferAntarAkun($start, $end) as $group) {
+            $sisa = ($type === 'debit' ? $group->debit : $group->credit) - $group->internal;
+            if ($sisa <= 0) {
+                continue;
+            }
+
+            $biayaAdmin = $type === 'debit' && $group->linked !== null && $group->credit > 0;
+            $nama = $biayaAdmin ? self::BIAYA_ADMIN_TRANSFER : ($group->category ?? 'Lainnya');
+            $sisaTransfer[$nama] = ($sisaTransfer[$nama] ?? 0) + $sisa;
+        }
+        foreach ($sisaTransfer as $nama => $nilai) {
+            $grouped->push(['name' => $nama, 'value' => $nilai]);
+        }
 
         if ($type === 'credit') {
             $payments = (int) Payment::whereBetween('payment_date', [$start, $end])->sum('amount');

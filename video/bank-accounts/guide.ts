@@ -71,7 +71,8 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Klik akun di panel **Akun**. Saldo di bawah namanya adalah saldo terkini; **Ringkasan Total** memisahkan **Total Bank** dan **Total Kas**.',
-                'Kartu **Pemasukan**, **Pengeluaran**, dan **Arus Bersih** menghitung semua uang masuk & keluar akun (termasuk transfer). Pilih bulan di kolom **Semua bulan** untuk satu periode.',
+                'Kartu **Pemasukan**, **Pengeluaran**, dan **Arus Bersih** akun terpilih menghitung semua uang masuk & keluar akun itu (termasuk transfer). Pilih bulan di kolom **Semua bulan** untuk satu periode.',
+                '**Pemasukan** & **Pengeluaran** di **Ringkasan Total** (semua akun) tidak menghitung transfer antar akun sendiri, termasuk isi ulang kas; biaya admin transfer tetap pengeluaran.',
                 'Grafik **Pemasukan vs Pengeluaran** menampilkan 12 bulan terakhir; **Breakdown Kategori** menampilkan 6 kategori uang keluar terbesar (termasuk transfer).',
                 'Tab **Transaksi** berisi semua transaksi akun ini; tab **Pembayaran** berisi pembayaran invoice yang masuk ke akun ini.',
                 'Lencana **Naik/Turun** hanya membandingkan transaksi masuk bulan ini dengan bulan lalu (tanpa pembayaran invoice).',
@@ -134,6 +135,7 @@ export const guide: ModuleGuide = {
                 '**2 transaksi bank** dengan nomor referensi TRF yang sama: keluar di sumber, masuk di tujuan.',
                 'Sumber berkurang jumlah + biaya admin; tujuan bertambah jumlah transfer. **Isi ulang** kas kecil adalah transfer yang sama.',
                 'Tampil di **Arus Kas › Transfer & Penyesuaian**.',
+                'Di **Ringkasan** dan **Ringkasan Total** (semua akun) **bukan** pemasukan maupun pengeluaran; hanya biaya adminnya yang dihitung sebagai pengeluaran (irisan **Biaya admin transfer** di donat Ringkasan).',
                 '**Tidak masuk Laba Rugi**, termasuk biaya adminnya.',
             ],
         },
@@ -189,11 +191,11 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Biaya admin transfer tidak masuk Laba Rugi',
-            body: 'Biaya admin ikut kategori Transfer. Bila ingin tercatat sebagai beban, isi **Biaya Admin** Rp 0 lalu catat **Pengeluaran** terpisah dengan kategori biaya bank.',
+            body: 'Biaya admin ikut kategori Transfer: dihitung sebagai pengeluaran di Ringkasan, tetapi tidak di Arus Kas › Pengeluaran maupun Laba Rugi. Bila ingin tercatat sebagai beban, isi **Biaya Admin** Rp 0 lalu catat **Pengeluaran** terpisah dengan kategori biaya bank.',
         },
         {
             title: 'Pemasukan di halaman ini ≠ pendapatan',
-            body: 'Kartu Pemasukan/Pengeluaran menghitung semua uang masuk/keluar akun, termasuk transfer antar akun dan isi ulang kas. Untuk pendapatan dan beban, lihat **Laporan › Laba Rugi**.',
+            body: 'Kartu Pemasukan/Pengeluaran **akun terpilih** menghitung semua uang masuk/keluar akun itu, termasuk transfer antar akun dan isi ulang kas; **Ringkasan Total** (semua akun) tidak menghitung transfer antar akun. Untuk pendapatan dan beban, lihat **Laporan › Laba Rugi**.',
         },
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],

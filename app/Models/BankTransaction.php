@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\MencatatPengguna;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class BankTransaction extends Model
@@ -69,6 +72,83 @@ class BankTransaction extends Model
     public static function featureForType(string $transactionType): string
     {
         return $transactionType === 'credit' ? 'income' : 'expense';
+    }
+
+    /**
+     * Transfer antar akun sendiri, per kelompok kaki — satu-satunya definisi yang dipakai angka
+     * Pemasukan/Pengeluaran TINGKAT PERUSAHAAN (kartu & grafik semua rekening serta donat di
+     * Ringkasan, Ringkasan Total di Kas & Bank, alat Claude ringkasan-keuangan). Lihat
+     * docs/module/dashboard.md › Transfer antar akun sendiri.
+     *
+     * Kaki transfer = baris yang kategorinya bertipe `transfer`. Kaki-kaki dikelompokkan per
+     * tanggal dan per tautan: `transfer_group_id`, atau untuk baris warisan sebelum kolom itu ada
+     * `reference_number` berawalan TRF. Kaki tanpa tautan (dicatat sendiri lewat dialog
+     * Pemasukan/Pengeluaran yang juga menawarkan kategori transfer) berkumpul dalam satu kelompok
+     * per tanggal, sehingga transfer yang dicatat manual sebagai dua kaki tetap saling meniadakan.
+     *
+     * Per kelompok: `credit` = Σ kaki masuk, `debit` = Σ kaki keluar (jumlah + biaya admin), dan
+     * `internal` = min(credit, debit) = uang yang hanya berpindah antar akun sendiri. Di tingkat
+     * perusahaan `internal` bukan pemasukan maupun pengeluaran; sisanya tetap uang yang benar-benar
+     * keluar/masuk perusahaan — `debit − internal` pada transfer bertautan adalah biaya admin.
+     * Karena `internal` dikurangkan dari KEDUA sisi, Pemasukan − Pengeluaran tetap sama dengan
+     * perubahan total saldo, dan kaki tanpa lawan tidak pernah menjadi pengeluaran negatif.
+     *
+     * Angka SATU rekening (filter rekening grafik Ringkasan, statistik per akun di Kas & Bank)
+     * tidak memakai ini: bagi satu rekening, transfer memang uang masuk/keluar.
+     *
+     * @return Collection<int, object{date: string, linked: string|null, category: string|null, credit: int, debit: int, internal: int}>
+     */
+    public static function internalTransferGroups(CarbonInterface|string|null $from = null, CarbonInterface|string|null $to = null): Collection
+    {
+        return self::internalTransferGroupQuery($from, $to)
+            ->get()
+            ->map(fn (object $group): object => (object) [
+                'date' => (string) $group->transfer_date,
+                'linked' => $group->transfer_link,
+                'category' => $group->category_label,
+                'credit' => (int) $group->credit_total,
+                'debit' => (int) $group->debit_total,
+                'internal' => (int) $group->internal_total,
+            ]);
+    }
+
+    /**
+     * Σ `internal` dari internalTransferGroups() dalam rentang yang sama, dihitung di database:
+     * nominal yang dikurangkan dari Pemasukan DAN Pengeluaran tingkat perusahaan.
+     */
+    public static function internalTransferTotal(CarbonInterface|string|null $from = null, CarbonInterface|string|null $to = null): int
+    {
+        $groups = self::internalTransferGroupQuery($from, $to);
+
+        return (int) $groups->newQuery()->fromSub($groups, 'internal_transfer_groups')->sum('internal_total');
+    }
+
+    /**
+     * Satu baris per kelompok kaki transfer (lihat internalTransferGroups()). Rentang memakai
+     * perbandingan yang sama dengan whereBetween() pemanggil, jadi Carbon akhir hari dan string
+     * Y-m-d sama-sama berlaku. CASE alih-alih LEAST/GREATEST supaya sama di MySQL dan SQLite.
+     */
+    private static function internalTransferGroupQuery(CarbonInterface|string|null $from, CarbonInterface|string|null $to): QueryBuilder
+    {
+        $link = "CASE WHEN bank_transactions.transfer_group_id IS NOT NULL THEN bank_transactions.transfer_group_id
+            WHEN bank_transactions.reference_number LIKE 'TRF%' THEN bank_transactions.reference_number END";
+        $credit = "SUM(CASE WHEN bank_transactions.transaction_type = 'credit' THEN bank_transactions.amount ELSE 0 END)";
+        $debit = "SUM(CASE WHEN bank_transactions.transaction_type = 'debit' THEN bank_transactions.amount ELSE 0 END)";
+
+        return static::query()
+            ->join('transaction_categories as transfer_category', 'transfer_category.id', '=', 'bank_transactions.category_id')
+            ->where('transfer_category.type', 'transfer')
+            ->when($from !== null, fn ($query) => $query->where('bank_transactions.transaction_date', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->where('bank_transactions.transaction_date', '<=', $to))
+            ->groupBy('bank_transactions.transaction_date')
+            ->groupByRaw($link)
+            ->selectRaw('MIN(bank_transactions.transaction_date) AS transfer_date')
+            ->selectRaw("MIN({$link}) AS transfer_link")
+            ->selectRaw('MIN(transfer_category.label) AS category_label')
+            ->selectRaw("{$credit} AS credit_total")
+            ->selectRaw("{$debit} AS debit_total")
+            ->selectRaw("CASE WHEN {$credit} < {$debit} THEN {$credit} ELSE {$debit} END AS internal_total")
+            ->toBase();
     }
 
     // Format currency for display

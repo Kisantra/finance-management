@@ -275,7 +275,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-account'),
         focus: S['admin-account'].total,
         zoom: 1.6,
-        caption: 'Ringkasan Total menjumlahkan semua rekening. Pemasukan & Pengeluaran di sini termasuk transfer antar rekening.',
+        caption: 'Ringkasan Total menjumlahkan semua rekening. Pemasukan & Pengeluaran di sini tidak menghitung transfer antar rekening sendiri; biaya admin transfer tetap pengeluaran.',
         duration: 140,
     },
     {

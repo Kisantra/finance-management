@@ -57,6 +57,13 @@ export const STAFF_STEPS: Step[] = [
         duration: 140,
     },
     {
+        src: img('staff-account'),
+        focus: S['staff-account'].chart,
+        zoom: 1.25,
+        caption: 'Untuk satu rekening, transfer ke/dari rekening itu ikut terhitung. Batang kas kecil ini berisi isi ulangnya.',
+        duration: 130,
+    },
+    {
         src: img('staff-range-first'),
         focus: S['staff-range-first'].calendarGrid,
         cursor: S['staff-range-first'].last,
@@ -87,8 +94,8 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-mid'),
         focus: S['staff-mid'].category,
         zoom: 1.4,
-        caption: 'Donat memecah pengeluaran bulan ini per kategori. Paling banyak 5 irisan; sisanya digabung jadi Lainnya.',
-        duration: 130,
+        caption: 'Donat memecah pengeluaran bulan ini per kategori. Transfer antar rekening sendiri tidak ikut; biaya admin-nya tampil sebagai Biaya admin transfer.',
+        duration: 140,
     },
     {
         src: img('staff-mid-income'),
@@ -96,7 +103,7 @@ export const STAFF_STEPS: Step[] = [
         cursor: S['staff-mid-income'].categoryTabs,
         click: true,
         zoom: 1.4,
-        caption: 'Klik Pemasukan untuk melihat dari mana uang masuk, termasuk pembayaran invoice.',
+        caption: 'Klik Pemasukan untuk melihat dari mana uang masuk, termasuk pembayaran invoice. Transfer antar rekening tidak dihitung sebagai pemasukan.',
     },
     {
         src: img('staff-mid'),
@@ -131,7 +138,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-bottom'),
         focus: S['staff-bottom'].recent,
         zoom: 1.3,
-        caption: 'Transaksi Terbaru: pemasukan, pengeluaran, dan pembayaran invoice paling baru dari semua rekening.',
+        caption: 'Transaksi Terbaru: transaksi dan pembayaran invoice paling baru dari semua rekening, termasuk kedua sisi transfer antar rekening.',
     },
     {
         src: img('staff-bottom'),
@@ -154,7 +161,7 @@ export const FM_STEPS: Step[] = [
     {
         src: img('fm-mid'),
         focus: S['fm-mid'].expenseLink,
-        cursor: S['fm-mid'].expenseLink,
+        cursor: S['fm-mid'].expenseLinkText,
         click: true,
         zoom: 2.2,
         caption: 'Bedanya, Anda bisa lanjut ke modul terkait. Lihat pengeluaran membuka rincian di Arus Kas.',
@@ -190,11 +197,11 @@ export const FM_STEPS: Step[] = [
         caption: 'Laporan Laba Rugi menyusun laba rugi per periode dan mengelompokkan transaksi menurut kategorinya, jadi angkanya bisa beda dengan Ringkasan.',
     },
     {
-        src: img('staff-mid-income'),
-        focus: S['staff-mid-income'].biggest,
-        zoom: 2.2,
-        caption: 'Hati-hati: transfer antar rekening ikut dihitung sebagai pemasukan dan pengeluaran, seperti "pindah dana antar rekening" ini.',
-        duration: 160,
+        src: img('fm-mid'),
+        focus: S['fm-mid'].donut,
+        zoom: 2,
+        caption: 'Transfer antar rekening sendiri, termasuk isi ulang kas, bukan pemasukan maupun pengeluaran. Hanya biaya admin-nya yang masuk Pengeluaran, sebagai irisan kecil Biaya admin transfer.',
+        duration: 170,
     },
 ];
 
@@ -222,11 +229,11 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         duration: 170,
     },
     {
-        src: img('staff-mid-income'),
-        focus: S['staff-mid-income'].biggest,
-        zoom: 2.2,
-        caption: 'Transfer antar rekening tercatat keluar dan masuk, jadi pemasukan dan pengeluaran bulan ini ikut membesar.',
-        duration: 150,
+        src: img('admin-bank'),
+        focus: S['admin-bank'].totalFlow,
+        zoom: 1.9,
+        caption: 'Transfer antar rekening tercatat keluar di satu rekening dan masuk di rekening lain, tetapi Pemasukan & Pengeluaran semua akun tidak menghitungnya. Biaya admin-nya tetap pengeluaran.',
+        duration: 170,
     },
     {
         src: img('admin-bottom'),

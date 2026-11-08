@@ -60,7 +60,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Di kartu **Arus Kas**, pilih **Mingguan** (12 minggu), **Bulanan** (6 bulan), atau **Tahunan** (5 tahun).',
-                'Pilih rekening di kotak **Semua rekening** untuk melihat grafik satu rekening saja. Total saldo dan angka bulan ini tetap seluruh perusahaan.',
+                'Pilih rekening di kotak **Semua rekening** untuk melihat grafik satu rekening saja. Total saldo dan angka bulan ini tetap seluruh perusahaan. Di grafik satu rekening, transfer ke/dari rekening itu ikut terhitung sebagai uang masuk/keluar.',
                 'Pilihan terakhir diingat di browser Anda dan dipakai lagi saat membuka Ringkasan.',
             ],
         },
@@ -77,7 +77,7 @@ export const guide: ModuleGuide = {
             title: 'Melihat rincian kategori dan invoice belum dibayar',
             role: ROLES.staff,
             steps: [
-                'Kartu donat menampilkan **Pengeluaran** atau **Pemasukan** bulan ini per kategori; klik pilnya untuk berganti. Paling banyak 5 irisan, sisanya digabung jadi **Lainnya**; transaksi tanpa kategori masuk **Lainnya** atau **Tanpa kategori**.',
+                'Kartu donat menampilkan **Pengeluaran** atau **Pemasukan** bulan ini per kategori; klik pilnya untuk berganti. Paling banyak 5 irisan, sisanya digabung jadi **Lainnya**; transaksi tanpa kategori masuk **Lainnya** atau **Tanpa kategori**. Transfer antar rekening sendiri tidak muncul; biaya admin transfernya tampil sebagai **Biaya admin transfer**.',
                 'Kartu **Invoice Belum Dibayar** menampilkan 5 invoice terkirim yang belum lunas, yang jatuh temponya paling awal di atas. **Lihat semua** membuka daftar lengkapnya.',
                 'Klik salah satu baris: detail invoice terbuka di atas Ringkasan tanpa berpindah halaman. Tombol di dalamnya (mis. **Catat pembayaran**) mengikuti hak akses modul Invoice.',
             ],
@@ -116,7 +116,7 @@ export const guide: ModuleGuide = {
             items: [
                 '**Pemasukan** = semua transaksi bank masuk (termasuk pinjaman yang diterima dan cicilan piutang) + pembayaran invoice.',
                 '**Pengeluaran** = semua transaksi bank keluar, termasuk pembayaran reimbursement, pencairan dana, cicilan utang, dan piutang yang diberikan.',
-                '**Transfer antar rekening ikut terhitung** di kedua sisi.',
+                '**Transfer antar rekening sendiri** (termasuk **Isi ulang** kas kecil) tidak dihitung di Pemasukan maupun Pengeluaran; hanya **biaya admin**-nya yang masuk Pengeluaran. Saldo tetap bergerak sesuai transfernya.',
                 'Donat memecah per kategori; transaksi tanpa kategori masuk **Lainnya** atau **Tanpa kategori**.',
             ],
         },
@@ -137,8 +137,8 @@ export const guide: ModuleGuide = {
             subtitle: 'Tidak ada angka yang diketik di halaman ini. Semuanya dihitung dari modul berikut.',
             rows: [
                 { label: 'Total saldo', value: 'Saldo awal + pembayaran invoice + masuk − keluar, dirinci Bank / Kas', source: 'Kas & Bank', tone: 'act' },
-                { label: 'Pemasukan', value: 'Transaksi masuk + pembayaran invoice (bulan ini)', source: 'Kas & Bank + Invoice', tone: 'pos' },
-                { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini)', source: 'Kas & Bank', tone: 'pos' },
+                { label: 'Pemasukan', value: 'Transaksi masuk + pembayaran invoice (bulan ini), tanpa transfer antar rekening sendiri', source: 'Kas & Bank + Invoice', tone: 'pos' },
+                { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini), tanpa transfer antar rekening sendiri; biaya admin transfer tetap dihitung', source: 'Kas & Bank', tone: 'pos' },
                 { label: 'Invoice Belum Dibayar', value: 'Sisa tagihan invoice terkirim / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Pendapatan', value: 'Semua pembayaran invoice, sejak awal', source: 'Invoice', tone: 'wait' },
                 { label: 'Laba kotor', value: 'Pendapatan − PPN yang sudah dibayar − HPP item invoice lunas / sebagian', source: 'Invoice', tone: 'wait' },
@@ -157,8 +157,8 @@ export const guide: ModuleGuide = {
             body: 'Pengguna tanpa **view dashboard** dialihkan ke Arus Kas › Pengeluaran. Staff bawaan tidak punya izin itu, sehingga setelah masuk ia langsung melihat halaman **Akses ditolak**, dan tombol **Ke Dashboard** di sana membawanya kembali ke halaman yang sama.',
         },
         {
-            title: 'Pemasukan & pengeluaran memuat transfer',
-            body: 'Transfer antar rekening sendiri tercatat keluar di satu rekening dan masuk di rekening lain, jadi keduanya ikut menggelembung. Arus bersih tetap benar (selisihnya hanya biaya admin).',
+            title: 'Transfer antar rekening bukan pemasukan',
+            body: 'Memindahkan uang antar rekening atau kas sendiri, termasuk **Isi ulang** kas kecil, tidak menambah Pemasukan maupun Pengeluaran Ringkasan; hanya biaya admin transfernya yang dihitung sebagai pengeluaran. Biaya admin ini tidak tampil di **Arus Kas › Pengeluaran** maupun Laba Rugi (kategorinya Transfer), jadi Pengeluaran Ringkasan bisa lebih besar sebesar biaya admin. Bila grafik difilter satu rekening, transfer tetap terlihat sebagai uang masuk/keluar rekening itu.',
         },
         {
             title: 'Angka lama bisa berubah',

@@ -347,6 +347,7 @@ Perilaku ini ditest di `tests/Feature/CashFlowExportControllerTest.php`.
 ## Keterkaitan Antar Modul
 
 - **Bank Accounts** — setiap mutasi di sini langsung menggeser saldo dinamis rekening; endpoint mutasi juga dipakai tab transaksi halaman bank-accounts.
+- **Dashboard (Ringkasan) & Ringkasan Total Kas & Bank** — tidak memakai tab di modul ini, tetapi menetralkan transfer dengan cara sendiri: di angka semua akun transfer (kategori `transfer`) bukan pemasukan/pengeluaran, sedangkan biaya admin transfer **tetap** pengeluaran di sana — padahal tidak tampil di tab Pengeluaran maupun Laba Rugi karena kategorinya `transfer`. Selisih Rp biaya admin antara Pengeluaran Ringkasan dan Total Keluar tab Semua itu disengaja; lihat `docs/module/dashboard.md` › Transfer antar akun sendiri.
 - **Invoices/Payments** — sisi payment pada halaman Income bersumber dari pembayaran invoice; menghapusnya lewat bulk delete cash-flow benar-benar menghapus record pembayaran (status invoice dihitung ulang oleh modul Invoices).
 - **Transaction Categories** — tipe kategori (`income`/`expense`/`transfer`) menentukan halaman mana yang menampilkan transaksi; opsi picker dari `TransactionCategory::selectOptions()` dan `GET /api/transaction-categories?type=credit|debit`.
 - **Loans & Receivables** — membuat `BankTransaction` otomatis (kategori sistem). Pokoknya (kategori `financing`) tidak tampil di tab Semua/Pemasukan/Pengeluaran; bunganya (`EXP-INTEREST` / `REV-INTEREST`, bertipe `expense` / `income`) tampil.

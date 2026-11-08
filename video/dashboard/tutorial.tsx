@@ -13,8 +13,8 @@ export const TUTORIALS: Tutorials = {
     staff: buildTutorial('DashboardStaff', ROLES.staff, [
         { id: 'intro', frames: 105, node: <Intro module={guide.title} role={ROLES.staff} title="Membaca Ringkasan" summary="Saldo kas, arus bulan ini, grafik, invoice belum dibayar, dan rekening dalam satu halaman." />, chapter: 'Pengantar' },
         walk('walk-read', STAFF_STEPS.slice(0, 4), ROLES.staff, 'Saldo & arus kas'),
-        walk('walk-chart', STAFF_STEPS.slice(4, 10), ROLES.staff, 'Mengatur grafik'),
-        walk('walk-rest', STAFF_STEPS.slice(10), ROLES.staff, 'Kartu lainnya'),
+        walk('walk-chart', STAFF_STEPS.slice(4, 11), ROLES.staff, 'Mengatur grafik'),
+        walk('walk-rest', STAFF_STEPS.slice(11), ROLES.staff, 'Kartu lainnya'),
         outro,
     ]),
     fm: buildTutorial('DashboardFinanceManager', ROLES.fm, [

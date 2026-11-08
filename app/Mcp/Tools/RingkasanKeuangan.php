@@ -58,7 +58,7 @@ class RingkasanKeuangan extends AlatKeuangan
 
     protected string $name = 'ringkasan-keuangan';
 
-    protected string $description = 'Ringkasan keuangan satu periode (bawaan: bulan berjalan). kas: total saldo semua akun saat ini (total_saldo = total_bank rekening bank + total_kas kas tunai/kas kecil) + uang_masuk/uang_keluar periode = semua mutasi rekening termasuk transfer antar rekening dan utang/piutang (kartu Arus Kas di Ringkasan aplikasi). pemasukan/pengeluaran: definisi halaman Arus Kas, hanya kategori pemasukan/pengeluaran (+ pembayaran invoice), tanpa transfer, pendanaan, penyesuaian; per_kategori = 5 terbesar + Lainnya. invoice, piutang (uang perusahaan di pihak lain), utang (pinjaman yang diterima perusahaan), reimbursement, pengajuan_dana: posisi hari ini (posisi_per), tidak terikat periode; sisa_pokok tanpa bunga. Bagian yang modulnya tidak boleh Anda lihat tercantum di tidak_ditampilkan. Rincian: laba-rugi, mutasi-rekening.';
+    protected string $description = 'Ringkasan keuangan satu periode (bawaan: bulan berjalan). kas: total saldo semua akun saat ini (total_saldo = total_bank rekening bank + total_kas kas tunai/kas kecil) + uang_masuk/uang_keluar periode = semua mutasi rekening termasuk utang/piutang, tanpa transfer antar akun sendiri (isi ulang kas juga transfer); biaya admin transfer tetap uang_keluar (kartu Arus Kas di Ringkasan aplikasi). pemasukan/pengeluaran: definisi halaman Arus Kas, hanya kategori pemasukan/pengeluaran (+ pembayaran invoice), tanpa transfer, pendanaan, penyesuaian; per_kategori = 5 terbesar + Lainnya. invoice, piutang (uang perusahaan di pihak lain), utang (pinjaman yang diterima perusahaan), reimbursement, pengajuan_dana: posisi hari ini (posisi_per), tidak terikat periode; sisa_pokok tanpa bunga. Bagian yang modulnya tidak boleh Anda lihat tercantum di tidak_ditampilkan. Rincian: laba-rugi, mutasi-rekening.';
 
     protected function izin(): string
     {
@@ -116,7 +116,9 @@ class RingkasanKeuangan extends AlatKeuangan
     /**
      * Saldo saat ini (BankAccount::withBalance, satu query), dirinci rekening bank vs kas tunai
      * seperti kartu Arus Kas di Ringkasan, + arus periode dengan definisi kartu itu
-     * (DashboardController::getStats): masuk = kredit bank + pembayaran invoice, keluar = debit bank.
+     * (DashboardController::getStats): masuk = kredit bank + pembayaran invoice, keluar = debit bank,
+     * keduanya tanpa transfer antar akun sendiri (BankTransaction::internalTransferTotal(); biaya
+     * admin transfer tetap uang keluar).
      *
      * @return array<string, int>
      */
@@ -134,8 +136,10 @@ class RingkasanKeuangan extends AlatKeuangan
             ->toBase()
             ->first();
 
-        $masuk = (int) $mutasi->masuk + $this->pembayaranInvoice($dari, $sampai);
-        $keluar = (int) $mutasi->keluar;
+        $pindahAntarAkun = BankTransaction::internalTransferTotal($dari, $sampai);
+
+        $masuk = (int) $mutasi->masuk + $this->pembayaranInvoice($dari, $sampai) - $pindahAntarAkun;
+        $keluar = (int) $mutasi->keluar - $pindahAntarAkun;
 
         return [
             'total_saldo' => $totalSaldo,

@@ -74,12 +74,17 @@ class BankAccountController extends Controller
         $totalBalance = (int) $accountsData->sum('balance');
         $totalCash = (int) $accountsData->where('type', BankAccount::TYPE_CASH)->sum('balance');
 
+        // Semua akun: transfer antar akun sendiri (termasuk isi ulang kas) bukan pemasukan maupun
+        // pengeluaran, biaya adminnya tetap pengeluaran — definisi yang sama dengan Ringkasan.
+        // Statistik per akun di buildAccountDetail() tetap menghitung transfer.
+        $pindahAntarAkun = BankTransaction::internalTransferTotal();
+
         $overallSummary = [
             'total_balance' => $totalBalance,
             'total_bank' => $totalBalance - $totalCash,
             'total_cash' => $totalCash,
-            'income' => (int) Payment::sum('amount') + (int) ($overallTrxStats->credit_total ?? 0),
-            'expense' => (int) ($overallTrxStats->debit_total ?? 0),
+            'income' => (int) Payment::sum('amount') + (int) ($overallTrxStats->credit_total ?? 0) - $pindahAntarAkun,
+            'expense' => (int) ($overallTrxStats->debit_total ?? 0) - $pindahAntarAkun,
         ];
 
         // Build per-account data (charts + stats) only when an account is selected
