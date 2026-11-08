@@ -10,11 +10,11 @@ Cara membaca tabel (kolom **Lapisan**, status, kewajiban bukti) mengikuti
 
 | Berkas | Isi |
 |---|---|
-| [`test-cases/kas-bank.md`](test-cases/kas-bank.md) | 22 test case (N/A/C) + hasil aktual + bukti layar per langkah |
-| [`report/Laporan-QA-kas-bank.md`](report/Laporan-QA-kas-bank.md) | Laporan: skor terhitung, ringkasan, hasil per case, catatan, kendala alat uji, catatan kejujuran |
+| [`test-cases/kas-bank.md`](test-cases/kas-bank.md) | 26 test case (N/A/C) — 22 dari 6 November + 4 tindak lanjut 9 November (bagian D) — + hasil aktual + bukti layar per langkah |
+| [`report/Laporan-QA-kas-bank.md`](report/Laporan-QA-kas-bank.md) | Laporan: skor terhitung, ringkasan, bug yang diperbaiki, hasil per case, catatan, kendala alat uji, catatan kejujuran |
 | [`report/Laporan-QA-kas-bank.pdf`](report/Laporan-QA-kas-bank.pdf) | Laporan yang sama dalam PDF (gambar tertanam) |
 | [`manifests/kas-bank.json`](manifests/kas-bank.json) | Sumber laporan & skor (dibaca skrip skill `qa-evidence`) |
-| `evidence/kas-bank/` | 41 tangkapan layar, sudah dipotong ke wilayah yang relevan dan dikecilkan ke lebar ≤ 420 px (JPEG) |
+| `evidence/kas-bank/` | 57 tangkapan layar (41 + 16 tindak lanjut), sudah dipotong ke wilayah yang relevan dan dikecilkan ke lebar ≤ 420 px (JPEG) |
 
 ## Cakupan
 
@@ -87,13 +87,54 @@ Laravel Boost meneruskan pesan konsol dari halaman uji ke berkas bersama `storag
 dibersihkan dari berkas saat pembongkaran lingkungan. Tidak ada efek samping lain yang ditemukan:
 log harian `qakb` tidak terbentuk, folder `storage/tenantqakb` tidak terbentuk.
 
+## Tindak lanjut 9 November 2026
+
+Tiga catatan tambahan diperbaiki lalu diuji ulang (bagian D test case: N11, N12, A09, C05):
+UX-01 dan UX-02 di `2f6874d`, K-02 di `955a39c`. Lingkungan `qakb` sudah dibongkar, jadi dibuat
+lingkungan terisolasi baru dengan pola yang sama.
+
+| Aspek | Nilai |
+|---|---|
+| Kode | `main` = `origin/main` `33c2845` + `2f6874d` + `955a39c` (belum di-push saat diuji) |
+| Berkas konfigurasi | `.env.qafix` = salinan `.env` + penimpaan `APP_ENV=qafix`, `APP_URL`, `DB_DATABASE`, `TENANCY_DB_PREFIX`, cache `database` (`CACHE_PREFIX=qafix_`), sesi `database` di koneksi `mysql` (cookie `qafix_session`), antrean `sync`, `LEGACY_DB_DATABASE` dikosongkan. Mail `log`, `GEMINI_API_KEY` kosong (sama dengan `.env`). Dibuang ke Recycle Bin setelah QA |
+| URL | `http://127.0.0.1:8138` — `php artisan serve --env=qafix --host=127.0.0.1 --port=8138` |
+| Database | `qafix_central` + `qafix_central_tenant_qafix` (perusahaan "PT Kas Bank QA", slug `qafix`), MySQL 8.0.45. Di-drop dengan nama persis setelah QA (dump disimpan di luar repo) |
+| Aset frontend | Vite dev server milik pengembang di `[::1]:5173` (tidak di-restart; perubahan kode tampil lewat hot reload) |
+| Browser | Chrome DevTools MCP, viewport 1280×800 DPR 1, menu terbuka (N12 & A09-4: 390×844 ponsel; C05-4/C05-5: 1920×1080 karena K-07) |
+
+### Akun uji (lokal, hanya di `qafix_central`, ikut terhapus saat database di-drop)
+
+Satu sandi acak untuk semua akun: `Qafix-gM8Yj0yqwDY2#9`.
+
+| Email | Peran | Dipakai di |
+|---|---|---|
+| `admin@qafix.test` | admin | N11, N12, C05; screenshot panduan Ringkasan peran admin |
+| `fm@qafix.test` | finance manager — penanggung jawab Kas Kecil Kantor | nama di daftar/Tooltip (N11); screenshot panduan Ringkasan peran FM |
+| `lihat@qafix.test` | "hanya lihat kas & bank" (`view bank-accounts` saja) — penanggung jawab Kas Lama Kantor | A09 |
+| `staff@qafix.test` | staff | screenshot panduan Ringkasan peran staf (bukan case QA) |
+
+### Data uji
+
+Dibuat dengan skrip PHP di luar repo yang menolak berjalan bila database bukan `qafix_central`:
+akun dan data di bagian D test case (BCA, tiga kas, tiga transaksi November). Isi ulang Rp 2.500.000 +
+biaya admin Rp 6.500 di C05 dicatat lewat layar. **Setelah** bukti QA diambil, skrip kedua menambah
+data contoh untuk screenshot panduan Ringkasan (`video/dashboard/screens/`, di commit `955a39c`):
+empat klien contoh, 12 invoice Juni–November, pengeluaran bulanan, dan dua transfer antar akun.
+Data itu tidak memengaruhi angka di case N11/N12/A09/C05.
+
+### Efek samping di luar lingkungan `qafix`
+
+Sama seperti putaran pertama: 424 entri konsol ber-channel `qafix.` masuk ke berkas bersama
+`storage/logs/browser.log` (rinciannya di laporan › K-12) dan dibersihkan saat pembongkaran.
+Folder `storage/tenantqafix` dan log harian `qafix` tidak terbentuk.
+
 ## Membangun ulang laporan
 
 Skrip dari skill `qa-evidence` (`~/.claude/skills/qa-evidence/scripts/`), dijalankan dari folder ini:
 
 ```bash
 python <skill>/scripts/build_evidence.py manifests/kas-bank.json   # sambung bukti ke test case
-python <skill>/scripts/check_evidence.py test-cases manifests      # gerbang: 22 case, 18 butuh bukti UI, 18 bergambar
+python <skill>/scripts/check_evidence.py test-cases manifests      # gerbang: 26 case, 22 butuh bukti UI, 22 bergambar
 python <skill>/scripts/build_report.py   manifests/kas-bank.json   # PDF; skor dihitung dari manifest
 python <skill>/scripts/check_links.py    .                          # tautan & gambar
 ```
