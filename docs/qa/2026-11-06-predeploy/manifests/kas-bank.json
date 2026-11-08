@@ -1,0 +1,427 @@
+{
+  "module": "kas-bank",
+  "title": "QA Pra-Rilis — Kas & Bank",
+  "kicker": "QA PRA-RILIS 6 NOVEMBER 2026 · KAS & BANK (cd01099)",
+  "date": "6 November 2026",
+  "environment": "database qakb_central + qakb_central_tenant_qakb (dibuat khusus, di-drop setelah QA), server lokal php artisan serve --env=qakb di http://127.0.0.1:8137, aset dari Vite dev server pengguna ([::1]:5173), Chrome via Chrome DevTools MCP 1280x800 DPR 1 (beberapa tangkapan 1536/1600 px disebut di caption), kode main = origin/main 1c4c160 + cd01099",
+  "scope": "Eksekusi 22 test case di test-cases/kas-bank.md untuk fitur baru jenis akun Kas & Bank (commit cd01099): penamaan menu, akun kas dengan kode KAS- dan bank Tunai, penanggung jawab anggota perusahaan, plafon dan Isi ulang, total Bank/Kas di halaman dan Ringkasan, edit bank<->kas, tampilan ponsel, serta tampilan kas di picker modul lain. Aktor: Admin QA, Staff dan pengguna hanya-lihat (uji izin).",
+  "shots_src": "../evidence/kas-bank",
+  "shots_dst": "../evidence/kas-bank",
+  "evidence_into": "../test-cases/kas-bank.md",
+  "report_out": "../report/Laporan-QA-kas-bank.pdf",
+  "summary": [
+    "Seluruh 22 test case lolos pada percobaan pertama; tidak ada bug aplikasi pada perubahan rilis ini. Aturan inti ditegakkan server, bukan hanya form: nomor & bank wajib hanya untuk rekening bank, penanggung jawab harus anggota perusahaan (termasuk pengguna pusat yang bukan anggota, pengguna terhapus, id fiktif), plafon bulat >= 0, dan field kas dibuang untuk rekening bank.",
+    "Kode KAS-0001/KAS-0002 dan bank Tunai terisi otomatis dan tidak berubah saat kas diedit; rekening lama bernomor 0000 yang diubah menjadi kas mempertahankan nomornya beserta transaksinya. Isi ulang membuka dialog Transfer yang sama dengan nilai yang benar (2.500.000 = plafon - saldo, biaya admin 0) dan hasilnya hanya muncul di Transfer & Penyesuaian. Total Bank + Total Kas = Total Saldo, sama dengan hitungan SQL.",
+    "Temuan yang perlu keputusan (bukan kegagalan test case): nama kas terpotong menjadi “Kas …” di layar 1280 px sehingga beberapa kas tak terbedakan (UX-01); Ringkasan menghitung transfer isi ulang sebagai pemasukan sekaligus pengeluaran (K-02, perilaku lama yang terdokumentasi tetapi akan lebih sering terlihat); dan tombol Tambah Akun/Edit/Hapus ditawarkan ke pengguna hanya-lihat lalu berakhir 403 (UX-02, perilaku lama)."
+  ],
+  "bugs": [],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Menu & halaman bernama Kas & Bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Sidebar Keuangan › Kas & Bank; judul, tab browser, breadcrumb sesuai.",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Sidebar admin: grup **Keuangan** berisi Invoice, Invoice Berulang, dan **Kas & Bank** — label lama Rekening Bank sudah hilang."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Halaman `/c/qakb/bank-accounts`: judul & breadcrumb **Kas & Bank**, tombol Tambah Akun, kondisi kosong Belum ada akun."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Tambah rekening bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB #1 type=bank, custodian/plafon NULL.",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Jenis **Bank**: nomor, bank, cabang tampil dan terisi. Pesan merah adalah sisa percobaan A01 dan hilang saat dikirim ulang."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Rekening muncul di daftar Akun; Ringkasan Total: Total Saldo = Total Bank Rp 50.000.000, Total Kas Rp 0."
+        }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Kas pertama: Tunai + KAS-0001, penanggung jawab & plafon",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB #2 cash, KAS-0001, Tunai, custodian 2, plafon 2.000.000.",
+      "steps": [
+        {
+          "img": "N03-1",
+          "cap": "Jenis **Kas**: nomor/bank/cabang disembunyikan; Penanggung Jawab hanya berisi 5 anggota perusahaan; Plafon 2.000.000."
+        },
+        {
+          "img": "N03-2",
+          "cap": "Daftar: kas berlabel **Kas**, subjudul Kas tunai · Fina…, **Perlu isi ulang Rp 1.500.000**; Total Kas Rp 500.000."
+        },
+        {
+          "img": "N03-3",
+          "cap": "Header kas: Plafon Rp 2.000.000 · perlu isi ulang Rp 1.500.000, tombol **Isi ulang**."
+        }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Kas kedua: KAS-0002, tanpa plafon tanpa peringatan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB #3 KAS-0002, custodian & plafon NULL.",
+      "steps": [
+        {
+          "img": "N04-1",
+          "cap": "Kas kedua tanpa penanggung jawab dan plafon (0 = tanpa plafon)."
+        },
+        {
+          "img": "N04-2",
+          "cap": "Kas kedua hanya Kas tunai, tanpa peringatan isi ulang; Total Kas Rp 750.000. Nama kedua kas terpotong jadi Kas … (UX-01)."
+        }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Total Kas + Total Bank = Total Saldo = hitungan SQL",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Layar 51.500.000 / 47.850.000 / 3.650.000 = SQL.",
+      "steps": [
+        {
+          "img": "N05-1",
+          "cap": "Ringkasan Total setelah transaksi: Total Saldo 51.500.000 = Bank 47.850.000 + Kas 3.650.000, sama dengan hitungan SQL."
+        }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Ringkasan (dashboard) merinci Bank/Kas dan menandai kas",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Kartu Arus Kas & Rekening sesuai.",
+      "steps": [
+        {
+          "img": "N06-1",
+          "cap": "Kartu Arus Kas: Total saldo · Bank Rp 47.850.000 · Kas Rp 3.650.000."
+        },
+        {
+          "img": "N06-2",
+          "cap": "Kartu Rekening: tile **KAS** + subjudul Kas tunai untuk akun kas; tile BCA/MAN untuk rekening."
+        }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Edit kas mempertahankan kode KAS-",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "KAS-0001 & Tunai tetap; plafon 3.000.000.",
+      "steps": [
+        {
+          "img": "N07-1",
+          "cap": "Edit Kas terisi data tersimpan; plafon diubah ke 3.000.000."
+        },
+        {
+          "img": "N07-2",
+          "cap": "Header setelah simpan: Plafon Rp 3.000.000 · perlu isi ulang Rp 2.500.000 (DB: kode tetap KAS-0001)."
+        }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Rekening kas palsu (bank) diubah menjadi Kas",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Nomor 0000 dipertahankan, bank jadi Tunai, transaksi utuh.",
+      "steps": [
+        {
+          "img": "N08-1",
+          "cap": "Rekening lama gaya kas palsu: Jenis Bank, nomor 0000, bank CASH."
+        },
+        {
+          "img": "N08-2",
+          "cap": "Jenis diganti **Kas**: penanggung jawab Sari Staff QA, plafon 500.000."
+        },
+        {
+          "img": "N08-3",
+          "cap": "Akun keempat kini berlabel Kas, saldo tetap Rp 250.000 (pengeluaran 50.000 utuh). DB: nomor 0000 dipertahankan."
+        }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Kas diubah menjadi Bank: wajib isi nomor & bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "KAS-0002/Tunai dikosongkan; simpan kosong ditolak; lalu tersimpan.",
+      "steps": [
+        {
+          "img": "N09-1",
+          "cap": "Kas diganti Bank: nomor & bank kosong (bukan KAS-0002/Tunai); simpan kosong ditolak dengan dua pesan wajib."
+        },
+        {
+          "img": "N09-2",
+          "cap": "Setelah diisi: Rekening Proyek Lapangan · Mandiri · 9876500002 sebagai rekening bank."
+        }
+      ]
+    },
+    {
+      "id": "N10",
+      "title": "Tampilan ponsel: kas & isi ulang ditandai",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "390x844: kartu kas berikon dompet + Isi ulang Rp 250.000; ubin Total Bank/Total Kas.",
+      "steps": [
+        {
+          "img": "N10-1",
+          "cap": "Ponsel 390 px: kartu Kas Lama Kantor (ikon dompet, Kas tunai · Putri…, Isi ulang Rp 250.000), ubin **Total Bank** & **Total Kas**, header plafon + tombol Isi ulang. Ubin lama Total Saldo/Pemasukan/Pengeluaran memotong angka (UX-01)."
+        }
+      ]
+    },
+    {
+      "section": "B. KONDISI TIDAK NORMAL / EDGE CASE"
+    },
+    {
+      "id": "A01",
+      "title": "Rekening bank tanpa nomor & bank ditolak (UI + request langsung)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Pesan wajib dari server di form; request langsung 422.",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Simpan tanpa nomor & bank: dua pesan wajib dari server tampil di bawah field."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Penanggung jawab bukan anggota ditolak server",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "BE — request rakitan: pengguna pusat non-anggota (fixture), pengguna terhapus, id 99999 → 422 Penanggung jawab harus anggota perusahaan ini.; abc → Penanggung jawab tidak dikenal. UI hanya menawarkan anggota."
+    },
+    {
+      "id": "A03",
+      "title": "Plafon negatif/desimal ditolak",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "BE — 422 Plafon tidak boleh negatif. / Plafon harus berupa angka rupiah tanpa desimal. CurrencyInput tidak bisa menghasilkannya."
+    },
+    {
+      "id": "A04",
+      "title": "Field kas dibuang untuk rekening bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "BE — create & update bank dengan custodian/plafon → tersimpan NULL. Form bank tidak mengirim field ini."
+    },
+    {
+      "id": "A05",
+      "title": "Jenis akun tidak valid / tidak dikirim",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "BE — tabungan → 422 Jenis akun harus Bank atau Kas.; tanpa type → diperlakukan bank."
+    },
+    {
+      "id": "A06",
+      "title": "Nomor rekening duplikat ditolak",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "UI dan request langsung (KAS-0001) sama-sama 422.",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Nomor 1234500001 milik rekening BCA: Nomor rekening ini sudah dipakai akun lain."
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "title": "Staff tanpa izin tidak bisa membuka/mengubah Kas & Bank",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Menu tersembunyi; halaman, POST, dan /api/bank-accounts 403.",
+      "steps": [
+        {
+          "img": "A07-1",
+          "cap": "Staff membuka URL Kas & Bank langsung: halaman 403 Akses ditolak (menu juga tidak tampil)."
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "title": "Hanya-lihat: tanpa tombol Isi ulang, transfer ditolak",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "view bank-accounts saja: Isi ulang tersembunyi, custodianOptions kosong, transfer rakitan 403. Tambah Akun/Edit/Hapus tetap ditawarkan → UX-02 (perilaku lama).",
+      "steps": [
+        {
+          "img": "A08-1",
+          "cap": "Putri (hanya view bank-accounts): kas tetap menampilkan plafon & perlu isi ulang Rp 250.000, tetapi tanpa tombol Isi ulang/Pemasukan/Pengeluaran/Transfer. Tombol Tambah Akun masih tampil (UX-02)."
+        },
+        {
+          "img": "A08-2",
+          "cap": "Mencoba Tambah Akun → Kas lalu simpan: server menolak dan halaman berganti menjadi 403 Akses ditolak; tidak ada akun tercipta."
+        }
+      ]
+    },
+    {
+      "section": "C. ALUR BERANTAI"
+    },
+    {
+      "id": "C01",
+      "title": "Isi ulang kas kecil lewat dialog Transfer",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Prefill 2.500.000/biaya 0; dua transaksi TRF; saldo layar = SQL; hanya di Transfer & Penyesuaian.",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "Klik **Isi ulang**: dialog Transfer yang sama, tujuan Kas Kecil Kantor, jumlah 2.500.000 (= 3.000.000 − 500.000), biaya admin 0, deskripsi terisi; sumber belum dipilih."
+        },
+        {
+          "img": "C01-2",
+          "cap": "Sumber PT Kas Bank QA — BCA dan kategori Antar Rekening Sendiri dipilih; nilai prefill tidak berubah."
+        },
+        {
+          "img": "C01-3",
+          "cap": "Setelah transfer: BCA Rp 47.500.000, kas Rp 3.000.000 tanpa Perlu isi ulang; Total Bank 47.500.000, Total Kas 3.250.000."
+        },
+        {
+          "img": "C01-4",
+          "cap": "Header kas: saldo sudah mencapai plafon, tombol Isi ulang hilang (nama kas kini muat penuh)."
+        },
+        {
+          "img": "C01-5",
+          "cap": "Arus Kas › Transfer & Penyesuaian: 1 transfer PT Kas Bank QA → Kas Kecil Kantor Rp 2.500.000."
+        },
+        {
+          "img": "C01-6",
+          "cap": "Arus Kas › Pemasukan & Pengeluaran: 0 hasil — isi ulang bukan pemasukan/pengeluaran."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Kas di picker Input Pemasukan (Arus Kas)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Label {nama} — Tunai; pemasukan 100.000 menambah saldo kas.",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "Picker Rekening di Catat Pemasukan: kas tampil … — Tunai, rekening … — BCA."
+        },
+        {
+          "img": "C02-2",
+          "cap": "Pemasukan 100.000 ke Kas Proyek Lapangan, kategori Kembali Dana."
+        },
+        {
+          "img": "C02-3",
+          "cap": "Saldo kas naik 250.000 → 350.000; Total Kas Rp 3.350.000."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Kas di picker pembayaran invoice",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Label {nama} (Tunai); pembayaran 400.000 ke kas, invoice partially_paid.",
+      "steps": [
+        {
+          "img": "C03-1",
+          "cap": "Catat pembayaran: Rekening tujuan menampilkan Kas Kecil Kantor (Tunai) dan Kas Lama Kantor (Tunai)."
+        },
+        {
+          "img": "C03-2",
+          "cap": "Pembayaran 400.000 metode Tunai ke Kas Kecil Kantor."
+        },
+        {
+          "img": "C03-3",
+          "cap": "Kas Kecil Kantor kini Rp 3.400.000 (di atas plafon, tanpa peringatan)."
+        },
+        {
+          "img": "C03-4",
+          "cap": "Tab Pembayaran milik kas memuat 001/INV/KBQ-CP/XI/2026 · Sebagian · Tunai · +Rp 400.000."
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "Penanggung jawab dihapus → ditolak sampai diganti anggota",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Pengguna dihapus tampil; simpan ditolak; ganti Putri → tersimpan.",
+      "steps": [
+        {
+          "img": "C04-1",
+          "cap": "Setelah Lukas dihapus: teks penanggung jawab di header terpotong pada 1280 px (UX-01); isi DOM-nya Penanggung jawab: Pengguna dihapus."
+        },
+        {
+          "img": "C04-2",
+          "cap": "Edit Kas: Pengguna dihapus (bukan anggota lagi); simpan ditolak Penanggung jawab harus anggota perusahaan ini."
+        },
+        {
+          "img": "C04-3",
+          "cap": "Setelah diganti Putri Pemasukan QA (viewport 1600 px agar terbaca): Penanggung jawab: Putri Pemasuk…"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "UX-01",
+      "title": "Nama kas terpotong menjadi Kas … di daftar akun & header (1280 px)",
+      "body": "Pada viewport 1280x800 dengan sidebar terbuka, lebar nama akun di daftar hanya 45 px (isi 108–144 px) karena badge Kas, sehingga Kas Kecil Kantor, Kas Proyek Lapangan, dan Kas Lama Kantor sama-sama tampil Kas …; tidak ada title/tooltip. Di header, tombol Isi ulang memotong nama dan penanggung jawab. Pada 1536 px hampir semua muat. Bukan kegagalan fungsi, tidak diperbaiki karena butuh keputusan tata letak (mis. badge pindah ke baris subjudul, atau title berisi nama lengkap). Di ponsel 390 px, ubin baru Total Bank/Total Kas terbaca penuh, tetapi ubin lama Total Saldo/Pemasukan/Pengeluaran memotong angka (Rp 51.500.…)."
+    },
+    {
+      "id": "UX-02",
+      "title": "Tambah Akun, Edit, dan Hapus ditawarkan ke pengguna yang hanya boleh melihat",
+      "body": "Halaman Kas & Bank menyembunyikan Isi ulang/Pemasukan/Pengeluaran/Transfer sesuai izin, tetapi tombol Tambah Akun dan menu Edit/Hapus tidak memeriksa create/edit/delete bank-accounts. Pengguna hanya-lihat yang mencobanya berakhir di halaman 403 penuh (server menegakkan dengan benar; tidak ada data berubah). Sudah begitu sebelum rilis ini (sama di 1c4c160), jadi bukan regresi; tidak diperbaiki karena di luar perubahan rilis. Saran: bungkus ketiganya dengan can('create|edit|delete bank-accounts') seperti tombol transaksi."
+    },
+    {
+      "id": "K-06",
+      "title": "Peringatan aksesibilitas Radix pada dialog Transfer/transaksi",
+      "body": "Konsol mencatat 9 peringatan Missing Description or aria-describedby for DialogContent (dialog Transfer/Isi ulang, Catat Pengeluaran, dan dialog di halaman admin). Tidak ada error konsol selama seluruh sesi (dibaca dari storage/logs/browser.log baris ber-channel qakb)."
+    },
+    {
+      "id": "K-02",
+      "title": "Transfer isi ulang dihitung sebagai pemasukan & pengeluaran di Ringkasan",
+      "body": "Setelah satu isi ulang 2.500.000, Ringkasan menampilkan Pemasukan 1–6 Nov Rp 3.000.000 dan Pengeluaran Rp 2.550.000 (masing-masing termasuk 2.500.000 transfer), dan donat Pengeluaran: Antar Rekening Sendiri 98% — Terbesar: antar rekening sendiri. Ringkasan Total di Kas & Bank juga menjumlah transfer. Arus Kas › Pemasukan & Pengeluaran justru mengecualikannya. Perilaku ini sudah tercatat sebagai jebakan transfer di docs/module/dashboard.md, jadi bukan regresi; tetapi dengan kas kecil, isi ulang menjadi rutin. Saran: kecualikan kategori bertipe transfer dari ringkasan & donat (keputusan produk)."
+    },
+    {
+      "id": "K-03",
+      "title": "Deskripsi debit transfer selalu Transfer + Admin Fee walau biaya 0",
+      "body": "Isi ulang memakai biaya admin 0, tetapi baris debit tetap berdeskripsi Transfer + Admin Fee - Isi ulang …. Kosmetik, perilaku lama."
+    },
+    {
+      "id": "K-04",
+      "title": "Kode KAS- tidak dijaga indeks unik di database (dibaca dari kode)",
+      "body": "account_number unik hanya lewat validasi; kode KAS- dibuat model di event saving sesudah validasi. Dua penyimpanan kas yang benar-benar bersamaan secara teori bisa mendapat kode sama. Risiko rendah; tidak diuji karena butuh request paralel."
+    },
+    {
+      "id": "K-05",
+      "title": "Pesan 403 masih berbahasa Inggris",
+      "body": "Halaman Akses ditolak menampilkan This action is unauthorized. (bawaan Laravel). Perilaku lama, di luar cakupan rilis ini."
+    }
+  ],
+  "tooling_problems": [
+    "Tangkapan pertama N01 mengenai elemen yang salah (hanya tautan Ringkasan) karena uid anak yang dipakai; diambil ulang dengan uid sidebar. Eksekusi case-nya sendiri tidak terganggu.",
+    "Skrip pembuat pengguna menunggu 1,5 detik lalu menyimpulkan dialog masih terbuka; ternyata request hanya lebih lambat dan pengguna Staff sudah tersimpan. Kesalahan skrip saya, bukan aplikasi.",
+    "Tangkapan fullPage hanya menghasilkan viewport karena halaman menggulir di dalam kontainer sendiri; wilayah yang perlu digulir ke tampilan dulu (scrollIntoView).",
+    "Beberapa uid kedaluwarsa setelah halaman dimuat ulang (mis. tombol Isi ulang); aksi diulang lewat DOM."
+  ],
+  "honesty": "Kode fitur Kas & Bank (commit cd01099) ditulis oleh model yang sama (Claude Opus 5.5) yang menjalankan pengujian ini, sehingga ada risiko pengujian mewarisi asumsi penulisnya. Yang paling perlu dicek manusia: buka Kas & Bank di laptop yang benar-benar dipakai tim keuangan dan putuskan apakah nama kas yang terpotong (UX-01) masih bisa dipakai untuk memilih kas yang benar, lalu lakukan satu isi ulang sungguhan dengan biaya admin bukan nol dan cocokkan saldo kedua akun dengan mutasi bank. Yang hanya diverifikasi dengan membaca kode (tidak dieksekusi): risiko kode KAS- ganda pada penyimpanan bersamaan (K-04) dan alat MCP rekening-bank/ringkasan-keuangan (tidak termasuk cakupan QA ini)."
+}
