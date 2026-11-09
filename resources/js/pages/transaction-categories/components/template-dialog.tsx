@@ -27,9 +27,10 @@ interface TemplateChild {
 }
 
 interface TemplateGroup {
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'financing';
     label: string;
-    pl_group: string;
+    /** null untuk Pendanaan: tidak masuk Laba Rugi. */
+    pl_group: string | null;
     status: TemplateStatus;
     reason: string | null;
     category_id: number | null;
@@ -51,7 +52,11 @@ const STATUS: Record<TemplateStatus, { label: string; variant: 'blue' | 'zinc' |
 const SECTIONS = [
     { type: 'income', title: 'Pemasukan' },
     { type: 'expense', title: 'Pengeluaran' },
+    { type: 'financing', title: 'Pendanaan' },
 ] as const;
+
+/** Kolom "Baris Laba Rugi" untuk grup Pendanaan. */
+const TANPA_LABA_RUGI = 'Tidak masuk Laba Rugi';
 
 /* ─────────────────────────────────── rows ─── */
 
@@ -87,6 +92,9 @@ function PreviewRow({ label, pl, status, note, parent = false }: RowProps) {
 function GroupCard({ group }: { group: TemplateGroup }) {
     const skipped = group.status === 'skipped';
     const reused = group.status === 'existing' && group.existing_label !== null && group.existing_label !== group.label;
+    // Pendanaan tidak punya baris Laba Rugi (pl_group null) — tulis itu, bukan "Belum diklasifikasi".
+    const pendanaan = group.type === 'financing';
+    const plLabel = (plGroup: string | null) => (pendanaan ? TANPA_LABA_RUGI : plGroupLabel(plGroup));
 
     return (
         <div className="overflow-hidden rounded-2xl border border-ob-line">
@@ -94,7 +102,7 @@ function GroupCard({ group }: { group: TemplateGroup }) {
                 <PreviewRow
                     parent
                     label={group.label}
-                    pl={skipped ? null : plGroupLabel(group.pl_group)}
+                    pl={skipped ? null : plLabel(group.pl_group)}
                     status={group.status}
                     note={
                         group.reason ? (
@@ -112,9 +120,9 @@ function GroupCard({ group }: { group: TemplateGroup }) {
                             label={child.label}
                             pl={
                                 child.status === 'existing'
-                                    ? plGroupLabel(child.existing_pl_group)
+                                    ? plLabel(child.existing_pl_group)
                                     : child.status === 'new'
-                                      ? plGroupLabel(group.pl_group)
+                                      ? plLabel(group.pl_group)
                                       : null
                             }
                             status={child.status}
@@ -238,8 +246,9 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
                 <DialogHeader className="shrink-0">
                     <DialogTitle>Pakai Template Kategori</DialogTitle>
                     <DialogDescription>
-                        Kategori pemasukan dan pengeluaran siap pakai, tersusun mengikuti urutan bagan akun: pendapatan lebih dulu, lalu harga
-                        pokok dan beban. Setiap kategori sudah punya baris Laba Rugi.
+                        Kategori pemasukan, pengeluaran, dan pendanaan siap pakai, tersusun mengikuti urutan bagan akun: pendapatan lebih dulu,
+                        lalu harga pokok dan beban, terakhir pendanaan. Pemasukan dan pengeluaran sudah punya baris Laba Rugi; pendanaan tidak
+                        masuk Laba Rugi.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -253,6 +262,10 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
                             <li>
                                 <span className="font-semibold text-ob-ink">(Tanpa Invoice)</span>: pendapatan dan HPP penjualan lewat invoice sudah dihitung
                                 otomatis di Laba Rugi. Kategori ini hanya untuk yang tidak memakai invoice, jangan catat ulang penjualan ber-invoice.
+                            </li>
+                            <li>
+                                <span className="font-semibold text-ob-ink">Pendanaan</span> (setoran modal, prive, setor PPN, setor titipan pajak klien)
+                                mengubah saldo rekening tetapi tidak masuk Laba Rugi. Kategorinya bisa dipilih di Catat Pemasukan dan Catat Pengeluaran.
                             </li>
                         </ul>
 

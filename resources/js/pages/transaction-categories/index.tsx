@@ -93,10 +93,12 @@ interface Props extends SharedProps {
 
 /* ─────────────────────────────────── helpers ─── */
 
-const TYPE_CONFIG: Record<string, { label: string; color: 'green' | 'red' | 'blue' | 'purple' | 'orange' }> = {
+// Pendanaan bernada netral (outline), sama dengan penanda Pendanaan di Arus Kas: ia jenis uang yang
+// tidak masuk Laba Rugi, bukan arah keluar — oranye (ob-neg) dulu membacanya seperti pengeluaran.
+const TYPE_CONFIG: Record<string, { label: string; color: 'green' | 'red' | 'blue' | 'purple' | 'orange' | 'outline' }> = {
     income: { label: 'Pemasukan', color: 'green' },
     expense: { label: 'Pengeluaran', color: 'red' },
-    financing: { label: 'Pendanaan', color: 'orange' },
+    financing: { label: 'Pendanaan', color: 'outline' },
     transfer: { label: 'Transfer', color: 'purple' },
     adjustment: { label: 'Penyesuaian', color: 'blue' },
 };
@@ -415,6 +417,8 @@ export default function TransactionCategoriesIndex() {
                                             <td className="px-3 py-3 align-middle">
                                                 {cat.pl_group ? (
                                                     <Badge variant="zinc">{PL_GROUP_CONFIG[cat.pl_group]?.label ?? cat.pl_group}</Badge>
+                                                ) : cat.type === 'financing' ? (
+                                                    <span className="text-xs text-ob-ink-3">Tidak masuk Laba Rugi</span>
                                                 ) : (
                                                     <span className="text-xs text-dark-300 dark:text-dark-600">—</span>
                                                 )}

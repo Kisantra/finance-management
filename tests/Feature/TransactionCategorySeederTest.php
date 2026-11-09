@@ -13,8 +13,9 @@ use Tests\TestCase;
 
 /**
  * Kategori awal perusahaan baru (TransactionCategorySeeder, dijalankan provisioning):
- * kategori sistem + modal + transfer + template lewat CategoryTemplateService, tanpa
- * kategori khas Kisantra, dan tetap idempoten.
+ * kategori sistem + transfer + template lewat CategoryTemplateService (termasuk bagian
+ * Pendanaan: Setoran Modal, Penarikan Modal, Pajak Titipan & PPN), tanpa kategori khas
+ * Kisantra, dan tetap idempoten.
  */
 class TransactionCategorySeederTest extends TestCase
 {
@@ -42,21 +43,21 @@ class TransactionCategorySeederTest extends TestCase
             $this->assertSame('financing', TransactionCategory::findSystem($key)?->type, "Kategori sistem {$key} hilang.");
         }
 
-        foreach (['Setoran Modal', 'Penarikan Modal'] as $label) {
-            $this->assertTrue(
-                TransactionCategory::whereNull('parent_id')->where('type', 'financing')->where('label', $label)->exists(),
-                "{$label} hilang."
-            );
+        // Setoran/Penarikan Modal kini dari template (satu definisi), lengkap dengan sub pendanaannya.
+        foreach (['Setoran Modal' => ['Setoran Modal Pemilik'], 'Penarikan Modal' => ['Prive Pemilik'], 'Pajak Titipan & PPN' => ['Setor PPN', 'Setor Titipan Pajak Klien']] as $label => $sub) {
+            $induk = TransactionCategory::whereNull('parent_id')->where('type', 'financing')->where('label', $label)->sole();
+            $this->assertNull($induk->system_key);
+            $this->assertEqualsCanonicalizing($sub, $induk->children()->where('type', 'financing')->pluck('label')->all(), "Sub {$label} salah.");
         }
 
         $antarRekening = TransactionCategory::where('label', 'Antar Rekening Sendiri')->sole();
         $this->assertSame('transfer', $antarRekening->type);
         $this->assertSame('Transfer Internal', $antarRekening->parent->label);
 
-        // 8 kategori tetap + 2 transfer + 67 template.
-        $this->assertSame(77, TransactionCategory::count());
+        // 6 kategori tetap (sistem) + 2 transfer + 74 template (15 induk, 59 sub).
+        $this->assertSame(82, TransactionCategory::count());
         $this->assertSame(
-            ['new' => 0, 'existing' => 67, 'skipped' => 0],
+            ['new' => 0, 'existing' => 74, 'skipped' => 0],
             app(CategoryTemplateService::class)->plan()['summary'],
             'Seluruh template harus sudah terpasang dan tidak ada grup yang tertahan penjaga.'
         );
@@ -78,10 +79,10 @@ class TransactionCategorySeederTest extends TestCase
             ->map(fn (string $label): string => CategoryTemplateService::normalize($label));
 
         $luarTemplate = TransactionCategory::query()
-            ->where(fn ($q) => $q->whereNotNull('system_key')->orWhereIn('type', ['financing', 'transfer']))
+            ->where(fn ($q) => $q->whereNotNull('system_key')->orWhere('type', 'transfer'))
             ->pluck('label');
 
-        $this->assertCount(10, $luarTemplate);
+        $this->assertCount(8, $luarTemplate);
         foreach ($luarTemplate as $label) {
             $this->assertNotContains(CategoryTemplateService::normalize($label), $template, "\"{$label}\" bentrok dengan template.");
         }
@@ -94,7 +95,7 @@ class TransactionCategorySeederTest extends TestCase
 
         $this->seed(TransactionCategorySeeder::class);
 
-        $this->assertSame(77, TransactionCategory::count());
+        $this->assertSame(82, TransactionCategory::count());
         $this->assertSame('opex', TransactionCategory::findSystem('EXP-INTEREST')->pl_group);
     }
 
@@ -108,6 +109,15 @@ class TransactionCategorySeederTest extends TestCase
 
         $this->assertTrue(collect(TransactionCategory::selectOptions('income'))->contains('label', '↳ Pendapatan Jasa'));
         $this->assertTrue(collect(TransactionCategory::selectOptions('transfer'))->contains('label', '↳ Antar Rekening Sendiri'));
+
+        // Grup Pendanaan: sub template bisa dipilih di Catat Pemasukan & Pengeluaran, kategori sistem tidak.
+        foreach (['income', 'expense'] as $tipe) {
+            $opsi = collect(TransactionCategory::transactionOptions($tipe));
+            $this->assertTrue($opsi->contains(fn (array $o): bool => $o['label'] === '↳ Setor PPN' && ($o['financing'] ?? false) && ! ($o['disabled'] ?? false)));
+            $this->assertTrue($opsi->contains(fn (array $o): bool => $o['label'] === 'Pajak Titipan & PPN' && ($o['disabled'] ?? false)));
+            $this->assertFalse($opsi->contains('label', '↳ Penerimaan Pinjaman'));
+            $this->assertTrue($opsi->last()['financing'] ?? false, 'Grup Pendanaan harus terakhir.');
+        }
     }
 
     public function test_seeder_transaksi_demo_hanya_memakai_sub_kategori(): void

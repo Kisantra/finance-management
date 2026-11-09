@@ -1,6 +1,6 @@
 # Modul: Transaction Categories (Kategori Transaksi)
 
-> Master data kategori transaksi hierarkis dua level (parent → child) yang menjadi tulang punggung klasifikasi Cash Flow, Fund Request, Reimbursement, hingga Laporan Laba Rugi (via `pl_group`). Route prefix `/transaction-categories`; seluruh grup digate `can:view categories`, mutasi (store/template/update/pl-group/destroy) digate `can:manage categories`. Fitur khas: guard delete dengan dialog **reassign** yang memindahkan seluruh data terhubung ke kategori pengganti dalam satu transaksi DB, dan **Pakai Template** (12 induk + 55 sub siap pakai yang sudah bergrup Laba Rugi) — template yang sama diisikan seeder ke setiap perusahaan baru.
+> Master data kategori transaksi hierarkis dua level (parent → child) yang menjadi tulang punggung klasifikasi Cash Flow, Fund Request, Reimbursement, hingga Laporan Laba Rugi (via `pl_group`). Route prefix `/transaction-categories`; seluruh grup digate `can:view categories`, mutasi (store/template/update/pl-group/destroy) digate `can:manage categories`. Fitur khas: guard delete dengan dialog **reassign** yang memindahkan seluruh data terhubung ke kategori pengganti dalam satu transaksi DB, dan **Pakai Template** (15 induk + 59 sub siap pakai: pemasukan & pengeluaran yang sudah bergrup Laba Rugi, lalu bagian **Pendanaan** yang tidak masuk Laba Rugi) — template yang sama diisikan seeder ke setiap perusahaan baru.
 
 ## Tabel Database
 
@@ -29,7 +29,7 @@ Tabel yang mereferensikan `category_id`: `bank_transactions`, `fund_request_item
 2. `TransactionCategoryController::index()` mengeksekusi query berpaginasi dengan `with('parent')` + `withCount(['transactions', 'children', 'fundRequestItems', 'reimbursements'])` — count inilah yang dipakai UI untuk menentukan apakah delete perlu dialog reassign.
 3. Filter `pl_status=unclassified` = kategori `income`/`expense` yang `pl_group`-nya masih `NULL` (belum diklasifikasi untuk Laba Rugi).
 4. Prop tambahan: `stats` (total/parents/children/unclassified), `parentOptions` (kandidat induk untuk form), `reassignOptions` (semua kategori dengan label `full_path` untuk dialog reassign), dan `templatePreview` — prop **opsional** (`Inertia::optional`) yang tidak pernah ikut kunjungan biasa; hanya dihitung saat dialog Pakai Template memintanya (lihat di bawah).
-5. Respons `Inertia::render('transaction-categories/index', ...)` → halaman React `resources/js/pages/transaction-categories/index.tsx` (header `PageHeader` dengan tombol Tutorial / Pakai Template / Tambah Kategori, tabel, badge type/pl_group, dialog create/edit/delete, dialog template di `components/template-dialog.tsx`).
+5. Respons `Inertia::render('transaction-categories/index', ...)` → halaman React `resources/js/pages/transaction-categories/index.tsx` (header `PageHeader` dengan tombol Tutorial / Pakai Template / Tambah Kategori, tabel, badge type/pl_group, dialog create/edit/delete, dialog template di `components/template-dialog.tsx`). Badge tipe **Pendanaan** bernada netral (`outline`, sama dengan penanda Pendanaan di Arus Kas — pendanaan adalah jenis, bukan arah keluar) dan kolom **Grup L/R** kategori pendanaan bertuliskan "Tidak masuk Laba Rugi".
 
 **Penjelasan kode** (`app/Http/Controllers/TransactionCategoryController.php`):
 
@@ -45,7 +45,7 @@ $categories = TransactionCategory::with(['parent'])
 
 ### Pakai Template — pratinjau + `POST /transaction-categories/template` (`can:manage categories`)
 
-Template kategori siap pakai: **12 induk, 55 sub**, nama saja (tanpa kode akun), tersusun mengikuti urutan bagan akun — pendapatan (4, 7) dulu, lalu HPP dan beban (5, 6, 8, 9). `pl_group` diisi pada induk **dan** sub (sama dengan induknya), jadi tidak ada yang "belum diklasifikasi". Isi lengkapnya hidup di satu tempat: konstanta `CategoryTemplateService::TEMPLATE` (`app/Services/CategoryTemplateService.php`).
+Template kategori siap pakai: **15 induk, 59 sub**, nama saja (tanpa kode akun), tersusun mengikuti urutan bagan akun — pendapatan (4, 7) dulu, lalu HPP dan beban (5, 6, 8, 9), terakhir bagian **Pendanaan**. Untuk pemasukan/pengeluaran `pl_group` diisi pada induk **dan** sub (sama dengan induknya), jadi tidak ada yang "belum diklasifikasi"; pendanaan (`financing`) ber-`pl_group` null karena tidak pernah masuk Laba Rugi. Isi lengkapnya hidup di satu tempat: konstanta `CategoryTemplateService::TEMPLATE` (`app/Services/CategoryTemplateService.php`).
 
 | Induk (type) | `pl_group` | Sub |
 |---|---|---|
@@ -61,21 +61,26 @@ Template kategori siap pakai: **12 induk, 55 sub**, nama saja (tanpa kode akun),
 | Beban Pajak & Retribusi (expense) | opex | PBB & Pajak Daerah; Pajak Kendaraan; Setoran PPh 23 & 4(2) |
 | Beban Lain-lain (expense) | other_expense | Biaya Administrasi Bank; Pajak Jasa Giro; Denda & Sanksi; Sumbangan & Donasi |
 | Pajak Penghasilan Badan (expense) | tax | PPh 25 (Angsuran Bulanan); PPh 29 (Kurang Bayar Tahunan); PPh Final UMKM 0,5% |
+| Setoran Modal (financing) | — (tidak masuk Laba Rugi) | Setoran Modal Pemilik |
+| Penarikan Modal (financing) | — | Prive Pemilik |
+| Pajak Titipan & PPN (financing) | — | Setor PPN; Setor Titipan Pajak Klien |
 
-"(Tanpa Invoice)": pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis oleh Laba Rugi dari `payments` dan `invoice_items.cogs_amount`; kategori ini hanya untuk yang tidak memakai invoice (aturan anti-dobel HPP, `docs/design/laba-rugi.md`). Template sengaja **tanpa** kategori `financing` — celah Pendanaan (kategori pendanaan belum bisa dipilih di formulir transaksi) adalah pekerjaan terpisah.
+"(Tanpa Invoice)": pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis oleh Laba Rugi dari `payments` dan `invoice_items.cogs_amount`; kategori ini hanya untuk yang tidak memakai invoice (aturan anti-dobel HPP, `docs/design/laba-rugi.md`).
+
+**Bagian Pendanaan** (sejak 9 Nov 2026): kategori untuk uang yang menggeser saldo tetapi bukan pendapatan/beban — setoran modal, prive, setor PPN, dan setor titipan pajak klien (aturan Laba Rugi mewajibkan dua yang terakhir bertipe `financing`, lihat [profit-loss.md](profit-loss.md) › Invarian). Sub-nya bisa dipilih di dialog Catat Pemasukan dan Catat Pengeluaran (grup terakhir "Pendanaan · tidak masuk Laba Rugi", lihat [cash-flow.md](cash-flow.md) › Pendanaan). "Setoran Modal" dan "Penarikan Modal" dulu diisikan seeder sebagai induk **tanpa anak**; di perusahaan lama keduanya cocok sebagai *sudah ada* dan sub barunya ditempel ke sana (pratinjau: 5 baru, 69 sudah ada).
 
 **Alur step-by-step:**
 
 1. Tombol **Pakai Template** di aksi header, hanya bila `can('manage categories')`, membuka dialog.
 2. Setiap kali dialog dibuka, klien memanggil `router.reload({ only: ['templatePreview'] })`. Prop opsional itu menjalankan `CategoryTemplateService::plan()` — atau `null` bila pengguna tidak punya `manage categories` (pratinjau tidak tersedia baginya). Kegagalan HTTP/jaringan ditangani di dialog (`onHttpException`/`onNetworkError` mengembalikan `false`): tampil state galat + **Coba lagi**, halaman tidak berpindah. Selama memuat tampil skeleton.
-3. Dialog menampilkan ringkasan **Baru / Sudah ada / Dilewati** (StatsCard `inModal`), lalu daftar per jenis (Pemasukan, Pengeluaran) → induk + subnya, masing-masing dengan **baris Laba Rugi** tujuan dan Badge status (+ alasan bila dilewati, + "Sudah ada di grup …" bila sub itu tinggal di grup lain). Footer: **Batal** + **Buat N kategori** (nonaktif dengan teks "Tidak ada kategori baru" bila N = 0; nonaktif + spinner selama memproses).
+3. Dialog menampilkan ringkasan **Baru / Sudah ada / Dilewati** (StatsCard `inModal`), lalu daftar per jenis (Pemasukan, Pengeluaran, Pendanaan) → induk + subnya, masing-masing dengan **baris Laba Rugi** tujuan (bagian Pendanaan: "Tidak masuk Laba Rugi") dan Badge status (+ alasan bila dilewati, + "Sudah ada di grup …" bila sub itu tinggal di grup lain). Footer: **Batal** + **Buat N kategori** (nonaktif dengan teks "Tidak ada kategori baru" bila N = 0; nonaktif + spinner selama memproses).
 4. `POST /transaction-categories/template` (tanpa isi) → `TransactionCategoryController::applyTemplate()` → `CategoryTemplateService::apply()`: di dalam `DB::transaction` rencana **dihitung ulang** dari database (daftar dari klien tidak dipakai), lalu tiap grup: induk baru dibuat dulu, baru sub-sub barunya.
 5. Redirect back + flash `"N kategori dibuat, M dilewati karena sudah ada."` — bila ada yang dilewati penjaga ditambah `" K lainnya dilewati, alasannya tercantum di pratinjau Pakai Template."`. Halaman menampilkannya sebagai toast. Klik ulang = `0 kategori dibuat, …` (idempoten).
 
 **Aturan pencocokan** (`CategoryTemplateService::plan()`, semua kategori dimuat sekali lalu dibandingkan di PHP):
 
 - Nama dinormalisasi: `trim`, spasi berurutan jadi satu, `mb_strtolower`. Nama yang hanya mirip ("Biaya Listrik" vs "Listrik") **tidak** dianggap sama.
-- **Induk** template = *sudah ada* bila ada kategori **induk** (`parent_id` null) dengan `type` sama + nama ternormalisasi sama → dipakai ulang, sub barunya ditempel ke sana.
+- **Induk** template = *sudah ada* bila ada kategori **induk** (`parent_id` null) dengan `type` sama + nama ternormalisasi sama → dipakai ulang, sub barunya ditempel ke sana. Contoh nyata: induk `financing` "Setoran Modal"/"Penarikan Modal" tanpa anak dari seeder lama.
 - **Penjaga induk:** induk yang cocok hanya boleh dijadikan grup bila bukan kategori sistem (`system_key` null) **dan** tidak dipakai langsung oleh `bank_transactions`, `fund_request_items`, atau `reimbursements`. Kalau tidak, seluruh grup berstatus *dilewati* dengan alasan terbaca — menempelkan sub akan menjadikannya judul grup yang tidak bisa dipilih, padahal data lama memakainya. Bila ada beberapa induk kembar, dipakai yang lolos penjaga.
 - **Sub** template = *sudah ada* bila ada kategori **sub** (`parent_id` tidak null) dengan `type` sama + nama ternormalisasi sama **di induk mana pun** → tidak dibuat (mencegah nama kembar di pemilih).
 - Induk baru yang semua subnya sudah ada di grup lain tidak dibuat (status *dilewati*: "Semua sub-kategorinya sudah ada di grup lain.") — ia hanya akan menjadi judul grup kosong.
@@ -104,11 +109,10 @@ Tidak ada unique index pada `transaction_categories`; dua permintaan yang benar-
 Dijalankan pipeline provisioning (`TenantDatabaseSeeder` → `SeedDatabase`); **deploy tidak menjalankannya**, jadi perusahaan yang sudah ada tidak berubah (mereka memakai Pakai Template). Isinya, idempoten:
 
 1. Kategori sistem `FIN-LOAN-IN`, `FIN-LOAN-OUT`, `FIN-RCV-OUT`, `FIN-RCV-IN` (financing), `EXP-INTEREST` (+`pl_group` other_expense), `REV-INTEREST` (+other_income) — logika patch lama dipertahankan: `system_key` dipasang bila belum, `pl_group` hanya diisi bila masih kosong (pilihan pengguna tidak ditimpa).
-2. `Setoran Modal` & `Penarikan Modal` (financing, tanpa anak).
-3. `Transfer Internal → Antar Rekening Sendiri` — WAJIB: tanpa sub, pemilih kategori dialog Transfer kosong.
-4. Template lewat `CategoryTemplateService::apply()` — satu sumber kebenaran dengan tombol Pakai Template.
+2. `Transfer Internal → Antar Rekening Sendiri` — WAJIB: tanpa sub, pemilih kategori dialog Transfer kosong.
+3. Template lewat `CategoryTemplateService::apply()` — satu sumber kebenaran dengan tombol Pakai Template, termasuk bagian Pendanaan. `Setoran Modal` & `Penarikan Modal` tidak lagi didefinisikan di seeder (dulu induk tanpa anak) agar tidak ada definisi ganda.
 
-Kategori bawaan lama yang khas satu perusahaan (`Operational Expenses` + 6 anak, `PENGELUARAN LAIN-LAIN` + 2, `HPP` + 4, `CAPEX` + 1, `Penghasilan` + `Kembali Dana`) **tidak lagi** diisikan. Hasil di perusahaan baru: 77 kategori (8 tetap + 2 transfer + 67 template), 0 pemasukan/pengeluaran yang belum diklasifikasi. Seeder demo `BankTransactionSeeder` kini hanya memakai **sub** kategori (label template yang sesuai deskripsinya, mis. "Gaji Karyawan", "Bunga & Jasa Giro Bank"), bukan `where('type', …)->first()` yang bisa mengambil induk.
+Kategori bawaan lama yang khas satu perusahaan (`Operational Expenses` + 6 anak, `PENGELUARAN LAIN-LAIN` + 2, `HPP` + 4, `CAPEX` + 1, `Penghasilan` + `Kembali Dana`) **tidak lagi** diisikan. Hasil di perusahaan baru: 82 kategori (6 sistem + 2 transfer + 74 template), 0 pemasukan/pengeluaran yang belum diklasifikasi. (Sebelum 9 Nov 2026: 77 = 8 tetap + 2 transfer + 67 template.) Seeder demo `BankTransactionSeeder` kini hanya memakai **sub** kategori (label template yang sesuai deskripsinya, mis. "Gaji Karyawan", "Bunga & Jasa Giro Bank"), bukan `where('type', …)->first()` yang bisa mengambil induk.
 
 ### Create Kategori — `POST /transaction-categories` (`can:manage categories`)
 
@@ -194,6 +198,7 @@ Skenario-skenario ini dicakup `tests/Feature/TransactionCategoryControllerTest.p
 
 1. Modul lain (Cash Flow, Fund Request, Reimbursement) butuh dropdown kategori → panggil `TransactionCategory::selectOptions($type)` di controller, atau frontend fetch `GET /api/transaction-categories?type=credit|debit|income|expense|adjustment|transfer` (closure di `routes/web.php`; `credit` dipetakan ke tipe `income+adjustment+transfer`, `debit` ke `expense+adjustment+transfer`).
 2. Keduanya menghasilkan format yang sama untuk Combobox: **parent sebagai header disabled, hanya anak yang bisa dipilih** (prefix `↳ `).
+3. **Grup Pendanaan** (sejak 9 Nov 2026) — `TransactionCategory::financingOptions()`: induk `financing` non-sistem (judul) + sub non-sistemnya, tiap opsi bertanda `financing: true`, induk tanpa sub dilewati. Ditambahkan **di urutan terakhir** oleh `TransactionCategory::transactionOptions('income'|'expense')` (dialog ubah di Arus Kas) dan oleh closure API untuk `type=credit|debit` (dialog Catat Pemasukan/Pengeluaran). Variasi filter `financingOptions(true, $arah)` menambahkan kategori pokok utang/piutang (FIN-*) di bawah judul "Dari Utang & Piutang" (`value: -1`, non-aktif) — dipakai filter daftar Arus Kas dan API tanpa `type` (filter tab transaksi Kas & Bank), **tidak** untuk formulir. Klien memberi grup ini judul bagian "Pendanaan · tidak masuk Laba Rugi" dan penanda lewat `withFinancingGroup()` (`resources/js/components/shared/financing.tsx`).
 
 **Penjelasan kode** (`app/Models/TransactionCategory.php`):
 
@@ -239,7 +244,7 @@ Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, dita
 
 ## Keterkaitan Antar Modul
 
-- **Cash Flow** — `type` kategori menentukan halaman (income/expense/transfer) tempat transaksi muncul; picker income/expense/transfer memakai `selectOptions()`/`/api/transaction-categories`.
+- **Cash Flow** — `type` kategori menentukan halaman (income/expense/transfer) tempat transaksi muncul; `financing` tampil di tab Pemasukan/Pengeluaran/Semua sesuai arah transaksinya, berpenanda Pendanaan. Picker memakai `selectOptions()`/`transactionOptions()`/`/api/transaction-categories`.
 - **Bank Accounts** — donut breakdown pengeluaran per kategori; kolom kategori pada laporan PDF memakai `full_path`.
 - **Fund Requests** (`fund_request_items.category_id`) dan **Reimbursements** (`reimbursements.category_id`) — ikut dipindahkan oleh mekanisme reassign delete.
 - **Laba Rugi (P&L)** — `pl_group` memetakan kategori ke baris laporan (revenue/cogs/opex/other_income/other_expense/tax); side panel P&L memakai endpoint PATCH pl-group; filter `pl_status=unclassified` membantu menemukan kategori yang belum dipetakan. Kategori template sudah bergrup pada sub-nya sendiri (P&L membaca `pl_group` kategori milik transaksi, bukan induknya), jadi transaksinya langsung masuk baris yang benar.
@@ -251,6 +256,7 @@ Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, dita
 
 - **Hierarki maksimal dua level secara praktis**: picker hanya menawarkan parent sebagai induk, dan `selectOptions()` hanya merender parent → children (cucu tidak akan tampil di picker meskipun DB tidak melarangnya).
 - **Parent tidak untuk transaksi.** Semua picker menonaktifkan parent — jangan menulis picker baru yang membiarkan parent dipilih (pernah menjadi bug di Fund Request/Reimbursement, sudah diperbaiki).
+- **Kategori pendanaan buatan sendiri wajib sub.** Server menolak induk pendanaan untuk transaksi (juga yang tanpa anak, mis. "Setoran Modal" bentuk lama) dan pemilih hanya menampilkan grup yang punya sub. Induk pendanaan yang terlanjur dipakai langsung akan membuat Pakai Template melewati grupnya (penjaga induk).
 - **Delete parent yang punya anak selalu ditolak**, bahkan dengan reassign. Tapi hati-hati: FK `parent_id` di DB adalah **onDelete cascade** — menghapus parent lewat query manual (bukan controller) akan ikut menghapus seluruh anaknya secara diam-diam.
 - **Reassign harus setipe** (`income` → `income`, dst.) dan dieksekusi atomik dalam `DB::transaction`; ketiga relasi (`bank_transactions`, `fund_request_items`, `reimbursements`) selalu dipindah bersama — jika menambah tabel baru ber-`category_id`, wajib menambahkannya ke `destroy()` dan `withCount` di `index()`.
 - **Mengubah `type` kategori yang sudah dipakai tidak diguard** — transaksinya akan berpindah/lenyap dari halaman cash-flow terkait (halaman memfilter berdasar tipe kategori). Lakukan dengan sadar.
@@ -269,10 +275,10 @@ Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, dita
 
 | File | Peran |
 |------|-------|
-| `app/Models/TransactionCategory.php` | Konstanta `PL_GROUPS`, relasi parent/children/transactions/reimbursements/fundRequestItems, `selectOptions()`, accessor `full_path` |
+| `app/Models/TransactionCategory.php` | Konstanta `PL_GROUPS` & `POKOK_MODUL` (kategori sistem pokok utang/piutang → modul), relasi parent/children/transactions/reimbursements/fundRequestItems, `selectOptions()`, `financingOptions()`, `transactionOptions()`, accessor `full_path` |
 | `app/Services/CategoryTemplateService.php` | Isi template (`TEMPLATE`), `plan()` (pratinjau + penjaga), `apply()` (transaksi DB), `normalize()` |
 | `app/Http/Controllers/TransactionCategoryController.php` | Index (filter + withCount + prop opsional `templatePreview`), store (dual respons), applyTemplate, update, updatePlGroup, destroy dengan guard & reassign |
-| `database/seeders/TransactionCategorySeeder.php` | Kategori awal perusahaan baru: sistem + modal + transfer + template (lewat service) |
+| `database/seeders/TransactionCategorySeeder.php` | Kategori awal perusahaan baru: sistem + transfer + template (lewat service, termasuk Pendanaan) |
 | `resources/js/pages/transaction-categories/components/template-dialog.tsx` | Dialog Pakai Template (pratinjau, skeleton, galat + Coba lagi, ScrollArea) |
 | `app/Http/Requests/StoreTransactionCategoryRequest.php` / `UpdateTransactionCategoryRequest.php` | Validasi type/pl_group/label/parent_id |
 | `routes/web.php` | Grup `can:view categories` + `can:manage categories`; closure `GET /api/transaction-categories` |
