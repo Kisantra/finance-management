@@ -12,7 +12,8 @@
  * 4. python video/capture/to-webp.py cash-flow, lalu salin koordinat dari hasilnya ke video/cash-flow/shots.ts.
  * Skrip ini MENAMBAH 1 pemasukan, 2 pengeluaran (biaya + Setor PPN), dan 1 transfer di DB QC (tidak menghapus apa pun).
  * Jangan jalankan di DB utama. Screenshot terakhir diambil 9 Nov 2026 (fitur Jurnal: kotak Jurnal di formulir, rincian,
- * ubah, transfer, dan rincian hanya-lihat pokok utang — layar fm-*-journal dan fm-financing-locked-detail baru).
+ * ubah, transfer, dan rincian hanya-lihat pokok utang — layar fm-*-journal dan fm-financing-locked-detail baru); 10 Nov 2026:
+ * dialog Catat/Ubah satu kolom (Jumlah dulu) — layar dialog Catat/Ubah diambil ulang, jam browser dipatok 9 Nov 2026.
  * Jalankan SEBELUM video/capture/profit-loss.js (screenshot Laba Rugi di sini masih menampilkan "Sewa Ruang Rapat" belum diklasifikasi).
  */
 async (page) => {
@@ -121,15 +122,16 @@ async (page) => {
     await m.waitForTimeout(500);
     await snap(m, 'fm-income-form-empty', incomeFields());
 
+    // Dialog satu kolom (10 Nov 2026): Jumlah paling atas, lalu Tanggal | Rekening, lalu Kategori.
+    await top(m).locator('input[type=text]').first().click();
+    await m.keyboard.type('1500000');
+    await snap(m, 'fm-income-form-amount', incomeFields());
+
     await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
     await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).waitFor();
     await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).scrollIntoViewIfNeeded();
     await snap(m, 'fm-income-form-category', { ...incomeFields(), option: m.getByRole('option', { name: /Sewa Ruang Rapat/ }), list: m.getByRole('listbox') });
     await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).click();
-
-    await top(m).locator('input[type=text]').first().click();
-    await m.keyboard.type('1500000');
-    await snap(m, 'fm-income-form-amount', incomeFields());
 
     await top(m).locator('textarea').fill('Sewa ruang rapat lantai 3 oleh PT Maju Bersama (2 hari)');
     await up(label(top(m), 'Nomor Referensi')).locator('input').fill('KW-SR-2610-07');
@@ -183,13 +185,13 @@ async (page) => {
       upload: up(label(top(m), 'Lampiran Bukti')),
       save: top(m).getByRole('button', { name: 'Simpan Pengeluaran' }),
     });
+    await top(m).locator('input[type=text]').first().click();
+    await m.keyboard.type('1250000');
     await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
     await m.getByRole('option', { name: /Internet & Telepon/ }).waitFor();
     await m.getByRole('option', { name: /Internet & Telepon/ }).scrollIntoViewIfNeeded();
     await snap(m, 'fm-expense-form-category', { ...expenseFields(), option: m.getByRole('option', { name: /Internet & Telepon/ }), list: m.getByRole('listbox') });
     await m.getByRole('option', { name: /Internet & Telepon/ }).click();
-    await top(m).locator('input[type=text]').first().click();
-    await m.keyboard.type('1250000');
     await top(m).locator('textarea').fill('Tagihan internet kantor Oktober 2026 (Nusanet 100 Mbps)');
     await up(label(top(m), 'Nomor Referensi')).locator('input').fill('NF-2610-08821');
     await top(m).locator('input[type=file]').setInputFiles(FIX + 'tagihan-internet.png');
@@ -241,6 +243,8 @@ async (page) => {
       description: up(label(top(m), 'Deskripsi *')),
       save: top(m).getByRole('button', { name: 'Simpan Pengeluaran' }),
     });
+    await top(m).locator('input[type=text]').first().click();
+    await m.keyboard.type('3300000');
     await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
     const ppn = () => m.getByRole('option', { name: '↳ Setor PPN', exact: true });
     await ppn().waitFor();
@@ -252,10 +256,10 @@ async (page) => {
       section: m.getByText('Pendanaan · tidak masuk Laba Rugi', { exact: true }),
     });
     await ppn().click();
-    await top(m).locator('input[type=text]').first().click();
-    await m.keyboard.type('3300000');
     await top(m).locator('textarea').fill('Setor PPN masa Oktober 2026');
     await up(label(top(m), 'Nomor Referensi')).locator('input').fill('NTPN-2611-0042');
+    // Isian di bawah menggulir dialog satu kolom: kembalikan Kategori (penanda + petunjuk) ke atas layar.
+    await up(label(top(m), 'Kategori *'), 2).evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await snap(m, 'fm-financing-filled', {
       ...financeFields(),
       hint: top(m).getByRole('note'),

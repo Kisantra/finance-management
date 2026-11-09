@@ -22,7 +22,9 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
 import { FinancingBadge, FinancingHint, isFinancingCategory, ManagedByNote, quickAddParents, withFinancingGroup, type ManagedBy } from '@/components/shared/financing';
@@ -207,11 +209,14 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
 
     if (!data) return null;
 
+    const isTransaction = data.kind === 'income' || data.kind === 'expense';
+    const readOnly = isTransaction && (data.read_only || !!data.managed_by || !can(data.kind === 'income' ? 'edit income' : 'edit expense'));
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent size="2xl">
-                {(data.kind === 'income' || data.kind === 'expense') &&
-                (data.read_only || data.managed_by || !can(data.kind === 'income' ? 'edit income' : 'edit expense')) ? (
+            {/* Ubah = satu kolom selebar dialog Catat (lg); rincian lain tetap 2xl. */}
+            <DialogContent size={isTransaction && !readOnly ? 'lg' : '2xl'}>
+                {readOnly && (data.kind === 'income' || data.kind === 'expense') ? (
                     /* Hanya-lihat: pokok utang/piutang, rincian Kas & Bank, atau pengguna tanpa izin ubah.
                        Server tetap menolak ubah/hapus pokok utang/piutang (403), terlepas dari tampilan ini. */
                     <TransactionReadOnlyContent data={data} onClose={() => onOpenChange(false)} />
@@ -310,14 +315,16 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                 </div>
             </DialogHeader>
 
-            <form id="tx-edit-form" onSubmit={onSubmit} className="px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CurrencyInput
-                        label="Jumlah *"
-                        value={form.amount}
-                        onChange={(v) => setData('amount', v)}
-                        error={errors.amount}
-                    />
+            {/* Urutan & tata letak sama dengan dialog Catat (satu kolom): Jumlah, Tanggal | Rekening, Kategori,
+                Jurnal, Deskripsi, Nomor Referensi, Lampiran. Rekening tidak bisa diganti di sini (tampil nonaktif). */}
+            <form id="tx-edit-form" onSubmit={onSubmit} className="space-y-4 px-6 py-5">
+                <CurrencyInput
+                    label="Jumlah *"
+                    value={form.amount}
+                    onChange={(v) => setData('amount', v)}
+                    error={errors.amount}
+                />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <DatePicker
                         mode="single"
                         label="Tanggal *"
@@ -325,64 +332,55 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                         onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
                         error={errors.transaction_date}
                     />
-                    <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-sm font-medium text-dark-900 dark:text-dark-300">
-                                Kategori *
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => setQuickAddOpen(true)}
-                                className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                            >
-                                <Plus className="w-3 h-3" />
-                                Tambah
-                            </button>
-                        </div>
-                        <Combobox
-                            options={withFinancingGroup(categoryOptions)}
-                            value={form.category_id ?? undefined}
-                            onChange={(v) => setData('category_id', v ? Number(v) : null)}
-                            placeholder="Pilih kategori"
-                            error={errors.category_id}
-                        />
-                        {isFinancingCategory(categoryOptions, form.category_id) && (
-                            <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
-                        )}
-                    </div>
-                    <Input
-                        label="Referensi"
-                        value={form.reference_number}
-                        onChange={(e) => setData('reference_number', e.target.value)}
-                        placeholder="No. referensi opsional"
-                        error={errors.reference_number}
-                    />
-                    <div className="sm:col-span-2">
-                        <JournalBox mode={changed ? 'preview' : 'saved'} lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
-                    </div>
-                    <div className="sm:col-span-2">
-                        <Input
-                            label="Deskripsi *"
-                            value={form.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Deskripsi transaksi"
-                            error={errors.description}
-                        />
-                    </div>
-                    <div className="sm:col-span-2">
-                        <FileUpload
-                            label="Lampiran"
-                            value={form.attachment}
-                            onChange={(f) => {
-                                setData('attachment', f);
-                                if (f) setData('remove_attachment', false);
-                            }}
-                            existingFileName={!form.remove_attachment ? (data.attachment_name ?? undefined) : undefined}
-                            existingFileUrl={!form.remove_attachment ? (data.attachment_url ?? undefined) : undefined}
-                            onRemoveExisting={() => setData('remove_attachment', true)}
-                        />
-                    </div>
+                    <Input label="Rekening" value={saved?.account ?? '—'} disabled readOnly />
                 </div>
+                <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                        <Label>Kategori *</Label>
+                        <Button type="button" variant="link" size="sm" onClick={() => setQuickAddOpen(true)} className="h-auto gap-1 px-0 text-xs">
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            Tambah
+                        </Button>
+                    </div>
+                    <Combobox
+                        options={withFinancingGroup(categoryOptions)}
+                        value={form.category_id ?? undefined}
+                        onChange={(v) => setData('category_id', v ? Number(v) : null)}
+                        placeholder="Pilih kategori"
+                        error={errors.category_id}
+                    />
+                    {isFinancingCategory(categoryOptions, form.category_id) && (
+                        <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
+                    )}
+                </div>
+                <JournalBox mode={changed ? 'preview' : 'saved'} lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
+                <Textarea
+                    label="Deskripsi *"
+                    value={form.description}
+                    onChange={(e) => setData('description', e.target.value)}
+                    placeholder="Deskripsi transaksi"
+                    rows={2}
+                    className="min-h-0" // dua baris persis (bawaan Textarea minimal 80 px)
+                    error={errors.description}
+                />
+                <Input
+                    label="Nomor Referensi"
+                    value={form.reference_number}
+                    onChange={(e) => setData('reference_number', e.target.value)}
+                    placeholder="Opsional"
+                    error={errors.reference_number}
+                />
+                <FileUpload
+                    label="Lampiran"
+                    value={form.attachment}
+                    onChange={(f) => {
+                        setData('attachment', f);
+                        if (f) setData('remove_attachment', false);
+                    }}
+                    existingFileName={!form.remove_attachment ? (data.attachment_name ?? undefined) : undefined}
+                    existingFileUrl={!form.remove_attachment ? (data.attachment_url ?? undefined) : undefined}
+                    onRemoveExisting={() => setData('remove_attachment', true)}
+                />
             </form>
 
             <QuickAddCategoryDialog

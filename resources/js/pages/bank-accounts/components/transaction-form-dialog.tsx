@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
@@ -155,7 +156,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent size="3xl">
+            <DialogContent size="lg">
                 <DialogHeader>
                     <div className="flex items-center gap-4 py-2">
                         <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${intentClasses.ring}`}>
@@ -178,99 +179,85 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                     </div>
                 </DialogHeader>
 
-                <form id="transaction-form" onSubmit={handleSubmit} className="px-6 py-5">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Left column — main details */}
-                        <div className="space-y-4">
-                            <SectionHeader title="Detail Transaksi" subtitle="Informasi utama" />
+                {/* Satu kolom seperti dialog Catat pembayaran invoice: Jumlah dulu, pasangan pendek berdampingan,
+                    Jurnal selebar dialog — tanpa ruang kosong di samping isian pendek. */}
+                <form id="transaction-form" onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+                    <CurrencyInput
+                        label="Jumlah *"
+                        value={data.amount}
+                        onChange={(v) => setData('amount', v)}
+                        error={errors.amount}
+                    />
 
-                            <Combobox
-                                label="Rekening *"
-                                options={accountOptions}
-                                value={data.bank_account_id}
-                                onChange={(v) => setData('bank_account_id', Number(v))}
-                                placeholder="Pilih rekening"
-                                clearable={false}
-                                error={errors.bank_account_id}
-                            />
-
-                            <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-sm font-medium text-dark-900 dark:text-dark-300">
-                                        Kategori *
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setQuickAddOpen(true)}
-                                        className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                        Tambah
-                                    </button>
-                                </div>
-                                <Combobox
-                                    options={categoryOptions}
-                                    value={data.category_id ?? undefined}
-                                    onChange={(v) => setData('category_id', v ? Number(v) : null)}
-                                    placeholder="Pilih kategori"
-                                    error={errors.category_id}
-                                />
-                                {isFinancing && (
-                                    <FinancingHint direction={type} accountName={selectedAccountName} amount={data.amount} />
-                                )}
-                            </div>
-
-                            <CurrencyInput
-                                label="Jumlah *"
-                                value={data.amount}
-                                onChange={(v) => setData('amount', v)}
-                                error={errors.amount}
-                            />
-
-                            <DatePicker
-                                mode="single"
-                                label="Tanggal *"
-                                value={data.transaction_date ? new Date(data.transaction_date + 'T00:00:00') : null}
-                                onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
-                                clearable={false}
-                                error={errors.transaction_date}
-                            />
-
-                            <JournalBox mode="preview" lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
-                        </div>
-
-                        {/* Right column — meta + attachment */}
-                        <div className="space-y-4">
-                            <SectionHeader title="Keterangan" subtitle="Tambahan & bukti" />
-
-                            <Textarea
-                                label="Deskripsi *"
-                                value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
-                                placeholder="Deskripsi singkat transaksi"
-                                rows={3}
-                                error={errors.description}
-                            />
-
-                            <Input
-                                label="Nomor Referensi"
-                                value={data.reference_number}
-                                onChange={(e) => setData('reference_number', e.target.value)}
-                                placeholder="Opsional"
-                                error={errors.reference_number}
-                            />
-
-                            <FileUpload
-                                label="Lampiran Bukti"
-                                value={data.attachment}
-                                onChange={(f) => setData('attachment', f)}
-                                accept={['.pdf', '.jpg', '.jpeg', '.png']}
-                                maxSizeMb={5}
-                                error={errors.attachment}
-                                hint="Opsional — bukti pembayaran/struk"
-                            />
-                        </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <DatePicker
+                            mode="single"
+                            label="Tanggal *"
+                            value={data.transaction_date ? new Date(data.transaction_date + 'T00:00:00') : null}
+                            onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
+                            clearable={false}
+                            error={errors.transaction_date}
+                        />
+                        <Combobox
+                            label="Rekening *"
+                            options={accountOptions}
+                            value={data.bank_account_id}
+                            onChange={(v) => setData('bank_account_id', Number(v))}
+                            placeholder="Pilih rekening"
+                            clearable={false}
+                            error={errors.bank_account_id}
+                        />
                     </div>
+
+                    <div>
+                        <div className="mb-1.5 flex items-center justify-between">
+                            <Label>Kategori *</Label>
+                            <Button type="button" variant="link" size="sm" onClick={() => setQuickAddOpen(true)} className="h-auto gap-1 px-0 text-xs">
+                                <Plus className="h-3 w-3" aria-hidden="true" />
+                                Tambah
+                            </Button>
+                        </div>
+                        <Combobox
+                            options={categoryOptions}
+                            value={data.category_id ?? undefined}
+                            onChange={(v) => setData('category_id', v ? Number(v) : null)}
+                            placeholder="Pilih kategori"
+                            error={errors.category_id}
+                        />
+                        {isFinancing && (
+                            <FinancingHint direction={type} accountName={selectedAccountName} amount={data.amount} />
+                        )}
+                    </div>
+
+                    <JournalBox mode="preview" lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
+
+                    <Textarea
+                        label="Deskripsi *"
+                        value={data.description}
+                        onChange={(e) => setData('description', e.target.value)}
+                        placeholder="Deskripsi singkat transaksi"
+                        rows={2}
+                        className="min-h-0" // dua baris persis (bawaan Textarea minimal 80 px)
+                        error={errors.description}
+                    />
+
+                    <Input
+                        label="Nomor Referensi"
+                        value={data.reference_number}
+                        onChange={(e) => setData('reference_number', e.target.value)}
+                        placeholder="Opsional"
+                        error={errors.reference_number}
+                    />
+
+                    <FileUpload
+                        label="Lampiran Bukti"
+                        value={data.attachment}
+                        onChange={(f) => setData('attachment', f)}
+                        accept={['.pdf', '.jpg', '.jpeg', '.png']}
+                        maxSizeMb={5}
+                        error={errors.attachment}
+                        hint="Opsional — bukti pembayaran/struk"
+                    />
                 </form>
 
                 <QuickAddCategoryDialog
@@ -303,14 +290,5 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    );
-}
-
-function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
-    return (
-        <div className="border-b border-secondary-200 dark:border-dark-600 pb-3">
-            <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{title}</h4>
-            <p className="text-xs text-dark-500 dark:text-dark-400 mt-0.5">{subtitle}</p>
-        </div>
     );
 }

@@ -29,21 +29,21 @@ export const INCOME_STEPS: Step[] = [
         duration: 110,
     },
     {
+        src: img('fm-income-form-amount'),
+        focus: around(S['fm-income-form-amount'].amount, S['fm-income-form-amount'].date, S['fm-income-form-amount'].account),
+        cursor: S['fm-income-form-amount'].amount,
+        click: true,
+        zoom: 1.5,
+        caption: 'Mulai dari Jumlah yang diterima. Di bawahnya Tanggal (otomatis hari ini; ubah bila uangnya masuk di hari lain) dan Rekening penerima.',
+        duration: 150,
+    },
+    {
         src: img('fm-income-form-category'),
-        focus: around(S['fm-income-form-category'].account, S['fm-income-form-category'].list),
+        focus: around(S['fm-income-form-category'].category, S['fm-income-form-category'].list),
         cursor: S['fm-income-form-category'].option,
         click: true,
         zoom: 1.3,
-        caption: 'Pilih Rekening penerima dan Kategori. Kategori belum ada? Klik + Tambah di samping labelnya.',
-        duration: 140,
-    },
-    {
-        src: img('fm-income-form-amount'),
-        focus: around(S['fm-income-form-amount'].amount, S['fm-income-form-amount'].date),
-        cursor: S['fm-income-form-amount'].amount,
-        click: true,
-        zoom: 1.6,
-        caption: 'Isi Jumlah yang diterima. Tanggal otomatis hari ini; ubah bila uangnya masuk di hari lain.',
+        caption: 'Pilih Kategori. Kategori belum ada? Klik + Tambah di samping labelnya.',
         duration: 130,
     },
     {
@@ -59,7 +59,7 @@ export const INCOME_STEPS: Step[] = [
         src: img('fm-income-journal'),
         focus: S['fm-income-journal'].journal,
         zoom: 1.5,
-        caption: 'Di bawah Tanggal, kotak Jurnal menunjukkan akun yang didebit dan dikredit: rekening BCA bertambah (debit), Sewa Ruang Rapat sebagai pemasukan (kredit). Kotak ini dihitung otomatis dan tidak disimpan — belum buku besar.',
+        caption: 'Di bawah Kategori, kotak Jurnal menunjukkan akun yang didebit dan dikredit: rekening BCA bertambah (debit), Sewa Ruang Rapat sebagai pemasukan (kredit). Kotak ini dihitung otomatis dan tidak disimpan — belum buku besar.',
         duration: 190,
     },
     {
@@ -110,10 +110,10 @@ export const EXPENSE_STEPS: Step[] = [
     },
     {
         src: img('fm-expense-form-filled'),
-        focus: around(S['fm-expense-form-filled'].description, S['fm-expense-form-filled'].upload),
-        cursor: S['fm-expense-form-filled'].upload,
+        focus: around(S['fm-expense-form-filled'].description, S['fm-expense-form-filled'].reference),
+        cursor: S['fm-expense-form-filled'].reference,
         zoom: 1.3,
-        caption: 'Isi Jumlah, Deskripsi, Nomor Referensi (mis. nomor tagihan), lalu unggah bukti di Lampiran Bukti (PDF, JPG, atau PNG, maks 5 MB).',
+        caption: 'Jumlah diisi paling atas; lengkapi Deskripsi dan Nomor Referensi (mis. nomor tagihan), lalu unggah bukti di Lampiran Bukti di bawahnya (PDF, JPG, atau PNG, maks 5 MB).',
         duration: 140,
     },
     {
@@ -280,9 +280,9 @@ export const TRANSFER_STEPS: Step[] = [
 export const EDIT_STEPS: Step[] = [
     {
         src: img('fm-expense-edit'),
-        focus: around(S['fm-expense-edit'].amount, S['fm-expense-edit'].category),
-        zoom: 1.5,
-        caption: 'Salah input? Klik barisnya. Jumlah, tanggal, kategori, referensi, dan lampiran bisa diubah.',
+        focus: around(S['fm-expense-edit'].category, S['fm-expense-edit'].attachment),
+        zoom: 1.3,
+        caption: 'Salah input? Klik barisnya. Dialog Ubah berurutan sama dengan Catat: Jumlah, Tanggal, Kategori, Jurnal, Deskripsi, Nomor Referensi, Lampiran. Rekening tampil nonaktif (tidak bisa diubah).',
         duration: 130,
     },
     {

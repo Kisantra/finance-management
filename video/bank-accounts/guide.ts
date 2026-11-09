@@ -85,9 +85,9 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Pilih rekening atau kas, lalu klik **Pengeluaran** atau **Pemasukan**.',
-                'Periksa **Rekening**, pilih **Kategori** (sub kategori; kategori baru bisa dibuat lewat **+ Tambah**), isi **Jumlah** dan **Tanggal**.',
+                'Isi **Jumlah** (paling atas), periksa **Tanggal** dan **Rekening** (terisi akun terpilih), lalu pilih **Kategori** (sub kategori; kategori baru bisa dibuat lewat **+ Tambah**).',
+                'Kotak **Jurnal · Pratinjau** di bawah Kategori menunjukkan akun yang didebit & dikredit (pemasukan: akun ini didebit; pengeluaran: akun ini dikredit). Kas ditulis dengan namanya saja, rekening bank "nama — bank".',
                 'Isi **Deskripsi**, **Nomor Referensi** (opsional), dan **Lampiran Bukti** (PDF, JPG, atau PNG, maksimal 5 MB).',
-                'Kotak **Jurnal · Pratinjau** di bawah Tanggal menunjukkan akun yang didebit & dikredit (pemasukan: akun ini didebit; pengeluaran: akun ini dikredit). Kas ditulis dengan namanya saja, rekening bank "nama — bank".',
                 'Klik **Simpan Pengeluaran** / **Simpan Pemasukan**. Form dikosongkan agar bisa mencatat transaksi berikutnya; klik **Tutup** bila selesai.',
             ],
         },
