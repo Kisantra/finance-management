@@ -1,5 +1,7 @@
 /* Shared types for cash-flow pages */
 
+import type { ManagedBy } from '@/components/shared/financing';
+
 export interface PaginationMeta {
     current_page: number;
     last_page: number;
@@ -13,16 +15,32 @@ export interface FilterOption {
     label: string;
     value: number;
     disabled?: boolean;
+    /** Kategori bertipe `financing` (grup Pendanaan, selalu terakhir). */
+    financing?: boolean;
 }
 
+/**
+ * Ringkasan tab. Pemasukan/Pengeluaran: `total_amount` = `pl_amount` (masuk Laba Rugi, termasuk
+ * pembayaran invoice) + `financing_amount` (pendanaan, tidak masuk Laba Rugi). Tab Transfer hanya
+ * mengisi `total_amount` & `total_count`.
+ */
 export interface CashFlowStats {
     total_amount: number;
     total_count: number;
+    pl_amount?: number;
+    financing_amount?: number;
+}
+
+/** Penanda jenis baris dari server: pendanaan & modul pengelola (pokok utang/piutang, hanya-lihat). */
+export interface RowKind {
+    category_type: 'income' | 'expense' | 'financing' | string | null;
+    is_financing: boolean;
+    managed_by: ManagedBy | null;
 }
 
 /* ─── Tab Semua (pemasukan + pengeluaran) ──────────── */
 
-export interface CombinedRow {
+export interface CombinedRow extends RowKind {
     /** `payment-{id}` atau `transaction-{id}` */
     uid: string;
     id: number;
@@ -48,6 +66,9 @@ export interface CombinedStats {
     total_out: number;
     net: number;
     total_count: number;
+    /** Bagian pendanaan yang SUDAH termasuk di total_in / total_out. */
+    financing_in: number;
+    financing_out: number;
 }
 
 export interface CombinedFilters {
@@ -65,7 +86,7 @@ export interface CombinedFilters {
 
 /* ─── Income page ──────────────────────────────────── */
 
-export interface IncomeRow {
+export interface IncomeRow extends RowKind {
     uid: string;
     id: number;
     source_type: 'payment' | 'transaction' | string;
@@ -98,7 +119,7 @@ export interface IncomeFilters {
 
 /* ─── Expenses page ────────────────────────────────── */
 
-export interface ExpenseRow {
+export interface ExpenseRow extends RowKind {
     id: number;
     transaction_date: string;
     amount: number;

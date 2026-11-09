@@ -67,8 +67,16 @@ class BankTransactionController extends Controller
 
         $paginator = $query->paginate($perPage);
 
+        // Pokok utang/piutang (hanya-lihat): satu query untuk seluruh halaman.
+        $baris = $paginator->getCollection()->values();
+        $tautan = BankTransaction::moduleLinks($baris->map(fn (BankTransaction $t): object => (object) [
+            'category_system_key' => $t->category?->system_key,
+            'reference_number' => $t->reference_number,
+            'description' => $t->description,
+        ]));
+
         return response()->json([
-            'data' => $paginator->through(fn (BankTransaction $t) => [
+            'data' => $baris->map(fn (BankTransaction $t, int $i) => [
                 'id' => $t->id,
                 'description' => $t->description,
                 'transaction_type' => $t->transaction_type,
@@ -79,10 +87,12 @@ class BankTransactionController extends Controller
                     'id' => $t->category->id,
                     'label' => $t->category->label,
                     'parent_label' => $t->category->parent?->label,
+                    'type' => $t->category->type,
                 ] : null,
+                'managed_by' => $tautan[$i] ?? null,
                 'attachment_url' => $t->attachment_path ? Storage::disk('public')->url($t->attachment_path) : null,
                 'attachment_name' => $t->attachment_name,
-            ])->items(),
+            ])->all(),
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
             'per_page' => $paginator->perPage(),
@@ -303,6 +313,10 @@ class BankTransactionController extends Controller
      */
     public function destroy(BankTransaction $bankTransaction): RedirectResponse
     {
+        // Pokok utang/piutang dicatat & dikelola modul Utang/Piutang: hanya-lihat di sini.
+        $kunci = $bankTransaction->moduleLockMessage();
+        abort_if($kunci !== null, 403, (string) $kunci);
+
         Gate::authorize($bankTransaction->abilityFor('delete'));
 
         $kaki = $this->kakiTransfer($bankTransaction);

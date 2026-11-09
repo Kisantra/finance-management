@@ -108,7 +108,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             default => ['income', 'expense', 'adjustment', 'transfer'],
         };
 
-        return TransactionCategory::whereNull('parent_id')
+        $options = TransactionCategory::whereNull('parent_id')
             ->whereIn('type', $categoryTypes)
             ->with('children')
             ->orderBy('type')
@@ -124,6 +124,14 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 return $items;
             })
             ->values();
+
+        // Grup Pendanaan selalu TERAKHIR: dialog Catat Pemasukan/Pengeluaran (credit/debit) hanya
+        // sub non-sistem; tanpa `type` (filter tab transaksi Kas & Bank) juga pokok utang/piutang.
+        return match ($type) {
+            'credit', 'debit' => $options->concat(TransactionCategory::financingOptions())->values(),
+            null, '' => $options->concat(TransactionCategory::financingOptions(true))->values(),
+            default => $options,
+        };
     })->middleware('can:view categories')->name('api.transaction-categories');
 
     Route::get('/api/bank-accounts', function () {

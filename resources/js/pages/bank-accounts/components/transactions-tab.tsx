@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FinancingBadge, ManagedByNote, withFinancingGroup } from '@/components/shared/financing';
 import { Pagination } from '@/components/shared/pagination';
 import { useCan } from '@/hooks/use-can';
 import { companyUrl } from '@/lib/company';
@@ -55,7 +56,8 @@ const DEFAULT_FILTERS: Filters = {
 
 export function TransactionsTab({ accountId, refreshKey }: Props) {
     const { can } = useCan();
-    const canDeleteRow = (row: TransactionRow) => can(`delete ${featureOf(row)}`);
+    // Pokok utang/piutang (managed_by) dicatat modul Utang/Piutang: hanya-lihat, server menolak hapusnya.
+    const canDeleteRow = (row: TransactionRow) => !row.managed_by && can(`delete ${featureOf(row)}`);
     const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
     const [data, setData] = React.useState<PaginatedResponse<TransactionRow> | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -185,7 +187,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                         clearable={false}
                     />
                     <Combobox
-                        options={categories.map((c) => ({ value: c.value, label: c.label, disabled: c.disabled }))}
+                        options={withFinancingGroup(categories)}
                         value={filters.category_id ?? undefined}
                         onChange={(v) => setFilters((p) => ({ ...p, category_id: v ? Number(v) : null, page: 1 }))}
                         placeholder="Semua kategori"
@@ -315,6 +317,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                                     <div className="font-medium text-dark-900 dark:text-dark-50 truncate max-w-70">
                                                         {row.description}
                                                     </div>
+                                                    {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-0.5" />}
                                                     <div className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-2 mt-0.5">
                                                         {row.reference_number && (
                                                             <span className="font-mono">{row.reference_number}</span>
@@ -338,9 +341,12 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                                             {row.category.parent_label}
                                                         </div>
                                                     )}
-                                                    <Badge variant="zinc" className="text-xs">
-                                                        {row.category.label}
-                                                    </Badge>
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        {row.category.type === 'financing' && <FinancingBadge />}
+                                                        <Badge variant="zinc" className="text-xs">
+                                                            {row.category.label}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-xs text-dark-400 dark:text-dark-500">—</span>

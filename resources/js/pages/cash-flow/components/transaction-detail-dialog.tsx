@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
+import { FinancingHint, isFinancingCategory, quickAddParents, withFinancingGroup } from '@/components/shared/financing';
 import { QuickAddCategoryDialog, type QuickAddCategoryResult } from '@/components/shared/quick-add-category-dialog';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import { useCan } from '@/hooks/use-can';
@@ -108,9 +109,13 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
     const handleCategoryAdded = ({ id, formattedLabel, parentId, isGroup }: QuickAddCategoryResult) => {
         const option: FilterOption = { value: id, label: formattedLabel, disabled: isGroup || undefined };
         setLocalCategoryOptions((prev) => {
-            if (isGroup || !parentId) return [...prev, option];
+            // Grup Pendanaan selalu terakhir: grup baru (pemasukan/pengeluaran) masuk sebelum grup itu.
+            const firstFinancing = prev.findIndex((o) => o.financing);
+            const beforeFinancing = (o: FilterOption) =>
+                firstFinancing === -1 ? [...prev, o] : [...prev.slice(0, firstFinancing), o, ...prev.slice(firstFinancing)];
+            if (isGroup || !parentId) return beforeFinancing(option);
             const parentIdx = prev.findIndex((o) => o.value === parentId);
-            if (parentIdx === -1) return [...prev, option];
+            if (parentIdx === -1) return beforeFinancing(option);
             let insertIdx = parentIdx + 1;
             while (insertIdx < prev.length && !prev[insertIdx].disabled) {
                 insertIdx++;
@@ -303,12 +308,15 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                             </button>
                         </div>
                         <Combobox
-                            options={categoryOptions}
+                            options={withFinancingGroup(categoryOptions)}
                             value={form.category_id ?? undefined}
                             onChange={(v) => setData('category_id', v ? Number(v) : null)}
                             placeholder="Pilih kategori"
                             error={errors.category_id}
                         />
+                        {isFinancingCategory(categoryOptions, form.category_id) && (
+                            <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
+                        )}
                     </div>
                     <Input
                         label="Referensi"
@@ -346,9 +354,7 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                 open={quickAddOpen}
                 onOpenChange={setQuickAddOpen}
                 type={data.kind as 'income' | 'expense'}
-                parentOptions={categoryOptions
-                    .filter((o) => o.disabled)
-                    .map((o) => ({ value: o.value, label: o.label }))}
+                parentOptions={quickAddParents(categoryOptions)}
                 onAdded={handleCategoryAdded}
             />
 

@@ -2,10 +2,10 @@ import { Head, router } from '@inertiajs/react';
 import {
     ArrowUpRight,
     Building2,
-    Calendar,
     Download,
-    FileText,
     Filter,
+    Landmark,
+    Lock,
     Plus,
     Search,
     Trash2,
@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FinancingBadge, ManagedByNote, withFinancingGroup } from '@/components/shared/financing';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
@@ -52,7 +53,10 @@ interface Props {
     pagination: PaginationMeta;
     stats: CashFlowStats;
     filters: ExpenseFilters;
+    /** Dialog ubah: kategori pengeluaran + grup Pendanaan. */
     categoryOptions: FilterOption[];
+    /** Filter: seperti categoryOptions + pokok utang/piutang yang keluar. */
+    filterCategoryOptions: FilterOption[];
     bankAccountOptions: FilterOption[];
     inputByOptions: FilterOption[];
     accounts: AccountPickerItem[];
@@ -65,7 +69,7 @@ function parseIso(s: string | null): Date | null {
     return s ? new Date(s) : null;
 }
 
-export default function CashFlowExpenses({ rows, pagination, stats, filters, categoryOptions, bankAccountOptions, inputByOptions, accounts }: Props) {
+export default function CashFlowExpenses({ rows, pagination, stats, filters, categoryOptions, filterCategoryOptions, bankAccountOptions, inputByOptions, accounts }: Props) {
     const { can } = useCan();
     const canDelete = can('delete expense');
     const canCreate = can('create expense');
@@ -77,6 +81,8 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
     const [dialogData, setDialogData] = React.useState<CashFlowDialogData | null>(null);
 
     const openRow = (row: ExpenseRow) => {
+        // Pokok utang/piutang hanya-lihat: dikelola modul Utang/Piutang.
+        if (row.managed_by) return;
         setDialogData({
             kind: 'expense',
             id: row.id,
@@ -128,9 +134,11 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
         apply({ sort: column, direction, page: 1 });
     };
 
+    // Baris hanya-lihat (pokok utang/piutang) tidak ikut aksi massal.
+    const selectable = rows.filter((r) => !r.managed_by);
     const toggleAll = () => {
-        if (selected.length === rows.length) setSelected([]);
-        else setSelected(rows.map((r) => r.id));
+        if (selected.length === selectable.length) setSelected([]);
+        else setSelected(selectable.map((r) => r.id));
     };
     const toggleOne = (id: number) =>
         setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -169,11 +177,7 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
         filters.bank_accounts.length +
         (filters.input_by ? 1 : 0);
 
-    const allSelected = rows.length > 0 && selected.length === rows.length;
-    const periodLabel =
-        filters.date_from && filters.date_to
-            ? `${formatDate(filters.date_from)} – ${formatDate(filters.date_to)}`
-            : 'Semua waktu';
+    const allSelected = selectable.length > 0 && selected.length === selectable.length;
 
     return (
         <AppLayout>
@@ -202,10 +206,11 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
 
                 <CashFlowTabs active="expenses" />
 
+                {/* Uang yang tidak masuk Laba Rugi dipisah agar tidak bercampur tanpa label. */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <StatsCard label="Total Pengeluaran" value={formatCurrency(stats.total_amount)} icon={<ArrowUpRight />} color="orange" />
-                    <StatsCard label="Jumlah Transaksi" value={stats.total_count.toLocaleString('id-ID')} icon={<FileText />} color="blue" />
-                    <StatsCard label="Periode" value={periodLabel} icon={<Calendar />} color="purple" />
+                    <StatsCard label="Beban (masuk Laba Rugi)" value={formatCurrency(stats.pl_amount ?? 0)} icon={<ArrowUpRight />} color="orange" />
+                    <StatsCard label="Pendanaan (tidak masuk Laba Rugi)" value={formatCurrency(stats.financing_amount ?? 0)} icon={<Landmark />} color="purple" />
+                    <StatsCard label="Total keluar" value={formatCurrency(stats.total_amount)} icon={<ArrowUpRight />} color="orange" hint="Beban + Pendanaan" />
                 </div>
 
                 <section aria-label="Daftar pengeluaran" className={LIST_CARD}>
@@ -220,7 +225,7 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
                         />
                         <Combobox
                             label="Kategori"
-                            options={categoryOptions}
+                            options={withFinancingGroup(filterCategoryOptions)}
                             value={filters.categories[0] ?? null}
                             onChange={(v) => apply({ categories: v ? [Number(v)] : [], page: 1 })}
                             placeholder="Semua kategori"
@@ -303,17 +308,22 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
                                             key={row.id}
                                             onClick={() => openRow(row)}
                                             className={cn(
-                                                'cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0',
+                                                'border-b border-ob-line-soft transition-colors duration-150 last:border-0',
+                                                row.managed_by ? 'cursor-default' : 'cursor-pointer',
                                                 selected.includes(row.id) ? 'bg-ob-act-fill/10' : 'hover:bg-ob-hover',
                                             )}
                                         >
                                             <td className="px-3 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
-                                                {canDelete && (
-                                                    <Checkbox
-                                                        checked={selected.includes(row.id)}
-                                                        onCheckedChange={() => toggleOne(row.id)}
-                                                        aria-label="Pilih baris"
-                                                    />
+                                                {row.managed_by ? (
+                                                    <Lock className="h-4 w-4 text-ob-ink-3" aria-label={`Hanya-lihat, dikelola di ${row.managed_by.label}`} />
+                                                ) : (
+                                                    canDelete && (
+                                                        <Checkbox
+                                                            checked={selected.includes(row.id)}
+                                                            onCheckedChange={() => toggleOne(row.id)}
+                                                            aria-label="Pilih baris"
+                                                        />
+                                                    )
                                                 )}
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-3 align-middle text-ob-ink-2">
@@ -328,6 +338,8 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
                                                         {row.reference_number}
                                                     </div>
                                                 )}
+                                                {row.is_financing && <FinancingBadge className="mt-1 md:hidden" />}
+                                                {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-1" />}
                                                 {row.attachment_url && (
                                                     <StopRowClick>
                                                         <AttachmentPreviewButton
@@ -338,11 +350,14 @@ export default function CashFlowExpenses({ rows, pagination, stats, filters, cat
                                                 )}
                                             </td>
                                             <td className="hidden px-3 py-3 align-middle md:table-cell">
-                                                {row.category_label ? (
-                                                    <Badge variant="zinc">{row.category_label}</Badge>
-                                                ) : (
-                                                    <span className="text-xs text-ob-ink-3">—</span>
-                                                )}
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {row.is_financing && <FinancingBadge />}
+                                                    {row.category_label ? (
+                                                        <Badge variant="zinc">{row.category_label}</Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-ob-ink-3">—</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="hidden px-3 py-3 align-middle lg:table-cell">
                                                 <div className="flex items-center gap-2 text-xs text-ob-ink-2">

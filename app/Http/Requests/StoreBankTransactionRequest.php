@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\MemeriksaKategoriTransaksi;
 use App\Models\BankTransaction;
 use App\Models\TransactionCategory;
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Validator;
 
 class StoreBankTransactionRequest extends FormRequest
 {
+    use MemeriksaKategoriTransaksi;
+
     public function authorize(): bool
     {
         $type = $this->input('transaction_type');
@@ -36,13 +39,12 @@ class StoreBankTransactionRequest extends FormRequest
     }
 
     /**
-     * Tipe kategori harus searah dengan jenis transaksi.
+     * Kategori harus sah untuk arah transaksinya (lihat MemeriksaKategoriTransaksi).
      *
-     * Tanpa ini, transaksi `credit` berkategori `expense` diterima lalu menjadi
-     * hantu: ia tidak muncul di halaman Pemasukan (yang menyaring kategori
-     * bertipe income) maupun Pengeluaran (yang menyaring transaksi debit),
-     * tetapi saldo rekening tetap berubah. Satu-satunya tempat ia terlihat
-     * adalah PDF export.
+     * Tanpa pemeriksaan tipe, transaksi `credit` berkategori `expense` diterima lalu menjadi
+     * hantu: ia tidak muncul di halaman Pemasukan maupun Pengeluaran, tetapi saldo rekening
+     * tetap berubah. Pendanaan (`financing`) kini sah untuk kedua arah: tampil di daftar
+     * berpenanda Pendanaan dan tidak masuk Laba Rugi.
      */
     public function withValidator(Validator $validator): void
     {
@@ -50,35 +52,14 @@ class StoreBankTransactionRequest extends FormRequest
             $categoryId = $this->input('category_id');
             $type = $this->input('transaction_type');
 
-            if (! $categoryId || ! $type) {
+            if (! $categoryId || ! in_array($type, ['credit', 'debit'], true)) {
                 return;
             }
 
             $kategori = TransactionCategory::find($categoryId);
 
-            if (! $kategori) {
-                return;
-            }
-
-            // Yang tidak boleh dipakai adalah kategori yang PUNYA ANAK — ia
-            // berfungsi sebagai judul grup. Kategori datar tanpa anak tetap sah
-            // dipakai langsung (mis. `Beban Bunga Pinjaman` yang dipakai modul
-            // Pinjaman), jadi syaratnya bukan sekadar "punya parent_id".
-            if ($kategori->children()->exists()) {
-                $validator->errors()->add('category_id',
-                    'Kategori "'.$kategori->label.'" adalah kategori induk. Pilih salah satu sub-kategorinya.');
-
-                return;
-            }
-
-            $tipeKategori = $kategori->type;
-            $diharapkan = $type === 'credit' ? 'income' : 'expense';
-
-            if ($tipeKategori && $tipeKategori !== $diharapkan && $tipeKategori !== 'transfer') {
-                $validator->errors()->add('category_id',
-                    $type === 'credit'
-                        ? 'Kategori pemasukan diperlukan untuk transaksi masuk.'
-                        : 'Kategori pengeluaran diperlukan untuk transaksi keluar.');
+            if ($kategori && ($pesan = $this->pesanKategoriTidakSah($kategori, $type))) {
+                $validator->errors()->add('category_id', $pesan);
             }
         });
     }

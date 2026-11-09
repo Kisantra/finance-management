@@ -8,6 +8,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FinancingBadge, ManagedByNote, withFinancingGroup } from '@/components/shared/financing';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
@@ -32,8 +33,12 @@ interface Props {
     pagination: PaginationMeta;
     stats: CombinedStats;
     filters: CombinedFilters;
+    /** Dialog ubah transaksi masuk: kategori pemasukan + grup Pendanaan. */
     incomeCategoryOptions: FilterOption[];
+    /** Dialog ubah transaksi keluar: kategori pengeluaran + grup Pendanaan. */
     expenseCategoryOptions: FilterOption[];
+    /** Filter: pemasukan + pengeluaran + grup Pendanaan (termasuk pokok utang/piutang). */
+    filterCategoryOptions: FilterOption[];
     bankAccountOptions: FilterOption[];
     inputByOptions: FilterOption[];
     accounts: AccountPickerItem[];
@@ -87,6 +92,7 @@ export default function CashFlowAll({
     filters,
     incomeCategoryOptions,
     expenseCategoryOptions,
+    filterCategoryOptions,
     bankAccountOptions,
     inputByOptions,
     accounts,
@@ -98,11 +104,10 @@ export default function CashFlowAll({
     const [dialogData, setDialogData] = React.useState<CashFlowDialogData | null>(null);
     const [search, setSearch] = React.useState(filters.search ?? '');
 
-    // Filter memakai gabungan; dialog ubah hanya menerima kategori sejenis transaksinya.
-    const categoryOptions = React.useMemo(
-        () => [...incomeCategoryOptions, ...expenseCategoryOptions],
-        [incomeCategoryOptions, expenseCategoryOptions],
-    );
+    // Filter memakai daftar gabungan dari server (satu grup Pendanaan); dialog ubah hanya kategori searah.
+    const categoryOptions = React.useMemo(() => withFinancingGroup(filterCategoryOptions), [filterCategoryOptions]);
+    // Selisih tanpa pendanaan = selisih yang berasal dari pemasukan & beban saja.
+    const netWithoutFinancing = stats.net - (stats.financing_in - stats.financing_out);
 
     React.useEffect(() => {
         const t = setTimeout(() => {
@@ -178,7 +183,7 @@ export default function CashFlowAll({
             <div className="flex flex-col gap-6">
                 <PageHeader
                     title="Pemasukan & Pengeluaran"
-                    description="Pemasukan (pembayaran invoice & transaksi langsung) dan pengeluaran dalam satu daftar. Transfer antar rekening dan pendanaan utang/piutang tidak termasuk."
+                    description="Pemasukan (pembayaran invoice & transaksi langsung) dan pengeluaran dalam satu daftar, termasuk pendanaan yang ditandai dan tidak masuk Laba Rugi. Transfer antar rekening tidak termasuk."
                     action={
                         <div className="flex flex-wrap items-center gap-2">
                             <TutorialButton slug="cash-flow" />
@@ -204,10 +209,29 @@ export default function CashFlowAll({
 
                 <CashFlowTabs active="all" />
 
+                {/* Total memuat pendanaan (tidak masuk Laba Rugi); porsinya selalu disebut di bawah angka. */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <StatsCard label="Total Masuk" value={formatCurrency(stats.total_in)} icon={<ArrowDownLeft />} color="green" />
-                    <StatsCard label="Total Keluar" value={formatCurrency(stats.total_out)} icon={<ArrowUpRight />} color="orange" />
-                    <StatsCard label="Selisih" value={signedCurrency(stats.net)} icon={<Scale />} color={stats.net < 0 ? 'orange' : 'green'} />
+                    <StatsCard
+                        label="Total masuk"
+                        value={formatCurrency(stats.total_in)}
+                        icon={<ArrowDownLeft />}
+                        color="green"
+                        hint={`Termasuk pendanaan ${formatCurrency(stats.financing_in)}`}
+                    />
+                    <StatsCard
+                        label="Total keluar"
+                        value={formatCurrency(stats.total_out)}
+                        icon={<ArrowUpRight />}
+                        color="orange"
+                        hint={`Termasuk pendanaan ${formatCurrency(stats.financing_out)}`}
+                    />
+                    <StatsCard
+                        label="Selisih"
+                        value={signedCurrency(stats.net)}
+                        icon={<Scale />}
+                        color={stats.net < 0 ? 'orange' : 'green'}
+                        hint={`Tanpa pendanaan: ${signedCurrency(netWithoutFinancing)}`}
+                    />
                 </div>
 
                 <section aria-label="Daftar pemasukan dan pengeluaran" className={LIST_CARD}>
@@ -317,31 +341,45 @@ export default function CashFlowAll({
                                     {rows.map((row) => {
                                         const masuk = row.direction === 'in';
                                         const isPayment = row.source_type === 'payment';
-                                        const open = () => setDialogData(toDialogData(row));
+                                        // Pokok utang/piutang hanya-lihat: tidak membuka dialog ubah.
+                                        const locked = row.managed_by !== null;
+                                        const open = () => {
+                                            if (!locked) setDialogData(toDialogData(row));
+                                        };
                                         return (
                                             <tr
                                                 key={row.uid}
                                                 onClick={open}
-                                                className="cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0 hover:bg-ob-hover"
+                                                className={cn(
+                                                    'border-b border-ob-line-soft transition-colors duration-150 last:border-0 hover:bg-ob-hover',
+                                                    locked ? 'cursor-default' : 'cursor-pointer',
+                                                )}
                                             >
                                                 <td className="hidden whitespace-nowrap px-3 py-3 align-top text-ob-ink-2 sm:table-cell">
                                                     {formatDate(row.date)}
                                                 </td>
                                                 <td className="hidden px-3 py-3 align-top md:table-cell">
-                                                    <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? 'Masuk' : 'Keluar'}</Badge>
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? 'Masuk' : 'Keluar'}</Badge>
+                                                        {row.is_financing && <FinancingBadge className="xl:hidden" />}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-3 align-top">
-                                                    {/* Baris <tr> tidak terjangkau Tab; tombol ini jalan masuk papan ketik ke rincian. */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            open();
-                                                        }}
-                                                        className="block max-w-72 truncate rounded-md text-left font-medium text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
-                                                    >
-                                                        {(isPayment ? row.client_name : row.description) || '—'}
-                                                    </button>
+                                                    {locked ? (
+                                                        <span className="block max-w-72 truncate font-medium text-ob-ink">{row.description || '—'}</span>
+                                                    ) : (
+                                                        /* Baris <tr> tidak terjangkau Tab; tombol ini jalan masuk papan ketik ke rincian. */
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                open();
+                                                            }}
+                                                            className="block max-w-72 truncate rounded-md text-left font-medium text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
+                                                        >
+                                                            {(isPayment ? row.client_name : row.description) || '—'}
+                                                        </button>
+                                                    )}
                                                     <span className="flex min-w-0 items-center gap-1 text-xs text-ob-ink-3">
                                                         <span className="shrink-0 sm:hidden">{formatDate(row.date)} ·</span>
                                                         {isPayment && <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />}
@@ -357,6 +395,8 @@ export default function CashFlowAll({
                                                             )}
                                                         </span>
                                                     </span>
+                                                    {row.is_financing && <FinancingBadge className="mt-1 md:hidden" />}
+                                                    {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-1" />}
                                                     {row.attachment_url && (
                                                         <StopRowClick>
                                                             <AttachmentPreviewButton url={row.attachment_url} name={row.attachment_name} />
@@ -364,11 +404,14 @@ export default function CashFlowAll({
                                                     )}
                                                 </td>
                                                 <td className="hidden px-3 py-3 align-top xl:table-cell">
-                                                    {row.category_label ? (
-                                                        <Badge variant="zinc">{row.category_label}</Badge>
-                                                    ) : (
-                                                        <span className="text-xs text-ob-ink-3">—</span>
-                                                    )}
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        {row.is_financing && <FinancingBadge />}
+                                                        {row.category_label ? (
+                                                            <Badge variant="zinc">{row.category_label}</Badge>
+                                                        ) : (
+                                                            <span className="text-xs text-ob-ink-3">—</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="hidden px-3 py-3 align-top lg:table-cell">
                                                     <InputByText name={row.input_by} />

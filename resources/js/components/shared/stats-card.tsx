@@ -8,6 +8,8 @@ interface StatsCardProps {
     color?: 'blue' | 'green' | 'purple' | 'red' | 'emerald' | 'yellow' | 'orange' | 'indigo';
     className?: string;
     inModal?: boolean;
+    /** Keterangan kecil di bawah angka, mis. "Beban + Pendanaan". */
+    hint?: React.ReactNode;
 }
 
 /* Satu makna per hue (Obsidian); warna tanpa makna semantik (ungu, indigo) jatuh ke netral. */
@@ -22,7 +24,7 @@ const iconTone: Record<NonNullable<StatsCardProps['color']>, string> = {
     indigo: 'text-ob-ink-2',
 };
 
-export function StatsCard({ label, value, icon, color = 'blue', className, inModal = false }: StatsCardProps) {
+export function StatsCard({ label, value, icon, color = 'blue', className, inModal = false, hint }: StatsCardProps) {
     return (
         <div
             className={cn(
@@ -35,6 +37,7 @@ export function StatsCard({ label, value, icon, color = 'blue', className, inMod
             <div className="flex min-w-0 flex-col gap-1.5">
                 <p className="text-[13px] leading-tight text-ob-ink-2">{label}</p>
                 <p className="text-2xl font-semibold leading-tight tracking-[-0.01em] tabular-nums text-ob-ink">{value}</p>
+                {hint && <p className="text-xs leading-snug text-ob-ink-3">{hint}</p>}
             </div>
             <span
                 className={cn(
