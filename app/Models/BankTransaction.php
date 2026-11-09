@@ -85,7 +85,7 @@ class BankTransaction extends Model
      */
     public function managingModule(): ?string
     {
-        $kunci = $this->category?->system_key;
+        $kunci = (string) $this->category?->system_key;
         $modul = TransactionCategory::POKOK_MODUL[$kunci]['module'] ?? null;
 
         if ($modul === 'loans' && $kunci === 'FIN-LOAN-IN'
@@ -129,7 +129,7 @@ class BankTransaction extends Model
             : Loan::query()->whereIn('loan_number', $nomorUtang)->pluck('loan_number')->flip();
 
         return $rows->map(function (object $row) use ($utangAda): ?array {
-            $kunci = $row->category_system_key ?? null;
+            $kunci = (string) ($row->category_system_key ?? '');
             $modul = TransactionCategory::POKOK_MODUL[$kunci]['module'] ?? null;
 
             if ($modul === null) {

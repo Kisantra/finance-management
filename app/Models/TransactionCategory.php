@@ -202,7 +202,7 @@ class TransactionCategory extends Model
     /** Modul yang mencatat transaksi berkategori ini ('loans'/'receivables'), atau null. */
     public function managingModule(): ?string
     {
-        return self::POKOK_MODUL[$this->system_key]['module'] ?? null;
+        return self::POKOK_MODUL[(string) $this->system_key]['module'] ?? null;
     }
 
     /**
