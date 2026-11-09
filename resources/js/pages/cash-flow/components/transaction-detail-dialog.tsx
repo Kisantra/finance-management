@@ -22,13 +22,17 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
-import { FinancingHint, isFinancingCategory, quickAddParents, withFinancingGroup } from '@/components/shared/financing';
+import { FinancingBadge, FinancingHint, isFinancingCategory, ManagedByNote, quickAddParents, withFinancingGroup, type ManagedBy } from '@/components/shared/financing';
+import { JournalBox } from '@/components/shared/journal-box';
 import { QuickAddCategoryDialog, type QuickAddCategoryResult } from '@/components/shared/quick-add-category-dialog';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import { useCan } from '@/hooks/use-can';
+import { cashJournal, splitCashJournal, type JournalLine } from '@/lib/journal';
 import { cn, formatCurrency, formatDate, toastErrors, toLocalIso } from '@/lib/utils';
 import type { FilterOption } from '../types';
 
@@ -41,9 +45,18 @@ export interface TransactionDialogData {
     date: string;
     description: string | null;
     category_id: number | null;
+    /** Label kategori untuk tampilan hanya-lihat. */
+    category_label?: string | null;
+    is_financing?: boolean;
     reference_number: string | null;
     attachment_url: string | null;
     attachment_name: string | null;
+    /** Jurnal tersimpan dari server (JournalService) — satu-satunya sumber untuk transaksi tersimpan. */
+    journal: JournalLine[];
+    /** Pokok utang/piutang (dikelola modul Utang/Piutang): dibuka hanya-lihat. */
+    managed_by?: ManagedBy | null;
+    /** Paksa hanya-lihat (mis. rincian di Kas & Bank, yang tidak punya fitur ubah). */
+    read_only?: boolean;
 }
 
 export interface PaymentDialogData {
@@ -55,6 +68,8 @@ export interface PaymentDialogData {
     reference_number: string | null;
     attachment_url: string | null;
     attachment_name: string | null;
+    /** Jurnal pembayaran invoice dari server ("titipan dulu"). */
+    journal: JournalLine[];
 }
 
 export interface TransferDialogData {
@@ -70,6 +85,8 @@ export interface TransferDialogData {
     to_account: { id: number; account_name: string; bank_name: string };
     attachment_url: string | null;
     attachment_name: string | null;
+    /** Jurnal transfer dari server: Debit tujuan (+ biaya admin) / Kredit asal. */
+    journal: JournalLine[];
 }
 
 export type CashFlowDialogData = TransactionDialogData | PaymentDialogData | TransferDialogData;
@@ -100,6 +117,7 @@ interface EditForm {
 /* ─── Main component ─────────────────────────────────────────── */
 
 export function TransactionDetailDialog({ open, onOpenChange, data, categoryOptions }: Props) {
+    const { can } = useCan();
     const [localCategoryOptions, setLocalCategoryOptions] = React.useState<FilterOption[]>(categoryOptions);
 
     React.useEffect(() => {
@@ -191,10 +209,18 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
 
     if (!data) return null;
 
+    const isTransaction = data.kind === 'income' || data.kind === 'expense';
+    const readOnly = isTransaction && (data.read_only || !!data.managed_by || !can(data.kind === 'income' ? 'edit income' : 'edit expense'));
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent size="2xl">
-                {data.kind === 'income' || data.kind === 'expense' ? (
+            {/* Ubah = satu kolom selebar dialog Catat (lg); rincian lain tetap 2xl. */}
+            <DialogContent size={isTransaction && !readOnly ? 'lg' : '2xl'}>
+                {readOnly && (data.kind === 'income' || data.kind === 'expense') ? (
+                    /* Hanya-lihat: pokok utang/piutang, rincian Kas & Bank, atau pengguna tanpa izin ubah.
+                       Server tetap menolak ubah/hapus pokok utang/piutang (403), terlepas dari tampilan ini. */
+                    <TransactionReadOnlyContent data={data} onClose={() => onOpenChange(false)} />
+                ) : data.kind === 'income' || data.kind === 'expense' ? (
                     <TransactionEditContent
                         data={data}
                         form={form}
@@ -258,6 +284,17 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
         setQuickAddOpen(false);
     };
 
+    // Jurnal: selama jumlah & kategori belum diubah, tampilkan jurnal TERSIMPAN dari server; setelah
+    // diubah, pratinjau dari rekening tersimpan + akun lawan kategori pilihan (journal_account dari
+    // server), rumus @/lib/journal (cermin JournalService::cashLines). Rekening tidak bisa diganti di sini.
+    const direction = isIncome ? 'credit' : 'debit';
+    const changed = form.amount !== data.amount || form.category_id !== data.category_id;
+    const saved = splitCashJournal(data.journal, direction);
+    const counter = form.category_id === data.category_id
+        ? saved?.counter
+        : categoryOptions.find((o) => o.value === form.category_id && !o.disabled)?.journal_account;
+    const journal = !changed ? data.journal : saved && counter ? cashJournal(direction, saved.account, form.amount, counter) : null;
+
     return (
         <>
             <DialogHeader>
@@ -278,14 +315,16 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                 </div>
             </DialogHeader>
 
-            <form id="tx-edit-form" onSubmit={onSubmit} className="px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CurrencyInput
-                        label="Jumlah *"
-                        value={form.amount}
-                        onChange={(v) => setData('amount', v)}
-                        error={errors.amount}
-                    />
+            {/* Urutan & tata letak sama dengan dialog Catat (satu kolom): Jumlah, Tanggal | Rekening, Kategori,
+                Jurnal, Deskripsi, Nomor Referensi, Lampiran. Rekening tidak bisa diganti di sini (tampil nonaktif). */}
+            <form id="tx-edit-form" onSubmit={onSubmit} className="space-y-4 px-6 py-5">
+                <CurrencyInput
+                    label="Jumlah *"
+                    value={form.amount}
+                    onChange={(v) => setData('amount', v)}
+                    error={errors.amount}
+                />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <DatePicker
                         mode="single"
                         label="Tanggal *"
@@ -293,61 +332,55 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                         onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
                         error={errors.transaction_date}
                     />
-                    <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-sm font-medium text-dark-900 dark:text-dark-300">
-                                Kategori *
-                            </label>
-                            <button
-                                type="button"
-                                onClick={() => setQuickAddOpen(true)}
-                                className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-                            >
-                                <Plus className="w-3 h-3" />
-                                Tambah
-                            </button>
-                        </div>
-                        <Combobox
-                            options={withFinancingGroup(categoryOptions)}
-                            value={form.category_id ?? undefined}
-                            onChange={(v) => setData('category_id', v ? Number(v) : null)}
-                            placeholder="Pilih kategori"
-                            error={errors.category_id}
-                        />
-                        {isFinancingCategory(categoryOptions, form.category_id) && (
-                            <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
-                        )}
-                    </div>
-                    <Input
-                        label="Referensi"
-                        value={form.reference_number}
-                        onChange={(e) => setData('reference_number', e.target.value)}
-                        placeholder="No. referensi opsional"
-                        error={errors.reference_number}
-                    />
-                    <div className="sm:col-span-2">
-                        <Input
-                            label="Deskripsi *"
-                            value={form.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Deskripsi transaksi"
-                            error={errors.description}
-                        />
-                    </div>
-                    <div className="sm:col-span-2">
-                        <FileUpload
-                            label="Lampiran"
-                            value={form.attachment}
-                            onChange={(f) => {
-                                setData('attachment', f);
-                                if (f) setData('remove_attachment', false);
-                            }}
-                            existingFileName={!form.remove_attachment ? (data.attachment_name ?? undefined) : undefined}
-                            existingFileUrl={!form.remove_attachment ? (data.attachment_url ?? undefined) : undefined}
-                            onRemoveExisting={() => setData('remove_attachment', true)}
-                        />
-                    </div>
+                    <Input label="Rekening" value={saved?.account ?? '—'} disabled readOnly />
                 </div>
+                <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                        <Label>Kategori *</Label>
+                        <Button type="button" variant="link" size="sm" onClick={() => setQuickAddOpen(true)} className="h-auto gap-1 px-0 text-xs">
+                            <Plus className="h-3 w-3" aria-hidden="true" />
+                            Tambah
+                        </Button>
+                    </div>
+                    <Combobox
+                        options={withFinancingGroup(categoryOptions)}
+                        value={form.category_id ?? undefined}
+                        onChange={(v) => setData('category_id', v ? Number(v) : null)}
+                        placeholder="Pilih kategori"
+                        error={errors.category_id}
+                    />
+                    {isFinancingCategory(categoryOptions, form.category_id) && (
+                        <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
+                    )}
+                </div>
+                <JournalBox mode={changed ? 'preview' : 'saved'} lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
+                <Textarea
+                    label="Deskripsi *"
+                    value={form.description}
+                    onChange={(e) => setData('description', e.target.value)}
+                    placeholder="Deskripsi transaksi"
+                    rows={2}
+                    className="min-h-0" // dua baris persis (bawaan Textarea minimal 80 px)
+                    error={errors.description}
+                />
+                <Input
+                    label="Nomor Referensi"
+                    value={form.reference_number}
+                    onChange={(e) => setData('reference_number', e.target.value)}
+                    placeholder="Opsional"
+                    error={errors.reference_number}
+                />
+                <FileUpload
+                    label="Lampiran"
+                    value={form.attachment}
+                    onChange={(f) => {
+                        setData('attachment', f);
+                        if (f) setData('remove_attachment', false);
+                    }}
+                    existingFileName={!form.remove_attachment ? (data.attachment_name ?? undefined) : undefined}
+                    existingFileUrl={!form.remove_attachment ? (data.attachment_url ?? undefined) : undefined}
+                    onRemoveExisting={() => setData('remove_attachment', true)}
+                />
             </form>
 
             <QuickAddCategoryDialog
@@ -373,6 +406,77 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                         {processing ? 'Menyimpan…' : 'Simpan Perubahan'}
                     </Button>
                 )}
+            </DialogFooter>
+        </>
+    );
+}
+
+/* ─── Transaction detail (read-only) ─────────────────────────── */
+
+function TransactionReadOnlyContent({ data, onClose }: { data: TransactionDialogData; onClose: () => void }) {
+    const isIncome = data.kind === 'income';
+
+    return (
+        <>
+            <DialogHeader>
+                <div className="flex items-center gap-4 py-2">
+                    <div className={cn('h-12 w-12 rounded-xl flex items-center justify-center shrink-0', isIncome ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20')}>
+                        {isIncome
+                            ? <ArrowDownLeft className="w-6 h-6 text-green-600 dark:text-green-400" />
+                            : <ArrowUpRight className="w-6 h-6 text-red-600 dark:text-red-400" />}
+                    </div>
+                    <div>
+                        <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
+                            {isIncome ? 'Rincian Pemasukan' : 'Rincian Pengeluaran'}
+                        </DialogTitle>
+                        <p className="text-sm text-dark-500 dark:text-dark-400 mt-0.5">ID #{data.id}</p>
+                    </div>
+                </div>
+            </DialogHeader>
+
+            <div className="px-6 py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <DetailField label="Jumlah">
+                        <span className={cn('text-lg font-bold', isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                            {isIncome ? '+' : '−'}{formatCurrency(data.amount)}
+                        </span>
+                    </DetailField>
+                    <DetailField label="Tanggal">{formatDate(data.date)}</DetailField>
+                    <DetailField label="Kategori">
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                            {data.category_label ?? '—'}
+                            {data.is_financing && <FinancingBadge />}
+                        </span>
+                    </DetailField>
+                    <DetailField label="Referensi">
+                        <span className="font-mono">{data.reference_number ?? '—'}</span>
+                    </DetailField>
+                    <div className="col-span-2">
+                        <DetailField label="Deskripsi">{data.description ?? '—'}</DetailField>
+                    </div>
+                </div>
+
+                {data.managed_by && <ManagedByNote managedBy={data.managed_by} />}
+
+                {data.attachment_url && (
+                    <a
+                        href={data.attachment_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                        <Paperclip className="w-3.5 h-3.5" />
+                        {data.attachment_name ?? 'Lihat Lampiran'}
+                    </a>
+                )}
+
+                <JournalBox lines={data.journal} />
+            </div>
+
+            <DialogFooter>
+                <Button variant="zinc" size="md" onClick={onClose}>
+                    Tutup
+                </Button>
             </DialogFooter>
         </>
     );
@@ -438,6 +542,11 @@ function PaymentDetailContent({ data, onClose }: PaymentDetailProps) {
                         </a>
                     </>
                 )}
+
+                <JournalBox
+                    lines={data.journal}
+                    caption="Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar"
+                />
 
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 px-4 py-3">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
@@ -511,6 +620,8 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                     <SumStat label="Total Debit" value={data.total_debit} color="red" />
                 </div>
 
+                <JournalBox lines={data.journal} caption="Jurnal otomatis dari rekening asal & tujuan · belum buku besar" />
+
                 <Separator />
 
                 {/* Attachment link */}
@@ -527,6 +638,7 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                 )}
             </div>
 
+            {can('edit transfer') && (
             <form id="transfer-edit-form" onSubmit={onSubmit} className="px-6 pb-5">
                 <div className="rounded-xl border border-secondary-200 dark:border-dark-600 p-4 space-y-4">
                     <p className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wide">
@@ -550,10 +662,11 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                     </div>
                 </div>
             </form>
+            )}
 
             <DialogFooter>
                 <Button variant="zinc" size="md" onClick={onClose} disabled={processing}>
-                    Batal
+                    {can('edit transfer') ? 'Batal' : 'Tutup'}
                 </Button>
                 {can('edit transfer') && (
                     <Button
@@ -577,7 +690,7 @@ function DetailField({ label, children }: { label: string; children: React.React
     return (
         <div>
             <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">{label}</p>
-            <p className="text-sm font-medium text-dark-900 dark:text-dark-50">{children}</p>
+            <div className="text-sm font-medium text-dark-900 dark:text-dark-50">{children}</div>
         </div>
     );
 }

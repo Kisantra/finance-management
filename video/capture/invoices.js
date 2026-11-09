@@ -7,6 +7,8 @@
  * 4. Playwright MCP: filename video/capture/invoices-admin.js
  * 5. python video/capture/to-webp.py invoices, lalu salin koordinat ke video/invoices/shots.ts.
  * Skrip ini membuat 1 invoice baru di DB QC (staff → draft, finance manager → terbit + bayar 50%). Jangan jalankan di DB utama.
+ * 9 Nov 2026: dialog Catat pembayaran kini berisi kotak Jurnal · Pratinjau (target `journal`); layar fm-pay-* BELUM diambil ulang
+ * (butuh data QC lengkap: layanan katalog "Website company profile ..."); ambil ulang bersama layar lain saat berikutnya.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8011';
@@ -215,6 +217,7 @@ async (page) => {
     method: top(m).getByRole('radiogroup', { name: 'Metode' }),
     reference: top(m).getByLabel('Nomor referensi'),
     upload: top(m).getByText(/Bukti transfer/),
+    journal: top(m).locator('section[aria-label="Jurnal"]'),
     confirm: top(m).getByRole('button', { name: 'Simpan pembayaran' }),
   });
   await snap(m, 'fm-pay-empty', pay());

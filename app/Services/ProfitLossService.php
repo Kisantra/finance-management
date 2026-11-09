@@ -174,12 +174,15 @@ class ProfitLossService
             $paidThroughStartPrev = (int) ($baris->through_start_prev ?? 0);
 
             // "Titipan dulu": cover the client tax deposit, then PPN Keluaran (owed to the
-            // state, not revenue), before recognizing revenue.
-            $totalPpn += min(max(0, $paidThroughEnd - $taxDeposit), $ppn)
-                - min(max(0, $paidThroughStartPrev - $taxDeposit), $ppn);
+            // state, not revenue), before recognizing revenue. Satu rumus dengan jurnal
+            // pembayaran invoice (JournalService), lewat Invoice::allocatePayments().
+            $sampaiAkhir = Invoice::allocatePayments($paidThroughEnd, $taxDeposit, $ppn);
+            $sebelumAwal = Invoice::allocatePayments($paidThroughStartPrev, $taxDeposit, $ppn);
 
-            $revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit - $ppn);
-            $revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit - $ppn);
+            $totalPpn += $sampaiAkhir['ppn'] - $sebelumAwal['ppn'];
+
+            $revenueThroughEnd = $sampaiAkhir['revenue'];
+            $revenueThroughStartPrev = $sebelumAwal['revenue'];
 
             $totalRevenue += $revenueThroughEnd - $revenueThroughStartPrev;
 

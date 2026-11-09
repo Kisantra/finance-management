@@ -17,7 +17,7 @@
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
 | [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), logo bank & saran Nama Bank, saldo terhitung, transaksi | `/bank-accounts` |
-| [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Pendanaan berpenanda (setoran modal, prive, setor PPN/titipan pajak; pokok utang/piutang hanya-lihat), Transfer, export PDF | `/cash-flow/*` |
+| [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Pendanaan berpenanda (setoran modal, prive, setor PPN/titipan pajak; pokok utang/piutang hanya-lihat), Jurnal tampilan (debit/kredit turunan, tidak disimpan), Transfer, export PDF | `/cash-flow/*` |
 | [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete, Pakai Template (template 15 induk/59 sub: pemasukan & pengeluaran bergrup L/R + bagian Pendanaan — juga isi awal perusahaan baru) | `/transaction-categories` |
 | [fund-requests.md](fund-requests.md) | Permintaan dana: workflow + pencairan | `/fund-requests` |
 | [reimbursements.md](reimbursements.md) | Reimbursement: workflow + pembayaran parsial | `/reimbursements` |
@@ -57,6 +57,11 @@ Pendanaan (`financing`: setoran modal, prive, setor PPN/titipan pajak, pokok uta
 saldo tetapi tidak pernah masuk Laba Rugi; di Arus Kas ia tampil berpenanda **Pendanaan** dan dirinci
 di kartu ringkasan, pokok utang/piutang hanya-lihat (dikelola modulnya) — lihat
 [cash-flow.md](cash-flow.md) › Pendanaan.
+
+**Jurnal tampilan** (debit/kredit di dialog Catat, rincian, dan ubah transaksi/pembayaran) **diturunkan**, tidak
+disimpan: rekening + kategori + arah + jumlah (`App\Services\JournalService`), dan untuk pembayaran invoice
+pembagian "titipan dulu" yang sama dengan Laba Rugi (`Invoice::allocatePayments()`). Belum ada bagan akun atau
+buku besar — lihat [cash-flow.md](cash-flow.md) › Jurnal tampilan.
 
 Laporan Laba Rugi membaca `payments` (pendapatan) + `bank_transactions` yang kategorinya
 punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat

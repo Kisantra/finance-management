@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\TransactionCategory;
 use App\Models\User;
+use App\Services\JournalService;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,6 +104,7 @@ class CashFlowController extends Controller
             'payments.created_by',
             DB::raw('NULL as category_type'),
             DB::raw('NULL as category_system_key'),
+            ...$this->kolomJurnalPembayaran(),
         ]);
 
         // ── Transaction side: pemasukan + pendanaan masuk (berpenanda, tidak masuk Laba Rugi) ──
@@ -147,6 +149,7 @@ class CashFlowController extends Controller
             'bank_transactions.created_by',
             'transaction_categories.type as category_type',
             'transaction_categories.system_key as category_system_key',
+            ...$this->kolomJurnalTransaksi(),
         ]);
 
         // If user picked client filter, exclude transaction-side records (clients only on payments).
@@ -174,10 +177,12 @@ class CashFlowController extends Controller
             ->get();
         $nama = $this->namaPengguna($halaman->pluck('created_by'));
         $tautan = BankTransaction::moduleLinks($halaman);
+        $jurnal = $this->jurnalBaris($halaman);
 
         $rows = $halaman
             ->map(fn ($r, $i) => [
                 ...$this->jenisBaris($r, $tautan[$i] ?? null),
+                'journal' => $jurnal[$i],
                 'uid' => $r->uid,
                 'id' => (int) $r->id,
                 'source_type' => $r->source_type,
@@ -279,6 +284,8 @@ class CashFlowController extends Controller
                 'transaction_categories.label as category_label',
                 'bank_accounts.bank_name',
                 'bank_accounts.account_name',
+                'bank_accounts.type as account_type',
+                'bank_transactions.transaction_type',
                 'bank_transactions.created_by',
                 'transaction_categories.type as category_type',
                 'transaction_categories.system_key as category_system_key',
@@ -289,10 +296,12 @@ class CashFlowController extends Controller
             ->get();
         $nama = $this->namaPengguna($halaman->pluck('created_by'));
         $tautan = BankTransaction::moduleLinks($halaman->toBase());
+        $jurnal = JournalService::forTransactions($halaman->toBase());
 
         $rows = $halaman
             ->map(fn ($r, $i) => [
                 ...$this->jenisBaris($r, $tautan[$i] ?? null),
+                'journal' => $jurnal[$i],
                 'id' => (int) $r->id,
                 'transaction_date' => $r->transaction_date->toDateString(),
                 'amount' => (int) $r->amount,
@@ -395,7 +404,7 @@ class CashFlowController extends Controller
     public function exportAll(Request $request): BinaryFileResponse
     {
         $filter = $this->filterSemua($request);
-        $rows = $this->barisKas($this->kasGabungan($filter)->orderBy('date')->orderBy('uid')->get());
+        $rows = $this->barisKas($this->kasGabungan($filter)->orderBy('date')->orderBy('uid')->get(), denganJurnal: false);
         $periode = $filter['date_from'] && $filter['date_to'] ? "{$filter['date_from']}_{$filter['date_to']}" : 'semua-waktu';
 
         return Excel::download(new ArusKasExport($rows), "arus-kas_{$periode}.xlsx");
@@ -453,6 +462,7 @@ class CashFlowController extends Controller
                 'bank_accounts.id as to_account_id',
                 'bank_accounts.account_name as to_account_name',
                 'bank_accounts.bank_name as to_bank_name',
+                'bank_accounts.type as to_account_type',
             ])
             ->orderByDesc('bank_transactions.transaction_date')
             ->offset(($page - 1) * $perPage)
@@ -472,6 +482,7 @@ class CashFlowController extends Controller
                 'bank_accounts.id as from_account_id',
                 'bank_accounts.account_name as from_account_name',
                 'bank_accounts.bank_name as from_bank_name',
+                'bank_accounts.type as from_account_type',
             ])
             ->get()
             ->keyBy('reference_number');
@@ -481,7 +492,18 @@ class CashFlowController extends Controller
             $debit = $debits->get($c->reference_number);
             $totalTransferAmount += (int) $c->amount;
 
+            $tujuan = BankAccount::journalNameFor($c->to_account_name, $c->to_bank_name, $c->to_account_type);
+
             return [
+                // Jurnal tampilan: Debit tujuan (+ biaya admin) / Kredit asal; tanpa kaki keluar → kaki masuk saja.
+                'journal' => $debit
+                    ? JournalService::transferLines(
+                        BankAccount::journalNameFor($debit->from_account_name, $debit->from_bank_name, $debit->from_account_type),
+                        $tujuan,
+                        (int) $c->amount,
+                        max(0, (int) $debit->total_debit - (int) $c->amount),
+                    )
+                    : JournalService::cashLines($tujuan, 'credit', (int) $c->amount, JournalService::counterAccount('transfer', null, $c->category_label)),
                 'id' => (int) $c->id,
                 'debit_id' => $debit ? (int) $debit->id : null,
                 'transaction_date' => $c->transaction_date->toDateString(),
@@ -717,6 +739,58 @@ class CashFlowController extends Controller
     }
 
     /**
+     * Kolom tambahan sisi pembayaran untuk jurnal tampilan — urutan WAJIB sama dengan
+     * kolomJurnalTransaksi() karena kedua sisi digabung UNION.
+     *
+     * @return list<mixed>
+     */
+    private function kolomJurnalPembayaran(): array
+    {
+        return [
+            'payments.invoice_id',
+            DB::raw("'credit' as transaction_type"),
+            'bank_accounts.account_name',
+            'bank_accounts.type as account_type',
+            DB::raw('NULL as transfer_group_id'),
+        ];
+    }
+
+    /** @return list<mixed> */
+    private function kolomJurnalTransaksi(): array
+    {
+        return [
+            DB::raw('NULL as invoice_id'),
+            'bank_transactions.transaction_type',
+            'bank_accounts.account_name',
+            'bank_accounts.type as account_type',
+            'bank_transactions.transfer_group_id',
+        ];
+    }
+
+    /**
+     * Jurnal tampilan per baris gabungan pembayaran + transaksi (JournalService), per indeks baris.
+     * Query tambahan per halaman, bukan per baris: pembayaran & invoice terkait (2), nama pihak
+     * pokok utang/piutang (hanya bila ada barisnya).
+     *
+     * @param  Collection<int, object>  $rows
+     * @return array<int, list<array{account: string, side: string, amount: int}>>
+     */
+    private function jurnalBaris(Collection $rows): array
+    {
+        $rows = $rows->values();
+        [$pembayaran, $transaksi] = $rows->partition(fn (object $r): bool => ($r->source_type ?? null) === 'payment');
+        $hasil = [];
+
+        foreach ([[$pembayaran, JournalService::forPayments($pembayaran)], [$transaksi, JournalService::forTransactions($transaksi)]] as [$bagian, $jurnal]) {
+            foreach ($bagian->keys()->values() as $n => $indeks) {
+                $hasil[$indeks] = $jurnal[$n];
+            }
+        }
+
+        return $hasil;
+    }
+
+    /**
      * @return array<int,array{label:string, value:int}>
      */
     private function bankAccountOptions(): array
@@ -732,16 +806,18 @@ class CashFlowController extends Controller
     /**
      * Full account shape consumed by the create/transfer dialogs' account pickers.
      *
-     * @return array<int,array{id:int, account_name:string, bank_name:string}>
+     * @return array<int,array{id:int, account_name:string, bank_name:string, journal_name:string}>
      */
     private function accountsForForm(): array
     {
         return BankAccount::orderBy('account_name')
-            ->get(['id', 'account_name', 'bank_name'])
+            ->get(['id', 'account_name', 'bank_name', 'type'])
             ->map(fn ($a) => [
                 'id' => $a->id,
                 'account_name' => $a->account_name,
                 'bank_name' => $a->bank_name,
+                // Nama rekening di pratinjau jurnal (BankAccount::journalNameFor, satu definisi).
+                'journal_name' => $a->journalName(),
             ])->all();
     }
 
@@ -807,6 +883,7 @@ class CashFlowController extends Controller
                 'payments.created_by',
                 DB::raw('NULL as category_type'),
                 DB::raw('NULL as category_system_key'),
+                ...$this->kolomJurnalPembayaran(),
             ]);
 
         $transaksi = fn (string $tipe, string $jenisKategori, string $arah) => BankTransaction::query()
@@ -841,6 +918,7 @@ class CashFlowController extends Controller
                 'bank_transactions.created_by',
                 'transaction_categories.type as category_type',
                 'transaction_categories.system_key as category_system_key',
+                ...$this->kolomJurnalTransaksi(),
             ]);
 
         $sumber = array_filter([
@@ -864,14 +942,16 @@ class CashFlowController extends Controller
      * @param  Collection<int, \stdClass>  $rows
      * @return list<array<string, mixed>>
      */
-    private function barisKas(Collection $rows): array
+    private function barisKas(Collection $rows, bool $denganJurnal = true): array
     {
         $rows = $rows->values();
         $nama = $this->namaPengguna($rows->pluck('created_by'));
         $tautan = BankTransaction::moduleLinks($rows);
+        $jurnal = $denganJurnal ? $this->jurnalBaris($rows) : [];
 
         return $rows->map(fn ($r, $i) => [
             ...$this->jenisBaris($r, $tautan[$i] ?? null),
+            'journal' => $jurnal[$i] ?? [],
             'uid' => $r->uid,
             'id' => (int) $r->id,
             'source_type' => $r->source_type,

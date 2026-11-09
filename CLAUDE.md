@@ -128,6 +128,7 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `ConfirmDialog` | `@/components/shared/confirm-dialog` | Dialog konfirmasi. Props: `open`, `onOpenChange`, `onConfirm`, `title`, `description`, `variant` (`danger`\|`warning`). |
 | `CurrencyInput` | `@/components/shared/currency-input` | **Input Rupiah — WAJIB untuk semua input mata uang.** Props: `value`, `onChange`, `label`, `hint`, `error`. Format integer, display `Rp 1.500.000`. |
 | `FinancingBadge`, `FinancingHint`, `ManagedByNote`, `withFinancingGroup()` | `@/components/shared/financing` | **Penanda Pendanaan — WAJIB di mana pun kategori `financing` tampil/dipilih.** Badge `outline` + `Landmark`; petunjuk "saldo … bertambah/berkurang, Laba Rugi tidak berubah"; catatan hanya-lihat "kelola di Utang/Piutang"; opsi kategori server → Combobox dengan bagian "Pendanaan · tidak masuk Laba Rugi". |
+| `JournalBox` | `@/components/shared/journal-box` | **Kotak Jurnal (debit/kredit) — WAJIB di mana pun jurnal transaksi/pembayaran tampil.** Props: `lines` (`JournalLine[]` dari `@/lib/journal`; null/kosong → `placeholder`), `mode` (`saved` = dari server \| `preview` = berpenanda "Pratinjau"), `placeholder`, `caption` (bawaan "Jurnal otomatis dari rekening & kategori · belum buku besar"). Jurnal tersimpan WAJIB dari server (`JournalService`); pratinjau formulir lewat cermin di `@/lib/journal` (`cashJournal`, `transferJournal`, `paymentJournal`). |
 | `FileUpload` | `@/components/shared/file-upload` | **Upload file/gambar — WAJIB, bukan `<input type="file">`.** Berbasis react-dropzone. Props: `value` (File|null), `onChange`, `label`, `hint`, `error`, `accept` (array ekstensi). Single file. |
 | `BankLogo` | `@/components/shared/bank-logo` | Logo bank di tile putih dari nama bank bebas (katalog `@/lib/banks`: `BANKS`, `findBank()`; berkas `public/images/banks/{slug}.svg`). Props: `bankName`, `className` (ukuran & radius), `fallback` (bila tidak dikenali). |
 
@@ -153,6 +154,7 @@ Preview/pilih gambar              → FileUpload
 Tombol aksi                       → Button (pilih variant sesuai context)
 Status/kategori label             → Badge (pilih variant warna sesuai status)
 Kategori/baris pendanaan          → withFinancingGroup + FinancingBadge (shared/financing)
+Jurnal debit/kredit transaksi     → JournalBox (shared/journal-box) ← JANGAN tabel jurnal manual
 Header halaman                    → PageHeader
 Stats di halaman utama            → StatsCard
 Stats di dalam modal              → StatsCard dengan inModal={true}
@@ -199,7 +201,7 @@ Loading skeleton                  → Skeleton
 | Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
-| Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh; **Pendanaan** (`financing`) bisa dicatat lewat grup terakhir pemilih kategori, tampil berbadge & kartu terpisah karena tidak masuk Laba Rugi, pokok utang/piutang hanya-lihat) + menu Transfer & Penyesuaian |
+| Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh; **Pendanaan** (`financing`) bisa dicatat lewat grup terakhir pemilih kategori, tampil berbadge & kartu terpisah karena tidak masuk Laba Rugi, pokok utang/piutang hanya-lihat, rinciannya bisa dibuka hanya-lihat) + menu Transfer & Penyesuaian; kotak **Jurnal** (debit/kredit diturunkan dari rekening + kategori, pembayaran invoice "titipan dulu" seperti Laba Rugi — tidak disimpan, bukan buku besar; `JournalService`) di dialog Catat, rincian, ubah, Transfer, Catat pembayaran invoice, dan rincian Kas & Bank |
 | Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (15 induk/59 sub: pemasukan & pengeluaran bergrup L/R + bagian Pendanaan tanpa L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama → 82 kategori) |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
 | Fund Requests | `/fund-requests` | All/My Requests, Create, Review, Disburse |

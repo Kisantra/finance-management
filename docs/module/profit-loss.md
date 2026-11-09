@@ -59,21 +59,22 @@ PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu: titipan pajak lalu PPN) + 
 + ppn_output (memo "PPN Keluaran diterima") — TERPISAH, TIDAK masuk total mana pun
 ```
 
-**Pendapatan & HPP invoice — "titipan dulu" + cost recovery** (`invoiceContributions()`, baris 117-157). Untuk setiap invoice yang menerima pembayaran dalam periode:
+**Pendapatan & HPP invoice — "titipan dulu" + cost recovery** (`invoiceContributions()`). Untuk setiap invoice yang menerima pembayaran dalam periode:
 
 ```php
-// app/Services/ProfitLossService.php:146-153
-$totalPpn += min(max(0, $paidThroughEnd - $taxDeposit), $ppn)        // PPN Keluaran (memo)
-    - min(max(0, $paidThroughStartPrev - $taxDeposit), $ppn);
-$revenueThroughEnd = max(0, $paidThroughEnd - $taxDeposit - $ppn);   // titipan-dulu
-$revenueThroughStartPrev = max(0, $paidThroughStartPrev - $taxDeposit - $ppn);
+// app/Services/ProfitLossService.php — alokasi lewat SATU rumus, Invoice::allocatePayments()
+$sampaiAkhir = Invoice::allocatePayments($paidThroughEnd, $taxDeposit, $ppn);
+$sebelumAwal = Invoice::allocatePayments($paidThroughStartPrev, $taxDeposit, $ppn);
 
-$totalRevenue += $revenueThroughEnd - $revenueThroughStartPrev;
+$totalPpn += $sampaiAkhir['ppn'] - $sebelumAwal['ppn'];              // PPN Keluaran (memo)
+$totalRevenue += $sampaiAkhir['revenue'] - $sebelumAwal['revenue'];  // titipan-dulu
 
 if ($invoiceCogs > 0) {
-    $totalCogs += min($revenueThroughEnd, $invoiceCogs) - min($revenueThroughStartPrev, $invoiceCogs);
+    $totalCogs += min($sampaiAkhir['revenue'], $invoiceCogs) - min($sebelumAwal['revenue'], $invoiceCogs);
 }
 ```
+
+`Invoice::allocatePayments(int $paid, int $taxDeposit, int $ppn)` (`app/Models/Invoice.php`) adalah **satu-satunya** rumus "titipan dulu": dari jumlah yang sudah dibayar (kumulatif) → `{tax_deposit: min(paid, titipan), ppn: min(max(0, paid − titipan), ppn), revenue: max(0, paid − titipan − ppn)}`, ketiganya selalu berjumlah `paid`. Diekstrak tanpa mengubah hasil (tes Laba Rugi `ProfitLossServiceTest` & `InvoicePpnTest` lolos tanpa diubah) agar fitur lain yang membagi pembayaran invoice memakai rumus yang sama, bukan salinannya — yaitu **jurnal tampilan pembayaran invoice** ([cash-flow.md › Jurnal tampilan](cash-flow.md#jurnal-tampilan-cara-a--debitkredit-dari-rekening--kategori)): satu pembayaran dikredit ke Titipan Pajak Klien / PPN Keluaran / Pendapatan dari Invoice sebesar alokasi kumulatif sesudah − sebelum pembayaran itu (urut `payment_date`, `id`). Konsekuensinya (dites `JurnalTest::test_jurnal_pembayaran_periode_sama_dengan_laba_rugi`): Σ kredit "Pendapatan dari Invoice" atas pembayaran sebuah periode = `revenue.invoice`, dan Σ kredit "PPN Keluaran" = `ppn_output`. Jurnal tidak memuat HPP (cost recovery bukan gerakan kas) dan tidak dibaca laporan ini.
 - **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), lalu `invoices.ppn_amount` (PPN Keluaran perusahaan PKP, sejak 2026-10-13), sisanya baru diakui pendapatan. PPN yang tertutup dalam periode dilaporkan sebagai `ppn_output` — memo "Catatan: PPN Keluaran diterima" di bawah Laba Bersih (halaman & PDF, hanya bila > 0), bukan pendapatan dan tidak masuk total mana pun. Setoran PPN ke negara dicatat sebagai transaksi berkategori `financing` agar tidak menjadi beban.
 - **Cost recovery ("tutup modal dulu")**: porsi pendapatan menutup `total_cogs` invoice dulu sampai penuh; HPP periode = selisih kumulatif `MIN(pendapatan_kumulatif, total_cogs)` di batas akhir vs batas awal periode. Invoice lunas sebelum periode otomatis berkontribusi 0 (delta kolaps).
 
@@ -165,3 +166,4 @@ return $pdf->download($filename);
 | `routes/web.php` (baris 339, 441-444) | Route + permission (`view profit-loss`, `manage categories`) |
 | `tests/Feature/ProfitLossServiceTest.php`, `ProfitLossReportControllerTest.php` | Tes mesin hitung & controller |
 | `tests/Feature/PendanaanTest.php` | Pendanaan manual (setoran modal, prive, setor PPN, setor titipan pajak) tidak mengubah laporan |
+| `tests/Feature/JurnalTest.php` | Jurnal pembayaran invoice memakai rumus "titipan dulu" yang sama: Σ per periode = pendapatan invoice & `ppn_output` laporan |

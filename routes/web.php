@@ -45,6 +45,7 @@ use App\Services\BuilderInvoicePrinter;
 use App\Services\FundRequestExportService;
 use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
+use App\Services\JournalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -118,7 +119,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $items = [];
                 $items[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
                 foreach ($parent->children as $child) {
-                    $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
+                    // journal_account: akun lawan di pratinjau jurnal dialog Catat (JournalService).
+                    $items[] = ['label' => '↳ '.$child->label, 'value' => $child->id, 'journal_account' => JournalService::counterAccountFor($child)];
                 }
 
                 return $items;
@@ -141,6 +143,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             ->map(fn ($account) => [
                 'label' => $account->account_name.' ('.$account->bank_name.')',
                 'value' => $account->id,
+                // Nama rekening di pratinjau jurnal pembayaran invoice (BankAccount::journalNameFor).
+                'journal_name' => $account->journalName(),
             ]);
     })->middleware('can:view bank-accounts')->name('api.bank-accounts');
 

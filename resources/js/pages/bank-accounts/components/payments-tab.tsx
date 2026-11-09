@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
+import { TransactionDetailDialog, type PaymentDialogData } from '../../cash-flow/components/transaction-detail-dialog';
 import type { PaginatedResponse, PaymentRow } from '../types';
 
 interface Props {
@@ -60,6 +61,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function PaymentsTab({ accountId, refreshKey }: Props) {
+    // Rincian hanya-lihat + jurnal pembayaran ("titipan dulu"); pembayaran diubah di modul Invoice.
+    const [detail, setDetail] = React.useState<PaymentDialogData | null>(null);
     const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
     const [data, setData] = React.useState<PaginatedResponse<PaymentRow> | null>(null);
     const [loading, setLoading] = React.useState(true);
@@ -252,9 +255,26 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                         </td>
                                         <td className="px-3 py-3 align-middle">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-mono text-sm font-medium text-dark-900 dark:text-dark-50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setDetail({
+                                                            kind: 'payment',
+                                                            amount: row.amount,
+                                                            date: row.payment_date,
+                                                            invoice_number: row.invoice_number,
+                                                            client_name: row.client_name,
+                                                            reference_number: row.reference_number,
+                                                            attachment_url: row.attachment_url,
+                                                            attachment_name: row.attachment_name,
+                                                            journal: row.journal,
+                                                        })
+                                                    }
+                                                    className="rounded-md text-left font-mono text-sm font-medium text-dark-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill dark:text-dark-50"
+                                                >
                                                     {row.invoice_number || '—'}
-                                                </div>
+                                                    <span className="sr-only"> — lihat rincian dan jurnal</span>
+                                                </button>
                                                 {row.invoice_status && (
                                                     <Badge
                                                         variant={STATUS_VARIANT[row.invoice_status] ?? 'zinc'}
@@ -315,6 +335,13 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                     </div>
                 )}
             </div>
+
+            <TransactionDetailDialog
+                open={detail !== null}
+                onOpenChange={(open) => !open && setDetail(null)}
+                data={detail}
+                categoryOptions={[]}
+            />
         </div>
     );
 }

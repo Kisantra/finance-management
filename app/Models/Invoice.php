@@ -51,6 +51,26 @@ class Invoice extends Model
         return $rate ? (int) round(max(0, $dpp) * (float) $rate / 100) : 0;
     }
 
+    /**
+     * "Titipan dulu": uang yang SUDAH dibayar klien (kumulatif) menutup titipan pajak klien lebih
+     * dulu, lalu PPN Keluaran, sisanya baru pendapatan. Satu-satunya rumus alokasi pembayaran —
+     * dipakai Laba Rugi (ProfitLossService::invoiceContributions) dan jurnal pembayaran invoice
+     * (JournalService), dicerminkan di klien oleh resources/js/lib/journal.ts › allocatePayments.
+     * Ketiga bagian selalu berjumlah $paid (untuk $paid >= 0).
+     *
+     * @return array{tax_deposit: int, ppn: int, revenue: int}
+     */
+    public static function allocatePayments(int $paid, int $taxDeposit, int $ppn): array
+    {
+        $paid = max(0, $paid);
+
+        return [
+            'tax_deposit' => min($paid, $taxDeposit),
+            'ppn' => min(max(0, $paid - $taxDeposit), $ppn),
+            'revenue' => max(0, $paid - $taxDeposit - $ppn),
+        ];
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'billed_to_id');

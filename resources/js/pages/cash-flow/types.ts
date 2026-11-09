@@ -1,6 +1,7 @@
 /* Shared types for cash-flow pages */
 
 import type { ManagedBy } from '@/components/shared/financing';
+import type { JournalLine } from '@/lib/journal';
 
 export interface PaginationMeta {
     current_page: number;
@@ -17,6 +18,8 @@ export interface FilterOption {
     disabled?: boolean;
     /** Kategori bertipe `financing` (grup Pendanaan, selalu terakhir). */
     financing?: boolean;
+    /** Akun lawan di pratinjau jurnal (JournalService::counterAccount); hanya opsi yang bisa dipilih. */
+    journal_account?: string;
 }
 
 /**
@@ -36,6 +39,8 @@ export interface RowKind {
     category_type: 'income' | 'expense' | 'financing' | string | null;
     is_financing: boolean;
     managed_by: ManagedBy | null;
+    /** Jurnal tampilan dari server (JournalService) — sumber tunggal untuk transaksi tersimpan. */
+    journal: JournalLine[];
 }
 
 /* ─── Tab Semua (pemasukan + pengeluaran) ──────────── */
@@ -168,6 +173,8 @@ export interface TransferRow {
         account_name: string;
         bank_name: string;
     };
+    /** Jurnal tampilan dari server: Debit tujuan (+ biaya admin) / Kredit asal. */
+    journal: JournalLine[];
     attachment_url: string | null;
     attachment_name: string | null;
 }

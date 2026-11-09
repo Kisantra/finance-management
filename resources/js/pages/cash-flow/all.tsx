@@ -70,6 +70,7 @@ function toDialogData(row: CombinedRow): CashFlowDialogData {
             reference_number: row.reference_number,
             attachment_url: row.attachment_url,
             attachment_name: row.attachment_name,
+            journal: row.journal,
         };
     }
     return {
@@ -79,9 +80,14 @@ function toDialogData(row: CombinedRow): CashFlowDialogData {
         date: row.date,
         description: row.description,
         category_id: row.category_id,
+        category_label: row.category_label,
+        is_financing: row.is_financing,
         reference_number: row.reference_number,
         attachment_url: row.attachment_url,
         attachment_name: row.attachment_name,
+        journal: row.journal,
+        // Pokok utang/piutang: dialog dibuka hanya-lihat (jurnal tetap terlihat), server tetap menolak ubah/hapus.
+        managed_by: row.managed_by,
     };
 }
 
@@ -341,19 +347,13 @@ export default function CashFlowAll({
                                     {rows.map((row) => {
                                         const masuk = row.direction === 'in';
                                         const isPayment = row.source_type === 'payment';
-                                        // Pokok utang/piutang hanya-lihat: tidak membuka dialog ubah.
-                                        const locked = row.managed_by !== null;
-                                        const open = () => {
-                                            if (!locked) setDialogData(toDialogData(row));
-                                        };
+                                        // Pokok utang/piutang membuka rincian hanya-lihat (dengan jurnalnya), bukan dialog ubah.
+                                        const open = () => setDialogData(toDialogData(row));
                                         return (
                                             <tr
                                                 key={row.uid}
                                                 onClick={open}
-                                                className={cn(
-                                                    'border-b border-ob-line-soft transition-colors duration-150 last:border-0 hover:bg-ob-hover',
-                                                    locked ? 'cursor-default' : 'cursor-pointer',
-                                                )}
+                                                className="cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0 hover:bg-ob-hover"
                                             >
                                                 <td className="hidden whitespace-nowrap px-3 py-3 align-top text-ob-ink-2 sm:table-cell">
                                                     {formatDate(row.date)}
@@ -365,21 +365,17 @@ export default function CashFlowAll({
                                                     </div>
                                                 </td>
                                                 <td className="px-3 py-3 align-top">
-                                                    {locked ? (
-                                                        <span className="block max-w-72 truncate font-medium text-ob-ink">{row.description || '—'}</span>
-                                                    ) : (
-                                                        /* Baris <tr> tidak terjangkau Tab; tombol ini jalan masuk papan ketik ke rincian. */
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                open();
-                                                            }}
-                                                            className="block max-w-72 truncate rounded-md text-left font-medium text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
-                                                        >
-                                                            {(isPayment ? row.client_name : row.description) || '—'}
-                                                        </button>
-                                                    )}
+                                                    {/* Baris <tr> tidak terjangkau Tab; tombol ini jalan masuk papan ketik ke rincian. */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            open();
+                                                        }}
+                                                        className="block max-w-72 truncate rounded-md text-left font-medium text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
+                                                    >
+                                                        {(isPayment ? row.client_name : row.description) || '—'}
+                                                    </button>
                                                     <span className="flex min-w-0 items-center gap-1 text-xs text-ob-ink-3">
                                                         <span className="shrink-0 sm:hidden">{formatDate(row.date)} ·</span>
                                                         {isPayment && <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />}

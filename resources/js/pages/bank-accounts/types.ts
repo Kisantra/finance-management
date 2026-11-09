@@ -1,6 +1,7 @@
 /* Shared types for the bank-accounts page family */
 
 import type { ManagedBy } from '@/components/shared/financing';
+import type { JournalLine } from '@/lib/journal';
 
 /** `bank` = rekening bank, `cash` = kas tunai / kas kecil (nomor diisi kode KAS-xxxx, bank "Tunai"). */
 export type AccountType = 'bank' | 'cash';
@@ -11,6 +12,8 @@ export interface AccountListItem {
     account_name: string;
     account_number: string;
     bank_name: string;
+    /** Nama akun ini di jurnal (BankAccount::journalNameFor): "BCA Operasional — BCA" / "Kas Kecil". */
+    journal_name: string;
     branch: string | null;
     initial_balance: number;
     balance: number;
@@ -84,6 +87,8 @@ export interface TransactionRow {
     } | null;
     /** Pokok utang/piutang yang dicatat modul Utang/Piutang: hanya-lihat (tanpa hapus). */
     managed_by: ManagedBy | null;
+    /** Jurnal tampilan dari server (JournalService); kaki transfer = jurnal transfer lengkapnya. */
+    journal: JournalLine[];
     attachment_url: string | null;
     attachment_name: string | null;
 }
@@ -98,6 +103,8 @@ export interface PaymentRow {
     invoice_status: string;
     client_name: string;
     client_type: string;
+    /** Jurnal tampilan pembayaran invoice ("titipan dulu") dari server. */
+    journal: JournalLine[];
     attachment_url: string | null;
     attachment_name: string | null;
 }
@@ -118,6 +125,8 @@ export interface CategoryOption {
     disabled?: boolean;
     /** Kategori bertipe `financing` (grup Pendanaan, selalu terakhir). */
     financing?: boolean;
+    /** Akun lawan di pratinjau jurnal (JournalService::counterAccount); hanya opsi yang bisa dipilih. */
+    journal_account?: string;
 }
 
 export interface AccountOption {
@@ -130,4 +139,6 @@ export interface AccountPickerItem {
     id: number;
     account_name: string;
     bank_name: string;
+    /** Nama akun ini di jurnal (BankAccount::journalNameFor). */
+    journal_name: string;
 }
