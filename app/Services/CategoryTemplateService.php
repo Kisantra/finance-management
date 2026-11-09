@@ -19,8 +19,8 @@ use Illuminate\Support\Facades\DB;
  *   sama: induk itu dipakai ulang dan sub barunya ditempel ke sana. Penjaga: induk itu
  *   bukan kategori sistem dan tidak dipakai langsung oleh transaksi bank, item
  *   permintaan dana, atau reimbursement. Kalau dipakai langsung, seluruh grup dilewati:
- *   kategori yang punya anak menjadi judul grup, sehingga data lama yang menunjuk
- *   padanya gagal validasi saat diedit.
+ *   kategori yang punya anak menjadi judul grup yang tidak bisa dipilih di pemilih
+ *   kategori, padahal data lama masih menunjuk padanya.
  * - Sub template "sudah ada" bila ada kategori SUB bertipe sama dengan nama yang sama
  *   di induk mana pun: dilewati, agar pemilih kategori tidak berisi nama kembar.
  * - Baris yang sudah ada tidak pernah diubah (label, tipe, grup L/R, induk, system_key).
