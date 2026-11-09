@@ -1,0 +1,225 @@
+{
+  "module": "jurnal",
+  "title": "QA — Jurnal tampilan (Cara A): debit/kredit dari rekening & kategori",
+  "kicker": "QA 9 NOVEMBER 2026 · ARUS KAS · KAS & BANK · INVOICE · JURNAL",
+  "date": "9 November 2026",
+  "environment": "database jrn_central + jrn_central_tenant_jurnalqa (dibuat khusus, di-drop setelah QA), php artisan serve --env=jrn di http://127.0.0.1:8147 (APP_ENV=jrn, sesi & cache database, antrean sync, mail log), MySQL 8.0.45, aset dari Vite dev server pengguna ([::1]:5173, tidak diubah), Chromium headless lewat Python Playwright 1.58 viewport 1280x1000-1400 DPR 1 (A04: 390x844 DPR 2, sentuh), kode cabang fitur/jurnal b6cfdcd + 6afad9d (+ f234992 panduan), belum di-push",
+  "scope": "Eksekusi 16 test case di test-cases/jurnal.md untuk kotak Jurnal (Cara A): pratinjau langsung di Catat Pemasukan/Pengeluaran, Transfer, dan Catat pembayaran invoice; jurnal tersimpan di rincian/ubah Arus Kas dan rincian hanya-lihat Kas & Bank; setiap aturan (pemasukan, pengeluaran, pendanaan template & buatan pengguna, pokok utang/piutang dengan nama pihak dan cadangannya, transfer + biaya admin, penyesuaian, pembayaran invoice titipan dulu); pratinjau = jurnal tersimpan; baris pokok utang hanya-lihat yang kini bisa dibuka sementara PUT/DELETE tetap 403; pengguna tanpa izin ubah; ponsel 390 px; pembayaran mundur tanggal; invarian Laba Rugi. Aktor: Finance manager (Rina), pengguna hanya-lihat (Lina).",
+  "shots_src": "../evidence/jurnal",
+  "shots_dst": "../evidence/jurnal",
+  "evidence_into": "../test-cases/jurnal.md",
+  "report_out": "../report/Laporan-QA-jurnal.pdf",
+  "summary": [
+    "Seluruh 16 test case lolos; tidak ada cacat aplikasi yang ditemukan. Dua case (N07, N09) lolos di percobaan ke-2 karena percobaan pertama digagalkan skrip uji (lokator), bukan aplikasi — dicatat di Kendala alat uji.",
+    "Untuk setiap aturan, jurnal pratinjau di formulir sama persis dengan jurnal tersimpan yang dikirim server (dibandingkan baris per baris dari DOM): pengeluaran Listrik, setoran modal ke Mandiri (Modal Pemilik), prive dari kas (Prive Pemilik / Kas Kecil), transfer BCA → Mandiri (Debit tujuan 5.000.000 + Biaya Admin Transfer 2.500 / Kredit asal 5.002.500), dan pembayaran invoice (PPN saja, titipan + PPN, mundur tanggal). Debit = kredit di semua 22 transaksi dan 6 pembayaran.",
+    "Pembayaran invoice dipecah 'titipan dulu', bukan proporsional: DP 300.000 seluruhnya Titipan Pajak Klien; 4.000.000 = Titipan 200.000 + PPN Keluaran 1.100.000 + Pendapatan 2.700.000; pelunasan 7.300.000 seluruhnya pendapatan. Laba Rugi November (pendapatan invoice Rp 17.950.000, PPN Keluaran diterima Rp 1.650.000) sama persis dengan jumlah kredit jurnal pembayaran November, dicocokkan di DB.",
+    "Baris pokok utang kini membuka rincian hanya-lihat dengan jurnal 'Utang Pinjaman – Bank BRI' (nama dari data utangnya); PUT/DELETE lewat Arus Kas tetap 403 dan DB tidak berubah. Nama debitur piutang karyawan (database pusat) tampil, dan utang yatim jatuh ke 'Utang Pinjaman' tanpa nama. Pengguna tanpa izin ubah kini mendapat rincian hanya-lihat dengan jurnal (dulu formulir ubah tanpa tombol simpan). Di 390 px kotak Jurnal tidak meluap."
+  ],
+  "bugs": [],
+  "cases": [
+    { "section": "A. KONDISI NORMAL" },
+    {
+      "id": "N01",
+      "title": "Catat Pengeluaran: pratinjau langsung, lalu jurnal tersimpan = pratinjau",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Perbandingan baris DOM pratinjau vs tersimpan: sama. DB transaksi #18 debit 1.250.000 Listrik/BCA; JournalService sama.",
+      "steps": [
+        { "img": "N01-1", "cap": "**Catat Pengeluaran**, rekening BCA dipilih, kategori belum: kotak **Jurnal · Pratinjau** berisi \"Pilih kategori untuk melihat jurnalnya.\"" },
+        { "img": "N01-2", "cap": "Kategori **↳ Listrik** tanpa jumlah: akun sudah tampil (Debit Listrik, Kredit BCA Operasional — BCA) dengan nominal \"—\"." },
+        { "img": "N01-3", "cap": "Jumlah 1.250.000: **Debit Listrik 1.250.000 / Kredit BCA Operasional — BCA 1.250.000**, baris Jumlah seimbang." },
+        { "img": "N01-4", "cap": "Setelah disimpan, baris dibuka: **Edit Pengeluaran** menampilkan jurnal tersimpan dari server — sama persis, tanpa penanda Pratinjau." }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Pemasukan pendanaan template → akun neraca Modal Pemilik",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB #19 credit 7.500.000 kategori Setoran Modal Pemilik (financing).",
+      "steps": [
+        { "img": "N02-1", "cap": "**↳ Setoran Modal Pemilik** ke Mandiri Cadangan 7.500.000: Debit **Mandiri Cadangan — Mandiri** / Kredit **Modal Pemilik** (akun neraca, bukan label kategori)." },
+        { "img": "N02-2", "cap": "Baris tersimpan dibuka: jurnal yang sama, kini tanpa penanda Pratinjau." }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Pendanaan keluar dari kas + akun Setor PPN & Setor Titipan Pajak Klien",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB #20 debit 400.000 kategori Prive Pemilik di Kas Kecil.",
+      "steps": [
+        { "img": "N03-1", "cap": "**↳ Prive Pemilik** dari **Kas Kecil** 400.000: Debit Prive Pemilik / Kredit **Kas Kecil** (kas ditulis dengan namanya saja)." },
+        { "img": "N03-2", "cap": "Tersimpan: jurnal sama dengan pratinjau." },
+        { "img": "N03-3", "cap": "Baris **Setor PPN masa Oktober**: Debit **PPN Keluaran** 1.100.000 / Kredit BCA." },
+        { "img": "N03-4", "cap": "Baris **Setor PPh 21 titipan PT Maju Jaya**: Debit **Titipan Pajak Klien** 500.000 / Kredit BCA." }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Pendanaan buatan pengguna memakai labelnya sendiri",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        { "img": "N04-1", "cap": "Pratinjau (tidak disimpan) **↳ Pinjaman dari Direksi** — sub pendanaan buatan pengguna: Kredit **Pinjaman dari Direksi**." },
+        { "img": "N04-2", "cap": "Baris tersimpan \"Pinjaman sementara dari direksi\": Debit Mandiri Cadangan — Mandiri / Kredit Pinjaman dari Direksi 3.000.000." }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Transfer: pratinjau Debit tujuan + biaya admin / Kredit asal; Detail Transfer = pratinjau",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Placeholder sebelum rekening dipilih: \"Pilih rekening sumber dan tujuan untuk melihat jurnalnya.\" DB #21 debit 5.002.500 + #22 credit 5.000.000.",
+      "steps": [
+        { "img": "N05-1", "cap": "**Transfer Antar Rekening** BCA → Mandiri 5.000.000, biaya admin 2.500: Debit **Mandiri Cadangan — Mandiri 5.000.000** + Debit **Biaya Admin Transfer 2.500** / Kredit **BCA 5.002.500**." },
+        { "img": "N05-2", "cap": "**Detail Transfer** baris baru: jurnal tersimpan sama dengan pratinjau." }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Pembayaran invoice PPN saja: PPN dulu, sisanya pendapatan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        { "img": "N06-1", "cap": "**Catat pembayaran** INV-3 2.000.000 ke BCA: Kredit **PPN Keluaran 550.000** + **Pendapatan dari Invoice 1.450.000**." },
+        { "img": "N06-2", "cap": "Arus Kas › Pemasukan → **Detail Pembayaran Invoice**: jurnal tersimpan sama." }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Invoice titipan + PPN: tiga pembayaran mengikuti titipan dulu",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1: langkah 2 memotret pembayaran 7.300.000 karena lokator skrip mencocokkan teks \"300.000\" di dalam \"7.300.000\" (alat uji). Percobaan 2 hanya membuka ulang ketiga pembayaran dengan pencocokan nominal persis; pembayaran disimpan sekali (percobaan 1).",
+      "steps": [
+        { "img": "N07-1", "cap": "INV-1 **Sisa penuh** 7.300.000 (titipan & PPN sudah tertutup oleh dua pembayaran sebelumnya): Kredit **Pendapatan dari Invoice 7.300.000**." },
+        { "img": "N07-2", "cap": "DP 300.000 (3 Nov), lebih kecil dari titipan 500.000: seluruhnya Kredit **Titipan Pajak Klien 300.000**." },
+        { "img": "N07-3", "cap": "Pembayaran 4.000.000 (5 Nov) melewati semua batas: **Titipan 200.000 + PPN Keluaran 1.100.000 + Pendapatan dari Invoice 2.700.000**." },
+        { "img": "N07-4", "cap": "Pelunasan 7.300.000 tersimpan: sama dengan pratinjau langkah 1." }
+      ]
+    },
+    {
+      "id": "N08",
+      "title": "Ubah: jurnal tersimpan → Pratinjau saat jumlah/kategori diubah; Batal tidak menyimpan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: transaksi #4 tetap 8.500.000 Gaji Karyawan, updated_at tidak berubah.",
+      "steps": [
+        { "img": "N08-1", "cap": "**Edit Pengeluaran** \"Gaji karyawan Oktober\": jurnal tersimpan Debit Gaji Karyawan 8.500.000 / Kredit BCA, tanpa penanda Pratinjau." },
+        { "img": "N08-2", "cap": "Jumlah diubah 8.750.000: kotak berganti **Pratinjau** dengan nominal baru." },
+        { "img": "N08-3", "cap": "Kategori diganti **↳ Tunjangan & Lembur**: akun debit ikut berganti (rekening tetap)." },
+        { "img": "N08-4", "cap": "Setelah **Batal** dan dibuka ulang: kembali 8.500.000 Gaji Karyawan, tanpa Pratinjau (tidak tersimpan)." }
+      ]
+    },
+    {
+      "id": "N09",
+      "title": "Kas & Bank: rincian hanya-lihat + jurnal (penyesuaian, kaki transfer, pembayaran)",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 berhenti di langkah 4: Playwright tidak bisa mengurai lokator regex skrip yang berisi '/' (nomor invoice). Diganti teks biasa, percobaan 2 lolos seluruhnya.",
+      "steps": [
+        { "img": "N09-1", "cap": "**Kas & Bank › Kas Kecil**, tab Transaksi: deskripsi tiap baris kini tombol menuju rincian." },
+        { "img": "N09-2", "cap": "\"Selisih hitung kas\" (kategori **penyesuaian**): **Rincian Pengeluaran** hanya-lihat, Debit **Selisih Kas** / Kredit **Kas Kecil** 25.000 — satu-satunya tempat jurnal penyesuaian terlihat." },
+        { "img": "N09-3", "cap": "Kaki masuk transfer isi ulang: jurnal transfer lengkap (Debit Kas Kecil 1.000.000 + Biaya Admin Transfer 2.500 / Kredit BCA 1.002.500)." },
+        { "img": "N09-4", "cap": "BCA Operasional › tab **Pembayaran** → nomor invoice: **Detail Pembayaran Invoice** dengan jurnal titipan dulu." }
+      ]
+    },
+    { "section": "B. KONDISI TIDAK NORMAL / EDGE CASE" },
+    {
+      "id": "A01",
+      "title": "Pokok utang: baris hanya-lihat kini bisa dibuka (rincian + jurnal), server tetap menolak ubah/hapus",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "PUT #12, DELETE #12, PUT #13 → 403 'Transaksi ini pokok utang yang dicatat otomatis oleh modul Utang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Utang.'; DB tidak berubah.",
+      "steps": [
+        { "img": "A01-1", "cap": "Pemasukan: baris \"Penerimaan pinjaman dari Bank BRI\" bergembok, \"Hanya-lihat · kelola di Utang\"." },
+        { "img": "A01-2", "cap": "Diklik: **Rincian Pemasukan** tanpa isian & tanpa Simpan, catatan kelola di Utang, jurnal Kredit **Utang Pinjaman – Bank BRI** 50.000.000." },
+        { "img": "A01-3", "cap": "Pembayaran pokok (Pengeluaran): Debit **Utang Pinjaman – Bank BRI** 2.000.000 / Kredit BCA." }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Nama debitur piutang (karyawan di database pusat) + cadangan tanpa nama untuk utang yatim",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Utang yatim dibuat sebagai fixture lewat tinker (tidak bisa dibuat dari layar), lalu dihapus; pemeriksaan akhir DB tidak menemukan LOAN-99999.",
+      "steps": [
+        { "img": "A02-1", "cap": "Pencairan piutang RCV-00001: Debit **Piutang – Budi Kasir** (nama debitur karyawan dari database pusat)." },
+        { "img": "A02-2", "cap": "Cicilan pokok piutang: Kredit **Piutang – Budi Kasir**." },
+        { "img": "A02-3", "cap": "Fixture utang yatim (LOAN-99999 tidak ada): tidak dikunci (dialog ubah biasa) dan jurnalnya jatuh ke **Utang Pinjaman** tanpa nama." }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Pengguna tanpa izin ubah melihat jurnal tanpa kontrol ubah; PUT ditolak",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "PUT /bank-transactions/4 dari sesi Lina → 403 'This action is unauthorized.'",
+      "steps": [
+        { "img": "A03-1", "cap": "Lina: \"Gaji karyawan Oktober\" terbuka sebagai **Rincian Pengeluaran** hanya-lihat (0 isian, 0 Simpan) dengan jurnalnya." },
+        { "img": "A03-2", "cap": "**Detail Transfer** tanpa bagian Edit Transfer (Lina tidak punya `edit transfer`), jurnal tetap tampil." }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Ponsel 390 px: kotak Jurnal terbaca tanpa geser samping",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Ukur: overflow halaman 0, kotak 340 px, overflow tabel 0 (dialog Catat & rincian pembayaran).",
+      "steps": [
+        { "img": "A04-1", "cap": "Ponsel 390 px, **Catat Pengeluaran** dengan label terpanjang \"Jasa Profesional (Notaris, Konsultan)\" 12.500.000: nama akun turun baris, nominal utuh." },
+        { "img": "A04-2", "cap": "Rincian pembayaran 4 baris jurnal di 390 px: tidak meluap." }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Pembayaran mundur tanggal: urutan menurut tanggal bayar, jurnal pembayaran lain ikut bergeser",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        { "img": "A05-1", "cap": "INV-3, pembayaran baru 500.000 bertanggal **05 Nov** (sebelum pembayaran 9 Nov): pratinjau Kredit **PPN Keluaran 500.000**." },
+        { "img": "A05-2", "cap": "Tersimpan: sama dengan pratinjau." },
+        { "img": "A05-3", "cap": "Pembayaran 9 Nov 2.000.000 kini PPN Keluaran 50.000 + Pendapatan dari Invoice 1.950.000 (sebelumnya 550.000 + 1.450.000) — titipan dulu mengikuti tanggal bayar." }
+      ]
+    },
+    { "section": "C. ALUR BERANTAI" },
+    {
+      "id": "C01",
+      "title": "Invarian: Σ kredit jurnal pembayaran November = angka Laba Rugi November",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "DB: revenue.invoice 17.950.000 = Σ kredit Pendapatan dari Invoice 17.950.000; ppn_output 1.650.000 = Σ kredit PPN Keluaran 1.650.000; semua jurnal seimbang.",
+      "steps": [
+        { "img": "C01-1", "cap": "Laporan › Laba Rugi 1–30 Nov 2026: Pendapatan dari Invoice (kas) Rp 17.950.000." },
+        { "img": "C01-2", "cap": "Catatan **PPN Keluaran diterima Rp 1.650.000** — sama dengan Σ kredit PPN Keluaran jurnal pembayaran November." }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "PPN Keluaran saling menutup: dikredit pembayaran invoice, didebit Setor PPN",
+      "verdict": "Pass",
+      "attempts": "p",
+      "steps": [
+        { "img": "C02-1", "cap": "Pembayaran 4.000.000 INV-1: Kredit **PPN Keluaran 1.100.000**." },
+        { "img": "C02-2", "cap": "Setor PPN masa Oktober: Debit **PPN Keluaran 1.100.000** — nama akun sama persis." }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "K-J1", "title": "Jurnal pembayaran tersimpan bisa berubah bila pembayaran mundur tanggal dicatat belakangan",
+      "body": "Sengaja (A05): bagian satu pembayaran = alokasi kumulatif sesudah − sebelum menurut (tanggal bayar, id), sama dengan Laba Rugi per periode. Jumlah per invoice dan per periode tidak berubah; yang bergeser hanya pembagian antar pembayaran. Didokumentasikan di cash-flow.md." },
+    { "id": "K-J2", "title": "Dialog Catat Pemasukan/Pengeluaran kini lebih tinggi dari layar 720 px",
+      "body": "Kotak Jurnal di bawah Tanggal menambah ±240 px; di layar setinggi 720 px tombol Simpan berada di bawah dan isi dialog perlu digulir (dialog memang bergulir). Di 1280×800 ke atas tombolnya terlihat. Tidak diubah; dicatat untuk pemilik." },
+    { "id": "K-J3", "title": "Kategori Penyesuaian ditawarkan pemilih Catat (pratinjau jurnalnya tampil) tetapi server menolak simpan",
+      "body": "Perilaku lama di luar lingkup (sama dengan K-P3 QA Pendanaan). Jurnal penyesuaian yang sudah ada terlihat di rincian Kas & Bank (N09)." },
+    { "id": "K-J4", "title": "Biaya admin transfer tampil sebagai akun 'Biaya Admin Transfer' tetapi tidak masuk Laba Rugi",
+      "body": "Jurnal hanya menampilkan apa yang terjadi pada kas; biaya admin berkategori transfer tetap di luar Laba Rugi seperti sebelumnya (lihat dashboard.md › Transfer antar akun sendiri)." }
+  ],
+  "tooling_problems": [
+    "N07 percobaan 1: lokator skrip `has_text='300.000'` juga cocok dengan baris 7.300.000, sehingga langkah 2 memotret pembayaran yang salah. Bukan cacat aplikasi; diganti regex `\\+Rp 300\\.000` dan langkah lihat diulang tanpa menyimpan lagi.",
+    "N09 percobaan 1: `get_by_role(name=re.compile('001/INV/...'))` gagal diurai Playwright (garis miring di regex). Diganti teks biasa; seluruh case diulang.",
+    "Di luar case (pengambilan screenshot PR): `context.route_web_socket()` untuk memutus HMR Vite membuat `page.goto()` menggantung di Playwright 1.58 sinkron; dihapus, dan berkas tidak diubah selama pengambilan gambar. Placeholder baru 'Pilih kategori untuk melihat jurnalnya.' membuat lokator `get_by_text('Pilih kategori')` ambigu; diganti `exact=True` (berlaku sama untuk mode sebelum & sesudah)."
+  ],
+  "honesty": "Kode fitur, test otomatis, dan QA ini dikerjakan oleh asisten yang sama, sehingga QA mewarisi titik buta penulisnya. Aturan jurnal sendiri (akun mana di sisi mana) adalah keputusan pemilik di brief; yang diuji di sini adalah bahwa aplikasi menerapkannya secara konsisten, bukan kebenaran akuntansinya. Spot-check yang disarankan untuk manusia: (1) baca kotak Jurnal untuk beberapa transaksi nyata di perusahaan Anda (terutama pendanaan buatan sendiri dan pembayaran invoice bertitipan) dan pastikan istilah akunnya sesuai kebiasaan akuntan Anda; (2) catat satu pembayaran mundur tanggal dan pastikan pergeseran jurnal pembayaran lain (K-J1) bisa diterima. Data utang & piutang di lingkungan QA diisi langsung ke DB dengan format deskripsi/referensi persis seperti controller-nya (diverifikasi dengan membaca kode), bukan lewat layar Utang/Piutang yang di luar lingkup; JurnalTest juga memakai format itu, jadi bila format deskripsi di LoanController/ReceivableController berubah, resolusi nama FIN-LOAN-OUT/FIN-RCV-IN jatuh ke cadangan tanpa nama (tidak salah, tetapi kurang informatif). Angka di kolom Hasil Aktual dibaca dari DOM dan DB oleh skrip, bukan dibaca manusia dari gambar."
+}
