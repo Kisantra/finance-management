@@ -18,6 +18,7 @@ import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
+import { TransactionDetailDialog, type TransactionDialogData } from '../../cash-flow/components/transaction-detail-dialog';
 import type { CategoryOption, PaginatedResponse, TransactionRow } from '../types';
 
 /** Resolve which cash-flow feature a row belongs to for delete gating. */
@@ -66,6 +67,25 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
     const [deleteId, setDeleteId] = React.useState<number | null>(null);
     const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
     const [deleteProcessing, setDeleteProcessing] = React.useState(false);
+    // Rincian hanya-lihat + jurnal (halaman ini tidak punya fitur ubah; ubah lewat Arus Kas).
+    const [detail, setDetail] = React.useState<TransactionDialogData | null>(null);
+    const openDetail = (row: TransactionRow) =>
+        setDetail({
+            kind: row.transaction_type === 'credit' ? 'income' : 'expense',
+            id: row.id,
+            amount: row.amount,
+            date: row.transaction_date,
+            description: row.description,
+            category_id: row.category?.id ?? null,
+            category_label: row.category?.label ?? null,
+            is_financing: row.category?.type === 'financing',
+            reference_number: row.reference_number,
+            attachment_url: row.attachment_url,
+            attachment_name: row.attachment_name,
+            journal: row.journal,
+            managed_by: row.managed_by,
+            read_only: true,
+        });
 
     /* Reset filters when account changes. */
     React.useEffect(() => {
@@ -314,9 +334,10 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                             <div className="flex items-start gap-3">
                                                 <TypeIcon type={row.transaction_type} />
                                                 <div className="min-w-0">
-                                                    <div className="font-medium text-dark-900 dark:text-dark-50 truncate max-w-70">
+                                                    <button type="button" onClick={() => openDetail(row)} className="block max-w-70 truncate rounded-md text-left font-medium text-dark-900 dark:text-dark-50 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill">
                                                         {row.description}
-                                                    </div>
+                                                        <span className="sr-only"> — lihat rincian dan jurnal</span>
+                                                    </button>
                                                     {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-0.5" />}
                                                     <div className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-2 mt-0.5">
                                                         {row.reference_number && (
@@ -415,6 +436,13 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                     </div>
                 </div>
             )}
+
+            <TransactionDetailDialog
+                open={detail !== null}
+                onOpenChange={(open) => !open && setDetail(null)}
+                data={detail}
+                categoryOptions={[]}
+            />
 
             {/* Confirm dialogs */}
             <ConfirmDialog

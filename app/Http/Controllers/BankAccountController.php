@@ -46,6 +46,8 @@ class BankAccountController extends Controller
                 'account_name' => $account->account_name,
                 'account_number' => $account->account_number,
                 'bank_name' => $account->bank_name,
+                // Nama rekening di pratinjau jurnal dialog Catat/Transfer (BankAccount::journalNameFor).
+                'journal_name' => $account->journalName(),
                 'branch' => $account->branch,
                 'initial_balance' => $account->initial_balance,
                 'balance' => $balance,

@@ -80,6 +80,27 @@ class BankAccount extends Model
     }
 
     /**
+     * Nama akun ini di jurnal tampilan (JournalService): "BCA Operasional — BCA" untuk rekening
+     * bank (sama dengan label pemilih rekening), cukup "Kas Kecil" untuk kas ("— Tunai" tidak
+     * menambah informasi). Satu-satunya definisi; klien menerimanya sebagai `journal_name`.
+     */
+    public static function journalNameFor(?string $accountName, ?string $bankName, ?string $type): string
+    {
+        $nama = trim((string) $accountName);
+
+        if ($type === self::TYPE_CASH || trim((string) $bankName) === '') {
+            return $nama !== '' ? $nama : 'Kas';
+        }
+
+        return $nama.' — '.$bankName;
+    }
+
+    public function journalName(): string
+    {
+        return self::journalNameFor($this->account_name, $this->bank_name, $this->type);
+    }
+
+    /**
      * Kode unik pengganti nomor rekening untuk akun kas, melanjutkan kode KAS- terbesar yang
      * sudah ada (KAS-0001, KAS-0002, ...). Nomor rekening divalidasi unik di semua akun.
      */

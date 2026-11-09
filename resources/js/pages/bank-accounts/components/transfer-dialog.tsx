@@ -16,7 +16,9 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
+import { JournalBox } from '@/components/shared/journal-box';
 import { companyUrl } from '@/lib/company';
+import { transferJournal } from '@/lib/journal';
 import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import type { AccountPickerItem, CategoryOption } from '../types';
@@ -130,6 +132,8 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId, pr
 
     const fromAccount = accounts.find((a) => a.id === data.from_account_id);
     const toAccount = accounts.find((a) => a.id === data.to_account_id);
+    // Pratinjau jurnal (cermin JournalService::transferLines): Debit tujuan + biaya admin / Kredit asal.
+    const journal = fromAccount && toAccount ? transferJournal(fromAccount.journal_name, toAccount.journal_name, data.amount, data.admin_fee) : null;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,6 +251,13 @@ export function TransferDialog({ open, onOpenChange, accounts, fromAccountId, pr
                             <SumStat label="Total Debit" value={data.amount + data.admin_fee} bold />
                         </div>
                     </div>
+
+                    <JournalBox
+                        mode="preview"
+                        lines={journal}
+                        caption="Jurnal otomatis dari rekening asal & tujuan · belum buku besar"
+                        placeholder="Pilih rekening sumber dan tujuan untuk melihat jurnalnya."
+                    />
                 </form>
 
                 <DialogFooter>

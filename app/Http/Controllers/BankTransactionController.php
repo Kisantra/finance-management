@@ -6,8 +6,10 @@ use App\Http\Requests\BulkDestroyBankTransactionRequest;
 use App\Http\Requests\StoreBankTransactionRequest;
 use App\Http\Requests\TransferBankTransactionRequest;
 use App\Http\Requests\UpdateBankTransactionRequest;
+use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Payment;
+use App\Services\JournalService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +53,7 @@ class BankTransactionController extends Controller
             : 'transaction_date';
         $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
-        $query = BankTransaction::with(['category.parent'])
+        $query = BankTransaction::with(['category.parent', 'bankAccount'])
             ->where('bank_account_id', $accountId)
             ->when($search, fn ($q) => $q->where(function ($qq) use ($search) {
                 $qq->where('description', 'like', "%{$search}%")
@@ -74,6 +76,8 @@ class BankTransactionController extends Controller
             'reference_number' => $t->reference_number,
             'description' => $t->description,
         ]));
+        // Jurnal tampilan (hanya-lihat di rincian): nama pihak & pasangan transfer dicari sekali per halaman.
+        $jurnal = JournalService::forTransactions($baris->map(fn (BankTransaction $t): object => JournalService::rowOf($t)));
 
         return response()->json([
             'data' => $baris->map(fn (BankTransaction $t, int $i) => [
@@ -90,6 +94,7 @@ class BankTransactionController extends Controller
                     'type' => $t->category->type,
                 ] : null,
                 'managed_by' => $tautan[$i] ?? null,
+                'journal' => $jurnal[$i],
                 'attachment_url' => $t->attachment_path ? Storage::disk('public')->url($t->attachment_path) : null,
                 'attachment_name' => $t->attachment_name,
             ])->all(),
@@ -152,9 +157,22 @@ class BankTransactionController extends Controller
 
         $paginator = $query->paginate($perPage);
 
+        // Jurnal tampilan pembayaran invoice ("titipan dulu"): dua query untuk seluruh halaman.
+        $akun = BankAccount::find($accountId);
+        $baris = $paginator->getCollection()->values();
+        $jurnal = JournalService::forPayments($baris->map(fn (Payment $p): object => (object) [
+            'id' => $p->id,
+            'invoice_id' => $p->invoice_id,
+            'amount' => $p->amount,
+            'account_name' => $akun?->account_name,
+            'bank_name' => $akun?->bank_name,
+            'account_type' => $akun?->type,
+        ]));
+
         return response()->json([
-            'data' => $paginator->through(fn ($p) => [
+            'data' => $baris->map(fn (Payment $p, int $i) => [
                 'id' => $p->id,
+                'journal' => $jurnal[$i],
                 'payment_date' => $p->payment_date,
                 'amount' => (int) $p->amount,
                 'payment_method' => $p->payment_method,
@@ -165,7 +183,7 @@ class BankTransactionController extends Controller
                 'client_type' => $p->client_type,
                 'attachment_url' => $p->attachment_path ? Storage::disk('public')->url($p->attachment_path) : null,
                 'attachment_name' => $p->attachment_name,
-            ])->items(),
+            ])->all(),
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
             'per_page' => $paginator->perPage(),

@@ -85,6 +85,7 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
             to_account: row.to_account,
             attachment_url: row.attachment_url,
             attachment_name: row.attachment_name,
+            journal: row.journal,
         });
     };
 

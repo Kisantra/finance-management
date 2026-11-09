@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\JournalService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -100,7 +101,10 @@ class TransactionCategory extends Model
      * Options for category pickers: parents are disabled group headers,
      * only child categories are selectable.
      *
-     * @return array<int,array{label:string, value:int, disabled?:bool}>
+     * Opsi yang bisa dipilih membawa `journal_account`: akun lawan di pratinjau jurnal
+     * (JournalService::counterAccount), agar klien tidak menebak aturannya sendiri.
+     *
+     * @return array<int,array{label:string, value:int, disabled?:bool, journal_account?:string}>
      */
     public static function selectOptions(string $type): array
     {
@@ -125,7 +129,7 @@ class TransactionCategory extends Model
             $options[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true];
 
             foreach ($anak as $child) {
-                $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id];
+                $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id, 'journal_account' => JournalService::counterAccountFor($child)];
             }
         }
 
@@ -143,7 +147,7 @@ class TransactionCategory extends Model
      * "Dari Utang & Piutang" (value -1) — HANYA untuk filter daftar, tidak untuk formulir: transaksinya
      * dibuat modul Utang/Piutang. $arah (credit/debit) menyaring kategori pokok itu menurut arahnya.
      *
-     * @return list<array{label: string, value: int, disabled?: bool, financing: true}>
+     * @return list<array{label: string, value: int, disabled?: bool, financing: true, journal_account?: string}>
      */
     public static function financingOptions(bool $denganPokokModul = false, ?string $arah = null): array
     {
@@ -165,7 +169,7 @@ class TransactionCategory extends Model
             $options[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true, 'financing' => true];
 
             foreach ($anak as $child) {
-                $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id, 'financing' => true];
+                $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id, 'financing' => true, 'journal_account' => JournalService::counterAccountFor($child)];
             }
         }
 

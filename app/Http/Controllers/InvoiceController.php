@@ -458,6 +458,8 @@ class InvoiceController extends Controller
             'total_amount' => $invoice->total_amount,
             'amount_paid' => $invoice->amount_paid,
             'amount_remaining' => $invoice->amount_remaining,
+            // Pratinjau jurnal pembayaran ("titipan dulu", Invoice::allocatePayments): Σ item titipan pajak.
+            'tax_deposit_total' => (int) $invoice->items->where('is_tax_deposit', true)->sum('amount'),
             'faktur' => $invoice->faktur,
             'rollbackable' => $invoice->status === 'sent' && Invoice::isLatestInNumberingPeriod($invoice),
             'custom_templates' => PdfTemplate::query()->orderByDesc('is_default')->orderBy('name')->get()

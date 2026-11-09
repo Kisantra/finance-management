@@ -16,8 +16,10 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { FileUpload } from '@/components/shared/file-upload';
+import { JournalBox } from '@/components/shared/journal-box';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
+import { paidBefore, paymentJournal } from '@/lib/journal';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
 import { BTN, dateTime, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
@@ -57,6 +59,8 @@ export interface InvoiceDetail {
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
+    /** Σ item titipan pajak — untuk pratinjau jurnal pembayaran ("titipan dulu"). */
+    tax_deposit_total: number;
     faktur: string | null;
     created_at: string | null;
     updated_at: string | null;
@@ -643,7 +647,7 @@ function PaymentDialog({
     const [form, setForm] = React.useState<PaymentForm>(() => blankPayment(remaining));
     const [errors, setErrors] = React.useState<Record<string, string>>({});
     const [saving, setSaving] = React.useState(false);
-    const [accounts, setAccounts] = React.useState<{ label: string; value: number }[]>([]);
+    const [accounts, setAccounts] = React.useState<{ label: string; value: number; journal_name: string }[]>([]);
     const [preset, setPreset] = React.useState<'full' | 'half' | 'custom'>('full');
     const amountRef = React.useRef<HTMLDivElement>(null);
 
@@ -683,6 +687,19 @@ function PaymentDialog({
     };
 
     const overMessage = form.amount > remaining ? `Melebihi sisa tagihan ${rp(remaining)}. Catat kelebihan sebagai transaksi terpisah.` : null;
+
+    // Pratinjau jurnal "titipan dulu" (cermin JournalService::paymentLines / Invoice::allocatePayments):
+    // yang sudah dibayar SEBELUM pembayaran ini dihitung dari daftar pembayaran invoice, urut (tanggal, id).
+    const account = accounts.find((a) => a.value === form.bank_account_id);
+    const journal = account
+        ? paymentJournal(
+              account.journal_name,
+              form.amount,
+              paidBefore(detail.payments, form.payment_date, payment?.id ?? null),
+              detail.tax_deposit_total,
+              detail.ppn_amount,
+          )
+        : null;
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -794,6 +811,12 @@ function PaymentDialog({
                         onChange={(v) => set('payment_method', v)}
                         error={errors.payment_method}
                         className="[&>label]:text-[13px] [&>label]:text-ob-ink-2 dark:[&>label]:text-ob-ink-2"
+                    />
+                    <JournalBox
+                        mode="preview"
+                        lines={journal}
+                        caption="Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar"
+                        placeholder="Pilih rekening tujuan untuk melihat jurnalnya."
                     />
                     <div className={FIELD}>
                         <Input

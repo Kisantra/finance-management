@@ -138,8 +138,8 @@ class BankTransaction extends Model
 
             $search = match ($kunci) {
                 'FIN-LOAN-IN', 'FIN-RCV-OUT' => $row->reference_number ?: null,
-                'FIN-RCV-IN' => preg_match('/^Pembayaran piutang pokok: (\S+) - /u', (string) $row->description, $m) ? $m[1] : null,
-                'FIN-LOAN-OUT' => preg_match('/^Pembayaran pokok pinjaman - (.+)$/u', (string) $row->description, $m) ? trim($m[1]) : null,
+                'FIN-RCV-IN' => self::receivableNumberFromDescription($row->description ?? null),
+                'FIN-LOAN-OUT' => self::lenderFromDescription($row->description ?? null),
                 default => null,
             };
 
@@ -150,6 +150,24 @@ class BankTransaction extends Model
 
             return ['module' => $modul, 'label' => $modul === 'loans' ? 'Utang' : 'Piutang', 'search' => $search];
         })->all();
+    }
+
+    /**
+     * Nomor piutang dari deskripsi pembayaran pokok piutang (FIN-RCV-IN), format ReceivableController:
+     * "Pembayaran piutang pokok: {nomor} - {debitur}". `reference_number`-nya isian bebas pengguna.
+     */
+    public static function receivableNumberFromDescription(?string $description): ?string
+    {
+        return preg_match('/^Pembayaran piutang pokok: (\S+) - /u', (string) $description, $m) ? $m[1] : null;
+    }
+
+    /**
+     * Nama pemberi pinjaman dari deskripsi pembayaran pokok utang (FIN-LOAN-OUT), format LoanController:
+     * "Pembayaran pokok pinjaman - {nama}". Nomor utangnya tidak tercatat di transaksi.
+     */
+    public static function lenderFromDescription(?string $description): ?string
+    {
+        return preg_match('/^Pembayaran pokok pinjaman - (.+)$/u', (string) $description, $m) ? trim($m[1]) : null;
     }
 
     /**

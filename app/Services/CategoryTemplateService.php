@@ -146,6 +146,32 @@ class CategoryTemplateService
     ];
 
     /**
+     * Akun lawan di jurnal tampilan (JournalService) untuk sub pendanaan template: akun neraca,
+     * bukan label kategorinya. Kunci = label sub persis seperti di TEMPLATE (dites keberadaannya);
+     * dicocokkan dengan nama ternormalisasi yang sama dengan Pakai Template (normalize()).
+     * "Setor PPN" & "Setor Titipan Pajak Klien" sengaja bernama SAMA dengan akun yang dikredit
+     * pembayaran invoice (JournalService::PPN_KELUARAN / TAX_DEPOSIT), agar kedua sisi saling menutup.
+     * Sub pendanaan lain (buatan pengguna) memakai labelnya sendiri.
+     *
+     * @var array<string, string>
+     */
+    public const JOURNAL_ACCOUNTS = [
+        'Setoran Modal Pemilik' => 'Modal Pemilik',
+        'Prive Pemilik' => 'Prive Pemilik',
+        'Setor PPN' => JournalService::PPN_KELUARAN,
+        'Setor Titipan Pajak Klien' => JournalService::TAX_DEPOSIT,
+    ];
+
+    /** Akun jurnal untuk sub pendanaan bernama $label (cocok nama ternormalisasi), atau null. */
+    public static function journalAccount(string $label): ?string
+    {
+        static $peta = null;
+        $peta ??= collect(self::JOURNAL_ACCOUNTS)->mapWithKeys(fn (string $akun, string $sub): array => [self::normalize($sub) => $akun])->all();
+
+        return $peta[self::normalize($label)] ?? null;
+    }
+
+    /**
      * Rencana penerapan template terhadap kategori yang ada sekarang (pratinjau).
      * Tidak mengubah apa pun.
      *

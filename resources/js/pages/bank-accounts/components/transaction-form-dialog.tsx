@@ -18,8 +18,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
 import { FinancingHint, isFinancingCategory, quickAddParents, withFinancingGroup } from '@/components/shared/financing';
+import { JournalBox } from '@/components/shared/journal-box';
 import { QuickAddCategoryDialog, type QuickAddCategoryResult } from '@/components/shared/quick-add-category-dialog';
 import { companyUrl } from '@/lib/company';
+import { cashJournal } from '@/lib/journal';
 import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import type { AccountPickerItem, CategoryOption } from '../types';
@@ -62,8 +64,10 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
     const [categories, setCategories] = React.useState<CategoryOption[]>([]);
     const [quickAddOpen, setQuickAddOpen] = React.useState(false);
 
-    const handleCategoryAdded = ({ id, formattedLabel, parentId, isGroup }: QuickAddCategoryResult) => {
-        const newOption: CategoryOption = { value: id, label: formattedLabel, disabled: isGroup || undefined };
+    const handleCategoryAdded = ({ id, label, formattedLabel, parentId, isGroup }: QuickAddCategoryResult) => {
+        // Kategori cepat bertipe pemasukan/pengeluaran: akun lawan jurnalnya = labelnya sendiri
+        // (JournalService::counterAccount), sama seperti yang dikirim server untuk kategori lain.
+        const newOption: CategoryOption = { value: id, label: formattedLabel, disabled: isGroup || undefined, journal_account: isGroup ? undefined : label };
         setCategories((prev) => {
             // Kategori cepat bertipe pemasukan/pengeluaran: grup barunya masuk SEBELUM grup Pendanaan
             // (yang selalu terakhir), bukan di dalamnya.
@@ -115,7 +119,12 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
     // Grup Pendanaan (selalu terakhir) diberi judul bagian + penanda di pemicu.
     const categoryOptions = withFinancingGroup(categories);
     const isFinancing = isFinancingCategory(categories, data.category_id);
-    const selectedAccountName = accounts.find((a) => a.id === data.bank_account_id)?.account_name ?? null;
+    const selectedAccount = accounts.find((a) => a.id === data.bank_account_id);
+    const selectedAccountName = selectedAccount?.account_name ?? null;
+    // Pratinjau jurnal: rekening & akun lawan dari server (journal_name / journal_account), rumus di
+    // @/lib/journal (cermin JournalService::cashLines). Tanpa kategori → placeholder; tanpa jumlah → "—".
+    const counterAccount = categories.find((c) => c.value === data.category_id && !c.disabled)?.journal_account;
+    const journal = selectedAccount && counterAccount ? cashJournal(type, selectedAccount.journal_name, data.amount, counterAccount) : null;
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -226,6 +235,8 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                                 clearable={false}
                                 error={errors.transaction_date}
                             />
+
+                            <JournalBox mode="preview" lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
                         </div>
 
                         {/* Right column — meta + attachment */}

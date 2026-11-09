@@ -67,6 +67,8 @@ Template kategori siap pakai: **15 induk, 59 sub**, nama saja (tanpa kode akun),
 
 "(Tanpa Invoice)": pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis oleh Laba Rugi dari `payments` dan `invoice_items.cogs_amount`; kategori ini hanya untuk yang tidak memakai invoice (aturan anti-dobel HPP, `docs/design/laba-rugi.md`).
 
+**Akun jurnal sub pendanaan** (sejak 9 Nov 2026, jurnal tampilan "Cara A"): `CategoryTemplateService::JOURNAL_ACCOUNTS` — tepat di samping `TEMPLATE` dan dites keberadaan kuncinya — memberi tiap sub pendanaan template **akun neraca** sebagai akun lawan jurnal: Setoran Modal Pemilik → **Modal Pemilik**, Prive Pemilik → **Prive Pemilik**, Setor PPN → **PPN Keluaran**, Setor Titipan Pajak Klien → **Titipan Pajak Klien** (dua terakhir sama persis dengan akun yang dikredit pembayaran invoice). Pencocokan memakai `normalize()` yang sama dengan Pakai Template dan hanya untuk kategori bertipe `financing`; sub pendanaan lain (buatan pengguna) dan semua kategori pemasukan/pengeluaran/penyesuaian memakai labelnya sendiri. Detail aturan jurnal: [cash-flow.md › Jurnal tampilan](cash-flow.md#jurnal-tampilan-cara-a--debitkredit-dari-rekening--kategori).
+
 **Bagian Pendanaan** (sejak 9 Nov 2026): kategori untuk uang yang menggeser saldo tetapi bukan pendapatan/beban — setoran modal, prive, setor PPN, dan setor titipan pajak klien (aturan Laba Rugi mewajibkan dua yang terakhir bertipe `financing`, lihat [profit-loss.md](profit-loss.md) › Invarian). Sub-nya bisa dipilih di dialog Catat Pemasukan dan Catat Pengeluaran (grup terakhir "Pendanaan · tidak masuk Laba Rugi", lihat [cash-flow.md](cash-flow.md) › Pendanaan). "Setoran Modal" dan "Penarikan Modal" dulu diisikan seeder sebagai induk **tanpa anak**; di perusahaan lama keduanya cocok sebagai *sudah ada* dan sub barunya ditempel ke sana (pratinjau: 5 baru, 69 sudah ada).
 
 **Alur step-by-step:**
@@ -197,7 +199,7 @@ Skenario-skenario ini dicakup `tests/Feature/TransactionCategoryControllerTest.p
 **Alur step-by-step:**
 
 1. Modul lain (Cash Flow, Fund Request, Reimbursement) butuh dropdown kategori → panggil `TransactionCategory::selectOptions($type)` di controller, atau frontend fetch `GET /api/transaction-categories?type=credit|debit|income|expense|adjustment|transfer` (closure di `routes/web.php`; `credit` dipetakan ke tipe `income+adjustment+transfer`, `debit` ke `expense+adjustment+transfer`).
-2. Keduanya menghasilkan format yang sama untuk Combobox: **parent sebagai header disabled, hanya anak yang bisa dipilih** (prefix `↳ `).
+2. Keduanya menghasilkan format yang sama untuk Combobox: **parent sebagai header disabled, hanya anak yang bisa dipilih** (prefix `↳ `). Setiap opsi yang bisa dipilih membawa `journal_account` — akun lawan untuk pratinjau jurnal di dialog Catat/ubah (`JournalService::counterAccountFor()`; label kategori, atau akun neraca untuk sub pendanaan template).
 3. **Grup Pendanaan** (sejak 9 Nov 2026) — `TransactionCategory::financingOptions()`: induk `financing` non-sistem (judul) + sub non-sistemnya, tiap opsi bertanda `financing: true`, induk tanpa sub dilewati. Ditambahkan **di urutan terakhir** oleh `TransactionCategory::transactionOptions('income'|'expense')` (dialog ubah di Arus Kas) dan oleh closure API untuk `type=credit|debit` (dialog Catat Pemasukan/Pengeluaran). Variasi filter `financingOptions(true, $arah)` menambahkan kategori pokok utang/piutang (FIN-*) di bawah judul "Dari Utang & Piutang" (`value: -1`, non-aktif) — dipakai filter daftar Arus Kas dan API tanpa `type` (filter tab transaksi Kas & Bank), **tidak** untuk formulir. Klien memberi grup ini judul bagian "Pendanaan · tidak masuk Laba Rugi" dan penanda lewat `withFinancingGroup()` (`resources/js/components/shared/financing.tsx`).
 
 **Penjelasan kode** (`app/Models/TransactionCategory.php`):
@@ -276,7 +278,7 @@ Identitas kategori sistem hidup di kolom **`system_key`** (nullable unique, dita
 | File | Peran |
 |------|-------|
 | `app/Models/TransactionCategory.php` | Konstanta `PL_GROUPS` & `POKOK_MODUL` (kategori sistem pokok utang/piutang → modul), relasi parent/children/transactions/reimbursements/fundRequestItems, `selectOptions()`, `financingOptions()`, `transactionOptions()`, accessor `full_path` |
-| `app/Services/CategoryTemplateService.php` | Isi template (`TEMPLATE`), `plan()` (pratinjau + penjaga), `apply()` (transaksi DB), `normalize()` |
+| `app/Services/CategoryTemplateService.php` | Isi template (`TEMPLATE`), akun jurnal sub pendanaan (`JOURNAL_ACCOUNTS`, `journalAccount()`), `plan()` (pratinjau + penjaga), `apply()` (transaksi DB), `normalize()` |
 | `app/Http/Controllers/TransactionCategoryController.php` | Index (filter + withCount + prop opsional `templatePreview`), store (dual respons), applyTemplate, update, updatePlGroup, destroy dengan guard & reassign |
 | `database/seeders/TransactionCategorySeeder.php` | Kategori awal perusahaan baru: sistem + transfer + template (lewat service, termasuk Pendanaan) |
 | `resources/js/pages/transaction-categories/components/template-dialog.tsx` | Dialog Pakai Template (pratinjau, skeleton, galat + Coba lagi, ScrollArea) |

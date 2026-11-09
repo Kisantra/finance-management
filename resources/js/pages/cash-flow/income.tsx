@@ -76,8 +76,6 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
     const [dialogData, setDialogData] = React.useState<CashFlowDialogData | null>(null);
 
     const openRow = (row: IncomeRow) => {
-        // Pokok utang/piutang hanya-lihat: dikelola modul Utang/Piutang.
-        if (row.managed_by) return;
         if (row.source_type === 'payment') {
             setDialogData({
                 kind: 'payment',
@@ -88,6 +86,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                 reference_number: row.reference_number,
                 attachment_url: row.attachment_url,
                 attachment_name: row.attachment_name,
+                journal: row.journal,
             });
         } else {
             setDialogData({
@@ -97,9 +96,14 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                 date: row.date,
                 description: row.description,
                 category_id: row.category_id,
+                category_label: row.category_label,
+                is_financing: row.is_financing,
                 reference_number: row.reference_number,
                 attachment_url: row.attachment_url,
                 attachment_name: row.attachment_name,
+                journal: row.journal,
+                // Pokok utang/piutang: rincian hanya-lihat (dikelola modul Utang/Piutang).
+                managed_by: row.managed_by,
             });
         }
     };
@@ -337,8 +341,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                             key={row.uid}
                                             onClick={() => openRow(row)}
                                             className={cn(
-                                                'border-b border-ob-line-soft transition-colors duration-150 last:border-0',
-                                                row.managed_by ? 'cursor-default' : 'cursor-pointer',
+                                                'cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0',
                                                 selected.includes(row.uid) ? 'bg-ob-act-fill/10' : 'hover:bg-ob-hover',
                                             )}
                                         >
