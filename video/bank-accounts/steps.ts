@@ -66,7 +66,7 @@ export const CREATE_STEPS: Step[] = [
         cursor: S['fm-account-bank'].bank,
         type: around(S['fm-account-bank'].number, S['fm-account-bank'].bank),
         zoom: 1.6,
-        caption: 'Nomor Rekening tidak boleh sama dengan rekening lain. Lalu pilih Nama Bank dari daftar, atau ketik sendiri.',
+        caption: 'Nomor Rekening tidak boleh sama dengan rekening lain. Lalu isi Nama Bank.',
     },
     {
         src: img('fm-account-filled'),

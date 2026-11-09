@@ -37,7 +37,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import { AccountCharts } from './components/account-charts';
 import { AccountFormDialog } from './components/account-form-dialog';
-import { AccountAvatar, AccountSidebar, MobileAccountSwitcher } from './components/account-sidebar';
+import { AccountSidebar, AccountTypeIcon, MobileAccountSwitcher } from './components/account-sidebar';
 import { PaymentsTab } from './components/payments-tab';
 import { TransactionFormDialog } from './components/transaction-form-dialog';
 import { TransactionsTab } from './components/transactions-tab';
@@ -225,12 +225,9 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                           */}
                                         <div className="flex flex-wrap items-center justify-between gap-4">
                                             <div className="flex min-w-0 flex-1 basis-96 items-start gap-3">
-                                                <AccountAvatar
-                                                    account={selectedAccount}
-                                                    className="h-12 w-12 rounded-xl"
-                                                    iconClassName="w-6 h-6"
-                                                    fallbackClassName="shadow-md shadow-primary-200/40 dark:shadow-primary-900/30"
-                                                />
+                                                <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 bg-linear-to-br from-primary-400 to-primary-600 shadow-md shadow-primary-200/40 dark:shadow-primary-900/30">
+                                                    <AccountTypeIcon account={selectedAccount} className="w-6 h-6 text-white" />
+                                                </div>
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                         <h2 className="min-w-0 break-words text-xl font-bold leading-tight text-dark-900 dark:text-dark-50">

@@ -1,6 +1,5 @@
 import { Building2, ChevronRight, Plus, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import * as React from 'react';
-import { BankLogo } from '@/components/shared/bank-logo';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -9,30 +8,6 @@ import type { AccountListItem, OverallSummary } from '../types';
 /** Ikon jenis akun: gedung = rekening bank, dompet = kas tunai. */
 export function AccountTypeIcon({ account, className }: { account: Pick<AccountListItem, 'type'>; className?: string }) {
     return account.type === 'cash' ? <Wallet className={className} /> : <Building2 className={className} />;
-}
-
-interface AccountAvatarProps {
-    account: Pick<AccountListItem, 'type' | 'bank_name'>;
-    /** Ukuran & radius tile, berlaku untuk logo maupun ikon. */
-    className?: string;
-    iconClassName?: string;
-    /** Kelas tambahan khusus tile ikon (mis. bayangan). */
-    fallbackClassName?: string;
-}
-
-/**
- * Tile akun: logo bank bila nama banknya dikenali katalog (`lib/banks.ts`), selain itu ikon jenis
- * akun di tile biru — termasuk semua akun kas, yang nama banknya selalu "Tunai".
- */
-export function AccountAvatar({ account, className, iconClassName, fallbackClassName }: AccountAvatarProps) {
-    const fallback = (
-        <div className={cn('flex shrink-0 items-center justify-center bg-linear-to-br from-primary-400 to-primary-600', className, fallbackClassName)}>
-            <AccountTypeIcon account={account} className={cn('text-white', iconClassName)} />
-        </div>
-    );
-    if (account.type === 'cash') return fallback;
-
-    return <BankLogo bankName={account.bank_name} className={className} fallback={fallback} />;
 }
 
 /**
@@ -155,7 +130,9 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
         >
             <div className="flex items-start gap-3">
                 <div className="relative shrink-0">
-                    <AccountAvatar account={account} className="h-9 w-9 rounded-xl" iconClassName="w-4 h-4" fallbackClassName="shadow-sm" />
+                    <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-linear-to-br from-primary-400 to-primary-600 shadow-sm">
+                        <AccountTypeIcon account={account} className="w-4 h-4 text-white" />
+                    </div>
                     {active && (
                         <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary-500 ring-2 ring-white dark:ring-dark-700" />
                     )}
@@ -321,7 +298,9 @@ export function MobileAccountSwitcher({
                                 )}
                             >
                                 <div className="flex items-start gap-2.5 mb-2">
-                                    <AccountAvatar account={account} className="h-8 w-8 rounded-lg" iconClassName="w-4 h-4" />
+                                    <div className="h-8 w-8 bg-linear-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center shrink-0">
+                                        <AccountTypeIcon account={account} className="w-4 h-4 text-white" />
+                                    </div>
                                     <div className="min-w-0">
                                         <div className="break-words text-sm font-semibold leading-snug text-dark-900 dark:text-dark-50">
                                             {account.account_name}
