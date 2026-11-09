@@ -1,0 +1,171 @@
+{
+  "module": "template-kategori",
+  "title": "QA — Kategori Transaksi › Pakai Template",
+  "kicker": "QA 9 NOVEMBER 2026 · KATEGORI TRANSAKSI · PAKAI TEMPLATE",
+  "date": "9 November 2026",
+  "environment": "database tplkat_central + tplkat_central_tenant_tpllama / _tplbaru (dibuat khusus, di-drop setelah QA), php artisan serve --env=tplkat di http://127.0.0.1:8139 (APP_ENV=tplkat, sesi & cache database, antrean sync), aset dari Vite dev server pengguna ([::1]:5173), Chrome via Chrome DevTools MCP 1280x800 DPR 1 (N04: 390x844 DPR 2 mode ponsel), kode main c32e3ff + 5073700 (feat(kategori) Pakai Template)",
+  "scope": "Eksekusi 10 test case di test-cases/template-kategori.md untuk fitur Pakai Template kategori transaksi: template 12 induk/55 sub yang sudah bergrup Laba Rugi, pratinjau (prop Inertia opsional), penerapan lewat POST /transaction-categories/template, aturan pencocokan nama ternormalisasi, penjaga induk (kategori sistem / dipakai langsung), idempoten, izin manage categories, perusahaan baru yang langsung berisi template, tampilan ponsel, dan dampaknya ke pemilih kategori serta Laporan Laba Rugi. Aktor: Admin QA, Finance manager QA, pengguna hanya-lihat kategori.",
+  "shots_src": "../evidence/template-kategori",
+  "shots_dst": "../evidence/template-kategori",
+  "evidence_into": "../test-cases/template-kategori.md",
+  "report_out": "../report/Laporan-QA-template-kategori.pdf",
+  "summary": [
+    "Seluruh 10 test case lolos pada percobaan pertama; tidak ada bug aplikasi yang menggagalkan case. Perusahaan baru langsung berisi 77 kategori (sistem, modal, transfer, dan 67 kategori template) tanpa satu pun pemasukan/pengeluaran yang belum diklasifikasi, dan tanpa kategori bawaan khas Kisantra.",
+    "Di perusahaan lama, pratinjau persis sesuai rencana yang dihitung tangan dari fixture: 59 baru, 3 sudah ada (induk BEBAN  KANTOR dengan huruf besar dan spasi ganda, sub LISTRIK, sub Internet & telepon di induk lain), 5 dilewati (grup Beban Pemasaran karena induknya dipakai langsung oleh transaksi). Nama mirip (Beban Karyawan Proyek) tidak digabung. Setelah diterapkan, 35 baris lama identik sampai updated_at, 59 baris baru semuanya bergrup Laba Rugi, klik ulang membuat 0, dan daftar rakitan dari klien diabaikan server.",
+    "Rantai lintas modul terbukti: sub template Gaji Karyawan langsung bisa dipilih di Input Pengeluaran dan transaksinya masuk baris Beban Operasional Laba Rugi, bukan panel Perlu Diklasifikasi. Pengguna yang hanya boleh melihat kategori tidak melihat tombol Pakai Template, mendapat pratinjau null, dan POST-nya 403.",
+    "Satu perbaikan tampilan dibuat selama QA (UX-T1): catatan \"Sudah ada di grup …\" kini hanya muncul untuk sub yang tinggal di grup lain. Temuan lama di luar lingkup dicatat sebagai K-T1..K-T5 (tidak diperbaiki)."
+  ],
+  "bugs": [
+    {
+      "id": "UX-T1",
+      "title": "Catatan \"Sudah ada di grup …\" berulang untuk sub yang sudah di grupnya sendiri — DIPERBAIKI di 5073700",
+      "sifat": "Rendah — kebisingan tampilan, tidak salah data",
+      "cases": "(tidak menggagalkan case; terlihat di A03 langkah awal, bukti lama di N02-4)",
+      "gejala": "Setelah template diterapkan (A03), setiap sub berstatus Sudah ada menampilkan \"Sudah ada di grup <grupnya sendiri>, tidak diubah.\" — 62 baris catatan yang tidak memberi informasi.",
+      "sebab": "Dialog menampilkan catatan untuk semua sub berstatus existing tanpa membedakan apakah induknya sama dengan induk grup template.",
+      "cakupan": "Hanya dialog Pakai Template (template-dialog.tsx); data dan aturan pencocokan tidak terpengaruh.",
+      "perbaikan": "Rencana kini menyertakan existing_parent_id; dialog menampilkan catatan hanya bila existing_parent_id berbeda dari category_id grup. Diverifikasi ulang di A03 (hanya Internet & Telepon yang bercatatan) dan screenshot panduan fm-template-existing; tes CategoryTemplateServiceTest diperbarui."
+    }
+  ],
+  "cases": [
+    { "section": "A. KONDISI NORMAL" },
+    {
+      "id": "N01",
+      "title": "Perusahaan baru langsung berisi template; pratinjau semua Sudah ada",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "77 kategori, 0 belum diklasifikasi, 0 label lama; dialog 0/67/0 dengan tombol Tidak ada kategori baru.",
+      "steps": [
+        { "img": "N01-1", "cap": "Dialog **Perusahaan baru** (PT Template Baru QA, `tplbaru`): langkah *Data awal diisi* kini menyebut template kategori yang sudah ber-grup Laba Rugi." },
+        { "img": "N01-2", "cap": "Perusahaan baru setelah profil dilengkapi: **Total 77**, Utama 21, Sub 56, **Belum Diklasifikasi 0**; grup HPP (Tanpa Invoice) sudah bergrup Harga Pokok (HPP)." },
+        { "img": "N01-3", "cap": "**Pakai Template**: Baru 0, Sudah ada 67, Dilewati 0, \"Tidak ada yang perlu dibuat\"; tombol **Tidak ada kategori baru** nonaktif." }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Pratinjau campuran di perusahaan lama",
+      "layer": "FE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "59 / 3 / 5 sesuai rencana; alasan penjaga terbaca; nama mirip tidak digabung.",
+      "steps": [
+        { "img": "N02-1", "cap": "Perusahaan lama (FM): header baru berisi **Tutorial · Pakai Template · Tambah Kategori**; 35 kategori, 21 belum diklasifikasi." },
+        { "img": "N02-2", "cap": "Pratinjau: penjelasan (dilewati bila sudah ada, kategori lama tidak diubah, arti *(Tanpa Invoice)*), ringkasan **Baru 59 · Sudah ada 3 · Dilewati 5**, tombol **Buat 59 kategori**." },
+        { "img": "N02-3", "cap": "**Beban Karyawan** berstatus Baru dengan 8 sub — tidak digabung dengan induk lama *Beban Karyawan Proyek* (nama mirip ≠ sama). Kolom kanan = baris Laba Rugi tujuan." },
+        { "img": "N02-4", "cap": "**Beban Kantor**: Sudah ada, sub baru ditempel ke induk lama *BEBAN  KANTOR*; Listrik Sudah ada; Internet & Telepon Sudah ada di grup *Operational Expenses* (L/R: Belum diklasifikasi). Catatan pada Listrik dihapus kemudian (UX-T1)." },
+        { "img": "N02-5", "cap": "**Beban Pemasaran** + 4 sub Dilewati: induknya dipakai langsung oleh 1 transaksi; alasannya tertulis di baris." }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Buat kategori dari template: hanya yang baru, kategori lama tidak berubah",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "1 POST walau diklik dua kali saat proses; 35 baris lama identik (md5); 59 baru bergrup L/R; toast sesuai.",
+      "steps": [
+        { "img": "N03-1", "cap": "Sebelum menerapkan: dialog siap dengan tombol **Buat 59 kategori** (snapshot SQL 35 baris lama diambil sebelumnya)." },
+        { "img": "N03-2", "cap": "Sesudah: **Total 94**, Utama 27, Sub 67, Belum Diklasifikasi tetap **21** (kategori baru semuanya bergrup). Toast \"59 kategori dibuat, 3 dilewati karena sudah ada. 5 lainnya dilewati…\" dibaca dari DOM." },
+        { "img": "N03-3", "cap": "Cari \"Kantor\": *BEBAN KANTOR (5 sub)* tetap tanpa grup L/R (tidak diubah); sub baru Sewa Kantor & Konsumsi Kantor & Rapat menempel padanya, bergrup Beban Operasional." }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Dialog di layar ponsel tidak meluap ke samping",
+      "layer": "FE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "390x844: scrollWidth − clientWidth = 0 untuk dokumen dan isi dialog.",
+      "steps": [
+        { "img": "N04-1", "cap": "Ponsel 390 px: tombol header (Tutorial, Pakai Template, Tambah Kategori) turun baris, tidak meluap." },
+        { "img": "N04-2", "cap": "Dialog selebar layar; penjelasan & ringkasan terbaca; tombol **Buat 59 kategori** dan Batal (lebar penuh) tetap terlihat di bawah." },
+        { "img": "N04-3", "cap": "Baris grup: \"Laba Rugi: …\" turun ke bawah nama, catatan membungkus, badge status di kanan — tanpa geser samping." }
+      ]
+    },
+    { "section": "B. KONDISI TIDAK NORMAL / EDGE CASE" },
+    {
+      "id": "A01",
+      "title": "Pengguna hanya-lihat: tanpa tombol, pratinjau null, POST 403",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Partial reload templatePreview = null; POST 403; DB tetap 94. Tambah Kategori masih tampil (K-T1, perilaku lama).",
+      "steps": [
+        { "img": "A01-1", "cap": "Lia (hanya `view dashboard` + `view categories`): header hanya **Tutorial** dan Tambah Kategori — tombol **Pakai Template** tidak ada." }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Induk dipakai langsung: grup dilewati, transaksi lama tetap bisa diedit",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Beban Pemasaran tetap datar; edit deskripsi tersimpan, category_id tetap 102.",
+      "steps": [
+        { "img": "A02-1", "cap": "Setelah N03: *Beban Pemasaran* tetap kategori datar (tanpa sub), 1 pemakaian — template tidak menempelkan sub ke induk yang dipakai langsung." },
+        { "img": "A02-2", "cap": "Arus Kas › Pengeluaran › edit \"Iklan Instagram Oktober\" (ID #1). Kolom Kategori kosong karena kategori datar tidak ditawarkan pemilih (K-T2, perilaku lama)." },
+        { "img": "A02-3", "cap": "Simpan berhasil: toast *Transaksi berhasil diperbarui*, baris kini \"(revisi QA)\" dan tetap berkategori **Beban Pemasaran**." }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Klik ulang setelah diterapkan tidak membuat apa pun",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "0 / 62 / 5, tombol nonaktif; POST langsung → 0 kategori dibuat; DB tetap 94.",
+      "steps": [
+        { "img": "A03-1", "cap": "Dibuka ulang: **Baru 0 · Sudah ada 62 · Dilewati 5**, \"Tidak ada yang perlu dibuat\", tombol **Tidak ada kategori baru** nonaktif. Catatan \"Sudah ada di grup\" tidak lagi muncul untuk sub di grupnya sendiri (setelah UX-T1)." }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Pratinjau gagal dimuat: state galat + Coba lagi",
+      "layer": "FE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Galat tampil di dalam dialog (halaman tidak berpindah); Coba lagi memulihkan; skeleton terbukti lewat linimasa DOM.",
+      "steps": [
+        { "img": "A04-1", "cap": "Jaringan *Offline*: alert **Pratinjau template gagal dimuat** + **Coba lagi**; tombol \"Buat kategori\" nonaktif; halaman tetap di Kategori Transaksi." },
+        { "img": "A04-2", "cap": "Jaringan pulih → **Coba lagi**: pratinjau 59 / 3 / 5 tampil kembali." }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "Daftar kategori dari klien diabaikan server",
+      "layer": "BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "POST rakitan berisi grup palsu → 0 kategori dibuat; UI tidak pernah mengirim daftar sehingga hanya terjangkau lewat request langsung."
+    },
+    { "section": "C. ALUR BERANTAI (LINTAS MODUL)" },
+    {
+      "id": "C01",
+      "title": "Gaji Karyawan dari template → Beban Operasional di Laba Rugi",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Transaksi #3 Gaji Karyawan (opex) masuk Beban Operasional Rp 5.000.000; Perlu Diklasifikasi hanya MAKAN MINUM.",
+      "steps": [
+        { "img": "C01-1", "cap": "Input Pengeluaran: pemilih menampilkan judul kelompok **Beban Karyawan** dan sub-subnya, termasuk **↳ Gaji Karyawan**." },
+        { "img": "C01-2", "cap": "Form terisi: BCA Operasional, ↳ Gaji Karyawan, Rp 5.000.000, 09 Nov 2026, \"Gaji staf administrasi November 2026\"." },
+        { "img": "C01-3", "cap": "Laba Rugi 1 Okt–30 Nov: panel **Perlu Diklasifikasi (1)** hanya berisi kategori lama MAKAN MINUM Rp 250.000 — Gaji Karyawan tidak ada di sana." },
+        { "img": "C01-4", "cap": "Beban Operasional: **Gaji Karyawan Rp 5.000.000** (+ Beban Pemasaran Rp 750.000) = Rp 5.750.000." }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "K-T1", "title": "Tombol Tambah Kategori & ikon edit/hapus tampil untuk pengguna hanya-lihat", "body": "Perilaku lama (sama polanya dengan UX-02 Kas & Bank yang sudah diperbaiki di sana): server menolak 403, tetapi tombolnya ditawarkan. Tombol Pakai Template yang baru sudah digate can('manage categories'). Tidak diperbaiki: di luar lingkup." },
+    { "id": "K-T2", "title": "Edit transaksi berkategori induk datar menampilkan \"Pilih kategori\"", "body": "Pemilih (selectOptions / /api/transaction-categories) tidak menawarkan kategori datar sebagai pilihan, sehingga kolom Kategori di dialog Edit tampak kosong walau category_id tetap terkirim dan tersimpan. Perilaku lama, terlihat di A02; tidak menghalangi simpan." },
+    { "id": "K-T3", "title": "Pemilih kategori Pengeluaran ikut menawarkan sub transfer", "body": "Input Pengeluaran memakai /api/transaction-categories?type=debit (expense + adjustment + transfer), jadi \"↳ Antar Rekening Sendiri\" ikut tampil. Sudah terdokumentasi di modul; tidak diubah." },
+    { "id": "K-T4", "title": "Tabel Kategori Transaksi membungkus label panjang di 1280 px", "body": "Nama induk template yang panjang (\"Harga Pokok Penjualan (Tanpa Invoice)\") membuat badge \"Harga Pokok (HPP)\" dan teks \"Belum digunakan\" turun baris. Kosmetik; tabel halaman ini masih berkerangka lama." },
+    { "id": "K-T5", "title": "Peringatan konsol \"Missing Description\" dari dialog Catat/Edit Pengeluaran", "body": "Muncul di halaman Arus Kas (bukan dari dialog Pakai Template, yang memakai DialogDescription). Perilaku lama." }
+  ],
+  "tooling_problems": [
+    "Skeleton pratinjau hanya bertahan ±2,3 detik walau jaringan DevTools diset Slow 3G, lebih singkat dari jeda antar-panggilan alat; tangkapan layar selalu jatuh setelah pratinjau termuat. Keberadaannya dibuktikan lewat linimasa DOM (A04), bukan gambar.",
+    "Toast hasil penerapan (N03) hilang sebelum tangkapan layar berikutnya; teksnya dibaca langsung dari DOM. Toast yang sama terlihat di screenshot panduan fm-template-done (perusahaan contoh lama).",
+    "Di C01 alat uji mengklik tanggal hari ini yang sudah terpilih sehingga react-day-picker membatalkan pilihannya (Tanggal menjadi kosong); tanggal dipilih ulang sebelum menyimpan. Ini kesalahan langkah alat uji, bukan bug aplikasi."
+  ],
+  "honesty": "Kode fitur ini ditulis oleh asisten yang sama yang menjalankan QA, sehingga pengujian bisa mewarisi asumsi yang sama dengan saat menulis kodenya. Fixture perusahaan lama dibuat lewat skrip (bukan data produksi asli). Disarankan memeriksa ulang secara mandiri satu hal: di salinan database perusahaan nyata yang sudah lama berjalan, buka pratinjau Pakai Template dan bandingkan daftar Dilewati/Sudah ada dengan kategori yang memang ada — terutama nama yang hanya beda tanda baca (mis. \"BBM/Tol/Parkir\" vs \"BBM, Tol & Parkir\"), yang menurut aturan akan dibuat sebagai kategori baru."
+}
