@@ -4,6 +4,9 @@
  * 2. Playwright MCP: browser_run_code_unsafe, filename: video/capture/bank-accounts.js
  * 3. python video/capture/to-webp.py bank-accounts, lalu salin koordinat hasilnya ke video/bank-accounts/shots.ts.
  * Jalankan SEBELUM video/capture/transaction-categories.js (kategori "Langganan Software" & "Biaya Langganan (lama)" dibuat di sini).
+ * Prasyarat data QC: sub-kategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R dikosongkan).
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  * Membuat di DB QC: 2 rekening (BRI - Proyek Klien, Jago - Kas Kecil), 2 kategori pengeluaran, 2 pengeluaran,
  * 1 pemasukan, 1 transfer. Bila rekening BRI sudah ada, langkah pembuatan data dilewati (hanya screenshot).
  */
@@ -178,7 +181,8 @@ async (page) => {
   const catTrigger = () => parentOf(top(m).getByText('Kategori *', { exact: true })).locator('xpath=following-sibling::*[1]//button').first();
   const hasCat = async (label) => {
     await catTrigger().click();
-    const n = await m.getByRole('option', { name: label }).count();
+    // exact: template punya "Langganan Software & Aplikasi"; tanpa exact keduanya cocok.
+    const n = await m.getByRole('option', { name: '↳ ' + label, exact: true }).count();
     await m.keyboard.press('Escape');
     return n > 0;
   };
@@ -186,7 +190,7 @@ async (page) => {
   if (!(await hasCat('Langganan Software'))) {
     await top(m).getByRole('button', { name: 'Tambah', exact: true }).click();
     await top(m).getByText('Kelompok Kategori *').waitFor();
-    await pick(m, top(m).getByLabel('Kelompok Kategori *'), 'Operational Expenses');
+    await pick(m, top(m).getByLabel('Kelompok Kategori *'), 'Beban Administrasi & Umum');
     await top(m).getByLabel('Nama Kategori *').fill('Langganan Software');
     await snap(m, 'fm-quick-category', {
       dialog: top(m),
@@ -200,7 +204,7 @@ async (page) => {
     await m.waitForTimeout(500);
   } else {
     log.push('Langganan Software sudah ada: fm-quick-category dilewati');
-    await pick(m, catTrigger(), 'Langganan Software');
+    await pick(m, catTrigger(), /^↳ Langganan Software$/);
   }
   await snap(m, 'fm-expense-category', tx());
 
@@ -222,7 +226,7 @@ async (page) => {
     // Pengeluaran kedua dengan kategori lama (dipakai untuk demo "Pindahkan & Hapus" di modul kategori).
     await top(m).getByRole('button', { name: 'Tambah', exact: true }).click();
     await top(m).getByText('Kelompok Kategori *').waitFor();
-    await pick(m, top(m).getByLabel('Kelompok Kategori *'), 'Operational Expenses');
+    await pick(m, top(m).getByLabel('Kelompok Kategori *'), 'Beban Administrasi & Umum');
     await top(m).getByLabel('Nama Kategori *').fill('Biaya Langganan (lama)');
     await top(m).getByRole('button', { name: 'Tambah', exact: true }).click();
     await top(m).getByText('Catat Pengeluaran').waitFor();
@@ -233,7 +237,7 @@ async (page) => {
     await m.getByText('Pengeluaran berhasil dicatat').first().waitFor();
     await m.waitForTimeout(400);
   }
-  await top(m).getByRole('button', { name: 'Tutup' }).click();
+  await top(m).getByRole('button', { name: 'Tutup' }).first().click(); // .first(): tombol X dialog juga bernama "Tutup"
   await m.waitForTimeout(500);
 
   /* ── Catat pemasukan ── */
@@ -249,7 +253,7 @@ async (page) => {
     await m.getByText('Pemasukan berhasil dicatat').first().waitFor();
     await m.waitForTimeout(400);
   }
-  await top(m).getByRole('button', { name: 'Tutup' }).click();
+  await top(m).getByRole('button', { name: 'Tutup' }).first().click(); // .first(): tombol X dialog juga bernama "Tutup"
   await m.waitForTimeout(500);
 
   /* ── Transfer ── */
@@ -272,7 +276,7 @@ async (page) => {
   });
   await snap(m, 'fm-transfer-empty', tf());
   await pick(m, top(m).getByLabel('Rekening Tujuan *'), /Jago - Kas Kecil/);
-  await pick(m, top(m).getByLabel('Kategori *'), 'Pindah Dana Antar Rekening');
+  await pick(m, top(m).getByLabel('Kategori *'), 'Antar Rekening Sendiri');
   await snap(m, 'fm-transfer-accounts', tf());
   await typeMoney(m, top(m).getByLabel('Jumlah Transfer *'), '1500000');
   await snap(m, 'fm-transfer-amount', tf());

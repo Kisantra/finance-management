@@ -20,14 +20,19 @@ class BankTransactionSeeder extends Seeder
     public function run(): void
     {
         $bankAccount = BankAccount::first();
-        $incomeCategory = TransactionCategory::where('type', 'income')->first();
-        $expenseCategories = TransactionCategory::where('type', 'expense')
-            ->whereNotNull('parent_id')
-            ->limit(5)
-            ->get();
 
-        if (!$bankAccount || !$incomeCategory || $expenseCategories->isEmpty()) {
+        // Hanya SUB kategori: induk berfungsi sebagai judul grup dan ditolak form
+        // transaksi. Dulu `where('type', 'income')->first()` bisa mengambil induk.
+        // Label mengikuti template kategori (TransactionCategorySeeder); bila tidak
+        // ada, jatuh ke sub pertama bertipe sama.
+        $incomeCategories = collect(['Komisi & Fee', 'Bunga & Jasa Giro Bank', 'Pengembalian Dana (Refund)'])
+            ->map(fn (string $label) => $this->subCategory('income', $label));
+        $expenseCategories = collect(['Gaji Karyawan', 'Sewa Kantor', 'Internet & Telepon', 'Iklan & Promosi'])
+            ->map(fn (string $label) => $this->subCategory('expense', $label));
+
+        if (! $bankAccount || $incomeCategories->contains(null) || $expenseCategories->contains(null)) {
             $this->command->error('⚠ Please run BankAccountSeeder and TransactionCategorySeeder first!');
+
             return;
         }
 
@@ -35,7 +40,7 @@ class BankTransactionSeeder extends Seeder
 
         BankTransaction::create([
             'bank_account_id' => $bankAccount->id,
-            'category_id' => $incomeCategory->id,
+            'category_id' => $incomeCategories[0]->id,
             'amount' => 2000000,
             'transaction_date' => Carbon::create(2026, 1, 10),
             'transaction_type' => 'credit',
@@ -45,7 +50,7 @@ class BankTransactionSeeder extends Seeder
 
         BankTransaction::create([
             'bank_account_id' => $bankAccount->id,
-            'category_id' => $incomeCategory->id,
+            'category_id' => $incomeCategories[1]->id,
             'amount' => 2000000,
             'transaction_date' => Carbon::create(2026, 2, 12),
             'transaction_type' => 'credit',
@@ -55,7 +60,7 @@ class BankTransactionSeeder extends Seeder
 
         BankTransaction::create([
             'bank_account_id' => $bankAccount->id,
-            'category_id' => $incomeCategory->id,
+            'category_id' => $incomeCategories[2]->id,
             'amount' => 1000000,
             'transaction_date' => Carbon::create(2026, 3, 8),
             'transaction_type' => 'credit',
@@ -141,5 +146,15 @@ class BankTransactionSeeder extends Seeder
         $this->command->info('✓ Seeded bank_transactions table: 10 transactions');
         $this->command->info('  → Income (credit): Rp 5.000.000');
         $this->command->info('  → Expense (debit): Rp 9.000.000');
+    }
+
+    /**
+     * Sub kategori bertipe $type berlabel $label, atau sub pertama bertipe itu.
+     */
+    private function subCategory(string $type, string $label): ?TransactionCategory
+    {
+        $subs = TransactionCategory::where('type', $type)->whereNotNull('parent_id')->orderBy('id');
+
+        return (clone $subs)->where('label', $label)->first() ?? $subs->first();
     }
 }

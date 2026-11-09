@@ -434,6 +434,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     Route::middleware('can:view categories')->group(function () {
         Route::get('/transaction-categories', [TransactionCategoryController::class, 'index'])->name('transaction-categories.index');
         Route::post('/transaction-categories', [TransactionCategoryController::class, 'store'])->middleware('can:manage categories')->name('transaction-categories.store');
+        Route::post('/transaction-categories/template', [TransactionCategoryController::class, 'applyTemplate'])->middleware('can:manage categories')->name('transaction-categories.template');
         Route::put('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'update'])->middleware('can:manage categories')->name('transaction-categories.update');
         Route::patch('/transaction-categories/{transactionCategory}/pl-group', [TransactionCategoryController::class, 'updatePlGroup'])->middleware('can:manage categories')->name('transaction-categories.pl-group');
         Route::delete('/transaction-categories/{transactionCategory}', [TransactionCategoryController::class, 'destroy'])->middleware('can:manage categories')->name('transaction-categories.destroy');

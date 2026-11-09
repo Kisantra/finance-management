@@ -1,8 +1,10 @@
 /*
  * Ambil ulang screenshot tutorial Arus Kas (video/cash-flow/screens/*.webp, lewat to-webp.py) bila UI berubah.
  * 1. Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8014
- * 2. Prasyarat data QC: sub-kategori transfer "Pindah Dana Antar Rekening" (induk Transfer Internal) dan sub-kategori
- *    pemasukan "Sewa Ruang Rapat" (induk Penghasilan, grup L/R kosong) — kategori transfer tanpa sub-kategori tidak bisa dipilih.
+ * 2. Prasyarat data QC: sub-kategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R
+ *    dikosongkan). Sub transfer "Antar Rekening Sendiri" (induk Transfer Internal) sudah dibuat seeder perusahaan baru.
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  * 3. Playwright MCP: browser_run_code_unsafe, filename: video/capture/cash-flow.js
  * 4. python video/capture/to-webp.py cash-flow, lalu salin koordinat dari hasilnya ke video/cash-flow/shots.ts.
  * Skrip ini MENAMBAH 1 pemasukan, 1 pengeluaran, dan 1 transfer di DB QC (tidak menghapus apa pun). Jangan jalankan di DB utama.
@@ -127,7 +129,7 @@ async (page) => {
       await m.getByText('Pemasukan berhasil dicatat').first().waitFor();
       await snap(m, 'fm-income-saved', { ...incomeFields(), toast: m.getByText('Pemasukan berhasil dicatat').first() });
     }
-    await top(m).getByRole('button', { name: 'Tutup' }).click();
+    await top(m).getByRole('button', { name: 'Tutup' }).first().click(); // .first(): tombol X dialog juga bernama "Tutup"
     await m.goto(BASE + '/cash-flow/income?search=' + encodeURIComponent('Sewa ruang rapat'));
     await m.getByRole('row', { name: /Sewa ruang rapat lantai 3/ }).first().waitFor();
     await m.waitForTimeout(800);
@@ -167,10 +169,10 @@ async (page) => {
       save: top(m).getByRole('button', { name: 'Simpan Pengeluaran' }),
     });
     await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
-    await m.getByRole('option', { name: /OPEX BULANAN/ }).waitFor();
-    await m.getByRole('option', { name: /OPEX BULANAN/ }).scrollIntoViewIfNeeded();
-    await snap(m, 'fm-expense-form-category', { ...expenseFields(), option: m.getByRole('option', { name: /OPEX BULANAN/ }), list: m.getByRole('listbox') });
-    await m.getByRole('option', { name: /OPEX BULANAN/ }).click();
+    await m.getByRole('option', { name: /Internet & Telepon/ }).waitFor();
+    await m.getByRole('option', { name: /Internet & Telepon/ }).scrollIntoViewIfNeeded();
+    await snap(m, 'fm-expense-form-category', { ...expenseFields(), option: m.getByRole('option', { name: /Internet & Telepon/ }), list: m.getByRole('listbox') });
+    await m.getByRole('option', { name: /Internet & Telepon/ }).click();
     await top(m).locator('input[type=text]').first().click();
     await m.keyboard.type('1250000');
     await top(m).locator('textarea').fill('Tagihan internet kantor Oktober 2026 (Nusanet 100 Mbps)');
@@ -181,7 +183,7 @@ async (page) => {
       await top(m).getByRole('button', { name: 'Simpan Pengeluaran' }).click();
       await m.getByText('Pengeluaran berhasil dicatat').first().waitFor();
     }
-    await top(m).getByRole('button', { name: 'Tutup' }).click();
+    await top(m).getByRole('button', { name: 'Tutup' }).first().click(); // .first(): tombol X dialog juga bernama "Tutup"
     // Data QC dipakai bersama: cari transaksinya agar barisnya pasti terlihat di atas.
     await m.goto(BASE + '/cash-flow/expenses?search=' + encodeURIComponent('Tagihan internet kantor'));
     const expenseRow = () => m.getByRole('row', { name: /Tagihan internet kantor Oktober 2026/ }).first();
@@ -190,7 +192,7 @@ async (page) => {
     await snap(m, 'fm-expense-list-after', {
       ...listTargets(m, 'Input Pengeluaran'),
       row: expenseRow(),
-      category: expenseRow().getByText('OPEX BULANAN'),
+      category: expenseRow().getByText('Internet & Telepon'),
     });
 
     await expenseRow().click();
@@ -232,7 +234,7 @@ async (page) => {
     await snap(m, 'fm-transfer-form-empty', transferFields());
     await pick(m, top(m).getByRole('button', { name: 'Rekening Sumber *' }), /BNI - Investasi/);
     await pick(m, top(m).getByRole('button', { name: 'Rekening Tujuan *' }), /BCA - Operasional/);
-    await pick(m, top(m).getByRole('button', { name: 'Kategori *' }), /Pindah Dana Antar Rekening/);
+    await pick(m, top(m).getByRole('button', { name: 'Kategori *' }), /Antar Rekening Sendiri/);
     await snap(m, 'fm-transfer-form-accounts', transferFields());
     await up(label(top(m), 'Jumlah Transfer *')).locator('input').click();
     await m.keyboard.type('10000000');
@@ -319,7 +321,7 @@ async (page) => {
     await a.mouse.wheel(0, -80);
     await snap(a, 'admin-pl-opex', {
       heading: opex,
-      line: a.getByText('OPEX BULANAN', { exact: true }).first(),
+      line: a.getByText('Internet & Telepon', { exact: true }).first(),
       net: a.getByText('Laba Bersih', { exact: true }).first(),
     });
     }

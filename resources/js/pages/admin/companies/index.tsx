@@ -75,7 +75,7 @@ function labelPeran(role: string | null): string {
 /** Yang terjadi setelah "Buat perusahaan" — sesuai CompanyController::store, TenantDatabaseSeeder, dan gerbang profil. */
 const LANGKAH = [
     { otomatis: true, judul: 'Database dibuat', rinci: 'Lengkap dengan seluruh tabelnya. Butuh beberapa detik, dan halaman ini menunggu sampai selesai.' },
-    { otomatis: true, judul: 'Data awal diisi', rinci: 'Kategori transaksi bawaan, plus profil berisi nama dan singkatan.' },
+    { otomatis: true, judul: 'Data awal diisi', rinci: 'Template kategori transaksi yang sudah ber-grup Laba Rugi, plus profil berisi nama dan singkatan.' },
     { otomatis: true, judul: 'Anda menjadi Admin', rinci: 'Satu-satunya anggota. User lain belum bisa masuk.' },
     {
         otomatis: false,

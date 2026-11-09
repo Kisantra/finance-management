@@ -4,6 +4,8 @@
  * 2. Jalankan file ini lewat Playwright MCP (browser_run_code_unsafe, filename: video/capture/reimbursements.js).
  * 3. python video/capture/to-webp.py, lalu salin koordinat dari hasilnya ke video/reimbursements/shots.ts.
  * Skrip ini membuat 2 pengajuan baru di DB QC (satu dibayar lunas, satu ditolak). Jangan jalankan di DB utama.
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8001';
@@ -153,7 +155,7 @@ async (page) => {
   });
   await snap(m, 'fm-approve-empty', review());
   await top(m).getByRole('button', { name: 'Kategori akuntansi' }).click();
-  const transportOpt = m.getByRole('option', { name: /OPERASIONAL$/ }).first();
+  const transportOpt = m.getByRole('option', { name: /Transportasi Lokal$/ }).first();
   await transportOpt.waitFor();
   await transportOpt.click();
   await top(m).locator('textarea').fill('Sesuai struk, terima kasih.');

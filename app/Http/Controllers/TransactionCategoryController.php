@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTransactionCategoryRequest;
 use App\Http\Requests\UpdateTransactionCategoryRequest;
 use App\Models\TransactionCategory;
+use App\Services\CategoryTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class TransactionCategoryController extends Controller
      */
     private const KOLOM_URUT = ['label', 'type', 'pl_group', 'created_at'];
 
-    public function index(Request $request): Response
+    public function index(Request $request, CategoryTemplateService $template): Response
     {
         $search = $request->input('search');
         $type = $request->input('type');
@@ -92,6 +93,12 @@ class TransactionCategoryController extends Controller
             'stats' => $stats,
             'parentOptions' => $parentOptions,
             'reassignOptions' => $reassignOptions,
+            // Pratinjau Pakai Template: tidak pernah ikut kunjungan biasa, hanya dimuat
+            // saat dialognya dibuka (partial reload `only: ['templatePreview']`). Yang
+            // tidak berhak mengelola kategori mendapat null.
+            'templatePreview' => Inertia::optional(
+                fn () => $request->user()?->can('manage categories') ? $template->plan() : null
+            ),
             'filters' => [
                 'search' => $search,
                 'type' => $type,
@@ -117,6 +124,23 @@ class TransactionCategoryController extends Controller
         }
 
         return redirect()->back()->with('success', 'Kategori berhasil ditambahkan.');
+    }
+
+    /**
+     * Pakai Template: rencana dihitung ulang di server (daftar dari klien tidak dipakai),
+     * lalu hanya kategori berstatus baru yang dibuat. Kategori lama tidak diubah.
+     */
+    public function applyTemplate(CategoryTemplateService $template): RedirectResponse
+    {
+        $hasil = $template->apply();
+
+        $pesan = "{$hasil['created']} kategori dibuat, {$hasil['existing']} dilewati karena sudah ada.";
+
+        if ($hasil['skipped'] > 0) {
+            $pesan .= " {$hasil['skipped']} lainnya dilewati, alasannya tercantum di pratinjau Pakai Template.";
+        }
+
+        return redirect()->back()->with('success', $pesan);
     }
 
     public function update(UpdateTransactionCategoryRequest $request, TransactionCategory $transactionCategory): RedirectResponse

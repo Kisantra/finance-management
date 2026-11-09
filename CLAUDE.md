@@ -194,7 +194,7 @@ Loading skeleton                  → Skeleton
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
 | Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh) + menu Transfer & Penyesuaian |
-| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete |
+| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (12 induk/55 sub bergrup L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama) |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
 | Fund Requests | `/fund-requests` | All/My Requests, Create, Review, Disburse |
 | Loans | `/loans` | Index, Create, Update, Delete, PayLoan |

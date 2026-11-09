@@ -27,6 +27,64 @@ export const TOUR_STEPS: Step[] = [
     },
 ];
 
+/** Mengisi kategori dari template (perusahaan contoh yang kategorinya dibuat sebelum template ada). */
+export const TEMPLATE_STEPS: Step[] = [
+    {
+        src: img('fm-list'),
+        focus: S['fm-list'].template,
+        cursor: S['fm-list'].template,
+        click: true,
+        zoom: 1.8,
+        caption: 'Klik Pakai Template untuk menambahkan kategori pemasukan dan pengeluaran siap pakai. Perusahaan baru sudah berisi template ini.',
+        duration: 120,
+    },
+    {
+        src: img('fm-template'),
+        focus: S['fm-template'].summary,
+        zoom: 1.4,
+        caption: 'Pratinjau menghitung yang akan dibuat (Baru), yang sudah ada, dan yang dilewati. Belum ada yang berubah.',
+        duration: 130,
+    },
+    {
+        src: img('fm-template'),
+        focus: S['fm-template'].intro,
+        zoom: 1.4,
+        caption: '(Tanpa Invoice): pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis di Laba Rugi. Kategori ini hanya untuk yang tidak memakai invoice.',
+        duration: 150,
+    },
+    {
+        src: img('fm-template-existing'),
+        focus: S['fm-template-existing'].group,
+        zoom: 1.3,
+        caption: 'Induk lama "beban kantor" dianggap sama dengan Beban Kantor, jadi sub barunya ditempel ke sana. Listrik dan Internet & Telepon sudah ada, jadi dilewati; kategori lama tidak diubah.',
+        duration: 170,
+    },
+    {
+        src: img('fm-template-skipped'),
+        focus: S['fm-template-skipped'].group,
+        zoom: 1.3,
+        caption: 'Beban Pemasaran lama dipakai langsung oleh transaksi, jadi tidak dijadikan grup: seluruh grupnya dilewati, alasannya tertulis.',
+        duration: 150,
+    },
+    {
+        src: img('fm-template'),
+        focus: S['fm-template'].create,
+        cursor: S['fm-template'].create,
+        click: true,
+        zoom: 1.8,
+        caption: 'Klik Buat 59 kategori. Tombol nonaktif bila tidak ada yang perlu dibuat.',
+        duration: 90,
+    },
+    {
+        src: img('fm-template-done'),
+        focus: S['fm-template-done'].toast,
+        zoom: 1.5,
+        caption: 'Selesai: 59 kategori dibuat, 3 dilewati karena sudah ada, 5 dilewati karena grupnya. Klik ulang tidak membuat apa pun.',
+        chime: true,
+        duration: 130,
+    },
+];
+
 /** Menambah kategori. */
 export const CREATE_STEPS: Step[] = [
     {
@@ -156,9 +214,9 @@ export const DELETE_STEPS: Step[] = [
     },
     {
         src: img('fm-reassign-options'),
-        focus: S['fm-reassign-options'].parents,
+        focus: S['fm-reassign-options'].entries,
         zoom: 1.5,
-        caption: 'Pilih kategori pengganti bertipe sama. Hati-hati: daftar ini juga memuat kategori utama seperti CAPEX dan HPP.',
+        caption: 'Pilih kategori pengganti bertipe sama, berformat Kategori utama → Sub kategori. Daftar ini juga memuat kategori utama tanpa panah; jangan pilih yang itu.',
         duration: 150,
     },
     {

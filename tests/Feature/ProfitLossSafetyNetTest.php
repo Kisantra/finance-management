@@ -55,9 +55,9 @@ class ProfitLossSafetyNetTest extends TestCase
 
     public function test_transaksi_dengan_arah_tidak_cocok_tipe_kategori_masuk_bucket_unclassified(): void
     {
-        $kategoriBeban = TransactionCategory::where('type', 'expense')
-            ->whereNotNull('parent_id')->firstOrFail();
-        $kategoriBeban->update(['pl_group' => 'opex']);
+        // Sub template perusahaan baru, sudah bergrup Beban Operasional tanpa diatur.
+        $kategoriBeban = TransactionCategory::where('label', 'Gaji Karyawan')->sole();
+        $this->assertSame('opex', $kategoriBeban->pl_group);
 
         // Credit (uang masuk) tetapi berkategori BEBAN — kesalahan input yang
         // sebelumnya lolos dari seluruh baris laporan tanpa jejak.
@@ -77,9 +77,7 @@ class ProfitLossSafetyNetTest extends TestCase
 
     public function test_transaksi_yang_benar_tetap_tidak_masuk_bucket(): void
     {
-        $kategoriBeban = TransactionCategory::where('type', 'expense')
-            ->whereNotNull('parent_id')->firstOrFail();
-        $kategoriBeban->update(['pl_group' => 'opex']);
+        $kategoriBeban = TransactionCategory::where('label', 'Gaji Karyawan')->sole();
 
         $this->transaksi('debit', 250000, $kategoriBeban);
 

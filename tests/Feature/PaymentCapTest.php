@@ -108,7 +108,7 @@ class PaymentCapTest extends TestCase
 
     public function test_pembayaran_reimbursement_melebihi_sisa_ditolak(): void
     {
-        $kategori = TransactionCategory::where('type', 'expense')->whereNotNull('parent_id')->first();
+        $kategori = TransactionCategory::where('label', 'Transportasi Lokal')->sole();
 
         $r = Reimbursement::create([
             'user_id' => $this->admin->id,

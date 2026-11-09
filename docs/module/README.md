@@ -18,7 +18,7 @@
 | [services.md](services.md) | Master data layanan | `/services` |
 | [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), saldo terhitung, transaksi | `/bank-accounts` |
 | [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Transfer, export PDF | `/cash-flow/*` |
-| [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete | `/transaction-categories` |
+| [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete, Pakai Template (template 12 induk/55 sub — juga isi awal perusahaan baru) | `/transaction-categories` |
 | [fund-requests.md](fund-requests.md) | Permintaan dana: workflow + pencairan | `/fund-requests` |
 | [reimbursements.md](reimbursements.md) | Reimbursement: workflow + pembayaran parsial | `/reimbursements` |
 | [loans.md](loans.md) | Utang perusahaan + pembayaran pokok/bunga | `/loans` |

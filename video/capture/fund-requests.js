@@ -5,6 +5,8 @@
  * 3. Lalu jalankan video/capture/fund-requests-admin.js (layar Admin + dampak).
  * 4. python video/capture/to-webp.py fund-requests, lalu salin koordinat hasilnya ke video/fund-requests/shots.ts.
  * Membuat 2 permintaan dana baru di DB QC (satu dicairkan dari BCA - Operasional, satu ditolak). Jangan jalankan di DB utama.
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8015';
@@ -147,7 +149,7 @@ async (page) => {
     await snap(s, 'staff-form-item1', itemTargets(0));
 
     await item(0).category.click();
-    const makan = s.getByRole('option', { name: '↳ MAKAN MINUM' });
+    const makan = s.getByRole('option', { name: '↳ Konsumsi Kantor & Rapat' });
     await makan.waitFor();
     await makan.hover();
     await snap(s, 'staff-form-category', { ...itemTargets(0), option: makan, list: s.getByRole('listbox') });
@@ -162,7 +164,7 @@ async (page) => {
     await f().getByRole('button', { name: 'Tambah' }).click();
     await item(1).name.fill('Kertas A4 & map dokumen');
     await item(1).category.click();
-    await pick(s, s.getByRole('option', { name: '↳ OPERASIONAL', exact: true }));
+    await pick(s, s.getByRole('option', { name: '↳ ATK & Perlengkapan Kantor', exact: true }));
     await item(1).qty.fill('5');
     await item(1).price.click();
     await s.keyboard.type('62000');
@@ -183,7 +185,7 @@ async (page) => {
     await f().getByRole('textbox', { name: 'Tujuan / Keterangan *' }).fill('Kunjungan audit dokumen pajak ke kantor cabang klien di Bandung, 2 hari.');
     await item(0).name.fill('Sewa mobil + sopir');
     await item(0).category.click();
-    await pick(s, s.getByRole('option', { name: '↳ OPERASIONAL LUAR KOTA' }));
+    await pick(s, s.getByRole('option', { name: '↳ Transportasi Lokal', exact: true }));
     await item(0).qty.fill('2');
     await item(0).price.click();
     await s.keyboard.type('750000');

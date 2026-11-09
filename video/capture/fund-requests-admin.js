@@ -3,6 +3,8 @@
  * Jalankan SETELAH fund-requests.js (butuh "Konsumsi & ATK pelatihan pajak klien" yang sudah Disbursed).
  * Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8015
  * Playwright MCP: browser_run_code_unsafe, filename: video/capture/fund-requests-admin.js, lalu python video/capture/to-webp.py fund-requests
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8015';
@@ -101,8 +103,8 @@ async (page) => {
     await a.mouse.wheel(0, -110);
     await snap(a, 'admin-pl', {
       heading: opex,
-      makan: a.getByText('MAKAN MINUM', { exact: true }).first(),
-      ops: a.getByText('OPERASIONAL', { exact: true }).first(),
+      makan: a.getByText('Konsumsi Kantor & Rapat', { exact: true }).first(),
+      ops: a.getByText('ATK & Perlengkapan Kantor', { exact: true }).first(),
     });
   } catch (e) {
     log.push('ERROR ' + e.message.split('\n')[0]);

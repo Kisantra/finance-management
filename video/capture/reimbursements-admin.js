@@ -3,6 +3,8 @@
  * Jalankan SETELAH reimbursements.js (butuh pengajuan "Taksi ke kantor PT Sinar Jaya" yang sudah lunas).
  * Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8001
  * Playwright MCP: browser_run_code_unsafe, filename: video/capture/reimbursements-admin.js, lalu python video/capture/to-webp.py
+ * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
+ * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8001';
@@ -64,7 +66,7 @@ async (page) => {
   await snap('admin-expenses', {
     row,
     description: row.getByText(TITLE),
-    category: row.getByText('OPERASIONAL', { exact: true }),
+    category: row.getByText('Transportasi Lokal', { exact: true }),
     amount: row.getByText(/Rp\s?185\.000/),
     total: p.getByText('Total pengeluaran', { exact: false }).locator('xpath=..'),
   });
@@ -78,7 +80,7 @@ async (page) => {
   await snap('admin-pl', {
     heading: opex,
     section: opex.locator('xpath=..'),
-    line: p.getByText('OPERASIONAL', { exact: true }).first(),
+    line: p.getByText('Transportasi Lokal', { exact: true }).first(),
   });
 
   await ctx.close();

@@ -70,7 +70,7 @@ class TransferAntarAkunTest extends TestCase
         $this->kas = BankAccount::factory()->cash(cashLimit: 3_000_000)->create(['account_name' => 'Kas Kecil Kantor', 'initial_balance' => 500_000]);
 
         $this->antarRekening = $this->kategori('Antar Rekening Sendiri', 'transfer', $this->kategori('Transfer Internal', 'transfer'));
-        $this->atk = $this->kategori('ATK', 'expense', $this->kategori('Operational Expenses', 'expense'));
+        $this->atk = $this->kategori('ATK', 'expense', $this->kategori('Beban Administrasi & Umum', 'expense'));
     }
 
     public function test_isi_ulang_kas_bukan_pemasukan_maupun_pengeluaran_tetapi_biaya_admin_tetap_pengeluaran(): void
@@ -235,7 +235,7 @@ class TransferAntarAkunTest extends TestCase
      */
     public function test_pemasukan_dikurangi_pengeluaran_sama_dengan_perubahan_total_saldo(): void
     {
-        $jasa = $this->kategori('Jasa Konsultasi', 'income', $this->kategori('Penghasilan', 'income'));
+        $jasa = $this->kategori('Jasa Konsultasi', 'income', $this->kategori('Pendapatan Usaha (Tanpa Invoice)', 'income'));
         $penyesuaian = $this->kategori('Koreksi Saldo', 'adjustment', $this->kategori('Penyesuaian', 'adjustment'));
         $pinjamanMasuk = $this->kategori('Penerimaan Pinjaman', 'financing');
         $mandiri = BankAccount::factory()->create(['account_name' => 'Cadangan', 'bank_name' => 'Mandiri', 'initial_balance' => 2_000_000]);

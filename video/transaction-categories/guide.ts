@@ -9,12 +9,13 @@ export const guide: ModuleGuide = {
     path: '/transaction-categories',
     permission: 'view categories',
     summary:
-        'Daftar kategori untuk mengelompokkan setiap uang masuk dan keluar: kategori utama sebagai kelompok, sub kategori sebagai pilihan saat mencatat transaksi. Tipe kategori menentukan halaman Arus Kas tempat transaksi tampil, dan Grup Laba Rugi menentukan barisnya di laporan Laba Rugi. Staff tidak punya akses ke modul ini.',
+        'Daftar kategori untuk mengelompokkan setiap uang masuk dan keluar: kategori utama sebagai kelompok, sub kategori sebagai pilihan saat mencatat transaksi. Tipe kategori menentukan halaman Arus Kas tempat transaksi tampil, dan Grup Laba Rugi menentukan barisnya di laporan Laba Rugi. Perusahaan baru langsung berisi template kategori yang sudah bergrup Laba Rugi; perusahaan lama bisa melengkapinya lewat Pakai Template. Staff tidak punya akses ke modul ini.',
     roles: [
         {
             role: ROLES.fm,
             who: 'Pengelola kategori',
             can: [
+                'Mengisi kategori dari template (Pakai Template)',
                 'Menambah kategori utama & sub kategori',
                 'Mengatur Grup Laba Rugi tiap kategori',
                 'Mengubah nama, tipe, dan parent kategori',
@@ -28,6 +29,26 @@ export const guide: ModuleGuide = {
         },
     ],
     tasks: [
+        {
+            title: 'Mengisi kategori dari template',
+            role: ROLES.fm,
+            steps: [
+                'Buka **Operasional › Kategori Transaksi**, lalu klik **Pakai Template**.',
+                'Baca pratinjaunya. Kategori disusun mengikuti urutan bagan akun: Pemasukan dulu, lalu Pengeluaran. Tiap baris menunjukkan **Baris Laba Rugi** tujuannya dan statusnya: **Baru**, **Sudah ada**, atau **Dilewati** beserta alasannya.',
+                'Klik **Buat N kategori**. Hanya yang berstatus Baru yang dibuat; nama, tipe, grup Laba Rugi, dan induk kategori lama tidak diubah.',
+                'Notifikasi menyebut jumlah yang dibuat dan yang dilewati. Bila tombolnya **Tidak ada kategori baru**, semua kategori template sudah ada (perusahaan baru sudah berisi template sejak dibuat).',
+            ],
+        },
+        {
+            title: 'Menerapkan template di perusahaan yang sudah berjalan',
+            role: ROLES.admin,
+            steps: [
+                'Di pratinjau **Pakai Template**, periksa grup berstatus **Dilewati**: induknya kategori sistem, atau sudah dipakai langsung oleh transaksi, item permintaan dana, atau reimbursement. Seluruh grup itu tidak dibuat.',
+                'Periksa sub berstatus **Sudah ada** yang bercatatan **Sudah ada di grup …**: kategori lama itu tetap di grupnya dan Grup Laba Ruginya tidak diubah. Bila barisnya tertulis **Belum diklasifikasi**, atur grupnya lewat ikon pensil setelah template diterapkan.',
+                'Cari nama yang mirip tetapi tidak sama, mis. "Biaya Listrik" dan "Listrik": template tetap membuat kategori barunya. Setelah diterapkan, gabungkan kembaran lewat **Pindahkan & Hapus**.',
+                'Klik **Buat N kategori**, lalu buka **Laporan › Laba Rugi**: transaksi baru yang memakai kategori template langsung masuk barisnya, tidak ke panel **Perlu Diklasifikasi**.',
+            ],
+        },
         {
             title: 'Menambah kategori',
             role: ROLES.fm,
@@ -79,6 +100,16 @@ export const guide: ModuleGuide = {
     ],
     impacts: [
         {
+            title: 'Saat Pakai Template',
+            tone: 'pos',
+            items: [
+                'Hanya kategori baru yang dibuat; kategori lama, transaksi, dan saldo tidak berubah.',
+                'Setiap kategori template sudah bergrup Laba Rugi: transaksi yang memakainya langsung masuk barisnya, mis. **Gaji Karyawan → Beban Operasional**, bukan panel **Perlu Diklasifikasi**.',
+                'Sub baru langsung muncul di pilihan kategori form transaksi, permintaan dana, dan reimbursement.',
+                'Kategori lama yang belum diklasifikasi tetap di panel **Perlu Diklasifikasi**; template tidak mengisi grupnya.',
+            ],
+        },
+        {
             title: 'Saat membuat kategori',
             tone: 'act',
             items: [
@@ -120,8 +151,28 @@ export const guide: ModuleGuide = {
             ],
             note: 'Semua dipindah dalam **satu transaksi database**: berhasil semua atau tidak sama sekali.',
         },
+        {
+            title: 'Yang dibuat saat Pakai Template',
+            subtitle: 'Template: 12 kategori utama dan 55 sub kategori, urut bagan akun (pendapatan, lalu harga pokok dan beban).',
+            rows: [
+                { label: 'Kategori utama baru', value: 'Nama template + Grup Laba Rugi, mis. Beban Karyawan → Beban Operasional', source: 'Pakai Template', tone: 'pos' },
+                { label: 'Sub kategori baru', value: 'Di bawah induknya, Grup Laba Rugi sama dengan induk', source: 'Pakai Template', tone: 'pos' },
+                { label: 'Induk lama bernama sama', value: 'Dipakai ulang tanpa diubah; sub baru ditempel ke sana', source: 'Otomatis', tone: 'act' },
+                { label: 'Sub yang sudah ada', value: 'Dilewati, di grup mana pun ia berada', source: 'Otomatis', tone: 'neutral' },
+                { label: 'Induk sistem / dipakai langsung', value: 'Seluruh grupnya dilewati, alasan tercantum', source: 'Otomatis', tone: 'wait' },
+            ],
+            note: 'Nama dibandingkan tanpa membedakan huruf besar/kecil dan spasi berlebih. Perusahaan baru sudah berisi template; menerapkan ulang tidak membuat apa pun.',
+        },
     ],
     warnings: [
+        {
+            title: 'Nama mirip tidak dianggap sama',
+            body: 'Pakai Template hanya mengabaikan huruf besar/kecil dan spasi berlebih. "Biaya Listrik" dan "Listrik", atau "Beban Karyawan Proyek" dan "Beban Karyawan", dianggap berbeda sehingga kategori template tetap dibuat. Periksa pratinjau, lalu gabungkan kembaran lewat Pindahkan & Hapus.',
+        },
+        {
+            title: '"(Tanpa Invoice)" bukan untuk penjualan ber-invoice',
+            body: 'Pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis di Laba Rugi dari pembayaran dan modal item invoice. Kategori **Pendapatan Usaha (Tanpa Invoice)** dan **Harga Pokok Penjualan (Tanpa Invoice)** hanya untuk yang tidak memakai invoice; mencatat ulang penjualan ber-invoice di sana membuatnya terhitung dua kali.',
+        },
         {
             title: 'Grup Laba Rugi dibaca dari sub kategori',
             body: 'Laba Rugi membaca grup milik kategori yang dipakai transaksi, dan form transaksi hanya menawarkan sub kategori. Grup pada kategori utama tidak diwariskan ke sub kategorinya, jadi atur grup di tiap sub kategori.',
@@ -146,6 +197,7 @@ export const guide: ModuleGuide = {
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
     matrix: [
         { action: 'Melihat daftar kategori', cells: [false, true, true] },
+        { action: 'Mengisi kategori dari template', cells: [false, true, true] },
         { action: 'Menambah & mengubah kategori', cells: [false, true, true] },
         { action: 'Mengatur Grup Laba Rugi', cells: [false, true, true] },
         { action: 'Menghapus + memindahkan data', cells: [false, true, true] },

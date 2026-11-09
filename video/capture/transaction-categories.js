@@ -1,11 +1,17 @@
 /*
  * Ambil ulang screenshot tutorial Kategori Transaksi (video/transaction-categories/screens/*.webp) bila UI berubah.
- * 1. Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8013
+ * 1. Server QC terisolasi (bukan DB perusahaan asli), mis. php artisan serve --env=<qc> --host=127.0.0.1 --port=8013.
+ *    Akun (sandi "password"), masing-masing anggota SATU perusahaan QC sehingga alamat tanpa /c/{slug} dialihkan otomatis:
+ *    - fm@qc.test (finance manager) & admin@gmail.com (admin): perusahaan contoh hasil provisioning (sudah berisi template).
+ *    - fm.lama@qc.test (finance manager): perusahaan contoh "lama" yang kategorinya dibuat sebelum template ada
+ *      (mis. induk "beban kantor" + sub "Listrik", sub "Internet & Telepon" di induk lain, induk datar "Beban Pemasaran"
+ *      yang dipakai langsung satu transaksi). Bagian Pakai Template mengambil layarnya dari sini.
  * 2. Jalankan video/capture/bank-accounts.js lebih dulu (membuat "Langganan Software" & "Biaya Langganan (lama)" + transaksinya).
  * 3. Playwright MCP: browser_run_code_unsafe, filename: video/capture/transaction-categories.js
  * 4. python video/capture/to-webp.py transaction-categories, lalu salin koordinat ke video/transaction-categories/shots.ts.
  * Mengubah di DB QC (hanya data buatan skrip): membuat "Iklan Media Sosial", memberi "Langganan Software" grup Beban Operasional,
- * menghapus "Biaya Langganan (lama)" dengan memindahkan transaksinya ke "Langganan Software". Langkah yang sudah terjadi dilewati.
+ * menghapus "Biaya Langganan (lama)" dengan memindahkan transaksinya ke "Langganan Software", dan menerapkan template di
+ * perusahaan "lama". Langkah yang sudah terjadi dilewati.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8013';
@@ -68,6 +74,8 @@ async (page) => {
   };
   const noToast = (p) => p.locator('[data-sonner-toast]').first().waitFor({ state: 'detached', timeout: 15000 }).catch(() => {});
   const row = (p, name) => p.getByRole('row', { name }).first();
+  // Template punya "Langganan Software & Aplikasi": tanpa lookahead/exact, baris & opsinya ikut cocok.
+  const SOFTWARE = /Langganan Software(?! &)/;
   const search = async (p, q) => {
     await p.goto(`${BASE}/transaction-categories?search=${encodeURIComponent(q)}`);
     await p.getByRole('heading', { name: 'Kategori Transaksi' }).waitFor();
@@ -78,6 +86,7 @@ async (page) => {
     await m.goto(BASE + '/transaction-categories');
     const list = () => ({
       create: m.getByRole('button', { name: 'Tambah Kategori' }),
+      template: m.getByRole('button', { name: 'Pakai Template' }),
       tutorial: m.getByRole('button', { name: 'Tutorial' }),
       stats: m.getByText('Total Kategori').locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
       unclassifiedStat: m.getByText('Belum Diklasifikasi', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
@@ -87,7 +96,7 @@ async (page) => {
       table: m.getByRole('table'),
       head: m.getByRole('table').locator('thead'),
       firstRow: m.getByRole('table').locator('tbody tr').first(),
-      subRow: m.getByRole('row', { name: /MAKAN MINUM/ }),
+      subRow: m.getByRole('row', { name: /Gaji Karyawan/ }),
     });
     await snap(m, 'fm-list', list());
 
@@ -97,10 +106,10 @@ async (page) => {
     await m.waitForURL(/search=Langganan/);
     await snap(m, 'fm-unclassified', {
       ...list(),
-      software: row(m, /Langganan Software/),
+      software: row(m, SOFTWARE),
       old: row(m, /Biaya Langganan/),
-      softwareUsage: row(m, /Langganan Software/).getByText(/pemakaian/),
-      softwareGroup: row(m, /Langganan Software/).locator('td').nth(3),
+      softwareUsage: row(m, SOFTWARE).getByText(/pemakaian/),
+      softwareGroup: row(m, SOFTWARE).locator('td').nth(3),
     });
 
     /* ── Tambah kategori (bertahap) ── */
@@ -128,7 +137,7 @@ async (page) => {
     await m.getByRole('option', { name: 'Beban Operasional' }).waitFor();
     await snap(m, 'fm-form-plgroup', { ...form(), listbox: m.getByRole('listbox'), option: m.getByRole('option', { name: 'Beban Operasional' }) });
     await m.getByRole('option', { name: 'Beban Operasional' }).click();
-    await pick(m, top(m).getByLabel('Parent Kategori (opsional)'), 'Operational Expenses');
+    await pick(m, top(m).getByLabel('Parent Kategori (opsional)'), 'Beban Pemasaran');
     await snap(m, 'fm-form-filled', form());
     if (!iklanExists) {
       await top(m).getByRole('button', { name: 'Simpan Kategori' }).click();
@@ -149,7 +158,7 @@ async (page) => {
 
     /* ── Edit: beri Grup Laba Rugi untuk "Langganan Software" ── */
     await search(m, 'Langganan Software');
-    await row(m, /Langganan Software/).getByRole('button').first().click();
+    await row(m, SOFTWARE).getByRole('button').first().click();
     await top(m).getByText('Edit Kategori').waitFor();
     const classified = (await top(m).getByLabel('Grup Laba Rugi (opsional)').innerText()).includes('Beban Operasional');
     await snap(m, 'fm-edit', form());
@@ -166,7 +175,7 @@ async (page) => {
     }
     await noToast(m);
     await search(m, 'Langganan');
-    await snap(m, 'fm-edit-saved', { ...list(), software: row(m, /Langganan Software/), group: row(m, /Langganan Software/).locator('td').nth(3) });
+    await snap(m, 'fm-edit-saved', { ...list(), software: row(m, SOFTWARE), group: row(m, SOFTWARE).locator('td').nth(3) });
 
     /* ── Hapus + pindahkan: "Biaya Langganan (lama)" → "Langganan Software" ── */
     if ((await m.getByRole('row', { name: /Biaya Langganan/ }).count()) > 0) {
@@ -180,9 +189,10 @@ async (page) => {
       });
       await snap(m, 'fm-reassign', del());
       await top(m).getByLabel('Pindahkan ke Kategori *').click();
-      await m.getByRole('option', { name: 'Operational Expenses → Langganan Software' }).waitFor();
-      await snap(m, 'fm-reassign-options', { ...del(), listbox: m.getByRole('listbox'), option: m.getByRole('option', { name: 'Operational Expenses → Langganan Software' }), parentOption: m.getByRole('option', { name: 'Operational Expenses', exact: true }) });
-      await m.getByRole('option', { name: 'Operational Expenses → Langganan Software' }).click();
+      const target = m.getByRole('option', { name: 'Beban Administrasi & Umum → Langganan Software', exact: true });
+      await target.waitFor();
+      await snap(m, 'fm-reassign-options', { ...del(), listbox: m.getByRole('listbox'), option: target, parentOption: m.getByRole('option', { name: 'Beban Administrasi & Umum', exact: true }) });
+      await target.click();
       await snap(m, 'fm-reassign-filled', del());
       await top(m).getByRole('button', { name: 'Pindahkan & Hapus' }).click();
       await m.getByText('Kategori berhasil dihapus.').first().waitFor();
@@ -191,14 +201,14 @@ async (page) => {
       log.push('Biaya Langganan (lama) sudah dihapus: fm-reassign* dilewati');
     }
     await search(m, 'Langganan');
-    await snap(m, 'fm-reassigned', { ...list(), software: row(m, /Langganan Software/), usage: row(m, /Langganan Software/).getByText(/pemakaian/) });
+    await snap(m, 'fm-reassigned', { ...list(), software: row(m, SOFTWARE), usage: row(m, SOFTWARE).getByText(/pemakaian/) });
 
     /* Kategori utama yang masih punya sub: tombol hapus nonaktif + tooltip. */
-    await search(m, 'Operational Expenses');
-    const lock = row(m, /Operational Expenses/).locator('span[tabindex="0"]');
+    await search(m, 'Beban Kantor');
+    const lock = row(m, /Beban Kantor/).locator('span[tabindex="0"]');
     await lock.hover();
     await m.getByRole('tooltip').first().waitFor();
-    await snap(m, 'fm-parent-locked', { row: row(m, /Operational Expenses/), lock, tooltip: m.getByRole('tooltip').first() }, true);
+    await snap(m, 'fm-parent-locked', { row: row(m, /Beban Kantor/), lock, tooltip: m.getByRole('tooltip').first() }, true);
 
     /* ── Admin: jejak di modul lain ── */
     const a = await open('admin@gmail.com');
@@ -232,14 +242,58 @@ async (page) => {
     await top(a).getByText('Catat Pengeluaran').waitFor();
     const trigger = parentOf(top(a).getByText('Kategori *', { exact: true })).locator('xpath=following-sibling::*[1]//button').first();
     await trigger.click();
-    await a.getByRole('option', { name: /Langganan Software/ }).waitFor();
-    await a.getByRole('option', { name: /Langganan Software/ }).scrollIntoViewIfNeeded();
-    await snap(a, 'admin-picker', {
-      trigger,
-      listbox: a.getByRole('listbox'),
-      parentOption: a.getByRole('option', { name: 'Operational Expenses', exact: true }),
-      option: a.getByRole('option', { name: /Langganan Software/ }),
+    // Judul kelompok (kategori utama) di atas daftar; sub-sub kategorinya di bawahnya.
+    const groupHeading = a.getByRole('listbox').getByText('Beban Administrasi & Umum', { exact: true }).first();
+    await groupHeading.waitFor();
+    await groupHeading.evaluate((el) => {
+      let c = el.parentElement;
+      while (c && !(c.scrollHeight > c.clientHeight + 2 && getComputedStyle(c).overflowY !== 'visible')) c = c.parentElement;
+      c.scrollTop += el.getBoundingClientRect().top - c.getBoundingClientRect().top - 4;
     });
+    // Kotak `trigger` diambil sebelum daftar dibuka: setelah terbuka, dialog terakhir adalah popover-nya.
+    await snap(a, 'admin-picker', {
+      listbox: a.getByRole('listbox'),
+      group: groupHeading,
+      option: a.getByRole('option', { name: '↳ Asuransi', exact: true }),
+    });
+
+    /* ── Pakai Template di perusahaan "lama" ── */
+    const t = await open('fm.lama@qc.test');
+    await t.goto(BASE + '/transaction-categories');
+    await t.getByRole('button', { name: 'Pakai Template' }).click();
+    const createBtn = () => top(t).getByRole('button', { name: /^Buat \d+ kategori$|^Tidak ada kategori baru$/ });
+    await createBtn().waitFor();
+    const scrollToGroup = (label) => top(t).getByText(label, { exact: true }).first().evaluate((el) => {
+      const v = el.closest('[data-radix-scroll-area-viewport]');
+      v.scrollTop += el.getBoundingClientRect().top - v.getBoundingClientRect().top - 12;
+    });
+    const tpl = () => ({
+      dialog: top(t),
+      intro: top(t).locator('ul').first(),
+      summary: top(t).getByText('Sudah ada', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
+      list: top(t).locator('[data-radix-scroll-area-viewport]'),
+      create: createBtn(),
+      cancel: top(t).getByRole('button', { name: 'Batal' }),
+    });
+    const groupCard = (label) => top(t).getByText(label, { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const applied = (await createBtn().innerText()).startsWith('Tidak ada');
+    await snap(t, 'fm-template', tpl());
+    await scrollToGroup('Beban Kantor');
+    await snap(t, 'fm-template-existing', { ...tpl(), group: groupCard('Beban Kantor'), note: top(t).getByText(/Sudah ada di grup/).first() });
+    await scrollToGroup('Beban Pemasaran');
+    await snap(t, 'fm-template-skipped', { ...tpl(), group: groupCard('Beban Pemasaran'), reason: top(t).getByText(/dipakai langsung/).first() });
+    if (!applied) {
+      await createBtn().click();
+      await t.getByText(/kategori dibuat/).first().waitFor();
+    } else {
+      log.push('Template sudah diterapkan di perusahaan lama: fm-template-done diambil tanpa menerapkan ulang');
+      await top(t).getByRole('button', { name: 'Batal' }).click();
+    }
+    await snap(t, 'fm-template-done', {
+      template: t.getByRole('button', { name: 'Pakai Template' }),
+      toast: t.locator('[data-sonner-toast]').first(),
+      stats: t.getByText('Total Kategori').locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
+    }, true);
 
     return JSON.stringify({ log, shots });
   } finally {

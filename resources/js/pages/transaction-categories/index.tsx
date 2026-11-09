@@ -5,6 +5,7 @@ import {
     FolderTree,
     GitBranch,
     Layers,
+    LayoutTemplate,
     Pencil,
     Plus,
     Search,
@@ -26,12 +27,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { useCan } from '@/hooks/use-can';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
+import { PL_GROUP_CONFIG } from './components/pl-groups';
+import { TemplateDialog } from './components/template-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -94,16 +99,6 @@ const TYPE_CONFIG: Record<string, { label: string; color: 'green' | 'red' | 'blu
     financing: { label: 'Pendanaan', color: 'orange' },
     transfer: { label: 'Transfer', color: 'purple' },
     adjustment: { label: 'Penyesuaian', color: 'blue' },
-};
-
-/** Maps a category to a Laba Rugi (P&L) line. Only relevant for income/expense. */
-const PL_GROUP_CONFIG: Record<string, { label: string; type: 'income' | 'expense' }> = {
-    revenue: { label: 'Pendapatan Usaha', type: 'income' },
-    other_income: { label: 'Pendapatan Lain', type: 'income' },
-    cogs: { label: 'Harga Pokok (HPP)', type: 'expense' },
-    opex: { label: 'Beban Operasional', type: 'expense' },
-    other_expense: { label: 'Beban Lain', type: 'expense' },
-    tax: { label: 'Pajak Perusahaan', type: 'expense' },
 };
 
 /* ─────────────────────────────────── category form ─── */
@@ -213,12 +208,14 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
 
 export default function TransactionCategoriesIndex() {
     const { categories, stats, parentOptions, reassignOptions, filters } = usePage<Props>().props;
+    const { can } = useCan();
 
     const [search, setSearch] = React.useState(filters.search ?? '');
     const [typeFilter, setTypeFilter] = React.useState(filters.type ?? '');
     const [plStatus, setPlStatus] = React.useState(filters.pl_status ?? '');
 
     const [createOpen, setCreateOpen] = React.useState(false);
+    const [templateOpen, setTemplateOpen] = React.useState(false);
     const [editTarget, setEditTarget] = React.useState<Category | null>(null);
     const [deleteTarget, setDeleteTarget] = React.useState<Category | null>(null);
 
@@ -308,23 +305,23 @@ export default function TransactionCategoriesIndex() {
             <Head title="Kategori Transaksi" />
 
             <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-1">
-                        <h1 className="text-4xl font-bold bg-linear-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent">
-                            Kategori Transaksi
-                        </h1>
-                        <p className="text-gray-600 dark:text-zinc-400 text-lg">
-                            Kelola kategori pemasukan, pengeluaran, dan transfer
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <TutorialButton slug="transaction-categories" />
-                        <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                            Tambah Kategori
-                        </Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Kategori Transaksi"
+                    description="Kelola kategori pemasukan, pengeluaran, dan transfer"
+                    action={
+                        <div className="flex flex-wrap items-center gap-2">
+                            <TutorialButton slug="transaction-categories" />
+                            {can('manage categories') && (
+                                <Button variant="outline" size="md" icon={<LayoutTemplate className="h-4 w-4" />} onClick={() => setTemplateOpen(true)}>
+                                    Pakai Template
+                                </Button>
+                            )}
+                            <Button variant="primary" size="md" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
+                                Tambah Kategori
+                            </Button>
+                        </div>
+                    }
+                />
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -489,6 +486,9 @@ export default function TransactionCategoriesIndex() {
                     )}
                 </div>
             </div>
+
+            {/* Pakai Template — pratinjau dimuat saat dialog dibuka */}
+            {can('manage categories') && <TemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} />}
 
             {/* Create modal */}
             <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) createForm.reset(); }}>
