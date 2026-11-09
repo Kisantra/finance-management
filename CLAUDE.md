@@ -102,7 +102,6 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `SegmentedControl` | `@/components/ui/segmented-control` | **Tombol pilihan segmented/radio manual** | Pilihan eksklusif berbentuk grup tombol (mis. tipe/prioritas/status). Props: `options` (`{value,label,icon?,activeClassName?}`), `value`, `onChange`, `columns`, `layout` (`stack`\|`inline`), `label`, `error`. Generic atas tipe value. |
 | `Label` | `@/components/ui/label` | `<label>` manual | 13 px `text-ob-ink-2`. |
 | `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. |
-| `Autocomplete` | `@/components/ui/autocomplete` | **`<input>` + `<datalist>` / saran manual** | Teks bebas dengan daftar saran (nilai tidak wajib salah satu opsi — beda dengan `Combobox`). Props: `value` (string), `onChange`, `options` (`{value,label?,description?,icon?,keywords?}`), `icon` (slot kiri 24 px), `label`, `hint`, `error`. Panah/Enter/Esc; Enter tanpa saran tersorot tetap mengirim form. |
 | `DatePicker` | `@/components/ui/date-picker` | **`<input type="date">` — WAJIB** | Indonesian locale, hari terpilih `ob-act-fill`, react-day-picker v10. Single: `value`, `onChange`. Range: tambah `mode="range"`, `value={from,to}`, `placeholderTo`. |
 | `Dialog` | `@/components/ui/dialog` | Modal HTML manual | Sizes: `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, `4xl`, `full`. Exports: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`. |
 | `Card` | `@/components/ui/card` | Div wrapper manual | `bg-ob-card`, `rounded-3xl`, tepi `ob-line`, tanpa bayangan. Exports: `Card`, `CardContent`, `CardHeader`, `CardTitle`, `CardDescription`, `CardFooter`. |
@@ -128,7 +127,6 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `ConfirmDialog` | `@/components/shared/confirm-dialog` | Dialog konfirmasi. Props: `open`, `onOpenChange`, `onConfirm`, `title`, `description`, `variant` (`danger`\|`warning`). |
 | `CurrencyInput` | `@/components/shared/currency-input` | **Input Rupiah — WAJIB untuk semua input mata uang.** Props: `value`, `onChange`, `label`, `hint`, `error`. Format integer, display `Rp 1.500.000`. |
 | `FileUpload` | `@/components/shared/file-upload` | **Upload file/gambar — WAJIB, bukan `<input type="file">`.** Berbasis react-dropzone. Props: `value` (File|null), `onChange`, `label`, `hint`, `error`, `accept` (array ekstensi). Single file. |
-| `BankLogo` | `@/components/shared/bank-logo` | Logo bank di tile putih dari nama bank bebas (katalog `@/lib/banks`: `BANKS`, `findBank()`; berkas `public/images/banks/{slug}.svg`). Props: `bankName`, `className` (ukuran & radius), `fallback` (bila tidak dikenali). |
 
 ### Quick Decision: "Mana yang harus saya pakai?"
 
@@ -136,8 +134,6 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 Input teks/angka biasa            → Input
 Input Rupiah/currency             → CurrencyInput       ← JANGAN input biasa
 Pilihan dari daftar (select)      → Combobox            ← JANGAN <select> HTML
-Teks bebas + saran dari daftar    → Autocomplete        ← bila nilai di luar daftar boleh
-Logo bank dari nama bank          → BankLogo
 Pilihan tanggal (single)          → DatePicker          ← JANGAN <input type="date">
 Pilihan rentang tanggal           → DatePicker mode="range"
 Toggle on/off                     → Switch
