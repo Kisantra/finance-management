@@ -11,7 +11,8 @@
  *    kecil yang memanggil fungsi ini dengan objek `page` dari chromium.launch({ headless: true }).
  * 4. python video/capture/to-webp.py cash-flow, lalu salin koordinat dari hasilnya ke video/cash-flow/shots.ts.
  * Skrip ini MENAMBAH 1 pemasukan, 2 pengeluaran (biaya + Setor PPN), dan 1 transfer di DB QC (tidak menghapus apa pun).
- * Jangan jalankan di DB utama. Screenshot terakhir diambil 9 Nov 2026 (fitur Pendanaan).
+ * Jangan jalankan di DB utama. Screenshot terakhir diambil 9 Nov 2026 (fitur Jurnal: kotak Jurnal di formulir, rincian,
+ * ubah, transfer, dan rincian hanya-lihat pokok utang — layar fm-*-journal dan fm-financing-locked-detail baru).
  * Jalankan SEBELUM video/capture/profit-loss.js (screenshot Laba Rugi di sini masih menampilkan "Sewa Ruang Rapat" belum diklasifikasi).
  */
 async (page) => {
@@ -72,6 +73,9 @@ async (page) => {
     await opt.waitFor();
     await opt.click();
   };
+  const journalOf = (d) => d.locator('section[aria-label="Jurnal"]');
+  // Dialog dengan kotak Jurnal lebih tinggi dari layar 720: gulir isinya ke bawah agar Jurnal + tombol simpan terlihat.
+  const toBottom = (d) => d.evaluate((el) => [el, ...el.querySelectorAll('*')].forEach((n) => { if (n.scrollHeight > n.clientHeight + 4) n.scrollTop = n.scrollHeight; }));
   const listTargets = (p, createName) => ({
     create: p.getByRole('button', { name: createName }),
     export: p.getByRole('button', { name: 'Export PDF' }),
@@ -130,6 +134,9 @@ async (page) => {
     await top(m).locator('textarea').fill('Sewa ruang rapat lantai 3 oleh PT Maju Bersama (2 hari)');
     await up(label(top(m), 'Nomor Referensi')).locator('input').fill('KW-SR-2610-07');
     await snap(m, 'fm-income-form-filled', incomeFields());
+    // Kotak Jurnal (pratinjau) di bawah Tanggal: gulir isi dialog ke bawah — Jurnal + Simpan terlihat.
+    await toBottom(top(m));
+    await snap(m, 'fm-income-journal', { ...incomeFields(), journal: journalOf(top(m)) });
 
     if (SAVE) {
       await top(m).getByRole('button', { name: 'Simpan Pemasukan' }).click();
@@ -151,6 +158,7 @@ async (page) => {
     await snap(m, 'fm-income-payment-detail', {
       dialog: top(m),
       note: up(top(m).getByText(/Pembayaran ini terhubung dengan invoice/)),
+      journal: journalOf(top(m)),
     });
     await top(m).getByRole('button', { name: 'Tutup' }).first().click();
 
@@ -186,6 +194,8 @@ async (page) => {
     await up(label(top(m), 'Nomor Referensi')).locator('input').fill('NF-2610-08821');
     await top(m).locator('input[type=file]').setInputFiles(FIX + 'tagihan-internet.png');
     await snap(m, 'fm-expense-form-filled', expenseFields());
+    await toBottom(top(m));
+    await snap(m, 'fm-expense-journal', { ...expenseFields(), journal: journalOf(top(m)) });
     if (SAVE) {
       await top(m).getByRole('button', { name: 'Simpan Pengeluaran' }).click();
       await m.getByText('Pengeluaran berhasil dicatat').first().waitFor();
@@ -205,12 +215,14 @@ async (page) => {
     await expenseRow().click();
     await top(m).getByText('Edit Pengeluaran').waitFor();
     await m.waitForTimeout(500);
+    await toBottom(top(m));
     await snap(m, 'fm-expense-edit', {
       dialog: top(m),
       amount: up(label(top(m), 'Jumlah *')),
       category: up(label(top(m), 'Kategori *'), 2),
       attachment: up(label(top(m), 'Lampiran')),
       save: top(m).getByRole('button', { name: 'Simpan Perubahan' }),
+      journal: journalOf(top(m)),
     });
     await m.keyboard.press('Escape');
 
@@ -249,6 +261,9 @@ async (page) => {
       hint: top(m).getByRole('note'),
       tag: top(m).getByText('Pendanaan', { exact: true }).first(),
     });
+    // Jurnal pratinjau: Setor PPN → akun neraca "PPN Keluaran" (bukan beban).
+    await toBottom(top(m));
+    await snap(m, 'fm-financing-journal', { ...financeFields(), journal: journalOf(top(m)) });
     if (SAVE) {
       await top(m).getByRole('button', { name: 'Simpan Pengeluaran' }).click();
       await m.getByText('Pengeluaran berhasil dicatat').first().waitFor();
@@ -276,6 +291,16 @@ async (page) => {
       lock: loanRow().locator('td').first(),
       note: loanRow().getByText(/kelola di Utang/),
     });
+    // Baris pokok membuka rincian HANYA-LIHAT beserta jurnalnya (tanpa tombol ubah/hapus).
+    await loanRow().locator('td').nth(2).click();
+    await top(m).getByText('Rincian Pengeluaran').waitFor();
+    await m.waitForTimeout(500);
+    await snap(m, 'fm-financing-locked-detail', {
+      dialog: top(m),
+      note: top(m).getByText(/kelola di Utang/),
+      journal: journalOf(top(m)),
+    });
+    await m.keyboard.press('Escape');
 
     }
     if (!SKIP.includes('transfer')) {
@@ -299,6 +324,7 @@ async (page) => {
       description: up(label(top(m), 'Deskripsi *')),
       proof: up(label(top(m), 'Bukti Transfer')),
       summary: up(top(m).getByText('Total Debit', { exact: true }).first(), 2),
+      journal: journalOf(top(m)),
       submit: top(m).getByRole('button', { name: 'Lakukan Transfer' }),
     });
     await snap(m, 'fm-transfer-form-empty', transferFields());
@@ -334,11 +360,13 @@ async (page) => {
     await transferRow().first().click();
     await top(m).getByText('Edit Transfer').waitFor();
     await m.waitForTimeout(500);
+    await toBottom(top(m));
     await snap(m, 'fm-transfer-detail', {
       dialog: top(m),
       sums: up(top(m).getByText('Biaya Admin', { exact: true }).first(), 3),
       edit: up(top(m).getByText('Edit Transfer', { exact: true }).first(), 2),
       save: top(m).getByRole('button', { name: 'Simpan Perubahan' }),
+      journal: journalOf(top(m)),
     });
     await m.keyboard.press('Escape');
     }
