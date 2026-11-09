@@ -20,6 +20,20 @@ class TransactionCategory extends Model
      */
     public const PL_GROUPS = ['revenue', 'cogs', 'opex', 'other_income', 'other_expense', 'tax'];
 
+    /**
+     * Kategori sistem POKOK utang/piutang → modul yang mencatatnya dan arah transaksinya.
+     * Transaksi berkategori ini hanya-lihat di Arus Kas dan Kas & Bank (dikelola modulnya).
+     * Bunga (EXP-INTEREST / REV-INTEREST) sengaja tidak di sini: ia beban/pendapatan biasa.
+     *
+     * @var array<string, array{module: 'loans'|'receivables', direction: 'credit'|'debit'}>
+     */
+    public const POKOK_MODUL = [
+        'FIN-LOAN-IN' => ['module' => 'loans', 'direction' => 'credit'],
+        'FIN-LOAN-OUT' => ['module' => 'loans', 'direction' => 'debit'],
+        'FIN-RCV-OUT' => ['module' => 'receivables', 'direction' => 'debit'],
+        'FIN-RCV-IN' => ['module' => 'receivables', 'direction' => 'credit'],
+    ];
+
     protected $fillable = [
         'type',
         'pl_group',
@@ -116,6 +130,79 @@ class TransactionCategory extends Model
         }
 
         return $options;
+    }
+
+    /**
+     * Grup Pendanaan untuk pemilih kategori: induk `financing` non-sistem sebagai judul non-aktif +
+     * sub non-sistemnya yang bisa dipilih. Setiap opsi bertanda `financing` agar klien memasang judul
+     * bagian "Pendanaan · tidak masuk Laba Rugi" dan penanda di pemicu. Pendanaan tidak punya arah
+     * tetap (setoran modal masuk, prive keluar, restitusi PPN masuk), jadi grup ini sama untuk
+     * pemasukan dan pengeluaran.
+     *
+     * $denganPokokModul menambahkan kategori pokok utang/piutang (FIN-*) di bawah judul
+     * "Dari Utang & Piutang" (value -1) — HANYA untuk filter daftar, tidak untuk formulir: transaksinya
+     * dibuat modul Utang/Piutang. $arah (credit/debit) menyaring kategori pokok itu menurut arahnya.
+     *
+     * @return list<array{label: string, value: int, disabled?: bool, financing: true}>
+     */
+    public static function financingOptions(bool $denganPokokModul = false, ?string $arah = null): array
+    {
+        $options = [];
+        $parents = self::whereNull('parent_id')
+            ->where('type', 'financing')
+            ->whereNull('system_key')
+            ->with('children')
+            ->orderBy('label')
+            ->get();
+
+        foreach ($parents as $parent) {
+            $anak = $parent->children->where('type', 'financing')->whereNull('system_key');
+
+            if ($anak->isEmpty()) {
+                continue;
+            }
+
+            $options[] = ['label' => $parent->label, 'value' => $parent->id, 'disabled' => true, 'financing' => true];
+
+            foreach ($anak as $child) {
+                $options[] = ['label' => '↳ '.$child->label, 'value' => $child->id, 'financing' => true];
+            }
+        }
+
+        if ($denganPokokModul) {
+            $pokok = self::whereIn('system_key', array_keys(self::POKOK_MODUL))
+                ->orderBy('label')
+                ->get()
+                ->filter(fn (self $kategori): bool => $arah === null
+                    || self::POKOK_MODUL[$kategori->system_key]['direction'] === $arah);
+
+            if ($pokok->isNotEmpty()) {
+                $options[] = ['label' => 'Dari Utang & Piutang', 'value' => -1, 'disabled' => true, 'financing' => true];
+
+                foreach ($pokok as $kategori) {
+                    $options[] = ['label' => '↳ '.$kategori->label, 'value' => $kategori->id, 'financing' => true];
+                }
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Opsi kategori untuk mencatat/mengubah transaksi satu arah: kategori sejenis (`income` untuk
+     * masuk, `expense` untuk keluar) lalu grup Pendanaan di urutan terakhir.
+     *
+     * @return list<array{label: string, value: int, disabled?: bool, financing?: true}>
+     */
+    public static function transactionOptions(string $type): array
+    {
+        return [...self::selectOptions($type), ...self::financingOptions()];
+    }
+
+    /** Modul yang mencatat transaksi berkategori ini ('loans'/'receivables'), atau null. */
+    public function managingModule(): ?string
+    {
+        return self::POKOK_MODUL[(string) $this->system_key]['module'] ?? null;
     }
 
     /**

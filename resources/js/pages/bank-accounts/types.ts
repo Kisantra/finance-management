@@ -1,5 +1,7 @@
 /* Shared types for the bank-accounts page family */
 
+import type { ManagedBy } from '@/components/shared/financing';
+
 /** `bank` = rekening bank, `cash` = kas tunai / kas kecil (nomor diisi kode KAS-xxxx, bank "Tunai"). */
 export type AccountType = 'bank' | 'cash';
 
@@ -78,7 +80,10 @@ export interface TransactionRow {
         id: number;
         label: string;
         parent_label: string | null;
+        type: string;
     } | null;
+    /** Pokok utang/piutang yang dicatat modul Utang/Piutang: hanya-lihat (tanpa hapus). */
+    managed_by: ManagedBy | null;
     attachment_url: string | null;
     attachment_name: string | null;
 }
@@ -111,6 +116,8 @@ export interface CategoryOption {
     label: string;
     value: number;
     disabled?: boolean;
+    /** Kategori bertipe `financing` (grup Pendanaan, selalu terakhir). */
+    financing?: boolean;
 }
 
 export interface AccountOption {

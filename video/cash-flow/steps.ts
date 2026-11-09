@@ -122,9 +122,68 @@ export const EXPENSE_STEPS: Step[] = [
         src: img('fm-expense-list-after'),
         focus: S['fm-expense-list-after'].row,
         zoom: 1.3,
-        caption: 'Tercatat dengan kategori OPEX BULANAN. Saldo rekening sumber langsung berkurang.',
+        caption: 'Tercatat dengan kategori Internet & Telepon. Saldo rekening sumber langsung berkurang.',
         chime: true,
         duration: 130,
+    },
+];
+
+/** Finance manager: mencatat pendanaan (setor PPN) — grup terakhir pemilih kategori, tidak masuk Laba Rugi. */
+export const FINANCING_STEPS: Step[] = [
+    {
+        src: img('fm-financing-picker'),
+        focus: around(S['fm-financing-picker'].category, S['fm-financing-picker'].list),
+        zoom: 1.3,
+        caption: 'Setor PPN, setoran modal, atau prive bukan pendapatan maupun beban. Kategorinya ada di grup paling bawah: Pendanaan · tidak masuk Laba Rugi.',
+        duration: 160,
+    },
+    {
+        src: img('fm-financing-picker'),
+        focus: around(S['fm-financing-picker'].section, S['fm-financing-picker'].option),
+        cursor: S['fm-financing-picker'].option,
+        click: true,
+        zoom: 1.8,
+        caption: 'Pilih sub-kategorinya, mis. Setor PPN di bawah Pajak Titipan & PPN.',
+        duration: 120,
+    },
+    {
+        src: img('fm-financing-filled'),
+        focus: around(S['fm-financing-filled'].category, S['fm-financing-filled'].hint),
+        zoom: 1.7,
+        caption: 'Penanda Pendanaan muncul di kolom Kategori, dan petunjuk di bawahnya menegaskan: saldo rekening berkurang, Laba Rugi tidak berubah.',
+        duration: 170,
+    },
+    {
+        src: img('fm-financing-filled'),
+        focus: S['fm-financing-filled'].save,
+        cursor: S['fm-financing-filled'].save,
+        click: true,
+        zoom: 1.8,
+        caption: 'Isi Jumlah dan Deskripsi seperti biasa, lalu klik Simpan Pengeluaran.',
+        duration: 90,
+    },
+    {
+        src: img('fm-financing-list'),
+        focus: S['fm-financing-list'].cards,
+        zoom: 1.25,
+        caption: 'Di daftar, kartu ringkasan memisahkan Beban (masuk Laba Rugi) dari Pendanaan (tidak masuk Laba Rugi). Total keluar = keduanya.',
+        chime: true,
+        duration: 170,
+    },
+    {
+        src: img('fm-financing-list'),
+        focus: S['fm-financing-list'].row,
+        zoom: 1.35,
+        caption: 'Barisnya diberi badge Pendanaan agar tidak tertukar dengan beban.',
+        duration: 120,
+    },
+    {
+        src: img('fm-financing-locked'),
+        focus: around(S['fm-financing-locked'].lock, S['fm-financing-locked'].note),
+        cursor: S['fm-financing-locked'].note,
+        zoom: 1.5,
+        caption: 'Pokok utang dari menu Utang juga tampil, tetapi hanya-lihat: tanpa centang, tanpa edit. Klik kelola di Utang untuk mengurusnya di sana.',
+        duration: 180,
     },
 ];
 
@@ -244,7 +303,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-pl-opex'),
         focus: S['admin-pl-opex'].line,
         zoom: 1.9,
-        caption: 'Pengeluaran internet tadi masuk Laba Rugi di Beban Operasional, karena grup kategori OPEX BULANAN adalah Beban Operasional.',
+        caption: 'Pengeluaran internet tadi masuk Laba Rugi di Beban Operasional, karena grup Laba Rugi kategori Internet & Telepon adalah Beban Operasional.',
         duration: 160,
     },
     {
@@ -260,6 +319,22 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         zoom: 1.6,
         caption: 'Pemasukan Sewa Ruang Rapat belum dihitung: kategorinya belum punya grup Laba Rugi, jadi tertahan di Perlu Diklasifikasi.',
         duration: 160,
+    },
+    {
+        src: img('fm-financing-list'),
+        focus: S['fm-financing-list'].financingCard,
+        zoom: 1.7,
+        role: ROLES.fm,
+        caption: 'Pendanaan (setoran modal, prive, setor PPN, setor titipan pajak, pokok utang/piutang) menggeser saldo, tetapi tidak pernah masuk Laba Rugi.',
+        duration: 170,
+    },
+    {
+        src: img('fm-financing-locked'),
+        focus: S['fm-financing-locked'].row,
+        zoom: 1.35,
+        role: ROLES.fm,
+        caption: 'Pokok utang/piutang dikunci di sini, juga di server: ubah atau hapusnya lewat Arus Kas maupun Kas & Bank ditolak. Kelola dari menu Utang / Piutang.',
+        duration: 180,
     },
 ];
 

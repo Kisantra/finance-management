@@ -22,12 +22,14 @@ import fmReassigned from './screens/fm-reassigned.webp';
 import fmTemplate from './screens/fm-template.webp';
 import fmTemplateDone from './screens/fm-template-done.webp';
 import fmTemplateExisting from './screens/fm-template-existing.webp';
+import fmTemplateFinancing from './screens/fm-template-financing.webp';
 import fmTemplateSkipped from './screens/fm-template-skipped.webp';
 import fmUnclassified from './screens/fm-unclassified.webp';
 
 /*
  * Posisi elemen (px CSS, layar 1280×720) di tiap screenshot video/transaction-categories/screens/*.webp.
- * Dihasilkan oleh video/capture/transaction-categories.js (data contoh DB QC, 9 Nov 2026); kotak daftar pilihan,
+ * Dihasilkan oleh video/capture/transaction-categories.js (data contoh DB QC, 9 Nov 2026; fm-list & fm-template* diambil
+ * ulang sore harinya untuk bagian Pendanaan); kotak daftar pilihan,
  * tooltip, panel Perlu Diklasifikasi, dan kartu Breakdown disesuaikan manual.
  */
 const list = {
@@ -70,13 +72,26 @@ const reassign = {
 /** Dialog Pakai Template (perusahaan contoh "lama"). */
 const template = {
     dialog: { x: 304, y: 36, w: 672, h: 648 },
-    list: { x: 305, y: 180, w: 670, h: 422 },
+    list: { x: 305, y: 203, w: 670, h: 399 },
     create: { x: 809, y: 619, w: 142, h: 40 },
-    cancel: { x: 733, y: 619, w: 69, h: 40 },
+    cancel: { x: 732, y: 619, w: 69, h: 40 },
 };
 
 export const SHOTS = {
-    'fm-list': list,
+    'fm-list': {
+        ...list,
+        create: { x: 1078, y: 86, w: 170, h: 40 },
+        template: { x: 911, y: 86, w: 159, h: 40 },
+        tutorial: { x: 787, y: 84, w: 116, h: 44 },
+        stats: { x: 292, y: 164, w: 956, h: 98 },
+        unclassifiedStat: { x: 1021, y: 164, w: 227, h: 98 },
+        search: { x: 292, y: 287, w: 256, h: 42 },
+        type: { x: 560, y: 287, w: 192, h: 42 },
+        unclassified: { x: 764, y: 297, w: 156, h: 32 },
+        table: { x: 293, y: 354, w: 954, h: 366 },
+        head: { x: 293, y: 354, w: 954, h: 40 },
+        firstRow: { x: 293, y: 394, w: 954, h: 57 },
+    },
     'fm-unclassified': {
         ...results,
         software: { x: 293, y: 394, w: 955, h: 57 },
@@ -135,23 +150,29 @@ export const SHOTS = {
     },
     'fm-template': {
         ...template,
-        intro: { x: 329, y: 200, w: 622, h: 139 },
-        summary: { x: 329, y: 359, w: 622, h: 86 },
+        intro: { x: 329, y: 223, w: 622, h: 187 },
+        summary: { x: 329, y: 430, w: 622, h: 86 },
     },
     'fm-template-existing': {
         ...template,
-        group: { x: 329, y: 179, w: 622, h: 310 },
-        note: { x: 362, y: 386, w: 321, h: 20 },
+        group: { x: 329, y: 202, w: 622, h: 311 },
+        note: { x: 362, y: 411, w: 320, h: 20 },
     },
     'fm-template-skipped': {
         ...template,
-        group: { x: 329, y: 179, w: 622, h: 340 },
-        reason: { x: 346, y: 216, w: 323, h: 54 },
+        group: { x: 329, y: 202, w: 622, h: 340 },
+        reason: { x: 346, y: 239, w: 323, h: 54 },
+    },
+    'fm-template-financing': {
+        ...template,
+        heading: { x: 346, y: 244, w: 336, h: 20 },
+        group: { x: 329, y: 272, w: 622, h: 83 },
+        newGroup: { x: 329, y: 462, w: 622, h: 120 },
     },
     'fm-template-done': {
-        template: { x: 902, y: 86, w: 159, h: 40 },
-        toast: { x: 901, y: 24, w: 356, h: 92 },
-        stats: { x: 292, y: 164, w: 947, h: 98 },
+        template: { x: 911, y: 86, w: 159, h: 40 },
+        toast: { x: 900, y: 24, w: 356, h: 92 },
+        stats: { x: 292, y: 164, w: 956, h: 98 },
     },
     'admin-pl': {
         opex: { x: 356, y: 268, w: 435, h: 212 },
@@ -201,6 +222,7 @@ export const SCREENS: Record<ShotName, string> = {
     'fm-template': fmTemplate,
     'fm-template-done': fmTemplateDone,
     'fm-template-existing': fmTemplateExisting,
+    'fm-template-financing': fmTemplateFinancing,
     'fm-template-skipped': fmTemplateSkipped,
     'fm-unclassified': fmUnclassified,
 };

@@ -34,12 +34,17 @@ class CategoryTemplateService
     public const STATUS_SKIPPED = 'skipped';
 
     /**
-     * Isi template, berurutan mengikuti bagan akun (4, 7 → 5, 6, 8, 9) tanpa kode akun.
-     * `pl_group` berlaku untuk induk DAN subnya, sehingga tidak ada yang berstatus
-     * "belum diklasifikasi". "(Tanpa Invoice)": pendapatan dan HPP penjualan lewat
-     * invoice sudah dihitung otomatis oleh Laba Rugi, jangan dicatat lagi di sini.
+     * Isi template, berurutan mengikuti bagan akun (4, 7 → 5, 6, 8, 9) tanpa kode akun, lalu
+     * bagian Pendanaan. `pl_group` berlaku untuk induk DAN subnya, sehingga tidak ada pemasukan/
+     * pengeluaran yang berstatus "belum diklasifikasi". "(Tanpa Invoice)": pendapatan dan HPP
+     * penjualan lewat invoice sudah dihitung otomatis oleh Laba Rugi, jangan dicatat lagi di sini.
      *
-     * @var list<array{type: 'income'|'expense', label: string, pl_group: string, children: list<string>}>
+     * Pendanaan (`financing`, `pl_group` null) tidak pernah masuk Laba Rugi: setoran modal, prive,
+     * setor PPN, setor titipan pajak klien (docs/module/profit-loss.md › Invarian). "Setoran Modal"
+     * dan "Penarikan Modal" dulu diisikan seeder sebagai induk tanpa anak; di perusahaan lama keduanya
+     * dicocokkan sebagai "sudah ada" lalu sub barunya ditempel.
+     *
+     * @var list<array{type: 'income'|'expense'|'financing', label: string, pl_group: string|null, children: list<string>}>
      */
     public const TEMPLATE = [
         [
@@ -120,6 +125,24 @@ class CategoryTemplateService
             'pl_group' => 'tax',
             'children' => ['PPh 25 (Angsuran Bulanan)', 'PPh 29 (Kurang Bayar Tahunan)', 'PPh Final UMKM 0,5%'],
         ],
+        [
+            'type' => 'financing',
+            'label' => 'Setoran Modal',
+            'pl_group' => null,
+            'children' => ['Setoran Modal Pemilik'],
+        ],
+        [
+            'type' => 'financing',
+            'label' => 'Penarikan Modal',
+            'pl_group' => null,
+            'children' => ['Prive Pemilik'],
+        ],
+        [
+            'type' => 'financing',
+            'label' => 'Pajak Titipan & PPN',
+            'pl_group' => null,
+            'children' => ['Setor PPN', 'Setor Titipan Pajak Klien'],
+        ],
     ];
 
     /**
@@ -130,7 +153,7 @@ class CategoryTemplateService
      *     groups: list<array{
      *         type: string,
      *         label: string,
-     *         pl_group: string,
+     *         pl_group: string|null,
      *         status: string,
      *         reason: string|null,
      *         category_id: int|null,
@@ -294,9 +317,9 @@ class CategoryTemplateService
     /**
      * Status induk satu grup template beserta penjaganya.
      *
-     * @param  array{type: string, label: string, pl_group: string, children: list<string>}  $template
+     * @param  array{type: string, label: string, pl_group: string|null, children: list<string>}  $template
      * @param  Collection<int, TransactionCategory>  $matches  induk bertipe sama dengan nama yang sama, urut id
-     * @return array{type: string, label: string, pl_group: string, status: string, reason: string|null, category_id: int|null, existing_label: string|null, children: list<array<string, mixed>>}
+     * @return array{type: string, label: string, pl_group: string|null, status: string, reason: string|null, category_id: int|null, existing_label: string|null, children: list<array<string, mixed>>}
      */
     private function planParent(array $template, Collection $matches): array
     {

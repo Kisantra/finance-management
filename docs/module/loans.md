@@ -112,7 +112,7 @@ Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kat
 1. User klik "Hapus" → `ConfirmDialog` (`variant danger`).
 2. `DELETE /loans/{loan}` → `can:delete loans` → guard: `abort_if($loan->payments()->exists(), 403)` — pinjaman yang sudah punya pembayaran tidak bisa dihapus.
 3. File kontrak dihapus dari storage, lalu `$loan->delete()`.
-4. **`BankTransaction` credit dari saat create TIDAK ikut dihapus** — mutasi dana masuk tetap tercatat di rekening.
+4. **`BankTransaction` credit pencairan ikut dihapus** (`reference_number` = nomor utang, dalam `DB::transaction`) — penghapusan hanya boleh selama belum ada pembayaran, jadi membalik pencairan aman. (Catatan dokumen ini dulu menyebut transaksinya tertinggal; kode sudah membaliknya. Pencairan yatim dari sebelum perbaikan itu tidak dikunci di Arus Kas/Kas & Bank agar bisa dikoreksi.)
 
 ### Bayar Pinjaman (Pay) — pokok & bunga jadi dua transaksi bank
 
@@ -178,7 +178,7 @@ Komponennya dipakai bersama modul Piutang (`/receivables/{id}/schedule` mengemba
 
 ## Keterkaitan Antar Modul
 
-- **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman.
+- **Bank Accounts / Cash Flow** — setiap create loan (credit) dan pay loan (debit) menulis ke `bank_transactions`, sehingga saldo rekening (computed: `initial_balance + payments(credit) + tx(credit) − tx(debit)`) dan halaman Cash Flow otomatis mencerminkan pinjaman. Sejak 9 Nov 2026 pokoknya (`FIN-LOAN-IN` di tab Pemasukan, `FIN-LOAN-OUT` di tab Pengeluaran) tampil **hanya-lihat** berbadge Pendanaan dengan tautan "kelola di Utang" (`/loans?search=` nomor utang untuk pencairan, nama pemberi pinjaman untuk pembayaran pokok); ubah/hapus lewat endpoint Arus Kas & Kas & Bank ditolak 403. Bunga tetap beban biasa. Lihat [cash-flow.md](cash-flow.md) › Pendanaan.
 - **Transaction Categories** — transaksi diberi kategori sistem via `findSystem()` — kolom `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.
 
 - **Transaction Categories** — transaksi diberi kategori sistem via `system_key` (`FIN-LOAN-IN`, `FIN-LOAN-OUT`, `EXP-INTEREST`). Kategori bertipe `financing` dikecualikan dari Laporan Laba Rugi; `EXP-INTEREST` (expense, `pl_group=other_expense`) masuk baris Beban Lain.

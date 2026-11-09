@@ -2,13 +2,27 @@ import { Command as CommandPrimitive } from 'cmdk';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { badgeVariants } from './badge';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
 export interface ComboboxOption {
     value: string | number;
     label: string;
     description?: string;
+    /** Opsi non-aktif dirender sebagai judul grup (mis. kategori induk). */
     disabled?: boolean;
+    /**
+     * Membuka BAGIAN baru tepat sebelum opsi ini: garis pemisah + judul kecil berhuruf kapital
+     * (mis. "Pendanaan · tidak masuk Laba Rugi"). Tetap tampil saat pencarian bila ada isi bagian
+     * yang cocok.
+     */
+    section?: string;
+    /** Ikon kecil di depan judul bagian. */
+    sectionIcon?: React.ReactNode;
+    /** Penanda kecil (gaya Badge `outline`) di pemicu saat opsi ini terpilih, mis. "Pendanaan". */
+    tag?: string;
+    /** Ikon di dalam penanda. */
+    tagIcon?: React.ReactNode;
 }
 
 interface ComboboxSingleProps {
@@ -93,12 +107,21 @@ export function Combobox({
         const q = search.toLowerCase();
         const result: ComboboxOption[] = [];
         let pendingHeader: ComboboxOption | null = null;
+        // Judul bagian ikut ke baris pertama yang tampil di bagian itu (judul grupnya bisa saja tidak cocok).
+        let pendingSection: Pick<ComboboxOption, 'section' | 'sectionIcon'> | null = null;
         for (const opt of options) {
+            if (opt.section) pendingSection = { section: opt.section, sectionIcon: opt.sectionIcon };
+            const plain = opt.section ? { ...opt, section: undefined, sectionIcon: undefined } : opt;
             if (opt.disabled) {
-                pendingHeader = opt;
+                pendingHeader = plain;
             } else if (opt.label.toLowerCase().includes(q) || (opt.description?.toLowerCase().includes(q) ?? false)) {
-                if (pendingHeader) { result.push(pendingHeader); pendingHeader = null; }
-                result.push(opt);
+                const rows = pendingHeader ? [pendingHeader, plain] : [plain];
+                pendingHeader = null;
+                if (pendingSection) {
+                    rows[0] = { ...rows[0], ...pendingSection };
+                    pendingSection = null;
+                }
+                result.push(...rows);
             }
         }
         return result;
@@ -118,7 +141,15 @@ export function Combobox({
                         {selectedMultiple.map((o) => o.label).join(', ')}
                     </span>
                 </div>
-        : <span className="truncate">{selected ? selected.label : placeholder}</span>;
+        : selected?.tag
+          ? <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate">{selected.label}</span>
+                <span className={cn(badgeVariants({ variant: 'outline', size: 'sm' }), 'shrink-0 gap-1 font-medium [&_svg]:h-3 [&_svg]:w-3')}>
+                    {selected.tagIcon}
+                    {selected.tag}
+                </span>
+            </span>
+          : <span className="truncate">{selected ? selected.label : placeholder}</span>;
 
     return (
         <div className={cn('w-full', className)}>
@@ -208,17 +239,25 @@ export function Combobox({
                                     {emptyText}
                                 </p>
                             )}
-                            {filtered.map((option) =>
-                                option.disabled ? (
+                            {filtered.map((option) => (
+                                <React.Fragment key={option.value}>
+                                {option.section && (
+                                    <div role="presentation" className="select-none">
+                                        <div className="mx-1 mb-1 mt-2 border-t border-ob-line" />
+                                        <div className="flex items-center gap-1.5 px-3 pt-2 text-[11px] font-semibold uppercase tracking-wide text-ob-ink-2 [&_svg]:h-3.5 [&_svg]:w-3.5">
+                                            {option.sectionIcon}
+                                            {option.section}
+                                        </div>
+                                    </div>
+                                )}
+                                {option.disabled ? (
                                     <div
-                                        key={option.value}
                                         className="select-none px-3 pb-1 pt-3 text-xs font-semibold text-ob-ink-3"
                                     >
                                         {option.label}
                                     </div>
                                 ) : (
                                 <CommandPrimitive.Item
-                                    key={option.value}
                                     value={String(option.value)}
                                     onSelect={() => {
                                         if (multiple) {
@@ -256,8 +295,9 @@ export function Combobox({
                                         )}
                                     </div>
                                 </CommandPrimitive.Item>
-                                )
-                            )}
+                                )}
+                                </React.Fragment>
+                            ))}
                         </CommandPrimitive.List>
                         {multiple && multiValue.length > 0 && (
                             <div className="border-t border-ob-line p-2">

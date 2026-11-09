@@ -75,6 +75,84 @@ class BankTransaction extends Model
     }
 
     /**
+     * Modul yang mengelola transaksi ini bila ia pokok utang/piutang (kategori sistem FIN-*):
+     * 'loans' / 'receivables'; null bila transaksi biasa yang boleh diubah dari Arus Kas / Kas & Bank.
+     *
+     * Pengecualian: penerimaan utang (FIN-LOAN-IN) yang utangnya sudah tidak ada. LoanController::destroy
+     * kini ikut menghapus pencairannya, tetapi data lama bisa menyimpan pencairan yatim dari utang yang
+     * dihapus sebelum perbaikan itu. Mengunci transaksi yatim membuat saldo tidak bisa dikoreksi sama
+     * sekali (tautan "kelola di Utang" pun tidak menemukan apa-apa), jadi ia diperlakukan transaksi biasa.
+     */
+    public function managingModule(): ?string
+    {
+        $kunci = (string) $this->category?->system_key;
+        $modul = TransactionCategory::POKOK_MODUL[$kunci]['module'] ?? null;
+
+        if ($modul === 'loans' && $kunci === 'FIN-LOAN-IN'
+            && ! Loan::query()->where('loan_number', (string) $this->reference_number)->exists()) {
+            return null;
+        }
+
+        return $modul;
+    }
+
+    /** Pesan penolakan ubah/hapus transaksi yang dikelola modul Utang/Piutang; null bila bebas diubah. */
+    public function moduleLockMessage(): ?string
+    {
+        return match ($this->managingModule()) {
+            'loans' => 'Transaksi ini pokok utang yang dicatat otomatis oleh modul Utang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Utang.',
+            'receivables' => 'Transaksi ini pokok piutang yang dicatat otomatis oleh modul Piutang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Piutang.',
+            default => null,
+        };
+    }
+
+    /**
+     * Tautan "kelola di Utang/Piutang" untuk baris daftar (query builder, bukan model): satu query
+     * untuk seluruh halaman. Baris butuh kolom `category_system_key`, `reference_number`, `description`.
+     *
+     * Kata cari yang membuka data spesifiknya di halaman modul (`?search=`):
+     * - FIN-LOAN-IN / FIN-RCV-OUT → `reference_number` = nomor utang/piutang (diisi LoanController /
+     *   ReceivableController saat mencatat);
+     * - FIN-RCV-IN → nomor piutang dari deskripsi "Pembayaran piutang pokok: {nomor} - …";
+     * - FIN-LOAN-OUT → nama pemberi pinjaman dari deskripsi "Pembayaran pokok pinjaman - {nama}" (bisa
+     *   lebih dari satu utang); `reference_number`-nya isian bebas pengguna, bukan nomor utang.
+     * Bila tidak bisa ditentukan, `search` null → halaman indeks modul.
+     *
+     * @param  Collection<int, object>  $rows
+     * @return array<int, array{module: 'loans'|'receivables', label: string, search: string|null}|null> per indeks baris
+     */
+    public static function moduleLinks(Collection $rows): array
+    {
+        $nomorUtang = $rows->where('category_system_key', 'FIN-LOAN-IN')->pluck('reference_number')->filter()->unique()->values();
+        $utangAda = $nomorUtang->isEmpty()
+            ? collect()
+            : Loan::query()->whereIn('loan_number', $nomorUtang)->pluck('loan_number')->flip();
+
+        return $rows->map(function (object $row) use ($utangAda): ?array {
+            $kunci = (string) ($row->category_system_key ?? '');
+            $modul = TransactionCategory::POKOK_MODUL[$kunci]['module'] ?? null;
+
+            if ($modul === null) {
+                return null;
+            }
+
+            $search = match ($kunci) {
+                'FIN-LOAN-IN', 'FIN-RCV-OUT' => $row->reference_number ?: null,
+                'FIN-RCV-IN' => preg_match('/^Pembayaran piutang pokok: (\S+) - /u', (string) $row->description, $m) ? $m[1] : null,
+                'FIN-LOAN-OUT' => preg_match('/^Pembayaran pokok pinjaman - (.+)$/u', (string) $row->description, $m) ? trim($m[1]) : null,
+                default => null,
+            };
+
+            // Sama dengan managingModule(): pencairan utang yatim (utangnya sudah tidak ada) tidak dikunci.
+            if ($kunci === 'FIN-LOAN-IN' && ! $utangAda->has((string) $row->reference_number)) {
+                return null;
+            }
+
+            return ['module' => $modul, 'label' => $modul === 'loans' ? 'Utang' : 'Piutang', 'search' => $search];
+        })->all();
+    }
+
+    /**
      * Transfer antar akun sendiri, per kelompok kaki — satu-satunya definisi yang dipakai angka
      * Pemasukan/Pengeluaran TINGKAT PERUSAHAAN (kartu & grafik semua rekening serta donat di
      * Ringkasan, Ringkasan Total di Kas & Bank, alat Claude ringkasan-keuangan). Lihat

@@ -169,6 +169,7 @@ Bunga piutang bersifat **flat sekali** atas pokok (beda dengan Loan yang mempror
 - **Users & Clients** — debitur polimorfik: `employee_loan` → `User` (opsi: user `status=active`), `company_loan` → `Client` (opsi: `type=company`, `status=Active`). Relasi `debtor(): MorphTo` di `app/Models/Receivable.php:43`.
 - **Bank Accounts / Cash Flow** — pencairan (approve) menulis debit `FIN-RCV-OUT`; pembayaran via transfer menulis credit `FIN-RCV-IN` + `REV-INTEREST`. Saldo rekening (computed) otomatis mengikuti.
 - **Transaction Categories / Profit & Loss** — pokok piutang (keluar/masuk) memakai kategori `financing` (dikecualikan dari P&L); hanya bunga (`REV-INTEREST`, income/`other_income`) yang menambah laba.
+- **Cash Flow** — sejak 9 Nov 2026 pokok piutang (`FIN-RCV-OUT` di tab Pengeluaran, `FIN-RCV-IN` di tab Pemasukan) tampil **hanya-lihat** berbadge Pendanaan dengan tautan "kelola di Piutang" (`/receivables?search={nomor piutang}` — dari `reference_number` pencairan atau deskripsi "Pembayaran piutang pokok: {nomor} - …"); ubah/hapus lewat endpoint Arus Kas & Kas & Bank ditolak 403. Lihat [cash-flow.md](cash-flow.md) › Pendanaan.
 - **Permission System** — 6 permission (`view/create/edit/delete/approve/pay receivables`) di `MasterPermissionSeeder.php:163-168`; role `staff` hanya mendapat `view` + `create` (baris 385-386).
 
 ## Invarian & Jebakan

@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowDownLeft,
-    Calendar,
     Download,
     FileText,
     Filter,
+    Landmark,
+    Lock,
     Plus,
     Search,
     Trash2,
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
+import { FinancingBadge, ManagedByNote, withFinancingGroup } from '@/components/shared/financing';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
@@ -47,7 +49,10 @@ interface Props {
     stats: CashFlowStats;
     filters: IncomeFilters;
     clientOptions: FilterOption[];
+    /** Dialog ubah: kategori pemasukan + grup Pendanaan. */
     categoryOptions: FilterOption[];
+    /** Filter: seperti categoryOptions + pokok utang/piutang yang masuk. */
+    filterCategoryOptions: FilterOption[];
     inputByOptions: FilterOption[];
     accounts: AccountPickerItem[];
 }
@@ -60,7 +65,7 @@ function parseIso(s: string | null): Date | null {
     return s ? new Date(s) : null;
 }
 
-export default function CashFlowIncome({ rows, pagination, stats, filters, clientOptions, categoryOptions, inputByOptions, accounts }: Props) {
+export default function CashFlowIncome({ rows, pagination, stats, filters, clientOptions, categoryOptions, filterCategoryOptions, inputByOptions, accounts }: Props) {
     const { can } = useCan();
     const canDelete = can('delete income');
     const canCreate = can('create income');
@@ -71,6 +76,8 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
     const [dialogData, setDialogData] = React.useState<CashFlowDialogData | null>(null);
 
     const openRow = (row: IncomeRow) => {
+        // Pokok utang/piutang hanya-lihat: dikelola modul Utang/Piutang.
+        if (row.managed_by) return;
         if (row.source_type === 'payment') {
             setDialogData({
                 kind: 'payment',
@@ -141,9 +148,11 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
         apply({ sort: column, direction, page: 1 });
     };
 
+    // Baris hanya-lihat (pokok utang/piutang) tidak ikut aksi massal.
+    const selectable = rows.filter((r) => !r.managed_by);
     const toggleAll = () => {
-        if (selected.length === rows.length) setSelected([]);
-        else setSelected(rows.map((r) => r.uid));
+        if (selected.length === selectable.length) setSelected([]);
+        else setSelected(selectable.map((r) => r.uid));
     };
     const toggleOne = (uid: string) => {
         setSelected((p) => (p.includes(uid) ? p.filter((x) => x !== uid) : [...p, uid]));
@@ -182,11 +191,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
         filters.categories.length +
         (filters.input_by ? 1 : 0);
 
-    const allSelected = rows.length > 0 && selected.length === rows.length;
-    const periodLabel =
-        filters.date_from && filters.date_to
-            ? `${formatDate(filters.date_from)} – ${formatDate(filters.date_to)}`
-            : 'Semua waktu';
+    const allSelected = selectable.length > 0 && selected.length === selectable.length;
 
     return (
         <AppLayout>
@@ -215,10 +220,11 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
 
                 <CashFlowTabs active="income" />
 
+                {/* Uang yang tidak masuk Laba Rugi dipisah agar tidak bercampur tanpa label. */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <StatsCard label="Total Pemasukan" value={formatCurrency(stats.total_amount)} icon={<ArrowDownLeft />} color="green" />
-                    <StatsCard label="Jumlah Transaksi" value={stats.total_count.toLocaleString('id-ID')} icon={<FileText />} color="blue" />
-                    <StatsCard label="Periode" value={periodLabel} icon={<Calendar />} color="purple" />
+                    <StatsCard label="Pemasukan (masuk Laba Rugi)" value={formatCurrency(stats.pl_amount ?? 0)} icon={<ArrowDownLeft />} color="green" />
+                    <StatsCard label="Pendanaan (tidak masuk Laba Rugi)" value={formatCurrency(stats.financing_amount ?? 0)} icon={<Landmark />} color="purple" />
+                    <StatsCard label="Total masuk" value={formatCurrency(stats.total_amount)} icon={<ArrowDownLeft />} color="green" hint="Pemasukan + Pendanaan" />
                 </div>
 
                 <section aria-label="Daftar pemasukan" className={LIST_CARD}>
@@ -248,7 +254,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                         />
                         <Combobox
                             label="Kategori"
-                            options={categoryOptions}
+                            options={withFinancingGroup(filterCategoryOptions)}
                             value={filters.categories[0] ?? null}
                             onChange={(v) => apply({ categories: v ? [Number(v)] : [], page: 1 })}
                             placeholder="Semua kategori"
@@ -331,24 +337,33 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                             key={row.uid}
                                             onClick={() => openRow(row)}
                                             className={cn(
-                                                'cursor-pointer border-b border-ob-line-soft transition-colors duration-150 last:border-0',
+                                                'border-b border-ob-line-soft transition-colors duration-150 last:border-0',
+                                                row.managed_by ? 'cursor-default' : 'cursor-pointer',
                                                 selected.includes(row.uid) ? 'bg-ob-act-fill/10' : 'hover:bg-ob-hover',
                                             )}
                                         >
                                             <td className="px-3 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
-                                                {canDelete && (
-                                                    <Checkbox
-                                                        checked={selected.includes(row.uid)}
-                                                        onCheckedChange={() => toggleOne(row.uid)}
-                                                        aria-label="Pilih baris"
-                                                    />
+                                                {row.managed_by ? (
+                                                    <Lock className="h-4 w-4 text-ob-ink-3" aria-label={`Hanya-lihat, dikelola di ${row.managed_by.label}`} />
+                                                ) : (
+                                                    canDelete && (
+                                                        <Checkbox
+                                                            checked={selected.includes(row.uid)}
+                                                            onCheckedChange={() => toggleOne(row.uid)}
+                                                            aria-label="Pilih baris"
+                                                        />
+                                                    )
                                                 )}
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-3 align-middle text-ob-ink-2">
                                                 {formatDate(row.date)}
                                             </td>
                                             <td className="px-3 py-3 align-middle">
-                                                <SourceBadge type={row.source_type} />
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <SourceBadge type={row.source_type} />
+                                                    {row.is_financing && <FinancingBadge className="lg:hidden" />}
+                                                    {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="md:hidden" />}
+                                                </div>
                                             </td>
                                             <td className="hidden px-3 py-3 align-middle md:table-cell">
                                                 {row.source_type === 'payment' ? (
@@ -368,6 +383,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                                         <div className="truncate text-xs text-ob-ink-3">
                                                             {row.bank_name}
                                                         </div>
+                                                        {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-1" />}
                                                     </>
                                                 )}
                                                 {row.attachment_url && (
@@ -380,11 +396,14 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                                 )}
                                             </td>
                                             <td className="hidden px-3 py-3 align-middle lg:table-cell">
-                                                {row.category_label ? (
-                                                    <Badge variant="zinc">{row.category_label}</Badge>
-                                                ) : (
-                                                    <span className="text-xs text-ob-ink-3">—</span>
-                                                )}
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    {row.is_financing && <FinancingBadge />}
+                                                    {row.category_label ? (
+                                                        <Badge variant="zinc">{row.category_label}</Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-ob-ink-3">—</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="hidden px-3 py-3 align-middle xl:table-cell">
                                                 <InputByText name={row.input_by} />

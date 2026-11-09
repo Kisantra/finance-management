@@ -115,10 +115,15 @@ class CashFlowExportService
         }
 
         $bankTransactions = $bankTransactionsQuery->get()->map(function ($transaction) {
+            $kategori = $transaction->category?->full_path ?? '-';
+
             return [
                 'date' => $transaction->transaction_date,
                 'description' => $transaction->description,
-                'category' => $transaction->category?->full_path ?? '-',
+                // Laporan ini buku mutasi rekening: semua transaksi (termasuk transfer) tetap ikut
+                // demi saldo berjalan. Pendanaan diberi penanda yang sama dengan daftar Arus Kas
+                // agar pembaca tahu uang itu tidak masuk Laba Rugi.
+                'category' => $transaction->category?->type === 'financing' ? 'Pendanaan · '.$kategori : $kategori,
                 'credit' => $transaction->transaction_type === 'credit' ? $transaction->amount : 0,
                 'debit' => $transaction->transaction_type === 'debit' ? $transaction->amount : 0,
                 'type' => 'transaction',

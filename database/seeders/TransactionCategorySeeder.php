@@ -11,9 +11,11 @@ use Illuminate\Database\Seeder;
  * TenantDatabaseSeeder; deploy TIDAK menjalankannya, jadi perusahaan yang sudah
  * ada tidak berubah (mereka memakai tombol Pakai Template). Idempoten.
  *
- * Isi: kategori sistem modul Utang/Piutang, Setoran & Penarikan Modal,
- * Transfer Internal → Antar Rekening Sendiri, lalu template kategori lewat
- * CategoryTemplateService — sumber yang sama dengan tombol Pakai Template.
+ * Isi: kategori sistem modul Utang/Piutang, Transfer Internal → Antar Rekening
+ * Sendiri, lalu template kategori lewat CategoryTemplateService — sumber yang sama
+ * dengan tombol Pakai Template, termasuk bagian Pendanaan (Setoran Modal, Penarikan
+ * Modal, Pajak Titipan & PPN). Setoran/Penarikan Modal tidak lagi didefinisikan di
+ * sini agar tidak ada definisi ganda.
  */
 class TransactionCategorySeeder extends Seeder
 {
@@ -26,8 +28,6 @@ class TransactionCategorySeeder extends Seeder
     private const KATEGORI_TETAP = [
         ['type' => 'financing', 'label' => 'Penerimaan Pinjaman', 'system_key' => 'FIN-LOAN-IN'],
         ['type' => 'financing', 'label' => 'Pembayaran Pokok Pinjaman', 'system_key' => 'FIN-LOAN-OUT'],
-        ['type' => 'financing', 'label' => 'Setoran Modal'],
-        ['type' => 'financing', 'label' => 'Penarikan Modal'],
         ['type' => 'financing', 'label' => 'Piutang Diberikan', 'system_key' => 'FIN-RCV-OUT'],
         ['type' => 'financing', 'label' => 'Pembayaran Piutang Diterima', 'system_key' => 'FIN-RCV-IN'],
         // pl_group WAJIB terisi: tanpa ini bunga pinjaman & bunga piutang

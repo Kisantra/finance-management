@@ -58,7 +58,7 @@ class ArusKasSemuaTest extends TestCase
         $pemasukan = TransactionCategory::create(['type' => 'income', 'label' => 'Pendapatan Lain']);
         $pengeluaran = TransactionCategory::create(['type' => 'expense', 'label' => 'Listrik']);
         $transfer = TransactionCategory::create(['type' => 'transfer', 'label' => 'Transfer Internal']);
-        $pendanaan = TransactionCategory::create(['type' => 'financing', 'label' => 'Penerimaan Pinjaman']);
+        $pendanaan = TransactionCategory::create(['type' => 'financing', 'label' => 'Pinjaman Pemegang Saham']);
 
         Payment::factory()->create([
             'invoice_id' => Invoice::factory()->sent()->create(['billed_to_id' => Client::factory()->create(['name' => 'PT Klien Uji'])->id])->id,
@@ -70,37 +70,45 @@ class ArusKasSemuaTest extends TestCase
         $this->transaksi($this->bca, $pemasukan, 'credit', 300_000, '2026-11-02', $this->ani->id, 'Bunga giro');
         $this->transaksi($this->mandiri, $pengeluaran, 'debit', 120_000, '2026-11-04', $this->budi->id, 'Tagihan listrik');
         $this->transaksi($this->mandiri, $pengeluaran, 'debit', 80_000, '2026-11-01', null, 'Data lama');
-        // Bukan pemasukan/pengeluaran: tidak boleh masuk tab Semua.
+        // Transfer bukan pemasukan/pengeluaran: tidak boleh masuk tab Semua.
         $this->transaksi($this->bca, $transfer, 'credit', 1_000_000, '2026-11-02', $this->ani->id, 'Pindah dana');
+        // Pendanaan (sejak 9 Nov 2026) IKUT tampil, berpenanda dan dirinci terpisah di ringkasan.
         $this->transaksi($this->bca, $pendanaan, 'credit', 5_000_000, '2026-11-02', $this->ani->id, 'Pencairan pinjaman');
     }
 
-    public function test_tab_semua_menggabungkan_pemasukan_dan_pengeluaran_tanpa_transfer_dan_pendanaan(): void
+    public function test_tab_semua_menggabungkan_pemasukan_pengeluaran_dan_pendanaan_tanpa_transfer(): void
     {
         $this->actingAs($this->keduanya)
             ->get('/cash-flow/all')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('cash-flow/all')
-                ->where('stats.total_in', 800_000)
+                ->where('stats.total_in', 5_800_000)
                 ->where('stats.total_out', 200_000)
-                ->where('stats.net', 600_000)
-                ->where('stats.total_count', 4)
-                ->has('rows', 4)
+                ->where('stats.net', 5_600_000)
+                ->where('stats.total_count', 5)
+                ->where('stats.financing_in', 5_000_000)
+                ->where('stats.financing_out', 0)
+                ->has('rows', 5)
                 ->where('rows.0.description', 'Tagihan listrik')
                 ->where('rows.0.direction', 'out')
                 ->where('rows.0.input_by', 'Budi Finance')
+                ->where('rows.0.is_financing', false)
                 ->where('rows.1.source_type', 'payment')
                 ->where('rows.1.client_name', 'PT Klien Uji')
                 ->where('rows.1.input_by', 'Ani Kasir')
-                ->where('rows.3.description', 'Data lama')
-                ->where('rows.3.input_by', null)
+                ->where('rows', fn ($baris) => collect($baris)->contains(fn ($b) => $b['description'] === 'Pencairan pinjaman'
+                    && $b['is_financing'] === true && $b['category_type'] === 'financing' && $b['managed_by'] === null))
+                ->where('rows', fn ($baris) => ! collect($baris)->contains('description', 'Pindah dana'))
+                ->where('rows.4.description', 'Data lama')
+                ->where('rows.4.input_by', null)
                 ->where('inputByOptions', [
                     ['label' => 'Ani Kasir', 'value' => $this->ani->id],
                     ['label' => 'Budi Finance', 'value' => $this->budi->id],
                 ])
                 ->has('incomeCategoryOptions')
                 ->has('expenseCategoryOptions')
+                ->has('filterCategoryOptions')
                 ->missing('categoryOptions')
             );
     }
@@ -110,8 +118,9 @@ class ArusKasSemuaTest extends TestCase
         $this->actingAs($this->keduanya)
             ->get('/cash-flow/all?input_by='.$this->ani->id)
             ->assertInertia(fn (Assert $page) => $page
-                ->has('rows', 2)
-                ->where('stats.total_in', 800_000)
+                ->has('rows', 3)
+                ->where('stats.total_in', 5_800_000)
+                ->where('stats.financing_in', 5_000_000)
                 ->where('stats.total_out', 0)
                 ->where('filters.input_by', $this->ani->id)
             );
@@ -145,7 +154,8 @@ class ArusKasSemuaTest extends TestCase
             return count($baris) === 1
                 && $baris[0][1] === 'Keluar'
                 && $baris[0][6] === 'Budi Finance'
-                && $baris[0][8] === 120_000;
+                && $baris[0][8] === 120_000
+                && $baris[0][10] === 'Laba Rugi';
         });
     }
 
@@ -154,9 +164,10 @@ class ArusKasSemuaTest extends TestCase
         $this->actingAs($this->keduanya)
             ->get('/cash-flow/income?input_by='.$this->ani->id)
             ->assertInertia(fn (Assert $page) => $page
-                ->has('rows', 2)
+                ->has('rows', 3)
                 ->where('rows.0.input_by', 'Ani Kasir')
                 ->where('rows.1.input_by', 'Ani Kasir')
+                ->where('rows.2.input_by', 'Ani Kasir')
                 ->has('inputByOptions', 2)
             );
 

@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
+import { FinancingHint, isFinancingCategory, quickAddParents, withFinancingGroup } from '@/components/shared/financing';
 import { QuickAddCategoryDialog, type QuickAddCategoryResult } from '@/components/shared/quick-add-category-dialog';
 import { companyUrl } from '@/lib/company';
 import { toLocalIso } from '@/lib/utils';
@@ -64,9 +65,14 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
     const handleCategoryAdded = ({ id, formattedLabel, parentId, isGroup }: QuickAddCategoryResult) => {
         const newOption: CategoryOption = { value: id, label: formattedLabel, disabled: isGroup || undefined };
         setCategories((prev) => {
-            if (isGroup || !parentId) return [...prev, newOption];
+            // Kategori cepat bertipe pemasukan/pengeluaran: grup barunya masuk SEBELUM grup Pendanaan
+            // (yang selalu terakhir), bukan di dalamnya.
+            const firstFinancing = prev.findIndex((o) => o.financing);
+            const beforeFinancing = (option: CategoryOption) =>
+                firstFinancing === -1 ? [...prev, option] : [...prev.slice(0, firstFinancing), option, ...prev.slice(firstFinancing)];
+            if (isGroup || !parentId) return beforeFinancing(newOption);
             const parentIdx = prev.findIndex((o) => o.value === parentId);
-            if (parentIdx === -1) return [...prev, newOption];
+            if (parentIdx === -1) return beforeFinancing(newOption);
             let insertIdx = parentIdx + 1;
             while (insertIdx < prev.length && !prev[insertIdx].disabled) {
                 insertIdx++;
@@ -106,11 +112,10 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
         label: `${a.account_name} — ${a.bank_name}`,
     }));
 
-    const categoryOptions = categories.map((c) => ({
-        value: c.value,
-        label: c.label,
-        disabled: c.disabled,
-    }));
+    // Grup Pendanaan (selalu terakhir) diberi judul bagian + penanda di pemicu.
+    const categoryOptions = withFinancingGroup(categories);
+    const isFinancing = isFinancingCategory(categories, data.category_id);
+    const selectedAccountName = accounts.find((a) => a.id === data.bank_account_id)?.account_name ?? null;
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -201,6 +206,9 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                                     placeholder="Pilih kategori"
                                     error={errors.category_id}
                                 />
+                                {isFinancing && (
+                                    <FinancingHint direction={type} accountName={selectedAccountName} amount={data.amount} />
+                                )}
                             </div>
 
                             <CurrencyInput
@@ -258,9 +266,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                     open={quickAddOpen}
                     onOpenChange={setQuickAddOpen}
                     type={isIncome ? 'income' : 'expense'}
-                    parentOptions={categoryOptions
-                        .filter((o) => o.disabled)
-                        .map((o) => ({ value: o.value, label: o.label }))}
+                    parentOptions={quickAddParents(categories)}
                     onAdded={handleCategoryAdded}
                 />
 

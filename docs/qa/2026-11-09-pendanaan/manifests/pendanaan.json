@@ -1,0 +1,188 @@
+{
+  "module": "pendanaan",
+  "title": "QA — Pendanaan (Opsi A): Arus Kas & Template Kategori",
+  "kicker": "QA 9 NOVEMBER 2026 · ARUS KAS · KATEGORI TRANSAKSI · PENDANAAN",
+  "date": "9 November 2026",
+  "environment": "database pdn_central + pdn_central_tenant_pdnlama / _pdnbaru (dibuat khusus, di-drop setelah QA), php artisan serve --env=pdn di http://127.0.0.1:8141 (APP_ENV=pdn, sesi & cache database, antrean sync), aset dari Vite dev server pengguna ([::1]:5173), Chromium headless lewat Python Playwright 1.58 viewport 1280x800 DPR 1 (N07: 390x844 DPR 2, sentuh), kode cabang fitur/pendanaan 6c4ef5e + b58a7e0 + 273be20 (belum di-push); perusahaan pdnlama diprovisioning di kode main 1646872 sebelum fitur",
+  "scope": "Eksekusi 12 test case di test-cases/pendanaan.md untuk fitur Pendanaan (Opsi A): bagian Pendanaan di Pakai Template (perusahaan lama & baru), mencatat setoran modal / setor PPN / prive lewat Catat Pemasukan & Pengeluaran (grup pemilih, penanda, petunjuk), badge & kartu ringkasan terpisah di tab Semua/Pemasukan/Pengeluaran, filter Kategori, ekspor Excel kolom Jenis, Laba Rugi yang tidak berubah, pokok utang hanya-lihat (UI + penolakan server), payload rakitan, pengguna hanya-lihat, ponsel 390 px, dan konsistensi dengan Ringkasan. Aktor: Admin QA, Finance manager (Rina), pengguna hanya-lihat (Lina).",
+  "shots_src": "../evidence/pendanaan",
+  "shots_dst": "../evidence/pendanaan",
+  "evidence_into": "../test-cases/pendanaan.md",
+  "report_out": "../report/Laporan-QA-pendanaan.pdf",
+  "summary": [
+    "Seluruh 12 test case lolos; tidak ada cacat aplikasi yang menggagalkan case. Dua percobaan pertama (N05, N06) batal karena lokator skrip uji, bukan karena aplikasi — dicatat terpisah di Kendala alat uji.",
+    "Di perusahaan lama (diprovisioning di kode main), Pakai Template menampilkan persis rencana mockup: Baru 5, Sudah ada 69, Dilewati 0; induk Setoran Modal & Penarikan Modal yang dulu tanpa anak dipakai ulang dan sub barunya ditempel. Klik ulang 0/74/0. Perusahaan baru langsung berisi 82 kategori termasuk bagian Pendanaan.",
+    "Setoran modal (Rp 25.000.000) dan setor PPN (Rp 3.300.000) bisa dicatat lewat dialog biasa: grup terakhir 'Pendanaan · tidak masuk Laba Rugi', penanda Pendanaan, petunjuk saldo bertambah/berkurang. Saldo BCA bergeser tepat, kartu Pendanaan terisi terpisah, sedangkan Laporan Laba Rugi November identik sebelum dan sesudah (dibandingkan seluruh strukturnya di DB).",
+    "Pokok utang yang dicatat lewat menu Utang tampil hanya-lihat dengan tautan ke utangnya; keempat jalur ubah/hapus lewat Arus Kas dan Kas & Bank ditolak 403 dan DB tidak berubah. Payload rakitan dengan kategori sistem/induk ditolak 422. Ringkasan bulan ini kini sama dengan tab Semua (Rp 90.120.000 / Rp 19.965.000 / +Rp 70.155.000)."
+  ],
+  "bugs": [],
+  "cases": [
+    { "section": "A. KONDISI NORMAL" },
+    {
+      "id": "N01",
+      "title": "Pakai Template di perusahaan lama: induk pendanaan lama dipakai ulang, 5 baru, idempoten",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "5/69/0 → toast '5 kategori dibuat, 69 dilewati karena sudah ada.' → klik ulang 0/74/0; DB 82 kategori, sub menempel ke induk lama, pl_group null.",
+      "steps": [
+        { "img": "N01-1", "cap": "Kategori Transaksi perusahaan lama (77 kategori, dibuat di kode `main`): induk **Setoran Modal** dan **Penarikan Modal** masih tanpa sub." },
+        { "img": "N01-2", "cap": "**Pakai Template**: deskripsi baru menyebut pendanaan, poin **Pendanaan** di daftar penjelasan, ringkasan **Baru 5 · Sudah ada 69 · Dilewati 0**, tombol **Buat 5 kategori**." },
+        { "img": "N01-3", "cap": "Bagian ketiga **Pendanaan**: Setoran Modal & Penarikan Modal **Sudah ada**, sub barunya **Baru**; grup **Pajak Titipan & PPN** (Setor PPN, Setor Titipan Pajak Klien) **Baru**; kolom Baris Laba Rugi **Tidak masuk Laba Rugi**." },
+        { "img": "N01-4", "cap": "Setelah **Buat 5 kategori**: toast \"5 kategori dibuat, 69 dilewati karena sudah ada.\"; Total 82, Utama 22, Sub 60, Belum Diklasifikasi 0." },
+        { "img": "N01-5", "cap": "Dibuka ulang: **Baru 0 · Sudah ada 74 · Dilewati 0**, tombol **Tidak ada kategori baru** nonaktif (idempoten)." }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Catat Setoran Modal lewat Catat Pemasukan",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Petunjuk 'bertambah Rp 25.000.000'; kartu Pendanaan Rp 0 → Rp 25.000.000, Pemasukan (masuk Laba Rugi) tetap Rp 15.120.000; DB credit financing.",
+      "steps": [
+        { "img": "N02-1", "cap": "Pemasukan 1–30 Nov sebelum: **Pemasukan (masuk Laba Rugi) Rp 15.120.000 · Pendanaan Rp 0 · Total masuk Rp 15.120.000**." },
+        { "img": "N02-2", "cap": "**Catat Pemasukan**, pemilih Kategori digulir ke bawah: grup terakhir **Pajak Titipan & PPN**, **Penarikan Modal**, **Setoran Modal** di bawah judul Pendanaan." },
+        { "img": "N02-3", "cap": "**↳ Setoran Modal Pemilik** dipilih: penanda **Pendanaan** di pemicu, petunjuk \"Pendanaan: saldo BCA Operasional **bertambah Rp 25.000.000**, Laba Rugi tidak berubah.\"" },
+        { "img": "N02-4", "cap": "Setelah disimpan: baris berbadge **Pendanaan** + Setoran Modal Pemilik; kartu **Pendanaan Rp 25.000.000**, **Total masuk Rp 40.120.000**, Pemasukan (masuk Laba Rugi) tetap." }
+      ]
+    },
+    {
+      "id": "N03",
+      "title": "Catat Setor PPN lewat Catat Pengeluaran; kartu Beban/Pendanaan/Total keluar",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Petunjuk 'berkurang Rp 3.300.000'; kartu 12.465.000 / 3.300.000 / 15.765.000 seperti mockup 03A; saldo BCA akhir 75.305.000.",
+      "steps": [
+        { "img": "N03-1", "cap": "Pengeluaran sebelum: **Beban (masuk Laba Rugi) Rp 12.465.000 · Pendanaan Rp 0 · Total keluar Rp 12.465.000** (\"Beban + Pendanaan\")." },
+        { "img": "N03-2", "cap": "**Catat Pengeluaran**: grup Pendanaan berada **setelah** Transfer Internal, dipisah garis dan berjudul \"PENDANAAN · TIDAK MASUK LABA RUGI\"." },
+        { "img": "N03-3", "cap": "**↳ Setor PPN** dipilih: penanda **Pendanaan**, petunjuk \"saldo BCA Operasional **berkurang Rp 3.300.000**, Laba Rugi tidak berubah.\"" },
+        { "img": "N03-4", "cap": "Daftar: **Beban Rp 12.465.000 · Pendanaan Rp 3.300.000 · Total keluar Rp 15.765.000**; baris Setor PPN berbadge **Pendanaan**." }
+      ]
+    },
+    {
+      "id": "N04",
+      "title": "Laba Rugi November tidak berubah oleh pendanaan",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Struktur ProfitLossService setelah N03 identik dengan sebelum N02 (laba bersih 2.655.000, unclassified kosong).",
+      "steps": [
+        { "img": "N04-1", "cap": "Laba Rugi 1–30 Nov: Pendapatan Rp 15.000.000, Laba Kotor Rp 15.000.000, panel \"Semua sudah diklasifikasi\" — setoran modal & setor PPN tidak muncul di baris mana pun." }
+      ]
+    },
+    {
+      "id": "N05",
+      "title": "Tab Semua: porsi pendanaan di kartu, filter Kategori grup Pendanaan, Excel kolom Jenis di akhir",
+      "layer": "FE+BE",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1 batal: skrip mencari tombol bernama 'Semua kategori', padahal nama aksesibel pemicu filter adalah labelnya 'Kategori' (kesalahan skrip). Percobaan 2: kartu, filter, dan Excel 11 kolom (Jenis (Laba Rugi/Pendanaan) di akhir) sesuai.",
+      "steps": [
+        { "img": "N05-1", "cap": "Tab **Semua**: Total masuk Rp 40.120.000 \"Termasuk pendanaan Rp 25.000.000\", Total keluar Rp 15.765.000 \"Termasuk pendanaan Rp 3.300.000\", Selisih +Rp 24.355.000 \"**Tanpa pendanaan: +Rp 2.655.000**\" (= laba bersih N04)." },
+        { "img": "N05-2", "cap": "Filter **Kategori**: grup Pendanaan di bagian bawah (Setor PPN, Setor Titipan Pajak Klien, Prive Pemilik …) dengan judul bagiannya." },
+        { "img": "N05-3", "cap": "Filter **Setor PPN**: 1 hasil, kartu terfilter Total keluar Rp 3.300.000 (termasuk pendanaan Rp 3.300.000)." }
+      ]
+    },
+    {
+      "id": "N06",
+      "title": "Perusahaan baru: 82 kategori termasuk Pendanaan; Pakai Template 0 baru",
+      "layer": "FE+BE",
+      "verdict": "Pass (percobaan ke-2)",
+      "attempts": "tp",
+      "note": "Percobaan 1: perusahaan pdnbaru TERBENTUK (status active, DB tenant ada), tetapi skrip menunggu teks 'siap dipakai' yang tidak tertangkap lokator lalu timeout — kesalahan skrip. Percobaan 2 dilanjutkan dari gerbang profil tanpa membuat ulang perusahaan.",
+      "steps": [
+        { "img": "N06-1", "cap": "Admin › Perusahaan › **Perusahaan baru**: PT Pendanaan Baru QA, kode `pdnbaru`, singkatan PDB; pratinjau menyebut data awal berisi template kategori." },
+        { "img": "N06-2", "cap": "Membuka `/c/pdnbaru` → gerbang profil mengarahkan ke form Profil Perusahaan; isian wajib dilengkapi lalu disimpan." },
+        { "img": "N06-3", "cap": "Kategori perusahaan baru: **Total 82 · Utama 22 · Sub 60 · Belum Diklasifikasi 0**." },
+        { "img": "N06-4", "cap": "**Pakai Template**: Baru 0 · Sudah ada 74 · Dilewati 0; bagian **Pendanaan** sudah lengkap (Setoran Modal Pemilik, Prive Pemilik, Setor PPN, Setor Titipan Pajak Klien); tombol nonaktif." }
+      ]
+    },
+    {
+      "id": "N07",
+      "title": "Ponsel 390 px: daftar & dialog pendanaan tanpa geser samping",
+      "layer": "FE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Overflow horizontal halaman 0 px di daftar dan saat dialog terbuka; badge Pendanaan pindah ke bawah deskripsi; petunjuk 'berkurang Rp 5.000.000' terbaca.",
+      "steps": [
+        { "img": "N07-1", "cap": "Ponsel 390 px: judul, tombol **Input Pengeluaran**, tab, dan kartu **Beban (masuk Laba Rugi)** bertumpuk satu kolom." },
+        { "img": "N07-2", "cap": "Tabel di ponsel: baris **Setor PPN masa Oktober** membawa badge **Pendanaan** di bawah deskripsi (kolom Kategori disembunyikan di layar kecil)." },
+        { "img": "N07-3", "cap": "**Catat Pengeluaran** selebar layar; pemilih Kategori dibuka (daftar di bawah lipatan)." },
+        { "img": "N07-4", "cap": "**↳ Prive Pemilik** dipilih: penanda Pendanaan di pemicu + petunjuk \"saldo BCA Operasional berkurang Rp 5.000.000, Laba Rugi tidak berubah.\" (tidak disimpan)." }
+      ]
+    },
+    { "section": "B. KONDISI TIDAK NORMAL / EDGE CASE" },
+    {
+      "id": "A01",
+      "title": "Payload rakitan: kategori sistem, induk, dan arah salah ditolak server",
+      "layer": "BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Pemilih tidak pernah menawarkan kategori ini, jadi hanya terjangkau lewat permintaan rakitan. Lima POST /bank-transactions → 422 dengan pesan terbaca (sistem FIN-LOAN-IN, FIN-RCV-OUT, EXP-INTEREST; induk Pajak Titipan & PPN; Pendapatan Jasa untuk debit). DB: 8 transaksi identik sebelum & sesudah."
+    },
+    {
+      "id": "A02",
+      "title": "Pengguna hanya-lihat: melihat pendanaan, tanpa tombol catat/centang; POST ditolak",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Kartu & badge tampil; 0 tombol Input Pengeluaran, 0 checkbox; POST debit Setor PPN → 403; DB tidak berubah.",
+      "steps": [
+        { "img": "A02-1", "cap": "Lina (hanya-lihat): kartu **Beban Rp 12.465.000 · Pendanaan Rp 3.300.000 · Total keluar Rp 15.765.000** dan badge Pendanaan tampil; tidak ada **Input Pengeluaran** maupun kotak centang." }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Ubah transaksi: dialog menawarkan grup Pendanaan; ganti ke kategori sistem lewat PUT rakitan ditolak",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Dialog Edit Pengeluaran memuat grup Pendanaan; PUT /bank-transactions/4 ke FIN-LOAN-OUT → 422; transaksi #4 tidak berubah.",
+      "steps": [
+        { "img": "A03-1", "cap": "**Edit Pengeluaran** \"Biaya administrasi bank\": pemilih Kategori memuat bagian **Pendanaan · tidak masuk Laba Rugi** (Setor PPN, Setor Titipan Pajak Klien, Prive Pemilik …)." }
+      ]
+    },
+    { "section": "C. ALUR BERANTAI (LINTAS MODUL)" },
+    {
+      "id": "C01",
+      "title": "Utang dari modul Utang: hanya-lihat di Arus Kas & Kas & Bank, tautan ke utangnya, server menolak ubah/hapus",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Pencairan & pokok bergembok tanpa centang dengan tautan /loans?search=LOAN-00001 dan ?search=Bank BRI; bunga tetap beban biasa. PUT/DELETE/bulk-delete (2 endpoint) → 403 berpesan; DB tidak berubah. Kas & Bank tanpa tombol hapus. Laba Rugi hanya bertambah beban bunga 200.000.",
+      "steps": [
+        { "img": "C01-1", "cap": "Utang › **Tambah utang**: Bank BRI, pokok Rp 50.000.000, 6 % p.a., 12 bulan, rekening BCA Operasional; nomor otomatis **LOAN-00001**." },
+        { "img": "C01-2", "cap": "Pemasukan: \"Penerimaan pinjaman dari Bank BRI\" bergembok, **Hanya-lihat · kelola di Utang →**, badge Pendanaan, tanpa centang; kartu Pendanaan Rp 75.000.000." },
+        { "img": "C01-3", "cap": "Klik **kelola di Utang** → halaman Utang tersaring **LOAN-00001** (1 utang, Rp 50.000.000, Aktif)." },
+        { "img": "C01-4", "cap": "**Catat pembayaran** LOAN-00001: pokok Rp 4.000.000 + bunga Rp 200.000 dari BCA Operasional." },
+        { "img": "C01-5", "cap": "Pengeluaran: pokok bergembok hanya-lihat (badge Pendanaan), bunga tampil sebagai beban biasa bercentang; kartu **Beban Rp 12.665.000 · Pendanaan Rp 7.300.000 · Total keluar Rp 19.965.000**." },
+        { "img": "C01-6", "cap": "Kas & Bank › BCA Operasional: pencairan bertanda **Hanya-lihat · kelola di Utang**, badge Pendanaan, tanpa tombol hapus dan centang." }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Ringkasan bulan ini = Arus Kas Semua November",
+      "layer": "FE+BE",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Ringkasan 90.120.000 / 19.965.000 / +70.155.000 = tab Semua 90.120.000 / 19.965.000 / +70.155.000 (tanpa transfer & penyesuaian).",
+      "steps": [
+        { "img": "C02-1", "cap": "Ringkasan: **Pemasukan 1–9 Nov Rp 90.120.000 · Pengeluaran Rp 19.965.000 · Arus bersih +Rp 70.155.000** (pendanaan ikut dihitung, seperti sejak dulu)." },
+        { "img": "C02-2", "cap": "Arus Kas › Semua 1–30 Nov: **Total masuk Rp 90.120.000 · Total keluar Rp 19.965.000 · Selisih +Rp 70.155.000** — kini sama dengan Ringkasan." }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "K-P1", "title": "Tabel Pengeluaran meluap ±40 px di layar tepat 1280 px", "body": "Pada viewport 1280 px (kolom Diinput oleh mulai tampil di xl), deskripsi panjang seperti \"Pembayaran pokok pinjaman - Bank BRI\" membuat tabel 964 px di wadah 926 px; kolom Jumlah perlu digulir ke samping di dalam kartu. Halamannya sendiri tidak meluap. Baris tanpa unsur pendanaan dengan deskripsi panjang juga mengalaminya (screenshot panduan fm-expense-list-after), jadi ini batas tata letak lama yang kini lebih sering terlihat. Di 1440 px pas (1086/1086). Tidak diubah; usulan: kolom Diinput oleh mulai 2xl di tab Pengeluaran, atau deskripsi dua baris." },
+    { "id": "K-P2", "title": "Breadcrumb header bertumpuk dengan tombol di 390 px", "body": "Teks breadcrumb \"Pemasukan & Pengeluaran\" tertimpa tombol bahasa/notifikasi. Sudah sama di kode main (screenshot sebelum). Di luar lingkup." },
+    { "id": "K-P3", "title": "Kategori Penyesuaian ditawarkan pemilih tetapi ditolak server", "body": "API /api/transaction-categories?type=credit|debit tetap memuat kelompok adjustment, sedangkan validasi pencatatan menolak tipe itu (perilaku lama; brief: perubahan adjustment di luar lingkup)." }
+  ],
+  "tooling_problems": [
+    "N05 percobaan 1: lokator skrip mencari tombol bernama \"Semua kategori\"; nama aksesibel pemicu Combobox berlabel adalah labelnya (\"Kategori\"). Setelah lokator diperbaiki, case dijalankan ulang dari awal.",
+    "N06 percobaan 1: perusahaan terbentuk (companies.status active pukul 16:36:22, DB tenant ada), tetapi skrip menunggu teks \"siap dipakai\" hingga 240 detik dan timeout. Dua percobaan lanjutan juga terhenti oleh skrip: (a) login admin yang kini anggota dua perusahaan mendarat di /choose-company, bukan /dashboard; (b) skrip mencoba membuka Input Pengeluaran di perusahaan tanpa rekening, padahal tombol itu memang disembunyikan bila belum ada rekening (perilaku lama). Ketiganya kesalahan skrip; perusahaan tidak dibuat ulang dan pemilih diperiksa lewat endpoint yang dipanggil dialog.",
+    "Runner headless memutus WebSocket HMR Vite di setiap konteks agar perubahan berkas (oleh sesi yang sama) tidak memuat ulang halaman di tengah langkah; tidak ada pemuatan ulang yang teramati."
+  ],
+  "honesty": "Kode fitur ini dan seluruh test case-nya ditulis oleh asisten yang sama, jadi titik buta penulis ikut terbawa ke pengujian. Mohon periksa sendiri secara independen: (1) dialog Catat Pengeluaran di perusahaan produksi yang sudah punya kategori pendanaan buatan sendiri (bukan dari template) — apakah grup Pendanaan tampil wajar; (2) pencairan utang lama yang utangnya sudah dihapus sebelum LoanController::destroy membalik pencairannya — baris itu sengaja tidak dikunci; (3) tampilan tabel Pengeluaran di laptop 1280–1366 px (K-P1). Verifikasi dilakukan lewat eksekusi UI + pemeriksaan DB; klaim tentang kode yang tidak dijalankan (mis. pesan untuk piutang di Kas & Bank) dibuktikan oleh tes otomatis PendanaanTest, bukan oleh QA layar ini."
+}

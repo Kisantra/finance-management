@@ -101,7 +101,7 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `Slider` | `@/components/ui/slider` | **`<input type="range">` manual — WAJIB** | Styled range with optional suffix label. Props: `value`, `onChange`, `min`, `max`, `step`, `label`, `suffix`, `disabled`. |
 | `SegmentedControl` | `@/components/ui/segmented-control` | **Tombol pilihan segmented/radio manual** | Pilihan eksklusif berbentuk grup tombol (mis. tipe/prioritas/status). Props: `options` (`{value,label,icon?,activeClassName?}`), `value`, `onChange`, `columns`, `layout` (`stack`\|`inline`), `label`, `error`. Generic atas tipe value. |
 | `Label` | `@/components/ui/label` | `<label>` manual | 13 px `text-ob-ink-2`. |
-| `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. |
+| `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. Opsi: `disabled` = judul grup; `section`/`sectionIcon` = judul bagian bergaris (tetap tampil saat mencari); `tag`/`tagIcon` = penanda di pemicu saat terpilih. |
 | `Autocomplete` | `@/components/ui/autocomplete` | **`<input>` + `<datalist>` / saran manual** | Teks bebas dengan daftar saran (nilai tidak wajib salah satu opsi — beda dengan `Combobox`). Props: `value` (string), `onChange`, `options` (`{value,label?,description?,icon?,keywords?}`), `icon` (slot kiri 24 px), `label`, `hint`, `error`. Panah/Enter/Esc; Enter tanpa saran tersorot tetap mengirim form. |
 | `DatePicker` | `@/components/ui/date-picker` | **`<input type="date">` — WAJIB** | Indonesian locale, hari terpilih `ob-act-fill`, react-day-picker v10. Single: `value`, `onChange`. Range: tambah `mode="range"`, `value={from,to}`, `placeholderTo`. |
 | `Dialog` | `@/components/ui/dialog` | Modal HTML manual | Sizes: `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, `4xl`, `full`. Exports: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`. |
@@ -120,13 +120,14 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | Komponen | Import | Keterangan |
 |----------|--------|------------|
 | `PageHeader` | `@/components/shared/page-header` | Header halaman: judul 26/600 tanpa gradient. Props: `title`, `description`, `action`. WAJIB di semua halaman utama. |
-| `StatsCard` | `@/components/shared/stats-card` | Stats card horizontal. Props: `label`, `value`, `icon`, `color` (`blue`\|`green`\|`purple`\|`red`\|`emerald`\|`yellow`\|`orange`\|`indigo` — mewarnai ikon saja, ungu & indigo jadi netral), `inModal` (boolean). |
+| `StatsCard` | `@/components/shared/stats-card` | Stats card horizontal. Props: `label`, `value`, `icon`, `color` (`blue`\|`green`\|`purple`\|`red`\|`emerald`\|`yellow`\|`orange`\|`indigo` — mewarnai ikon saja, ungu & indigo jadi netral), `inModal` (boolean), `hint` (keterangan kecil di bawah angka). |
 | `FormSection` | `@/components/shared/form-section` | Section header dalam form. Props: `title`, `description`. |
 | `DataTable` | `@/components/shared/data-table` | Tabel data dengan sorting. Props: `columns`, `data`, `loading`, `emptyState`. Berbasis `@tanstack/react-table`. |
 | `Pagination` | `@/components/shared/pagination` | Pagination navigasi. Props: `currentPage`, `lastPage`, `perPage`, `total`, `onPageChange`. |
 | `EmptyState` | `@/components/shared/empty-state` | State kosong. Props: `icon`, `title`, `description`, `action`. |
 | `ConfirmDialog` | `@/components/shared/confirm-dialog` | Dialog konfirmasi. Props: `open`, `onOpenChange`, `onConfirm`, `title`, `description`, `variant` (`danger`\|`warning`). |
 | `CurrencyInput` | `@/components/shared/currency-input` | **Input Rupiah — WAJIB untuk semua input mata uang.** Props: `value`, `onChange`, `label`, `hint`, `error`. Format integer, display `Rp 1.500.000`. |
+| `FinancingBadge`, `FinancingHint`, `ManagedByNote`, `withFinancingGroup()` | `@/components/shared/financing` | **Penanda Pendanaan — WAJIB di mana pun kategori `financing` tampil/dipilih.** Badge `outline` + `Landmark`; petunjuk "saldo … bertambah/berkurang, Laba Rugi tidak berubah"; catatan hanya-lihat "kelola di Utang/Piutang"; opsi kategori server → Combobox dengan bagian "Pendanaan · tidak masuk Laba Rugi". |
 | `FileUpload` | `@/components/shared/file-upload` | **Upload file/gambar — WAJIB, bukan `<input type="file">`.** Berbasis react-dropzone. Props: `value` (File|null), `onChange`, `label`, `hint`, `error`, `accept` (array ekstensi). Single file. |
 | `BankLogo` | `@/components/shared/bank-logo` | Logo bank di tile putih dari nama bank bebas (katalog `@/lib/banks`: `BANKS`, `findBank()`; berkas `public/images/banks/{slug}.svg`). Props: `bankName`, `className` (ukuran & radius), `fallback` (bila tidak dikenali). |
 
@@ -151,6 +152,7 @@ Upload file/lampiran              → FileUpload          ← JANGAN <input type
 Preview/pilih gambar              → FileUpload
 Tombol aksi                       → Button (pilih variant sesuai context)
 Status/kategori label             → Badge (pilih variant warna sesuai status)
+Kategori/baris pendanaan          → withFinancingGroup + FinancingBadge (shared/financing)
 Header halaman                    → PageHeader
 Stats di halaman utama            → StatsCard
 Stats di dalam modal              → StatsCard dengan inModal={true}
@@ -197,8 +199,8 @@ Loading skeleton                  → Skeleton
 | Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
-| Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh) + menu Transfer & Penyesuaian |
-| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (12 induk/55 sub bergrup L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama) |
+| Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh; **Pendanaan** (`financing`) bisa dicatat lewat grup terakhir pemilih kategori, tampil berbadge & kartu terpisah karena tidak masuk Laba Rugi, pokok utang/piutang hanya-lihat) + menu Transfer & Penyesuaian |
+| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (15 induk/59 sub: pemasukan & pengeluaran bergrup L/R + bagian Pendanaan tanpa L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama → 82 kategori) |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
 | Fund Requests | `/fund-requests` | All/My Requests, Create, Review, Disburse |
 | Loans | `/loans` | Index, Create, Update, Delete, PayLoan |

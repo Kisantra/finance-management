@@ -11,8 +11,12 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * Ekspor tab Arus Kas › Semua: pemasukan dan pengeluaran dalam satu lembar, urut tanggal.
- * Baris = keluaran CashFlowController::barisKas().
+ * Ekspor tab Arus Kas › Semua: pemasukan dan pengeluaran (termasuk pendanaan) dalam satu lembar,
+ * urut tanggal. Baris = keluaran CashFlowController::barisKas().
+ *
+ * Kolom terakhir membedakan uang yang masuk Laba Rugi dari pendanaan (setoran modal, prive, setor
+ * PPN/titipan pajak, pokok utang/piutang). Ia DITAMBAHKAN DI AKHIR supaya indeks kolom lama tidak
+ * bergeser; judulnya bukan "Jenis" polos karena kolom kedua sudah bernama "Jenis" (Masuk/Keluar).
  */
 class ArusKasExport implements FromArray, ShouldAutoSize, WithColumnFormatting, WithHeadings, WithStyles
 {
@@ -33,13 +37,14 @@ class ArusKasExport implements FromArray, ShouldAutoSize, WithColumnFormatting, 
             $r['direction'] === 'in' ? $r['amount'] : null,
             $r['direction'] === 'out' ? $r['amount'] : null,
             $r['reference_number'] ?? '',
+            ($r['is_financing'] ?? false) ? 'Pendanaan' : 'Laba Rugi',
         ], $this->rows);
     }
 
     /** @return list<string> */
     public function headings(): array
     {
-        return ['Tanggal', 'Jenis', 'Sumber', 'Rekening', 'Keterangan', 'Kategori', 'Diinput oleh', 'Masuk (Rp)', 'Keluar (Rp)', 'No. Referensi'];
+        return ['Tanggal', 'Jenis', 'Sumber', 'Rekening', 'Keterangan', 'Kategori', 'Diinput oleh', 'Masuk (Rp)', 'Keluar (Rp)', 'No. Referensi', 'Jenis (Laba Rugi/Pendanaan)'];
     }
 
     /** @return array<string, string> */

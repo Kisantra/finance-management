@@ -101,14 +101,16 @@ class CashFlowController extends Controller
             DB::raw('NULL as category_label'),
             DB::raw('NULL as description'),
             'payments.created_by',
+            DB::raw('NULL as category_type'),
+            DB::raw('NULL as category_system_key'),
         ]);
 
-        // ── Transaction side ──────────────────────────
+        // ── Transaction side: pemasukan + pendanaan masuk (berpenanda, tidak masuk Laba Rugi) ──
         $transactions = BankTransaction::query()
             ->join('bank_accounts', 'bank_transactions.bank_account_id', '=', 'bank_accounts.id')
             ->join('transaction_categories', 'bank_transactions.category_id', '=', 'transaction_categories.id')
             ->where('bank_transactions.transaction_type', 'credit')
-            ->where('transaction_categories.type', 'income');
+            ->whereIn('transaction_categories.type', ['income', 'financing']);
 
         if (! empty($categoryIds)) {
             $transactions->whereIn('bank_transactions.category_id', $categoryIds);
@@ -143,6 +145,8 @@ class CashFlowController extends Controller
             'transaction_categories.label as category_label',
             'bank_transactions.description',
             'bank_transactions.created_by',
+            'transaction_categories.type as category_type',
+            'transaction_categories.system_key as category_system_key',
         ]);
 
         // If user picked client filter, exclude transaction-side records (clients only on payments).
@@ -161,8 +165,7 @@ class CashFlowController extends Controller
             $unionQuery->fromSub($transactionsSelect, 'combined');
         }
 
-        $totalAmount = (int) (clone $unionQuery)->sum('amount');
-        $total = (clone $unionQuery)->count();
+        $stats = $this->ringkasanTab($unionQuery);
 
         $halaman = (clone $unionQuery)
             ->orderBy($sort, $direction)
@@ -170,9 +173,11 @@ class CashFlowController extends Controller
             ->limit($perPage)
             ->get();
         $nama = $this->namaPengguna($halaman->pluck('created_by'));
+        $tautan = BankTransaction::moduleLinks($halaman);
 
         $rows = $halaman
-            ->map(fn ($r) => [
+            ->map(fn ($r, $i) => [
+                ...$this->jenisBaris($r, $tautan[$i] ?? null),
                 'uid' => $r->uid,
                 'id' => (int) $r->id,
                 'source_type' => $r->source_type,
@@ -192,11 +197,8 @@ class CashFlowController extends Controller
 
         return Inertia::render('cash-flow/income', [
             'rows' => $rows,
-            'pagination' => $this->paginationMeta($page, $perPage, $total),
-            'stats' => [
-                'total_amount' => $totalAmount,
-                'total_count' => $total,
-            ],
+            'pagination' => $this->paginationMeta($page, $perPage, $stats['total_count']),
+            'stats' => $stats,
             'filters' => [
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
@@ -210,14 +212,17 @@ class CashFlowController extends Controller
                 'page' => $page,
             ],
             'clientOptions' => $this->clientOptions(),
-            'categoryOptions' => $this->categoryOptions('income'),
+            // Dialog ubah: pemasukan + grup Pendanaan. Filter: ditambah pokok utang/piutang yang masuk.
+            'categoryOptions' => TransactionCategory::transactionOptions('income'),
+            'filterCategoryOptions' => [...TransactionCategory::selectOptions('income'), ...TransactionCategory::financingOptions(true, 'credit')],
             'inputByOptions' => $this->pilihanPencatat(),
             'accounts' => $this->accountsForForm(),
         ]);
     }
 
     /**
-     * EXPENSES page — debit BankTransactions with expense category.
+     * EXPENSES page — debit BankTransactions berkategori pengeluaran + pendanaan keluar (berpenanda,
+     * tidak masuk Laba Rugi; termasuk pokok utang/piutang yang hanya-lihat).
      */
     public function expenses(Request $request): Response
     {
@@ -237,7 +242,7 @@ class CashFlowController extends Controller
             ->join('bank_accounts', 'bank_transactions.bank_account_id', '=', 'bank_accounts.id')
             ->join('transaction_categories', 'bank_transactions.category_id', '=', 'transaction_categories.id')
             ->where('bank_transactions.transaction_type', 'debit')
-            ->where('transaction_categories.type', 'expense');
+            ->whereIn('transaction_categories.type', ['expense', 'financing']);
 
         if (! empty($categoryIds)) {
             $query->whereIn('bank_transactions.category_id', $categoryIds);
@@ -259,8 +264,7 @@ class CashFlowController extends Controller
             });
         }
 
-        $totalAmount = (int) (clone $query)->sum('bank_transactions.amount');
-        $total = (clone $query)->count();
+        $stats = $this->ringkasanTab((clone $query)->toBase(), 'bank_transactions.amount', 'transaction_categories.type');
 
         $halaman = $query
             ->select([
@@ -276,15 +280,19 @@ class CashFlowController extends Controller
                 'bank_accounts.bank_name',
                 'bank_accounts.account_name',
                 'bank_transactions.created_by',
+                'transaction_categories.type as category_type',
+                'transaction_categories.system_key as category_system_key',
             ])
             ->orderBy($sort, $direction)
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
             ->get();
         $nama = $this->namaPengguna($halaman->pluck('created_by'));
+        $tautan = BankTransaction::moduleLinks($halaman->toBase());
 
         $rows = $halaman
-            ->map(fn ($r) => [
+            ->map(fn ($r, $i) => [
+                ...$this->jenisBaris($r, $tautan[$i] ?? null),
                 'id' => (int) $r->id,
                 'transaction_date' => $r->transaction_date->toDateString(),
                 'amount' => (int) $r->amount,
@@ -301,11 +309,8 @@ class CashFlowController extends Controller
 
         return Inertia::render('cash-flow/expenses', [
             'rows' => $rows,
-            'pagination' => $this->paginationMeta($page, $perPage, $total),
-            'stats' => [
-                'total_amount' => $totalAmount,
-                'total_count' => $total,
-            ],
+            'pagination' => $this->paginationMeta($page, $perPage, $stats['total_count']),
+            'stats' => $stats,
             'filters' => [
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
@@ -318,7 +323,9 @@ class CashFlowController extends Controller
                 'per_page' => $perPage,
                 'page' => $page,
             ],
-            'categoryOptions' => $this->categoryOptions('expense'),
+            // Dialog ubah: pengeluaran + grup Pendanaan. Filter: ditambah pokok utang/piutang yang keluar.
+            'categoryOptions' => TransactionCategory::transactionOptions('expense'),
+            'filterCategoryOptions' => [...TransactionCategory::selectOptions('expense'), ...TransactionCategory::financingOptions(true, 'debit')],
             'bankAccountOptions' => $this->bankAccountOptions(),
             'inputByOptions' => $this->pilihanPencatat(),
             'accounts' => $this->accountsForForm(),
@@ -326,10 +333,11 @@ class CashFlowController extends Controller
     }
 
     /**
-     * Tab SEMUA: pemasukan (pembayaran invoice + transaksi masuk berkategori pemasukan) dan
-     * pengeluaran (transaksi keluar berkategori pengeluaran) dalam satu daftar. Definisi tiap sisi
-     * sama persis dengan tab Pemasukan dan Pengeluaran; transfer dan pendanaan (utang/piutang)
-     * tidak termasuk. Butuh `view income` DAN `view expense` (route).
+     * Tab SEMUA: pemasukan (pembayaran invoice + transaksi masuk berkategori pemasukan/pendanaan) dan
+     * pengeluaran (transaksi keluar berkategori pengeluaran/pendanaan) dalam satu daftar. Definisi
+     * tiap sisi sama persis dengan tab Pemasukan dan Pengeluaran; transfer & penyesuaian tidak
+     * termasuk. Pendanaan (termasuk pokok utang/piutang) tampil berpenanda dan dirinci di ringkasan.
+     * Butuh `view income` DAN `view expense` (route).
      */
     public function all(Request $request): Response
     {
@@ -343,6 +351,8 @@ class CashFlowController extends Controller
         $ringkasan = (clone $query)
             ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END), 0) AS masuk")
             ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END), 0) AS keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'in' AND category_type = 'financing' THEN amount ELSE 0 END), 0) AS pendanaan_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'out' AND category_type = 'financing' THEN amount ELSE 0 END), 0) AS pendanaan_keluar")
             ->selectRaw('COUNT(*) AS jumlah')
             ->first();
 
@@ -361,12 +371,20 @@ class CashFlowController extends Controller
                 'total_out' => (int) $ringkasan->keluar,
                 'net' => (int) $ringkasan->masuk - (int) $ringkasan->keluar,
                 'total_count' => (int) $ringkasan->jumlah,
+                // Bagian pendanaan (tidak masuk Laba Rugi) yang SUDAH termasuk di total_in / total_out.
+                'financing_in' => (int) $ringkasan->pendanaan_masuk,
+                'financing_out' => (int) $ringkasan->pendanaan_keluar,
             ],
             'filters' => [...$filter, 'sort' => $sort, 'direction' => $direction, 'per_page' => $perPage, 'page' => $page],
-            // Terpisah per jenis: dialog ubah hanya menawarkan kategori sejenis (validasi update cuma
-            // `exists`; kategori pengeluaran di transaksi masuk menghilangkannya dari kedua tab).
-            'incomeCategoryOptions' => $this->categoryOptions('income'),
-            'expenseCategoryOptions' => $this->categoryOptions('expense'),
+            // Terpisah per arah: dialog ubah hanya menawarkan kategori searah transaksinya (+ grup
+            // Pendanaan); kategori pengeluaran di transaksi masuk menghilangkannya dari kedua tab.
+            'incomeCategoryOptions' => TransactionCategory::transactionOptions('income'),
+            'expenseCategoryOptions' => TransactionCategory::transactionOptions('expense'),
+            'filterCategoryOptions' => [
+                ...TransactionCategory::selectOptions('income'),
+                ...TransactionCategory::selectOptions('expense'),
+                ...TransactionCategory::financingOptions(true),
+            ],
             'bankAccountOptions' => $this->bankAccountOptions(),
             'inputByOptions' => $this->pilihanPencatat(),
             'accounts' => $this->accountsForForm(),
@@ -532,8 +550,15 @@ class CashFlowController extends Controller
 
         // Load transactions once — used for both authorization and deletion.
         $trxs = ! empty($transactionIds)
-            ? BankTransaction::whereIn('id', $transactionIds)->get()
+            ? BankTransaction::with('category')->whereIn('id', $transactionIds)->get()
             : collect();
+
+        // Pokok utang/piutang dikelola modul Utang/Piutang: satu saja di seleksi, seluruhnya ditolak.
+        abort_if(
+            $trxs->contains(fn (BankTransaction $t): bool => $t->moduleLockMessage() !== null),
+            403,
+            'Seleksi berisi pokok utang/piutang yang dicatat otomatis oleh modul Utang/Piutang. Transaksi itu tidak bisa dihapus dari sini; kelola lewat menu Utang atau Piutang.'
+        );
 
         // Require the matching delete permission for every feature in the selection.
         // Payments are money received, so they fall under the income feature.
@@ -651,11 +676,44 @@ class CashFlowController extends Controller
     }
 
     /**
-     * @return array<int,array{label:string, value:int, disabled?:bool}>
+     * Ringkasan tab Pemasukan / Pengeluaran dalam satu query: total (Laba Rugi + Pendanaan), bagian
+     * pendanaan (tidak masuk Laba Rugi), bagian Laba Rugi, dan jumlah baris. Pembayaran invoice tidak
+     * berkategori (`category_type` NULL) sehingga terhitung Laba Rugi.
+     *
+     * @return array{total_amount: int, pl_amount: int, financing_amount: int, total_count: int}
      */
-    private function categoryOptions(string $type): array
+    private function ringkasanTab(QueryBuilder $query, string $kolomJumlah = 'amount', string $kolomJenis = 'category_type'): array
     {
-        return TransactionCategory::selectOptions($type);
+        $baris = (clone $query)
+            ->selectRaw("COALESCE(SUM({$kolomJumlah}), 0) AS total")
+            ->selectRaw("COALESCE(SUM(CASE WHEN {$kolomJenis} = 'financing' THEN {$kolomJumlah} ELSE 0 END), 0) AS pendanaan")
+            ->selectRaw('COUNT(*) AS jumlah')
+            ->first();
+
+        return [
+            'total_amount' => (int) $baris->total,
+            'pl_amount' => (int) $baris->total - (int) $baris->pendanaan,
+            'financing_amount' => (int) $baris->pendanaan,
+            'total_count' => (int) $baris->jumlah,
+        ];
+    }
+
+    /**
+     * Penanda jenis satu baris daftar: pendanaan (tidak masuk Laba Rugi) atau bukan, dan modul yang
+     * mengelolanya bila baris itu pokok utang/piutang (hanya-lihat, lihat BankTransaction::moduleLinks).
+     *
+     * @param  array{module: string, label: string, search: string|null}|null  $tautan
+     * @return array{category_type: string|null, is_financing: bool, managed_by: array{module: string, label: string, search: string|null}|null}
+     */
+    private function jenisBaris(object $row, ?array $tautan): array
+    {
+        $jenis = $row->category_type ?? null;
+
+        return [
+            'category_type' => $jenis,
+            'is_financing' => $jenis === 'financing',
+            'managed_by' => $tautan,
+        ];
     }
 
     /**
@@ -707,8 +765,10 @@ class CashFlowController extends Controller
     }
 
     /**
-     * UNION tiga sumber tab Semua dengan kolom seragam; `direction` = in/out. Kategori hanya ada di
-     * transaksi, jadi filter kategori mengecualikan sisi pembayaran (sama dengan tab Pemasukan).
+     * UNION tiga sumber tab Semua dengan kolom seragam; `direction` = in/out. Sisi transaksi memuat
+     * kategori searah (income/expense) DAN pendanaan (`financing`), sama dengan tab Pemasukan dan
+     * Pengeluaran. Kategori hanya ada di transaksi, jadi filter kategori mengecualikan sisi
+     * pembayaran (sama dengan tab Pemasukan).
      *
      * @param  array{date_from: string|null, date_to: string|null, bank_accounts: list<int>, categories: list<int>, input_by: int|null, search: string|null}  $f
      */
@@ -745,13 +805,15 @@ class CashFlowController extends Controller
                 DB::raw('NULL as category_label'),
                 DB::raw('NULL as description'),
                 'payments.created_by',
+                DB::raw('NULL as category_type'),
+                DB::raw('NULL as category_system_key'),
             ]);
 
         $transaksi = fn (string $tipe, string $jenisKategori, string $arah) => BankTransaction::query()
             ->join('bank_accounts', 'bank_transactions.bank_account_id', '=', 'bank_accounts.id')
             ->join('transaction_categories', 'bank_transactions.category_id', '=', 'transaction_categories.id')
             ->where('bank_transactions.transaction_type', $tipe)
-            ->where('transaction_categories.type', $jenisKategori)
+            ->whereIn('transaction_categories.type', [$jenisKategori, 'financing'])
             ->when($periode, fn ($q) => $q->whereBetween('bank_transactions.transaction_date', $periode))
             ->when($f['bank_accounts'], fn ($q) => $q->whereIn('bank_transactions.bank_account_id', $f['bank_accounts']))
             ->when($f['categories'], fn ($q) => $q->whereIn('bank_transactions.category_id', $f['categories']))
@@ -777,6 +839,8 @@ class CashFlowController extends Controller
                 'transaction_categories.label as category_label',
                 'bank_transactions.description',
                 'bank_transactions.created_by',
+                'transaction_categories.type as category_type',
+                'transaction_categories.system_key as category_system_key',
             ]);
 
         $sumber = array_filter([
@@ -802,9 +866,12 @@ class CashFlowController extends Controller
      */
     private function barisKas(Collection $rows): array
     {
+        $rows = $rows->values();
         $nama = $this->namaPengguna($rows->pluck('created_by'));
+        $tautan = BankTransaction::moduleLinks($rows);
 
-        return $rows->map(fn ($r) => [
+        return $rows->map(fn ($r, $i) => [
+            ...$this->jenisBaris($r, $tautan[$i] ?? null),
             'uid' => $r->uid,
             'id' => (int) $r->id,
             'source_type' => $r->source_type,

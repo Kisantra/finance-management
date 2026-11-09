@@ -10,19 +10,23 @@ export const guide: ModuleGuide = {
     path: '/cash-flow',
     permission: ['view income', 'view expense', 'view transfer'],
     summary:
-        'Pencatatan uang masuk dan keluar rekening bank perusahaan dalam dua menu: **Pemasukan & Pengeluaran** (tab **Semua**, **Pemasukan** — pembayaran invoice + pemasukan langsung —, dan **Pengeluaran**) serta **Transfer & Penyesuaian** (pindah dana antar rekening). Setiap catatan menyimpan siapa yang menginputnya, langsung mengubah saldo rekening dan, sesuai kategorinya, Laporan Laba Rugi. Staff tidak punya akses ke modul ini.',
+        'Pencatatan uang masuk dan keluar rekening bank perusahaan dalam dua menu: **Pemasukan & Pengeluaran** (tab **Semua**, **Pemasukan** — pembayaran invoice + pemasukan langsung —, dan **Pengeluaran**) serta **Transfer & Penyesuaian** (pindah dana antar rekening). Setiap catatan menyimpan siapa yang menginputnya, langsung mengubah saldo rekening dan, sesuai kategorinya, Laporan Laba Rugi. **Pendanaan** (setoran modal, prive, setor PPN, setor titipan pajak klien, pokok utang/piutang) ikut tampil dengan badge **Pendanaan** dan kartu terpisah karena tidak masuk Laba Rugi. Staff tidak punya akses ke modul ini.',
     roles: [
         {
             role: ROLES.fm,
             who: 'Pencatat kas',
             can: [
                 'Mencatat pemasukan & pengeluaran langsung beserta bukti',
+                'Mencatat pendanaan: setoran modal, prive, setor PPN, setor titipan pajak klien',
                 'Melihat semua uang masuk & keluar di tab **Semua**, lengkap dengan siapa yang menginputnya',
                 'Transfer antar rekening, termasuk biaya admin',
                 'Mengedit & menghapus catatan kas',
                 'Export PDF laporan arus kas & Export Excel tab Semua',
             ],
-            cannot: ['Pembayaran invoice hanya bisa dilihat di sini; ubah lewat halaman Invoice'],
+            cannot: [
+                'Pembayaran invoice hanya bisa dilihat di sini; ubah lewat halaman Invoice',
+                'Pokok utang/piutang hanya bisa dilihat di sini; kelola lewat menu Utang / Piutang',
+            ],
         },
         {
             role: ROLES.admin,
@@ -39,10 +43,10 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Buka **Arus Kas › Pemasukan & Pengeluaran**. Bila Anda boleh melihat pemasukan **dan** pengeluaran, tab **Semua** terbuka lebih dulu; tab **Pemasukan** dan **Pengeluaran** ada di sebelahnya.',
-                'Tab **Semua** menggabungkan pembayaran invoice, pemasukan langsung, dan pengeluaran dalam satu tabel; kolom **Jenis** menandai **Masuk** atau **Keluar**. Transfer antar rekening dan pokok utang/piutang tidak termasuk (lihat menu **Transfer & Penyesuaian**).',
-                'Kartu **Total Masuk**, **Total Keluar**, dan **Selisih** mengikuti filter aktif.',
+                'Tab **Semua** menggabungkan pembayaran invoice, pemasukan langsung, pengeluaran, dan pendanaan dalam satu tabel; kolom **Jenis** menandai **Masuk** atau **Keluar**, dan baris pendanaan berbadge **Pendanaan**. Transfer antar rekening tidak termasuk (lihat menu **Transfer & Penyesuaian**).',
+                'Kartu **Total masuk**, **Total keluar**, dan **Selisih** mengikuti filter aktif. Di bawah angkanya tertulis berapa yang berasal dari pendanaan, dan selisih **tanpa pendanaan**.',
                 'Kolom **Diinput oleh** (layar lebar) menunjukkan siapa yang mencatat; catatan lama dari sebelum fitur ini tampil **Tidak tercatat**. Saring per orang dengan filter **Diinput oleh**.',
-                'Klik **Export Excel** untuk mengunduh daftar sesuai filter aktif (semua halaman, urut tanggal): masuk dan keluar di kolom terpisah, lengkap dengan kolom Diinput oleh.',
+                'Klik **Export Excel** untuk mengunduh daftar sesuai filter aktif (semua halaman, urut tanggal): masuk dan keluar di kolom terpisah, lengkap dengan kolom Diinput oleh, dan kolom terakhir **Jenis (Laba Rugi/Pendanaan)**.',
             ],
         },
         {
@@ -67,6 +71,17 @@ export const guide: ModuleGuide = {
             ],
         },
         {
+            title: 'Mencatat pendanaan (setoran modal, prive, setor PPN)',
+            role: ROLES.fm,
+            steps: [
+                'Pendanaan adalah uang yang menggeser saldo tetapi **bukan** pendapatan atau beban: setoran modal pemilik, prive (penarikan pemilik), setor PPN, dan setor titipan pajak klien.',
+                'Pakai tombol yang sama: **Input Pemasukan** untuk setoran modal, **Input Pengeluaran** untuk prive, setor PPN, dan setor titipan pajak.',
+                'Di **Kategori**, gulir ke grup paling bawah **Pendanaan · tidak masuk Laba Rugi**, lalu pilih sub-kategorinya (mis. **Setor PPN**). Grup ini belum ada? Minta admin klik **Pakai Template** di halaman Kategori Transaksi.',
+                'Kolom Kategori menampilkan penanda **Pendanaan**, dan petunjuk di bawahnya menegaskan: saldo rekening bertambah/berkurang sebesar Jumlah, **Laba Rugi tidak berubah**.',
+                'Isi Jumlah, Tanggal, Deskripsi, lalu simpan. Di daftar, barisnya berbadge **Pendanaan** dan nominalnya masuk kartu **Pendanaan (tidak masuk Laba Rugi)**.',
+            ],
+        },
+        {
             title: 'Transfer antar rekening',
             role: ROLES.fm,
             steps: [
@@ -85,6 +100,7 @@ export const guide: ModuleGuide = {
                 '**Rekening** tidak bisa diubah. Salah rekening? Hapus lalu catat ulang.',
                 'Transfer hanya bisa diubah **Tanggal** dan **Deskripsi**-nya (berlaku untuk kedua sisi). Salah nominal? Hapus lalu buat transfer baru.',
                 'Baris bersumber **Invoice** hanya bisa dilihat (**Detail Pembayaran Invoice**).',
+                'Baris pokok utang/piutang (ikon gembok, tulisan **Hanya-lihat · kelola di Utang/Piutang**) tidak bisa dibuka atau diubah di sini. Klik tautannya untuk mengelolanya di menu Utang / Piutang.',
             ],
         },
         {
@@ -94,6 +110,7 @@ export const guide: ModuleGuide = {
                 'Di tab **Pemasukan** atau **Pengeluaran** (tab **Semua** tidak punya hapus massal), centang baris yang akan dihapus, lalu klik **Hapus** di bar yang muncul di bawah layar dan konfirmasi.',
                 'Penghapusan permanen. Transfer terhapus kedua sisinya; baris **Invoice** ikut menghapus catatan pembayaran invoice-nya.',
                 'Finance manager juga bisa menghapus. Satu catatan pun dihapus lewat centang yang sama (tidak ada tombol hapus di dialog detail).',
+                'Baris pokok utang/piutang tidak punya centang dan tidak bisa dihapus dari sini (juga dari Kas & Bank): dikelola menu Utang / Piutang.',
             ],
         },
         {
@@ -102,8 +119,9 @@ export const guide: ModuleGuide = {
             steps: [
                 'Saring dengan **Rentang Tanggal**, **Klien** (Pemasukan), **Kategori**, **Rekening** (Semua, Pengeluaran) / **Rekening Terkait** (Transfer), **Diinput oleh** (Semua, Pemasukan, Pengeluaran), atau kotak **Cari**.',
                 'Di tab Pemasukan, filter **Klien** menyembunyikan baris **Langsung**. Di tab Pemasukan dan Semua, filter **Kategori** menyembunyikan pembayaran invoice (tidak berkategori).',
-                'Kartu ringkasan (**Total Pemasukan/Pengeluaran/Transfer**, **Jumlah Transaksi**, **Periode**; di tab Semua: **Total Masuk**, **Total Keluar**, **Selisih**) mengikuti filter aktif.',
-                '**Export PDF** (tab Pemasukan, Pengeluaran, dan halaman Transfer) membuka laporan arus kas rekening (masuk & keluar, saldo awal sampai akhir) untuk rentang tanggal terpilih; tanpa rentang = semua waktu. Filter klien & kategori tidak ikut ke PDF.',
+                'Filter **Kategori** punya grup **Pendanaan** di bagian bawah (termasuk kategori pokok utang/piutang di bawah judul **Dari Utang & Piutang**).',
+                'Kartu ringkasan mengikuti filter aktif: tab Pemasukan **Pemasukan (masuk Laba Rugi)** · **Pendanaan (tidak masuk Laba Rugi)** · **Total masuk**; tab Pengeluaran **Beban (masuk Laba Rugi)** · **Pendanaan (tidak masuk Laba Rugi)** · **Total keluar**; tab Semua **Total masuk**, **Total keluar**, **Selisih** dengan porsi pendanaannya; halaman Transfer **Total Transfer**, **Jumlah Transaksi**, **Periode**.',
+                '**Export PDF** (tab Pemasukan, Pengeluaran, dan halaman Transfer) membuka laporan arus kas rekening (semua mutasi, saldo awal sampai akhir) untuk rentang tanggal terpilih; tanpa rentang = semua waktu. Filter klien & kategori tidak ikut ke PDF. Baris pendanaan berawalan **Pendanaan ·** di kolom uraian.',
                 '**Export Excel** (tab Semua) mengunduh daftar persis sesuai semua filter aktif, tanpa saldo berjalan.',
             ],
         },
@@ -117,6 +135,17 @@ export const guide: ModuleGuide = {
                 'Saldo rekening berubah seketika; saldo selalu dihitung ulang dari semua transaksinya.',
                 'Masuk Laba Rugi pada **tanggal transaksi**, di baris sesuai **grup Laba Rugi** kategorinya.',
                 'Kategori tanpa grup Laba Rugi (termasuk yang baru dibuat lewat **+ Tambah**) masuk panel **Perlu Diklasifikasi**, belum dihitung.',
+            ],
+        },
+        {
+            title: 'Pendanaan',
+            tone: 'act',
+            items: [
+                'Membuat **1 transaksi bank** berkategori pendanaan; saldo rekening berubah seketika.',
+                '**Tidak masuk Laba Rugi** di baris mana pun, juga tidak di panel Perlu Diklasifikasi.',
+                'Tampil di tab Pemasukan/Pengeluaran/Semua berbadge **Pendanaan**, dihitung di kartu **Pendanaan (tidak masuk Laba Rugi)**, dan berlabel di Export Excel & PDF.',
+                'Ikut angka Pemasukan/Pengeluaran bulan ini di **Ringkasan** (sama dengan Total masuk/keluar tab Semua bila tidak ada transfer & penyesuaian).',
+                'Pokok utang/piutang yang dicatat menu Utang/Piutang tampil **hanya-lihat**; server menolak ubah/hapusnya dari Arus Kas maupun Kas & Bank.',
             ],
         },
         {
@@ -155,7 +184,9 @@ export const guide: ModuleGuide = {
         },
     ],
     warnings: [
-        { title: 'Pilih kategori dengan teliti', body: 'Kategori menentukan tab tempat catatan tampil dan baris Laba Rugi. Kategori **Transfer** (atau **Penyesuaian**) yang dipilih di form Pemasukan/Pengeluaran membuat catatan **hilang** dari tab Semua, Pemasukan, dan Pengeluaran, serta dari Laba Rugi.' },
+        { title: 'Pilih kategori dengan teliti', body: 'Kategori menentukan tab tempat catatan tampil dan baris Laba Rugi. Kategori **Transfer** yang dipilih di form Pemasukan/Pengeluaran membuat catatan **hilang** dari tab Semua, Pemasukan, dan Pengeluaran, serta dari Laba Rugi.' },
+        { title: 'Setoran modal & setor PPN bukan pendapatan/beban', body: 'Jangan catat setoran modal sebagai pemasukan, atau setor PPN / titipan pajak klien / prive sebagai beban: Laba Rugi jadi salah tanpa tanda. Pakai grup **Pendanaan** di pemilih kategori. Mencatatnya sama sekali tetap wajib, agar saldo rekening cocok dengan bank.' },
+        { title: 'Pokok utang/piutang dikelola modulnya', body: 'Baris bergembok berasal dari menu Utang / Piutang. Salah nominal? Perbaiki dari modul asalnya; Arus Kas dan Kas & Bank menolak mengubah atau menghapusnya.' },
         { title: 'Menghapus pembayaran invoice', body: 'Baris **Invoice** di tab Pemasukan bisa ikut terhapus lewat hapus massal. Status invoice tetap (mis. Lunas) walau pembayarannya hilang. Koreksi pembayaran sebaiknya lewat halaman Invoice.' },
         { title: 'Jangan awali referensi dengan "TRF"', body: 'Referensi berawalan **TRF** (termasuk yang diketik saat membayar Reimbursement / mencairkan Permintaan Dana) dianggap transfer: perubahan nominal & kategori diabaikan, dan menghapusnya ikut menghapus semua transaksi berreferensi sama.' },
         { title: 'Penghapusan tidak bisa dibatalkan', body: 'Tidak ada tempat sampah atau riwayat hapus. Menghapus transaksi pembayaran Reimbursement / Permintaan Dana tidak mengembalikan status pengajuannya.' },
@@ -164,6 +195,8 @@ export const guide: ModuleGuide = {
     matrix: [
         { action: 'Melihat Pemasukan & Pengeluaran (tab Semua, Pemasukan, Pengeluaran) / Transfer', cells: [true, true] },
         { action: 'Input pemasukan & pengeluaran', cells: [true, true] },
+        { action: 'Input pendanaan (setoran modal, prive, setor PPN/titipan pajak)', cells: [true, true] },
+        { action: 'Mengubah/menghapus pokok utang/piutang dari Arus Kas', cells: [false, false] },
         { action: 'Transfer antar rekening', cells: [true, true] },
         { action: 'Mengedit catatan', cells: [true, true] },
         { action: 'Menghapus catatan', cells: [true, true] },

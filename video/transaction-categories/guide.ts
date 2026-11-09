@@ -9,7 +9,7 @@ export const guide: ModuleGuide = {
     path: '/transaction-categories',
     permission: 'view categories',
     summary:
-        'Daftar kategori untuk mengelompokkan setiap uang masuk dan keluar: kategori utama sebagai kelompok, sub kategori sebagai pilihan saat mencatat transaksi. Tipe kategori menentukan halaman Arus Kas tempat transaksi tampil, dan Grup Laba Rugi menentukan barisnya di laporan Laba Rugi. Perusahaan baru langsung berisi template kategori yang sudah bergrup Laba Rugi; perusahaan lama bisa melengkapinya lewat Pakai Template. Staff tidak punya akses ke modul ini.',
+        'Daftar kategori untuk mengelompokkan setiap uang masuk dan keluar: kategori utama sebagai kelompok, sub kategori sebagai pilihan saat mencatat transaksi. Tipe kategori menentukan halaman Arus Kas tempat transaksi tampil, dan Grup Laba Rugi menentukan barisnya di laporan Laba Rugi. Perusahaan baru langsung berisi template kategori yang sudah bergrup Laba Rugi, termasuk bagian **Pendanaan** (setoran modal, prive, setor PPN, setor titipan pajak klien) yang tidak masuk Laba Rugi; perusahaan lama bisa melengkapinya lewat Pakai Template. Staff tidak punya akses ke modul ini.',
     roles: [
         {
             role: ROLES.fm,
@@ -34,7 +34,7 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Buka **Operasional › Kategori Transaksi**, lalu klik **Pakai Template**.',
-                'Baca pratinjaunya. Kategori disusun mengikuti urutan bagan akun: Pemasukan dulu, lalu Pengeluaran. Tiap baris menunjukkan **Baris Laba Rugi** tujuannya dan statusnya: **Baru**, **Sudah ada**, atau **Dilewati** beserta alasannya.',
+                'Baca pratinjaunya. Kategori disusun mengikuti urutan bagan akun: Pemasukan dulu, lalu Pengeluaran, terakhir **Pendanaan**. Tiap baris menunjukkan **Baris Laba Rugi** tujuannya (bagian Pendanaan: **Tidak masuk Laba Rugi**) dan statusnya: **Baru**, **Sudah ada**, atau **Dilewati** beserta alasannya.',
                 'Klik **Buat N kategori**. Hanya yang berstatus Baru yang dibuat; nama, tipe, grup Laba Rugi, dan induk kategori lama tidak diubah.',
                 'Notifikasi menyebut jumlah yang dibuat dan yang dilewati. Bila tombolnya **Tidak ada kategori baru**, semua kategori template sudah ada (perusahaan baru sudah berisi template sejak dibuat).',
             ],
@@ -46,6 +46,7 @@ export const guide: ModuleGuide = {
                 'Di pratinjau **Pakai Template**, periksa grup berstatus **Dilewati**: induknya kategori sistem, atau sudah dipakai langsung oleh transaksi, item permintaan dana, atau reimbursement. Seluruh grup itu tidak dibuat.',
                 'Periksa sub berstatus **Sudah ada** yang bercatatan **Sudah ada di grup …**: kategori lama itu tetap di grupnya dan Grup Laba Ruginya tidak diubah. Bila barisnya tertulis **Belum diklasifikasi**, atur grupnya lewat ikon pensil setelah template diterapkan.',
                 'Cari nama yang mirip tetapi tidak sama, mis. "Biaya Listrik" dan "Listrik": template tetap membuat kategori barunya. Setelah diterapkan, gabungkan kembaran lewat **Pindahkan & Hapus**.',
+                'Di bagian **Pendanaan**, induk lama **Setoran Modal** dan **Penarikan Modal** (dulu dibuat tanpa sub) berstatus **Sudah ada**; sub barunya (Setoran Modal Pemilik, Prive Pemilik) ditempel ke sana, bersama grup baru **Pajak Titipan & PPN** (Setor PPN, Setor Titipan Pajak Klien). Setelah diterapkan, sub itu bisa dipilih di Catat Pemasukan/Pengeluaran di grup **Pendanaan · tidak masuk Laba Rugi**.',
                 'Klik **Buat N kategori**, lalu buka **Laporan › Laba Rugi**: transaksi baru yang memakai kategori template langsung masuk barisnya, tidak ke panel **Perlu Diklasifikasi**.',
             ],
         },
@@ -104,7 +105,8 @@ export const guide: ModuleGuide = {
             tone: 'pos',
             items: [
                 'Hanya kategori baru yang dibuat; kategori lama, transaksi, dan saldo tidak berubah.',
-                'Setiap kategori template sudah bergrup Laba Rugi: transaksi yang memakainya langsung masuk barisnya, mis. **Gaji Karyawan → Beban Operasional**, bukan panel **Perlu Diklasifikasi**.',
+                'Setiap kategori pemasukan & pengeluaran template sudah bergrup Laba Rugi: transaksi yang memakainya langsung masuk barisnya, mis. **Gaji Karyawan → Beban Operasional**, bukan panel **Perlu Diklasifikasi**.',
+                'Sub **Pendanaan** (mis. Setor PPN) tidak punya grup Laba Rugi dan memang tidak pernah dihitung di sana; di Arus Kas transaksinya berbadge **Pendanaan**.',
                 'Sub baru langsung muncul di pilihan kategori form transaksi, permintaan dana, dan reimbursement.',
                 'Kategori lama yang belum diklasifikasi tetap di panel **Perlu Diklasifikasi**; template tidak mengisi grupnya.',
             ],
@@ -124,7 +126,7 @@ export const guide: ModuleGuide = {
             items: [
                 '**Grup Laba Rugi**: Laba Rugi dihitung ulang, termasuk bulan-bulan yang sudah lewat.',
                 '**Nama**: semua transaksi lama ikut tampil dengan nama baru.',
-                '**Tipe**: Grup Laba Rugi dikosongkan; transaksi lama pindah halaman Arus Kas, atau tidak tampil lagi di Pemasukan/Pengeluaran bila tipenya Pendanaan, Transfer, atau Penyesuaian (saldo rekening tidak berubah). Ketiga tipe itu juga keluar dari Laba Rugi.',
+                '**Tipe**: Grup Laba Rugi dikosongkan; transaksi lama pindah halaman Arus Kas, atau tidak tampil lagi di Pemasukan/Pengeluaran bila tipenya Transfer atau Penyesuaian (saldo rekening tidak berubah). Tipe **Pendanaan** tetap tampil di Pemasukan/Pengeluaran, berbadge Pendanaan. Ketiga tipe itu keluar dari Laba Rugi.',
                 '**Parent**: sub kategori pindah kelompok di pilihan kategori. Tanpa parent, ia menjadi kategori utama dan tidak bisa dipilih lagi di form transaksi.',
             ],
         },
@@ -153,13 +155,14 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Yang dibuat saat Pakai Template',
-            subtitle: 'Template: 12 kategori utama dan 55 sub kategori, urut bagan akun (pendapatan, lalu harga pokok dan beban).',
+            subtitle: 'Template: 15 kategori utama dan 59 sub kategori, urut bagan akun (pendapatan, lalu harga pokok dan beban, terakhir pendanaan).',
             rows: [
                 { label: 'Kategori utama baru', value: 'Nama template + Grup Laba Rugi, mis. Beban Karyawan → Beban Operasional', source: 'Pakai Template', tone: 'pos' },
                 { label: 'Sub kategori baru', value: 'Di bawah induknya, Grup Laba Rugi sama dengan induk', source: 'Pakai Template', tone: 'pos' },
                 { label: 'Induk lama bernama sama', value: 'Dipakai ulang tanpa diubah; sub baru ditempel ke sana', source: 'Otomatis', tone: 'act' },
                 { label: 'Sub yang sudah ada', value: 'Dilewati, di grup mana pun ia berada', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Induk sistem / dipakai langsung', value: 'Seluruh grupnya dilewati, alasan tercantum', source: 'Otomatis', tone: 'wait' },
+                { label: 'Bagian Pendanaan', value: 'Setoran Modal, Penarikan Modal, Pajak Titipan & PPN — tanpa Grup Laba Rugi', source: 'Pakai Template', tone: 'act' },
             ],
             note: 'Nama dibandingkan tanpa membedakan huruf besar/kecil dan spasi berlebih. Perusahaan baru sudah berisi template; menerapkan ulang tidak membuat apa pun.',
         },
@@ -191,7 +194,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Pendanaan, Transfer & Penyesuaian di luar Laba Rugi',
-            body: 'Pinjaman, setoran modal, dan pindah dana antar rekening memang tidak dihitung sebagai pendapatan atau beban. Jangan memakai tipe ini untuk biaya operasional.',
+            body: 'Pinjaman, setoran modal, prive, setor PPN, setor titipan pajak klien, dan pindah dana antar rekening memang tidak dihitung sebagai pendapatan atau beban. Jangan memakai tipe ini untuk biaya operasional. Kategori Pendanaan buatan sendiri harus berupa **sub kategori** agar bisa dipilih di form transaksi.',
         },
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
