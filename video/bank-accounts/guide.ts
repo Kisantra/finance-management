@@ -41,8 +41,9 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Keuangan › Kas & Bank**, lalu klik **Tambah Akun**.',
                 'Pada **Jenis**, pilih **Bank**.',
-                'Isi **Nama Pemilik Rekening**, **Nomor Rekening** (tidak boleh sama dengan akun lain), **Nama Bank**, dan **Cabang** (opsional).',
-                'Isi **Saldo Awal**: saldo rekening pada saat mulai dicatat di aplikasi.',
+                'Isi **Nama Pemilik Rekening** dan **Nomor Rekening** (tidak boleh sama dengan akun lain).',
+                'Di **Nama Bank**, ketik beberapa huruf (mis. "bca" atau "mandiri") lalu pilih dari daftar, atau ketik sendiri bila bank Anda tidak ada di daftar. Bank yang dikenali tampil dengan logonya di form dan di panel **Akun**; nama bank lain tetap tersimpan apa adanya dengan ikon gedung.',
+                'Isi **Cabang** (opsional) dan **Saldo Awal**: saldo rekening pada saat mulai dicatat di aplikasi.',
                 'Klik **Tambah Rekening**. Rekening baru langsung terpilih di panel **Akun**.',
             ],
         },

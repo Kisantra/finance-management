@@ -16,7 +16,7 @@
 | [recurring-invoices.md](recurring-invoices.md) | Template recurring, generate bulanan, publish | `/recurring-invoices` |
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
-| [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), saldo terhitung, transaksi | `/bank-accounts` |
+| [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), logo bank & saran Nama Bank, saldo terhitung, transaksi | `/bank-accounts` |
 | [cash-flow.md](cash-flow.md) | Pemasukan & Pengeluaran (tab Semua/Pemasukan/Pengeluaran, filter Diinput oleh, ekspor Excel), Transfer, export PDF | `/cash-flow/*` |
 | [transaction-categories.md](transaction-categories.md) | Kategori hierarkis, pl_group, reassign-delete, Pakai Template (template 12 induk/55 sub — juga isi awal perusahaan baru) | `/transaction-categories` |
 | [fund-requests.md](fund-requests.md) | Permintaan dana: workflow + pencairan | `/fund-requests` |
