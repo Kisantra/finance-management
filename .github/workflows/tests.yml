@@ -64,6 +64,11 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
+      # Passport membaca storage/oauth-*.key (tidak di-commit). Tanpa kunci ini
+      # tes koneksi Claude (MCP + OAuth) gagal dengan "Invalid key supplied".
+      - name: Generate Passport Keys
+        run: php artisan passport:keys --force
+
       # The Build Assets step runs `php artisan wayfinder:generate` via the Vite
       # plugin, which boots the app — and the app queries company_profiles during
       # boot. Point the runtime at the MySQL service (same schema the tests use;
