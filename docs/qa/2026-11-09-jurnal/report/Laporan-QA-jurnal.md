@@ -29,6 +29,8 @@ Pembayaran invoice dipecah 'titipan dulu', bukan proporsional: DP 300.000 seluru
 
 Baris pokok utang kini membuka rincian hanya-lihat dengan jurnal 'Utang Pinjaman – Bank BRI' (nama dari data utangnya); PUT/DELETE lewat Arus Kas tetap 403 dan DB tidak berubah. Nama debitur piutang karyawan (database pusat) tampil, dan utang yatim jatuh ke 'Utang Pinjaman' tanpa nama. Pengguna tanpa izin ubah kini mendapat rincian hanya-lihat dengan jurnal (dulu formulir ubah tanpa tombol simpan). Di 390 px kotak Jurnal tidak meluap.
 
+Putaran ulang 10 Nov 2026 setelah redesign tata letak dialog Catat/Ubah (satu kolom seperti Catat pembayaran): N01–N04, N08, dan A04 (+ dialog Ubah di 390 px) dijalankan lagi di lingkungan yang di-seed ulang dengan data yang sama — semua lolos dengan nilai jurnal identik; pratinjau tetap = jurnal tersimpan. Case lain tidak melewati dialog Catat/Ubah dan tidak diulang.
+
 ## Bug yang ditemukan & diperbaiki
 
 Tidak ada. Tidak ada case yang gagal karena cacat aplikasi, sehingga tidak ada perbaikan kode dalam putaran QA ini. Temuan di luar kegagalan case ada di **Catatan tambahan**.
@@ -40,20 +42,20 @@ Percobaan: 🟩 lolos · 🟥 gagal karena bug aplikasi · ⬜ terganggu kendala
 | ID | Skenario | Lapisan | Percobaan | Catatan | Status |
 |---|---|---|---|---|---|
 | **A. KONDISI NORMAL** | | | | | |
-| N01 | Catat Pengeluaran: pratinjau langsung, lalu jurnal tersimpan = pratinjau | FE+BE | 🟩 | Perbandingan baris DOM pratinjau vs tersimpan: sama. DB transaksi #18 debit 1.250.000 Listrik/BCA; JournalService sama. | Pass |
-| N02 | Pemasukan pendanaan template → akun neraca Modal Pemilik | FE+BE | 🟩 | DB #19 credit 7.500.000 kategori Setoran Modal Pemilik (financing). | Pass |
-| N03 | Pendanaan keluar dari kas + akun Setor PPN & Setor Titipan Pajak Klien | FE+BE | 🟩 | DB #20 debit 400.000 kategori Prive Pemilik di Kas Kecil. | Pass |
-| N04 | Pendanaan buatan pengguna memakai labelnya sendiri | FE | 🟩 |  | Pass |
+| N01 | Catat Pengeluaran: pratinjau langsung, lalu jurnal tersimpan = pratinjau | FE+BE | 🟩🟩 | Perbandingan baris DOM pratinjau vs tersimpan: sama. DB transaksi #18 debit 1.250.000 Listrik/BCA; JournalService sama. Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Pratinjau = tersimpan (`sama = true`); placeholder, "—", dan nilai identik dengan percobaan sebelumnya; DB #18 sama. Bukti gambar diganti dengan putaran ini. | Pass |
+| N02 | Pemasukan pendanaan template → akun neraca Modal Pemilik | FE+BE | 🟩🟩 | DB #19 credit 7.500.000 kategori Setoran Modal Pemilik (financing). Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Pratinjau = tersimpan; DB #19 sama. Bukti gambar diganti dengan putaran ini. | Pass |
+| N03 | Pendanaan keluar dari kas + akun Setor PPN & Setor Titipan Pajak Klien | FE+BE | 🟩🟩 | DB #20 debit 400.000 kategori Prive Pemilik di Kas Kecil. Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Pratinjau = tersimpan; Setor PPN & Setor Titipan dibuka di dialog Ubah satu kolom, jurnal sama; DB #20 sama. Bukti gambar diganti dengan putaran ini. | Pass |
+| N04 | Pendanaan buatan pengguna memakai labelnya sendiri | FE | 🟩🟩 | Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Pratinjau & baris tersimpan sama dengan sebelumnya. Bukti gambar diganti dengan putaran ini. | Pass |
 | N05 | Transfer: pratinjau Debit tujuan + biaya admin / Kredit asal; Detail Transfer = pratinjau | FE+BE | 🟩 | Placeholder sebelum rekening dipilih: "Pilih rekening sumber dan tujuan untuk melihat jurnalnya." DB #21 debit 5.002.500 + #22 credit 5.000.000. | Pass |
 | N06 | Pembayaran invoice PPN saja: PPN dulu, sisanya pendapatan | FE+BE | 🟩 |  | Pass |
 | N07 | Invoice titipan + PPN: tiga pembayaran mengikuti titipan dulu | FE+BE | ⬜🟩 | Percobaan 1: langkah 2 memotret pembayaran 7.300.000 karena lokator skrip mencocokkan teks "300.000" di dalam "7.300.000" (alat uji). Percobaan 2 hanya membuka ulang ketiga pembayaran dengan pencocokan nominal persis; pembayaran disimpan sekali (percobaan 1). | Pass |
-| N08 | Ubah: jurnal tersimpan → Pratinjau saat jumlah/kategori diubah; Batal tidak menyimpan | FE+BE | 🟩 | DB: transaksi #4 tetap 8.500.000 Gaji Karyawan, updated_at tidak berubah. | Pass |
+| N08 | Ubah: jurnal tersimpan → Pratinjau saat jumlah/kategori diubah; Batal tidak menyimpan | FE+BE | 🟩🟩 | DB: transaksi #4 tetap 8.500.000 Gaji Karyawan, updated_at tidak berubah. Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Tersimpan → Pratinjau (jumlah, lalu kategori) → Batal → kembali 8.500.000; DB #4 tidak berubah (created_at = updated_at). Bukti gambar diganti dengan putaran ini. | Pass |
 | N09 | Kas & Bank: rincian hanya-lihat + jurnal (penyesuaian, kaki transfer, pembayaran) | FE | ⬜🟩 | Percobaan 1 berhenti di langkah 4: Playwright tidak bisa mengurai lokator regex skrip yang berisi '/' (nomor invoice). Diganti teks biasa, percobaan 2 lolos seluruhnya. | Pass |
 | **B. KONDISI TIDAK NORMAL / EDGE CASE** | | | | | |
 | A01 | Pokok utang: baris hanya-lihat kini bisa dibuka (rincian + jurnal), server tetap menolak ubah/hapus | FE+BE | 🟩 | PUT #12, DELETE #12, PUT #13 → 403 'Transaksi ini pokok utang yang dicatat otomatis oleh modul Utang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Utang.'; DB tidak berubah. | Pass |
 | A02 | Nama debitur piutang (karyawan di database pusat) + cadangan tanpa nama untuk utang yatim | FE+BE | 🟩 | Utang yatim dibuat sebagai fixture lewat tinker (tidak bisa dibuat dari layar), lalu dihapus; pemeriksaan akhir DB tidak menemukan LOAN-99999. | Pass |
 | A03 | Pengguna tanpa izin ubah melihat jurnal tanpa kontrol ubah; PUT ditolak | FE+BE | 🟩 | PUT /bank-transactions/4 dari sesi Lina → 403 'This action is unauthorized.' | Pass |
-| A04 | Ponsel 390 px: kotak Jurnal terbaca tanpa geser samping | FE | 🟩 | Ukur: overflow halaman 0, kotak 340 px, overflow tabel 0 (dialog Catat & rincian pembayaran). | Pass |
+| A04 | Ponsel 390 px: kotak Jurnal terbaca tanpa geser samping | FE | 🟩🟩 | Ukur: overflow halaman 0, kotak 340 px, overflow tabel 0 (dialog Catat & rincian pembayaran). Percobaan ke-2 (10 Nov 2026) diulang karena redesign tata letak dialog Catat/Ubah menjadi satu kolom (commit d5ac4b6): Catat 390 px: overflow halaman 0, kotak 340 px, overflow tabel 0; dialog Ubah 390 px (langkah 3 baru): lebar 390, overflow halaman/dialog/tabel 0, Tanggal (y 254) dan Rekening (y 337) bertumpuk. Bukti gambar diganti dengan putaran ini. | Pass |
 | A05 | Pembayaran mundur tanggal: urutan menurut tanggal bayar, jurnal pembayaran lain ikut bergeser | FE+BE | 🟩 |  | Pass |
 | **C. ALUR BERANTAI** | | | | | |
 | C01 | Invarian: Σ kredit jurnal pembayaran November = angka Laba Rugi November | FE+BE | 🟩 | DB: revenue.invoice 17.950.000 = Σ kredit Pendapatan dari Invoice 17.950.000; ppn_output 1.650.000 = Σ kredit PPN Keluaran 1.650.000; semua jurnal seimbang. | Pass |
@@ -63,23 +65,23 @@ Percobaan: 🟩 lolos · 🟥 gagal karena bug aplikasi · ⬜ terganggu kendala
 
 Setiap case ber-lapisan FE/FE+BE direkam per langkah. Case BE tidak diberi gambar karena kondisinya tidak bisa dicapai dari layar; alasannya tertulis di kolom Hasil Aktual tabel test case.
 
-### N01 · Catat Pengeluaran: pratinjau langsung, lalu jurnal tersimpan = pratinjau — Pass
+### N01 · Catat Pengeluaran: pratinjau langsung, lalu jurnal tersimpan = pratinjau — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
-| 1 | **Catat Pengeluaran**, rekening BCA dipilih, kategori belum: kotak **Jurnal · Pratinjau** berisi "Pilih kategori untuk melihat jurnalnya." | <img src="../evidence/jurnal/N01-1.jpg" width="200"> |
+| 1 | **Catat Pengeluaran** (satu kolom: Jumlah, Tanggal | Rekening, Kategori, Jurnal, …), rekening BCA dipilih, kategori belum: kotak **Jurnal · Pratinjau** berisi "Pilih kategori untuk melihat jurnalnya." | <img src="../evidence/jurnal/N01-1.jpg" width="200"> |
 | 2 | Kategori **↳ Listrik** tanpa jumlah: akun sudah tampil (Debit Listrik, Kredit BCA Operasional — BCA) dengan nominal "—". | <img src="../evidence/jurnal/N01-2.jpg" width="200"> |
 | 3 | Jumlah 1.250.000: **Debit Listrik 1.250.000 / Kredit BCA Operasional — BCA 1.250.000**, baris Jumlah seimbang. | <img src="../evidence/jurnal/N01-3.jpg" width="200"> |
 | 4 | Setelah disimpan, baris dibuka: **Edit Pengeluaran** menampilkan jurnal tersimpan dari server — sama persis, tanpa penanda Pratinjau. | <img src="../evidence/jurnal/N01-4.jpg" width="200"> |
 
-### N02 · Pemasukan pendanaan template → akun neraca Modal Pemilik — Pass
+### N02 · Pemasukan pendanaan template → akun neraca Modal Pemilik — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
 | 1 | **↳ Setoran Modal Pemilik** ke Mandiri Cadangan 7.500.000: Debit **Mandiri Cadangan — Mandiri** / Kredit **Modal Pemilik** (akun neraca, bukan label kategori). | <img src="../evidence/jurnal/N02-1.jpg" width="200"> |
 | 2 | Baris tersimpan dibuka: jurnal yang sama, kini tanpa penanda Pratinjau. | <img src="../evidence/jurnal/N02-2.jpg" width="200"> |
 
-### N03 · Pendanaan keluar dari kas + akun Setor PPN & Setor Titipan Pajak Klien — Pass
+### N03 · Pendanaan keluar dari kas + akun Setor PPN & Setor Titipan Pajak Klien — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
@@ -88,7 +90,7 @@ Setiap case ber-lapisan FE/FE+BE direkam per langkah. Case BE tidak diberi gamba
 | 3 | Baris **Setor PPN masa Oktober**: Debit **PPN Keluaran** 1.100.000 / Kredit BCA. | <img src="../evidence/jurnal/N03-3.jpg" width="200"> |
 | 4 | Baris **Setor PPh 21 titipan PT Maju Jaya**: Debit **Titipan Pajak Klien** 500.000 / Kredit BCA. | <img src="../evidence/jurnal/N03-4.jpg" width="200"> |
 
-### N04 · Pendanaan buatan pengguna memakai labelnya sendiri — Pass
+### N04 · Pendanaan buatan pengguna memakai labelnya sendiri — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
@@ -118,11 +120,11 @@ Setiap case ber-lapisan FE/FE+BE direkam per langkah. Case BE tidak diberi gamba
 | 3 | Pembayaran 4.000.000 (5 Nov) melewati semua batas: **Titipan 200.000 + PPN Keluaran 1.100.000 + Pendapatan dari Invoice 2.700.000**. | <img src="../evidence/jurnal/N07-3.jpg" width="200"> |
 | 4 | Pelunasan 7.300.000 tersimpan: sama dengan pratinjau langkah 1. | <img src="../evidence/jurnal/N07-4.jpg" width="200"> |
 
-### N08 · Ubah: jurnal tersimpan → Pratinjau saat jumlah/kategori diubah; Batal tidak menyimpan — Pass
+### N08 · Ubah: jurnal tersimpan → Pratinjau saat jumlah/kategori diubah; Batal tidak menyimpan — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
-| 1 | **Edit Pengeluaran** "Gaji karyawan Oktober": jurnal tersimpan Debit Gaji Karyawan 8.500.000 / Kredit BCA, tanpa penanda Pratinjau. | <img src="../evidence/jurnal/N08-1.jpg" width="200"> |
+| 1 | **Edit Pengeluaran** "Gaji karyawan Oktober" (urutan sama dengan Catat, Rekening nonaktif): jurnal tersimpan Debit Gaji Karyawan 8.500.000 / Kredit BCA, tanpa penanda Pratinjau. | <img src="../evidence/jurnal/N08-1.jpg" width="200"> |
 | 2 | Jumlah diubah 8.750.000: kotak berganti **Pratinjau** dengan nominal baru. | <img src="../evidence/jurnal/N08-2.jpg" width="200"> |
 | 3 | Kategori diganti **↳ Tunjangan & Lembur**: akun debit ikut berganti (rekening tetap). | <img src="../evidence/jurnal/N08-3.jpg" width="200"> |
 | 4 | Setelah **Batal** dan dibuka ulang: kembali 8.500.000 Gaji Karyawan, tanpa Pratinjau (tidak tersimpan). | <img src="../evidence/jurnal/N08-4.jpg" width="200"> |
@@ -159,12 +161,13 @@ Setiap case ber-lapisan FE/FE+BE direkam per langkah. Case BE tidak diberi gamba
 | 1 | Lina: "Gaji karyawan Oktober" terbuka sebagai **Rincian Pengeluaran** hanya-lihat (0 isian, 0 Simpan) dengan jurnalnya. | <img src="../evidence/jurnal/A03-1.jpg" width="200"> |
 | 2 | **Detail Transfer** tanpa bagian Edit Transfer (Lina tidak punya `edit transfer`), jurnal tetap tampil. | <img src="../evidence/jurnal/A03-2.jpg" width="200"> |
 
-### A04 · Ponsel 390 px: kotak Jurnal terbaca tanpa geser samping — Pass
+### A04 · Ponsel 390 px: kotak Jurnal terbaca tanpa geser samping — Pass (percobaan ke-2, diulang setelah redesign tata letak)
 
 | # | Langkah & yang terlihat | Layar |
 |---|---|---|
 | 1 | Ponsel 390 px, **Catat Pengeluaran** dengan label terpanjang "Jasa Profesional (Notaris, Konsultan)" 12.500.000: nama akun turun baris, nominal utuh. | <img src="../evidence/jurnal/A04-1.jpg" width="200"> |
 | 2 | Rincian pembayaran 4 baris jurnal di 390 px: tidak meluap. | <img src="../evidence/jurnal/A04-2.jpg" width="200"> |
+| 3 | Dialog **Edit Pengeluaran** di 390 px: Tanggal dan Rekening (nonaktif) bertumpuk, tanpa geser samping. | <img src="../evidence/jurnal/A04-3.jpg" width="200"> |
 
 ### A05 · Pembayaran mundur tanggal: urutan menurut tanggal bayar, jurnal pembayaran lain ikut bergeser — Pass
 
@@ -194,7 +197,7 @@ Ditemukan di luar kegagalan test case; tidak diperbaiki karena butuh keputusan p
 
 **K-J1 — Jurnal pembayaran tersimpan bisa berubah bila pembayaran mundur tanggal dicatat belakangan.** Sengaja (A05): bagian satu pembayaran = alokasi kumulatif sesudah − sebelum menurut (tanggal bayar, id), sama dengan Laba Rugi per periode. Jumlah per invoice dan per periode tidak berubah; yang bergeser hanya pembagian antar pembayaran. Didokumentasikan di cash-flow.md.
 
-**K-J2 — Dialog Catat Pemasukan/Pengeluaran kini lebih tinggi dari layar 720 px.** Kotak Jurnal di bawah Tanggal menambah ±240 px; di layar setinggi 720 px tombol Simpan berada di bawah dan isi dialog perlu digulir (dialog memang bergulir). Di 1280×800 ke atas tombolnya terlihat. Tidak diubah; dicatat untuk pemilik.
+**K-J2 — Dialog Catat/Ubah satu kolom lebih tinggi dari layar 720–900 px.** Diukur headless setelah redesign (Catat dengan jurnal): isi dialog ±1.032 px (Ubah ±1.009 px); dialog dibatasi 90 % tinggi layar dan bergulir. Tombol Simpan baru terlihat setelah digulir di 720, 800, dan 900 px; terlihat langsung di 1080 px. Tata letak dua kolom sebelumnya ±900 px (diukur dari screenshot) juga sudah bergulir di 720 px. Tidak diubah; dicatat untuk pemilik.
 
 **K-J3 — Kategori Penyesuaian ditawarkan pemilih Catat (pratinjau jurnalnya tampil) tetapi server menolak simpan.** Perilaku lama di luar lingkup (sama dengan K-P3 QA Pendanaan). Jurnal penyesuaian yang sudah ada terlihat di rincian Kas & Bank (N09).
 
@@ -219,4 +222,4 @@ Tidak satu pun dihitung sebagai kegagalan test case:
 
 Kode fitur, test otomatis, dan QA ini dikerjakan oleh asisten yang sama, sehingga QA mewarisi titik buta penulisnya. Aturan jurnal sendiri (akun mana di sisi mana) adalah keputusan pemilik di brief; yang diuji di sini adalah bahwa aplikasi menerapkannya secara konsisten, bukan kebenaran akuntansinya. Spot-check yang disarankan untuk manusia: (1) baca kotak Jurnal untuk beberapa transaksi nyata di perusahaan Anda (terutama pendanaan buatan sendiri dan pembayaran invoice bertitipan) dan pastikan istilah akunnya sesuai kebiasaan akuntan Anda; (2) catat satu pembayaran mundur tanggal dan pastikan pergeseran jurnal pembayaran lain (K-J1) bisa diterima. Data utang & piutang di lingkungan QA diisi langsung ke DB dengan format deskripsi/referensi persis seperti controller-nya (diverifikasi dengan membaca kode), bukan lewat layar Utang/Piutang yang di luar lingkup; JurnalTest juga memakai format itu, jadi bila format deskripsi di LoanController/ReceivableController berubah, resolusi nama FIN-LOAN-OUT/FIN-RCV-IN jatuh ke cadangan tanpa nama (tidak salah, tetapi kurang informatif). Angka di kolom Hasil Aktual dibaca dari DOM dan DB oleh skrip, bukan dibaca manusia dari gambar.
 
-_Lingkungan uji: database jrn_central + jrn_central_tenant_jurnalqa (dibuat khusus, di-drop setelah QA), php artisan serve --env=jrn di http://127.0.0.1:8147 (APP_ENV=jrn, sesi & cache database, antrean sync, mail log), MySQL 8.0.45, aset dari Vite dev server pengguna ([::1]:5173, tidak diubah), Chromium headless lewat Python Playwright 1.58 viewport 1280x1000-1400 DPR 1 (A04: 390x844 DPR 2, sentuh), kode cabang fitur/jurnal b6cfdcd + 6afad9d (+ f234992 panduan), belum di-push._
+_Lingkungan uji: database jrn_central + jrn_central_tenant_jurnalqa (dibuat khusus, di-drop setelah QA), php artisan serve --env=jrn di http://127.0.0.1:8147 (APP_ENV=jrn, sesi & cache database, antrean sync, mail log), MySQL 8.0.45, aset dari Vite dev server pengguna ([::1]:5173, tidak diubah), Chromium headless lewat Python Playwright 1.58 viewport 1280x1000-1400 DPR 1 (A04: 390x844 DPR 2, sentuh), kode cabang fitur/jurnal b6cfdcd + 6afad9d (+ f234992 panduan); putaran ulang N01–N04, N08, A04 di d5ac4b6 (redesign satu kolom, 10 Nov 2026, jam browser dipatok 9 Nov 2026)._

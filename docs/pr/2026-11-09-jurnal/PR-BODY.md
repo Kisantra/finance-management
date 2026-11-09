@@ -8,11 +8,11 @@ Ringkasan lengkap + semua screenshot: [`docs/pr/2026-11-09-jurnal/README.md`](do
 
 ## Sebelum → sesudah
 
-Data contoh yang sama (perusahaan QA di lingkungan terisolasi). "Sebelum" diambil dari `main` (`81c6957`) sebelum kode diubah.
+Data contoh yang sama (perusahaan QA di lingkungan terisolasi). "Sebelum" diambil dari `main` (`81c6957`) sebelum kode diubah; dialog Catat/Ubah "sesudah" diambil setelah tata letak satu kolom (jam browser dipatok 9 Nov 2026 agar tanggal bawaan sama).
 
 ### Catat Pengeluaran
 
-| Sebelum | Sesudah — **Jurnal · Pratinjau**: Debit Gaji Karyawan / Kredit BCA Operasional — BCA |
+| Sebelum — dua kolom | Sesudah — satu kolom seperti Catat pembayaran: Jumlah → Tanggal \| Rekening → Kategori → **Jurnal · Pratinjau** → Deskripsi → Referensi → Lampiran |
 |---|---|
 | ![Sebelum](docs/pr/2026-11-09-jurnal/screens/01-sebelum-pengeluaran.webp) | ![Sesudah](docs/pr/2026-11-09-jurnal/screens/01-sesudah-pengeluaran.webp) |
 
@@ -61,6 +61,7 @@ Data contoh yang sama (perusahaan QA di lingkungan terisolasi). "Sebelum" diambi
 
 - **Backend**: `JournalService` (baru, satu definisi; per halaman, tanpa N+1), `Invoice::allocatePayments()` diekstrak dari `ProfitLossService` (hasil Laba Rugi tidak berubah, tesnya tidak diubah), `CategoryTemplateService::JOURNAL_ACCOUNTS`, `BankAccount::journalNameFor()`. Baris Arus Kas & JSON Kas & Bank membawa `journal`; opsi kategori `journal_account`, rekening `journal_name`, invoice `tax_deposit_total`.
 - **Frontend**: komponen katalog `JournalBox` + cermin pratinjau `lib/journal.ts`; pratinjau di Catat Pemasukan/Pengeluaran, Transfer, Catat pembayaran; jurnal tersimpan di rincian/ubah/Detail Transfer.
+- **Tata letak dialog Catat & Ubah satu kolom** (seperti Catat pembayaran invoice, tanpa ruang kosong di samping isian pendek): Jumlah → Tanggal | Rekening → Kategori → Jurnal → Deskripsi → Nomor Referensi → Lampiran; Dialog `lg`; di Ubah Rekening tampil nonaktif. Tanpa perubahan perilaku. Dialog Transfer & rincian hanya-lihat tidak berubah.
 - **Hanya-lihat**: baris pokok utang/piutang kini bisa dibuka (rincian + jurnal); pengguna tanpa izin ubah mendapat rincian hanya-lihat; Kas & Bank mendapat rincian per transaksi/pembayaran. Kunci server tidak berubah.
 - **Dokumen**: modul cash-flow, bank-accounts, invoices, profit-loss, transaction-categories, README; katalog `CLAUDE.md`; `archipelago.md`; panduan `/panduan` (Arus Kas: tugas baru, 16 layar diambil ulang + 4 baru).
 
@@ -77,11 +78,12 @@ Data contoh yang sama (perusahaan QA di lingkungan terisolasi). "Sebelum" diambi
 - [x] `php artisan test --compact` (suite penuh): **994 lulus, 2 dilewati (skipped), 0 gagal** — 5.076 asersi, 313 detik (MySQL `finance_management_test`, di `e505d2d`)
 - [x] `tests/Feature/JurnalTest.php` (25 tes): semua aturan, nama pihak + cadangan, query per halaman konstan, transfer, penyesuaian, pembayaran (tanpa titipan, titipan saja, PPN saja, keduanya, DP < titipan, tanggal sama, mundur tanggal), debit = kredit, invarian Σ kredit Pendapatan dari Invoice / PPN Keluaran per periode = Laba Rugi
 - [x] QA berbukti 16 case (N/A/C) di lingkungan terisolasi, Chromium headless, semua lolos — [`docs/qa/2026-11-09-jurnal`](docs/qa/2026-11-09-jurnal/README.md)
+- [x] Redesign dialog satu kolom (tanpa perubahan PHP; suite PHP di atas tetap berlaku): `npm run types` & `npm run build` lolos, QA ulang 6 case yang melewati dialog Catat/Ubah lolos
 
 ## Catatan
 
 - Pembayaran bertanggal lebih awal yang dicatat belakangan menggeser pembagian jurnal pembayaran sesudahnya (jumlah per invoice/periode tetap) — sama dengan Laba Rugi.
-- Dialog Catat kini lebih tinggi: di layar setinggi 720 px tombol Simpan perlu digulir.
+- **Dialog Catat/Ubah lebih tinggi**: tata letak satu kolom berisi ±1.030 px (Catat dengan jurnal, diukur headless). Di layar setinggi 720, 800, dan 900 px dialog bergulir dan tombol Simpan baru terlihat setelah digulir; di 1080 px terlihat langsung. Dua kolom sebelumnya ±900 px (diukur dari screenshot) — juga sudah perlu digulir di 720 px.
 - Screenshot panduan Kas & Bank dan Invoice belum diambil ulang (teksnya sudah).
 - Data di screenshot adalah data contoh lingkungan QA.
 

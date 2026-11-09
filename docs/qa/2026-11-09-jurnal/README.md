@@ -63,6 +63,23 @@ tertulis di header skrip capture.
 Tidak ada server/DB lain yang disentuh. Runner headless tidak memakai Playwright/Chrome DevTools MCP. Baris log aplikasi
 berlabel `jrn.` dan baris log browser Boost dari sesi ini dicadangkan lalu dihapus dari log bersama setelah QA.
 
+## Putaran ulang 10 November 2026 — redesign tata letak dialog Catat/Ubah
+
+Setelah dialog Catat Pemasukan/Pengeluaran dan dialog Ubah dirombak menjadi satu kolom (commit `d5ac4b6`, tanpa
+perubahan perilaku dan tanpa perubahan PHP), case yang melewati dialog itu dijalankan lagi: **N01, N02, N03, N04, N08,
+A04** (+ langkah baru A04-3: dialog Ubah di 390 px). Case lain (pembayaran invoice, transfer, rincian hanya-lihat, Kas &
+Bank, Laba Rugi) tidak melewati dialog yang berubah sehingga tidak diulang.
+
+- Lingkungan `jrn_*` dibuat ulang dari nol dengan skrip & data yang sama (database lama sudah di-dump lalu di-drop), port
+  8147, Chromium headless. Jam **browser** dipatok ke 9 Nov 2026 10:00 WITA (Playwright `clock.set_fixed_time`) karena hari
+  pengujian sudah 10 Nov: tanggal bawaan dialog dan tanggal transaksi QA sama dengan putaran pertama (#18–#20 bertanggal
+  9 Nov). Server tidak dipatok.
+- Satu putaran ulang lebih awal sempat dijalankan pada kode antara (Textarea Deskripsi masih minimal 80 px) dan lolos;
+  setelah tinggi Textarea disetel ke dua baris, lingkungan di-seed ulang dan putaran dijalankan lagi. Bukti di folder ini
+  adalah putaran terakhir.
+- Hasil: semua lolos, nilai jurnal identik dengan putaran pertama, pratinjau = jurnal tersimpan. Pengukuran tinggi dialog
+  (catatan K-J2) dan lebar 390 px tercatat di test case.
+
 ## Membangun ulang laporan
 
 Skrip dari skill `qa-evidence` (`~/.claude/skills/qa-evidence/scripts/`), dijalankan dari folder ini:

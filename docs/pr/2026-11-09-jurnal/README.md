@@ -18,11 +18,12 @@ sedang berjalan dan otomatis berlaku untuk transaksi lama.
 
 Semua screenshot memakai **data contoh yang sama** (perusahaan QA "PT Jurnal QA" di lingkungan terisolasi). "Sebelum"
 diambil dari kode `main` (`81c6957`) **sebelum** kode diubah; "sesudah" dari cabang `fitur/jurnal`, dengan langkah
-skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
+skrip yang sama (dialog diisi lalu ditutup tanpa disimpan). Screenshot dialog Catat/Ubah (1, 2, 6, 8, 12) diambil ulang
+10 Nov 2026 setelah **tata letak satu kolom**; jam browser dipatok ke 9 Nov 2026 agar tanggal bawaan sama dengan "sebelum".
 
 ### 1. Catat Pengeluaran
 
-| Sebelum | Sesudah — **Jurnal · Pratinjau** di bawah Tanggal: Debit Gaji Karyawan / Kredit BCA Operasional — BCA |
+| Sebelum — dua kolom | Sesudah — **satu kolom** seperti Catat pembayaran: Jumlah → Tanggal \| Rekening → Kategori → **Jurnal · Pratinjau** (Debit Gaji Karyawan / Kredit BCA Operasional — BCA) → Deskripsi → Nomor Referensi → Lampiran |
 |---|---|
 | ![Sebelum: Catat Pengeluaran tanpa jurnal](screens/01-sebelum-pengeluaran.webp) | ![Sesudah: Catat Pengeluaran dengan kotak Jurnal](screens/01-sesudah-pengeluaran.webp) |
 
@@ -52,7 +53,7 @@ skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
 
 ### 6. Ponsel (390 px)
 
-| Sebelum | Sesudah — kotak Jurnal di bawah Tanggal, nominal tanpa "Rp" (ada di kepala kolom) agar muat |
+| Sebelum | Sesudah — Tanggal dan Rekening bertumpuk; kotak Jurnal di bawah Kategori, nominal tanpa "Rp" (ada di kepala kolom) agar muat |
 |---|---|
 | <img src="screens/06-sebelum-ponsel.webp" alt="Ponsel sebelum" width="260"> | <img src="screens/06-sesudah-ponsel.webp" alt="Ponsel sesudah" width="260"> |
 
@@ -64,7 +65,7 @@ skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
 
 ### 8. Ubah transaksi & Detail Transfer
 
-| Ubah Setor PPN — sebelum | Sesudah — jurnal tersimpan: Debit **PPN Keluaran** |
+| Ubah Setor PPN — sebelum | Sesudah — urutan sama dengan Catat, Rekening nonaktif; jurnal tersimpan: Debit **PPN Keluaran** |
 |---|---|
 | ![Sebelum: Edit Pengeluaran](screens/08-sebelum-ubah-setor-ppn.webp) | ![Sesudah: Edit Pengeluaran dengan jurnal](screens/08-sesudah-ubah-setor-ppn.webp) |
 
@@ -128,6 +129,12 @@ skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
 
 - **Baru** komponen katalog `components/shared/journal-box.tsx` (`JournalBox`, gaya Obsidian, tabel semantik, akun kredit
   menjorok, muat 390 px) dan `lib/journal.ts` (cermin pratinjau, menunjuk sumber PHP-nya).
+- **Tata letak dialog Catat Pemasukan/Pengeluaran dirombak jadi satu kolom** (dulu dua kolom "Detail Transaksi" /
+  "Keterangan" yang menyisakan ruang kosong di bawah kolom kanan setelah kotak Jurnal ditambahkan), mengikuti dialog Catat
+  pembayaran invoice: Jumlah → Tanggal | Rekening (berdampingan, bertumpuk di ponsel) → Kategori (+ Tambah, petunjuk
+  Pendanaan) → Jurnal → Deskripsi (2 baris) → Nomor Referensi → Lampiran; Dialog ukuran `lg`. Dialog **Ubah** memakai urutan
+  & lebar yang sama (Rekening tampil nonaktif). Dialog Transfer dan rincian hanya-lihat tidak berubah. Tanpa perubahan
+  perilaku (validasi, quick-add kategori, rekening bawaan, petunjuk Pendanaan, pratinjau = tersimpan).
 - Pratinjau di **Catat Pemasukan/Pengeluaran** (Arus Kas & Kas & Bank), **Transfer** (juga Isi ulang), **Catat
   pembayaran** invoice (juga ubah pembayaran).
 - Jurnal tersimpan di **Detail Pembayaran Invoice**, **Detail Transfer**, dan dialog **ubah** (berganti Pratinjau begitu
@@ -177,6 +184,7 @@ skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
 - [x] `tests/Feature/JurnalTest.php` 25 tes; tes Laba Rugi (`ProfitLossServiceTest`, `ProfitLossReportControllerTest`, `InvoicePpnTest`) lolos **tanpa diubah**
 - [x] Suite penuh `php artisan test --compact`: **994 lulus, 2 dilewati, 0 gagal** (5.076 asersi, 313 detik) di `e505d2d`
 - [x] QA berbukti 16 case (N/A/C), semua lolos: [`docs/qa/2026-11-09-jurnal`](../../qa/2026-11-09-jurnal/README.md)
+- [x] Redesign tata letak satu kolom (`d5ac4b6`, tanpa perubahan PHP): `npm run types` & `npm run build` lolos; QA ulang N01–N04, N08, A04 (+ dialog Ubah 390 px) lolos dengan jurnal identik
 
 ## Catatan
 
@@ -184,7 +192,7 @@ skrip yang sama (dialog diisi lalu ditutup tanpa disimpan).
   mendapat rincian hanya-lihat, bukan formulir ubah tanpa tombol simpan; Kas & Bank punya rincian per transaksi.
 - **Jurnal pembayaran bisa bergeser**: bila pembayaran bertanggal lebih awal dicatat belakangan, pembagian pembayaran
   sesudahnya ikut berubah (jumlah per invoice/periode tetap) — konsekuensi "titipan dulu" per tanggal, sama dengan Laba Rugi.
-- **Dialog Catat lebih tinggi**: di layar setinggi 720 px tombol Simpan perlu digulir (dialog bergulir).
+- **Dialog Catat/Ubah lebih tinggi**: tata letak satu kolom berisi ±1.030 px (Catat dengan jurnal, diukur headless). Di layar setinggi 720, 800, dan 900 px dialog bergulir dan tombol Simpan baru terlihat setelah digulir; di 1080 px terlihat langsung. Dua kolom sebelumnya ±900 px (diukur dari screenshot) — juga sudah perlu digulir di 720 px.
 - **Biaya admin transfer** tampil sebagai akun "Biaya Admin Transfer" tetapi tetap tidak masuk Laba Rugi (kategori
   transfer, perilaku lama).
 - Screenshot panduan Kas & Bank dan Invoice belum diambil ulang (teksnya sudah); alasannya di dokumen modul masing-masing.
