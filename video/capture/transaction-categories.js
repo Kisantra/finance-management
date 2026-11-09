@@ -12,6 +12,9 @@
  * Mengubah di DB QC (hanya data buatan skrip): membuat "Iklan Media Sosial", memberi "Langganan Software" grup Beban Operasional,
  * menghapus "Biaya Langganan (lama)" dengan memindahkan transaksinya ke "Langganan Software", dan menerapkan template di
  * perusahaan "lama". Langkah yang sudah terjadi dilewati.
+ * Perusahaan "lama" juga punya induk pendanaan "Setoran Modal" & "Penarikan Modal" TANPA anak (isi seeder lama) agar layar
+ * fm-template-financing menampilkan keduanya sebagai "Sudah ada". Jalankan headless (runner Node / Playwright MCP).
+ * Layar fm-list & fm-template* terakhir diambil ulang 9 Nov 2026 (bagian Pendanaan); layar lain masih 9 Nov 2026 pagi.
  */
 async (page) => {
   const BASE = 'http://127.0.0.1:8013';
@@ -282,6 +285,14 @@ async (page) => {
     await snap(t, 'fm-template-existing', { ...tpl(), group: groupCard('Beban Kantor'), note: top(t).getByText(/Sudah ada di grup/).first() });
     await scrollToGroup('Beban Pemasaran');
     await snap(t, 'fm-template-skipped', { ...tpl(), group: groupCard('Beban Pemasaran'), reason: top(t).getByText(/dipakai langsung/).first() });
+    // Bagian Pendanaan (terakhir): induk lama "Setoran Modal" tanpa anak dipakai ulang, sub barunya ditempel.
+    await scrollToGroup('Setoran Modal');
+    await snap(t, 'fm-template-financing', {
+      ...tpl(),
+      heading: top(t).getByRole('heading', { name: 'Pendanaan', exact: true }),
+      group: groupCard('Setoran Modal'),
+      newGroup: groupCard('Pajak Titipan & PPN'),
+    });
     if (!applied) {
       await createBtn().click();
       await t.getByText(/kategori dibuat/).first().waitFor();

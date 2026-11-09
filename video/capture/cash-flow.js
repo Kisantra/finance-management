@@ -1,13 +1,17 @@
 /*
  * Ambil ulang screenshot tutorial Arus Kas (video/cash-flow/screens/*.webp, lewat to-webp.py) bila UI berubah.
- * 1. Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8014
+ * 1. Server QC terisolasi (bukan DB perusahaan asli), mis. php artisan serve --env=<qc> --host=127.0.0.1 --port=8014.
+ *    Akun (sandi "password"): fm@qc.test (finance manager) & admin@gmail.com (admin), anggota SATU perusahaan contoh hasil
+ *    provisioning (template kategori lengkap, termasuk bagian Pendanaan) + seeder demo ClientSeeder, BankAccountSeeder,
+ *    InvoiceSeeder, BankTransactionSeeder.
  * 2. Prasyarat data QC: sub-kategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R
- *    dikosongkan). Sub transfer "Antar Rekening Sendiri" (induk Transfer Internal) sudah dibuat seeder perusahaan baru.
- * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
- * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
- * 3. Playwright MCP: browser_run_code_unsafe, filename: video/capture/cash-flow.js
+ *    dikosongkan); satu utang "Bank BRI" (LOAN-00001) beserta pembayaran pokok + bunganya di BCA - Operasional (baris
+ *    pokok tampil hanya-lihat). Sub transfer "Antar Rekening Sendiri" (induk Transfer Internal) sudah dibuat seeder.
+ * 3. Jalankan headless: Playwright MCP browser_run_code_unsafe (filename: video/capture/cash-flow.js) atau runner Node
+ *    kecil yang memanggil fungsi ini dengan objek `page` dari chromium.launch({ headless: true }).
  * 4. python video/capture/to-webp.py cash-flow, lalu salin koordinat dari hasilnya ke video/cash-flow/shots.ts.
- * Skrip ini MENAMBAH 1 pemasukan, 1 pengeluaran, dan 1 transfer di DB QC (tidak menghapus apa pun). Jangan jalankan di DB utama.
+ * Skrip ini MENAMBAH 1 pemasukan, 2 pengeluaran (biaya + Setor PPN), dan 1 transfer di DB QC (tidak menghapus apa pun).
+ * Jangan jalankan di DB utama. Screenshot terakhir diambil 9 Nov 2026 (fitur Pendanaan).
  * Jalankan SEBELUM video/capture/profit-loss.js (screenshot Laba Rugi di sini masih menampilkan "Sewa Ruang Rapat" belum diklasifikasi).
  */
 async (page) => {
@@ -71,7 +75,7 @@ async (page) => {
   const listTargets = (p, createName) => ({
     create: p.getByRole('button', { name: createName }),
     export: p.getByRole('button', { name: 'Export PDF' }),
-    stats: up(p.getByText(/^Total (Pemasukan|Pengeluaran|Transfer)$/).first(), 4),
+    stats: up(p.getByText(/^(Pemasukan \(masuk Laba Rugi\)|Beban \(masuk Laba Rugi\)|Total Transfer)$/).first(), 4),
     filters: up(p.getByText('Rentang Tanggal', { exact: true }).first(), 2),
     table: p.locator('table').first(),
   });
@@ -91,6 +95,8 @@ async (page) => {
       invoiceRow: m.locator('tbody tr').filter({ hasText: 'Invoice' }).first(),
       directRow: m.locator('tbody tr').filter({ hasText: 'Langsung' }).first(),
       sourceCol: m.locator('thead th').nth(2),
+      rows: m.locator('tbody').first(),
+      cards: up(m.getByText('Pemasukan (masuk Laba Rugi)', { exact: true }).first(), 3),
     });
 
     await m.getByRole('button', { name: 'Input Pemasukan' }).click();
@@ -113,6 +119,7 @@ async (page) => {
 
     await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
     await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).waitFor();
+    await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).scrollIntoViewIfNeeded();
     await snap(m, 'fm-income-form-category', { ...incomeFields(), option: m.getByRole('option', { name: /Sewa Ruang Rapat/ }), list: m.getByRole('listbox') });
     await m.getByRole('option', { name: /Sewa Ruang Rapat/ }).click();
 
@@ -206,6 +213,69 @@ async (page) => {
       save: top(m).getByRole('button', { name: 'Simpan Perubahan' }),
     });
     await m.keyboard.press('Escape');
+
+    }
+    if (!SKIP.includes('financing')) {
+    /* ── Finance manager: pendanaan (Setor PPN) — grup terakhir pemilih kategori, tidak masuk Laba Rugi ── */
+    await m.goto(BASE + '/cash-flow/expenses');
+    await m.getByRole('button', { name: 'Input Pengeluaran' }).click();
+    await top(m).getByRole('button', { name: 'Pilih kategori' }).waitFor();
+    await m.waitForTimeout(500);
+    const financeFields = () => ({
+      dialog: top(m),
+      account: up(label(top(m), 'Rekening *')),
+      category: up(label(top(m), 'Kategori *'), 2),
+      amount: up(label(top(m), 'Jumlah *')),
+      description: up(label(top(m), 'Deskripsi *')),
+      save: top(m).getByRole('button', { name: 'Simpan Pengeluaran' }),
+    });
+    await top(m).getByRole('button', { name: 'Pilih kategori' }).click();
+    const ppn = () => m.getByRole('option', { name: '↳ Setor PPN', exact: true });
+    await ppn().waitFor();
+    await ppn().scrollIntoViewIfNeeded();
+    await snap(m, 'fm-financing-picker', {
+      ...financeFields(),
+      option: ppn(),
+      list: m.getByRole('listbox'),
+      section: m.getByText('Pendanaan · tidak masuk Laba Rugi', { exact: true }),
+    });
+    await ppn().click();
+    await top(m).locator('input[type=text]').first().click();
+    await m.keyboard.type('3300000');
+    await top(m).locator('textarea').fill('Setor PPN masa Oktober 2026');
+    await up(label(top(m), 'Nomor Referensi')).locator('input').fill('NTPN-2611-0042');
+    await snap(m, 'fm-financing-filled', {
+      ...financeFields(),
+      hint: top(m).getByRole('note'),
+      tag: top(m).getByText('Pendanaan', { exact: true }).first(),
+    });
+    if (SAVE) {
+      await top(m).getByRole('button', { name: 'Simpan Pengeluaran' }).click();
+      await m.getByText('Pengeluaran berhasil dicatat').first().waitFor();
+    }
+    await top(m).getByRole('button', { name: 'Tutup' }).first().click();
+    await m.goto(BASE + '/cash-flow/expenses?date_from=2026-11-01&date_to=2026-11-30');
+    const ppnRow = () => m.getByRole('row', { name: /Setor PPN masa Oktober 2026/ }).first();
+    const loanRow = () => m.getByRole('row', { name: /Pembayaran pokok pinjaman - Bank BRI/ }).first();
+    await ppnRow().waitFor();
+    await m.waitForTimeout(800);
+    await snap(m, 'fm-financing-list', {
+      cards: up(m.getByText('Beban (masuk Laba Rugi)', { exact: true }).first(), 3),
+      financingCard: up(m.getByText('Pendanaan (tidak masuk Laba Rugi)', { exact: true }).first(), 2),
+      totalCard: up(m.getByText('Total keluar', { exact: true }).first(), 2),
+      row: ppnRow(),
+      badge: ppnRow().locator('td').nth(3).getByText('Pendanaan', { exact: true }),
+    });
+    // Pokok utang dari modul Utang: hanya-lihat (gembok, tanpa centang) + tautan "kelola di Utang".
+    await m.goto(BASE + '/cash-flow/expenses?search=' + encodeURIComponent('Pembayaran pokok pinjaman'));
+    await loanRow().waitFor();
+    await m.waitForTimeout(800);
+    await snap(m, 'fm-financing-locked', {
+      cards: up(m.getByText('Beban (masuk Laba Rugi)', { exact: true }).first(), 3),
+      row: loanRow(),
+      lock: loanRow().locator('td').first(),
+      note: loanRow().getByText(/kelola di Utang/),
+    });
 
     }
     if (!SKIP.includes('transfer')) {

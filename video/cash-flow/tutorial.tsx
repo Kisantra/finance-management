@@ -2,7 +2,7 @@ import { ImpactScene, impactSceneFrames, Intro, Outro, RecapScene, RecordScene, 
 import { buildTutorial, chapterCard, type Tutorials, walk } from '../components/tutorial';
 import { ROLES } from '../roles';
 import { guide } from './guide';
-import { ADMIN_DELETE_STEPS, ADMIN_IMPACT_STEPS, EDIT_STEPS, EXPENSE_STEPS, INCOME_STEPS, TRANSFER_STEPS } from './steps';
+import { ADMIN_DELETE_STEPS, ADMIN_IMPACT_STEPS, EDIT_STEPS, EXPENSE_STEPS, FINANCING_STEPS, INCOME_STEPS, TRANSFER_STEPS } from './steps';
 
 /* Arus Kas hanya untuk Finance manager & Admin (Staff tidak punya izin income/expense/transfer). */
 
@@ -10,13 +10,15 @@ const outro = { id: 'outro', frames: 90, node: <Outro where="Arus Kas › Pemasu
 
 export const TUTORIALS: Tutorials = {
     fm: buildTutorial('CashFlowFinanceManager', ROLES.fm, [
-        { id: 'intro', frames: 105, node: <Intro module={guide.title} role={ROLES.fm} title="Mencatat uang masuk & keluar" summary="Pemasukan, pengeluaran, dan transfer antar rekening, lengkap dengan buktinya." />, chapter: 'Pengantar' },
+        { id: 'intro', frames: 105, node: <Intro module={guide.title} role={ROLES.fm} title="Mencatat uang masuk & keluar" summary="Pemasukan, pengeluaran, pendanaan, dan transfer antar rekening, lengkap dengan buktinya." />, chapter: 'Pengantar' },
         walk('walk-income', INCOME_STEPS, ROLES.fm, 'Pemasukan'),
-        chapterCard('chapter-expense', ROLES.fm, 2, 4, 'Mencatat pengeluaran', 'Kategori yang Anda pilih menentukan baris di Laba Rugi.', 'Pengeluaran'),
+        chapterCard('chapter-expense', ROLES.fm, 2, 5, 'Mencatat pengeluaran', 'Kategori yang Anda pilih menentukan baris di Laba Rugi.', 'Pengeluaran'),
         walk('walk-expense', EXPENSE_STEPS, ROLES.fm),
-        chapterCard('chapter-transfer', ROLES.fm, 3, 4, 'Transfer antar rekening', 'Pindah dana antar rekening sendiri, termasuk biaya admin bank.', 'Transfer'),
+        chapterCard('chapter-financing', ROLES.fm, 3, 5, 'Mencatat pendanaan', 'Setor PPN, setoran modal, prive: saldo berubah, Laba Rugi tidak.', 'Pendanaan'),
+        walk('walk-financing', FINANCING_STEPS, ROLES.fm),
+        chapterCard('chapter-transfer', ROLES.fm, 4, 5, 'Transfer antar rekening', 'Pindah dana antar rekening sendiri, termasuk biaya admin bank.', 'Transfer'),
         walk('walk-transfer', TRANSFER_STEPS, ROLES.fm),
-        chapterCard('chapter-edit', ROLES.fm, 4, 4, 'Mengoreksi catatan', 'Yang bisa diubah, dan yang harus dikoreksi dari modul asalnya.', 'Koreksi'),
+        chapterCard('chapter-edit', ROLES.fm, 5, 5, 'Mengoreksi catatan', 'Yang bisa diubah, dan yang harus dikoreksi dari modul asalnya.', 'Koreksi'),
         walk('walk-edit', EDIT_STEPS, ROLES.fm),
         outro,
     ]),
