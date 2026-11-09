@@ -2,6 +2,8 @@ import { useForm } from '@inertiajs/react';
 import { Building2, Pencil, Wallet } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { BankLogo } from '@/components/shared/bank-logo';
+import { Autocomplete, type AutocompleteOption } from '@/components/ui/autocomplete';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import {
@@ -15,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmented-control';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { BANKS } from '@/lib/banks';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import type { AccountListItem, AccountType, CustodianOption } from '../types';
 
@@ -46,6 +49,14 @@ const TYPE_OPTIONS: SegmentedOption<AccountType>[] = [
     { value: 'bank', label: 'Bank', icon: <Building2 className="h-4 w-4" /> },
     { value: 'cash', label: 'Kas', icon: <Wallet className="h-4 w-4" /> },
 ];
+
+/* Saran Nama Bank dari katalog; nama di luar daftar tetap boleh diketik. */
+const BANK_OPTIONS: AutocompleteOption[] = BANKS.map((bank) => ({
+    value: bank.name,
+    description: bank.description,
+    keywords: bank.aliases,
+    icon: <BankLogo bankName={bank.name} className="h-8 w-8 rounded-lg" />,
+}));
 
 function initialData(account?: AccountListItem | null): AccountForm {
     return {
@@ -200,11 +211,20 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                                     placeholder="1234567890"
                                     error={errors.account_number}
                                 />
-                                <Input
+                                <Autocomplete
                                     label="Nama Bank *"
                                     value={data.bank_name}
-                                    onChange={(e) => setData('bank_name', e.target.value)}
-                                    placeholder="BCA, Mandiri, BNI..."
+                                    onChange={(v) => setData('bank_name', v)}
+                                    options={BANK_OPTIONS}
+                                    placeholder="Ketik atau pilih, mis. BCA"
+                                    icon={
+                                        <BankLogo
+                                            bankName={data.bank_name}
+                                            className="h-6 w-6 rounded-lg"
+                                            fallback={<Building2 className="h-4 w-4 text-ob-ink-3" />}
+                                        />
+                                    }
+                                    hint="Pilih dari daftar, atau ketik sendiri bila bank tidak ada."
                                     error={errors.bank_name}
                                 />
                                 <Input
