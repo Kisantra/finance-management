@@ -102,6 +102,8 @@ class NamaAtributValidasiTest extends TestCase
 
     public function test_halaman_403_menerjemahkan_pesan_bawaan_laravel(): void
     {
+        // Halaman error Inertia hanya tampil bila debug mati; tanpa ini hasilnya ikut .env (CI: debug nyala → halaman bawaan Laravel).
+        config(['app.debug' => false]);
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         $user = User::factory()->create(['locale' => 'zh']);
 
