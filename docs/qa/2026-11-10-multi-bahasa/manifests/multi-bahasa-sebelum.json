@@ -1,0 +1,254 @@
+{
+  "module": "multi-bahasa-sebelum",
+  "title": "QA \"sebelum\": Multi bahasa (ID · EN · ZH)",
+  "kicker": "QA 10 NOVEMBER 2026 · MULTI BAHASA · SEBELUM PERUBAHAN",
+  "date": "10 November 2026",
+  "environment": "database bhs_central + bhs_central_tenant_bahasaqa (dibuat khusus), php artisan serve --env=bhs di http://127.0.0.1:8149 (APP_ENV=bhs, sesi & cache database, antrean sync, mail & log saluran daily), MySQL 8.0.45, PHP 8.5.4, aset dari Vite dev server pengembang ([::1]:5173, tidak diubah), Chromium headless 145 lewat Python Playwright 1.58 viewport 1280x900 DPR 1, kode cabang fitur/multi-bahasa di 629312c (belum ada perubahan multi bahasa)",
+  "scope": "Membuktikan atau membantah dugaan dari pembacaan kode (rencana §1 dan §2) tentang perilaku pemilih bahasa ID/EN/ZH SEBELUM perubahan: pemilihan EN, pemilihan ZH (label, toast, validasi), persistensi lintas sesi, PDF invoice, DatePicker, grafik berlabel server, email reset kata sandi, halaman login, dan pindaian teks DOM.",
+  "shots_src": "../evidence/multi-bahasa",
+  "shots_dst": "../evidence/multi-bahasa",
+  "evidence_into": "../test-cases/multi-bahasa-sebelum.md",
+  "report_out": "../report/Laporan-QA-multi-bahasa-sebelum.pdf",
+  "summary": [
+    "Dari 9 case berdugaan, 8 terbukti penuh dan 1 terbukti sebagian: pada A02 dugaan \"toast sukses mungkin Mandarin\" TERBANTAH (toast tertulis Indonesia di klien); label Indonesia dan validasi Inggris terbukti.",
+    "A06 (dugaan lemah) terbukti: label bulan buatan server sudah Mandarin di ZH, tetapi bercampur dengan label buatan klien yang Indonesia (\"1–10 11月\").",
+    "Temuan baru: halaman login/lupa kata sandi tidak punya pemilih bahasa (A08); pesan status \"A reset link will be sent…\" berbahasa Inggris di halaman Indonesia (A07); bawaan pustaka DatePicker memberi aria-label Inggris ganda (A05); validasi ZH memadukan kalimat Inggris dengan nama kolom Indonesia (A02)."
+  ],
+  "bugs": [],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Tampilan Indonesia (baseline)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tampilan ID sebagai pembanding",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Dashboard dalam bahasa Indonesia (pemilih bahasa menunjukkan ID)."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Arus Kas tab Semua dalam bahasa Indonesia."
+        },
+        {
+          "img": "N01-3",
+          "cap": "Dialog Catat Pemasukan dalam bahasa Indonesia."
+        },
+        {
+          "img": "N01-4",
+          "cap": "Daftar Invoice dalam bahasa Indonesia."
+        }
+      ]
+    },
+    {
+      "section": "B. KASUS BERDUGAAN (DIBUKTIKAN ATAU DIBANTAH)"
+    },
+    {
+      "id": "A01",
+      "title": "Pilih EN: tidak ada yang berubah, tanpa pesan",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Memilih English di pemilih bahasa header",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Menu bahasa di header terbuka: tiga pilihan Indonesia, English, 中文."
+        },
+        {
+          "img": "A01-2",
+          "cap": "Setelah memilih EN: halaman tetap berbahasa Indonesia, tanpa pesan apa pun."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Pilih ZH: label Indonesia, toast, dan validasi",
+      "verdict": "Terbukti sebagian: toast terbantah",
+      "attempts": "p",
+      "note": "Pilih ZH → simpan transaksi pemasukan → kirim formulir kosong",
+      "steps": [
+        {
+          "img": "A02-1",
+          "cap": "Setelah memilih ZH: pemilih menunjukkan ZH, tetapi menu dan seluruh isi halaman tetap berbahasa Indonesia."
+        },
+        {
+          "img": "A02-2",
+          "cap": "Dialog Catat Pemasukan di sesi ZH terisi: seluruh label, kotak Jurnal, dan tombol tetap bahasa Indonesia."
+        },
+        {
+          "img": "A02-3",
+          "cap": "Toast sukses setelah menyimpan di sesi ZH."
+        },
+        {
+          "img": "A02-4",
+          "cap": "Formulir kosong dikirim di sesi ZH: pesan validasi dari server (Inggris bercampur nama kolom Indonesia) dan toast \"Periksa kembali isian form\" (Indonesia)."
+        },
+        {
+          "img": "A02-5",
+          "cap": "Pembanding: formulir kosong yang sama dikirim di sesi ID (users.locale = zh di DB, tetapi sesi baru berbahasa ID): pesan validasi."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "ZH → keluar → sesi baru → login: bahasa kembali ke ID",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Preferensi bahasa tersimpan tidak dipakai di sesi baru",
+      "steps": [
+        {
+          "img": "A03-1",
+          "cap": "Sesi pertama: bahasa ZH dipilih (pemilih menunjukkan ZH); users.locale = zh di database."
+        },
+        {
+          "img": "A03-2",
+          "cap": "Menu pengguna dibuka; pilih Keluar."
+        },
+        {
+          "img": "A03-3",
+          "cap": "Setelah Keluar dan cookie dibersihkan (sesi baru): halaman login berbahasa Indonesia; users.locale masih zh di database."
+        },
+        {
+          "img": "A03-4",
+          "cap": "Login ulang di sesi baru: pemilih menunjukkan ID dan seluruh tampilan Indonesia walau users.locale tetap zh."
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "Unduh PDF invoice saat ZH",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "PDF invoice ikut bahasa tampilan dan font tanpa huruf Mandarin",
+      "steps": [
+        {
+          "img": "A04-1",
+          "cap": "Sesi ZH: invoice 001/INV/BQA-MJ/XI/2026 dibuka, dialog \"Cetak invoice\" tampil dalam bahasa Indonesia."
+        },
+        {
+          "img": "A04-2",
+          "cap": "Halaman 1 PDF invoice yang diunduh saat bahasa ZH."
+        },
+        {
+          "img": "A04-3",
+          "cap": "Pembanding: PDF invoice yang sama diunduh saat bahasa ID."
+        }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "DatePicker saat ZH",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Nama bulan & hari kalender ikut bahasa aktif",
+      "steps": [
+        {
+          "img": "A05-1",
+          "cap": "Sesi ZH: DatePicker pada dialog Catat Pemasukan dibuka — judul bulan \"November 2026\", nama hari S R K J S M, tombol, dan teks bantu tetap Indonesia."
+        }
+      ]
+    },
+    {
+      "id": "A06",
+      "title": "Grafik Dashboard & Kas & Bank saat ZH",
+      "verdict": "Terbukti (campur)",
+      "attempts": "p",
+      "note": "Label bulan/tanggal buatan server ikut Carbon",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Dashboard sesi ZH: sumbu bulan pada grafik Arus Kas (label buatan server) tampil dalam Mandarin; judul kartu dan teks lain tetap Indonesia."
+        },
+        {
+          "img": "A06-2",
+          "cap": "Grafik Arus Kas periode Mingguan (sesi ZH), diperbesar: rentang \"24 Agu – 15 Nov\" dan label sumbu Indonesia (dibuat di sisi klien), tetapi keterangan kartu \"Pemasukan 1–10 11月\" memakai bulan Mandarin dari server."
+        },
+        {
+          "img": "A06-3",
+          "cap": "Kas & Bank sesi ZH (potongan grafik \"Pemasukan vs Pengeluaran\"): sumbu bulan buatan server \"12月 2025 … 11月 2026\" Mandarin, sementara judul, legenda, dan angka Indonesia."
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "title": "Lupa kata sandi: bahasa email",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Email reset kata sandi di sesi ID dan ZH",
+      "steps": [
+        {
+          "img": "A07-1",
+          "cap": "Halaman Lupa kata sandi, sesi ID: berbahasa Indonesia."
+        },
+        {
+          "img": "A07-2",
+          "cap": "Setelah mengirim permintaan (sesi ID, akun admin@bhs.test): pesan konfirmasi di halaman berbahasa Inggris."
+        },
+        {
+          "img": "A07-3",
+          "cap": "Halaman Lupa kata sandi, sesi ZH: berbahasa Indonesia."
+        },
+        {
+          "img": "A07-4",
+          "cap": "Setelah mengirim permintaan (sesi ZH): pesan konfirmasi di halaman."
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "title": "Halaman login: tanpa pemilih bahasa",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Temuan tambahan: tamu tidak bisa memilih bahasa",
+      "steps": [
+        {
+          "img": "A08-1",
+          "cap": "Halaman login (tamu, bahasa Indonesia). Tidak ada pemilih bahasa di halaman ini."
+        },
+        {
+          "img": "A08-2",
+          "cap": "Sesudah memilih EN lewat permintaan POST /language sebagai tamu (halaman tidak punya pemilih, jadi dikirim lewat skrip): tampilan sama persis."
+        },
+        {
+          "img": "A08-3",
+          "cap": "Sesudah memilih ZH sebagai tamu: halaman tetap Indonesia (hanya atribut lang pada tag html yang menjadi zh)."
+        }
+      ]
+    },
+    {
+      "id": "A09",
+      "title": "Pindai teks DOM saat ZH",
+      "verdict": "Terbukti",
+      "attempts": "p",
+      "note": "Hitung kasar teks Latin/Indonesia yang tersisa di layar ZH",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "Dashboard sesi ZH: hanya label bulan buatan server yang Mandarin; seluruh sisanya Indonesia."
+        },
+        {
+          "img": "A09-2",
+          "cap": "Arus Kas (Semua) sesi ZH: 0 baris Mandarin dari 207 baris teks."
+        },
+        {
+          "img": "A09-3",
+          "cap": "Daftar Invoice sesi ZH: 0 baris Mandarin dari 105 baris teks."
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "tooling_problems": [
+    "Klik menu pengguna › Keluar lewat pencari teks gagal dua kali tanpa mengeluarkan sesi (penyebab pasti tidak ditelusuri); berhasil setelah memakai peran `menuitem`. Murni masalah skrip uji.",
+    "Dua percobaan awal A02 memicu penyimpanan transaksi ganda (\"Uji bahasa ZH pemasukan\"): skrip menunggu dialog tertutup, padahal dialog Catat memang sengaja tetap terbuka setelah simpan (komentar \"Jangan tutup modal\" di kode). Duplikat dihapus lewat SQL di DB tenant bhs (hanya baris uji); tersisa 1 transaksi uji (id 20).",
+    "Pembacaan pesan validasi pertama terlalu dini (sebelum respons server) sehingga kosong; setelah menunggu toast, pesan terbaca. Bukan cacat aplikasi.",
+    "Halaman login tidak punya pemilih bahasa, sehingga EN/ZH untuk tamu dipicu dengan fetch POST /language dari skrip (A07, A08).",
+    "A03: users.locale sudah zh sejak A02 (dibiarkan agar A03 menguji kondisi \"preferensi tersimpan\"); nilai \"sebelum\" yang dicatat memang zh.",
+    "Email ketiga (admin@bhs.test, sesi ID) dikirim ulang hanya untuk mengambil screenshot pesan konfirmasi yang terlewat; log mail di storage/logs/laravel-2026-11-10.log (terpisah dari laravel.log)."
+  ],
+  "honesty": "Dugaan berasal dari pembacaan kode oleh orkestrator; agen QA ini tidak menulis kode aplikasi, tetapi membaca SetLocale, rute /language, dan config/app.php sebelum menguji sehingga skenario condong ke dugaan itu. Perilaku diamati lewat eksekusi nyata (UI headless, DB, log, PDF). Tidak diverifikasi: kualitas terjemahan Mandarin (belum ada), tampilan di perangkat nyata, penyebab pasti kegagalan klik Keluar pada skrip. Pemeriksa manusia sebaiknya membuka PDF ZH (evidence A04-2) dan mencoba EN/ZH manual lima menit untuk memastikan tanda tanya di PDF bukan artefak render gambar."
+}
