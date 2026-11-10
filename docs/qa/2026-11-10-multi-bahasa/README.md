@@ -77,7 +77,7 @@ Setelah seluruh pekerjaan multi bahasa di-commit (cabang `fitur/multi-bahasa`, `
 
 | Berkas | Isi |
 |---|---|
-| [`test-cases/multi-bahasa-sesudah.md`](test-cases/multi-bahasa-sesudah.md) | 40 case: N01–N02 (ID), A01–A09 (dugaan lama dibalik + tata letak), C01–C29 (matriks modul §6 dengan pemindai DOM) |
+| [`test-cases/multi-bahasa-sesudah.md`](test-cases/multi-bahasa-sesudah.md) | 54 case (putaran 1 dan 2): N01–N02 (ID), A01–A09 (dugaan lama dibalik + tata letak), C01–C29 (matriks modul §6 dengan pemindai DOM) |
 | [`pemindai-dom.md`](pemindai-dom.md) | Tabel per layar, daftar pengecualian sah, daftar temuan F01–F13 dengan lokasi dan dugaan berkas sumber |
 | [`manifests/multi-bahasa-sesudah.json`](manifests/multi-bahasa-sesudah.json) | Sumber data case dan bukti |
 | `evidence/multi-bahasa-sesudah/` | Tangkapan layar per langkah (420 px; perbandingan N02 dan tata letak A09 lebih lebar) |
@@ -105,3 +105,25 @@ Setelah seluruh pekerjaan multi bahasa di-commit (cabang `fitur/multi-bahasa`, `
 - Data tambahan lewat skrip yang menolak berjalan di luar `bhs_central`: layanan, invoice draft dan jatuh tempo lewat, reimbursement dan pengajuan dana tiap status, utang/piutang lunas, template berulang, tiga Masukan, notifikasi. Dua template PDF dan beberapa transaksi uji dibuat oleh crawler.
 - Skrip (di luar repo, `...\scratchpadhs\`): `crawl.py`, `rows2.py`, `special.py`, `pdfbuilder.py`, `layout.py`, `rawscan.py`, `after1.py`, `after2.py`, `final_report.py`.
 - Screenshot 1280 px untuk dokumen PR: `...\scratchpadhs\pr-sesudah\` (`{id,en,zh}-{dashboard,aruskas,dialog-pemasukan,invoice,login,reimbursement}.png` dan `{id,en,zh}-pdf-invoice.png`).
+
+---
+
+# Gelombang 5b: uji ulang setelah perbaikan (putaran 2, commit `1e7de08`)
+
+Temuan F01–F13 diperbaiki; seluruh pemindaian dijalankan ulang dengan skrip yang sama pada lingkungan `bhs` yang sama, ditambah verifikasi tiap temuan di layar asalnya (case A10–A22, masing-masing dengan screenshot sebelum bila tersedia) dan regresi cepat ID (N03).
+
+| Kriteria | Putaran 1 | Putaran 2 |
+|---|---|---|
+| K7 ZH, temuan non-pengecualian | 12 unik | **0** (1.083 layar/keadaan) |
+| K7 EN, temuan non-pengecualian | 8 unik | **0** (1.109 layar/keadaan) |
+| Tata letak EN 390 px (F13) | 1 temuan | 0; gulir horizontal 0 di semua kombinasi; 1280 px sama |
+| Console `[i18n] belum diterjemahkan` | 2 kunci | 0 |
+| Case lulus | 24 dari 40 | **54 dari 54** (29 lulus pada percobaan ke-2) |
+| Status F01–F13 | terbuka | 13 dari 13 diperbaiki dan terverifikasi |
+| Temuan baru | | tidak ada |
+
+Pengecualian baru: kontrol pemutar Remotion ("Pause video", "Mute sound", "Enter Fullscreen", tertulis keras di pustaka) dan teks di dalam bingkai video Tutorial (isi video, K3). Daftar pengecualian final ada di [`pemindai-dom.md`](pemindai-dom.md).
+
+Regresi ID: validasi Tambah Layanan kini "Jenis wajib diisi." (sebelumnya "Type wajib diisi."); layar ID lain tidak bergeser.
+
+Screenshot PR terbaru (1280 px, ID/EN/ZH × dashboard, aruskas, dialog-pemasukan, invoice, reimbursement, izin, kasbank, berulang, login, pdf-invoice): `...\scratchpadhs\pr-sesudah\`. Skrip tambahan (di luar repo): `verify.py`, `prshots2.py`, `gen_docs3.py`.
