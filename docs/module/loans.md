@@ -51,7 +51,7 @@ Model: `app/Models/Loan.php` (relasi `payments()` hasMany), `app/Models/LoanPaym
    **Cakupan ini wajib.** Tanpanya, pembayaran pinjaman yang sudah lunas ikut terjumlah dan "sisa pokok" di layar menyusut oleh utang yang sudah selesai — makin melenceng pada pinjaman yang ditandai lunas manual (pembayarannya tidak genap). Dijaga `LoanControllerTest::test_ringkasan_sisa_pokok_hanya_mencakup_pinjaman_aktif`.
 5. Controller juga mengirim `bankAccountOptions` (semua rekening + saldo terformat) dan `nextLoanNumber` hasil `generateLoanNumber()`.
 6. Respons `Inertia::render('loans/index', ...)` → halaman React (gaya Obsidian) menampilkan ringkasan 4 angka (sisa pokok, pokok terbayar, bunga dibayar, jatuh tempo terdekat), pil status, dan tabel 6 kolom dengan sisa pokok (`remaining_principal = principal_amount − Σprincipal_paid`) + batang progres.
-   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian yang terbuka saat baris diklik (`components/loan-drawer.tsx`), berisi jadwal angsuran, Edit, Catat pembayaran, dan Hapus.
+   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian yang terbuka saat baris diklik (`components/loan-drawer.tsx`), berisi jadwal angsuran, Ubah, Catat pembayaran, dan Hapus.
 
 **Penjelasan kode:**
 ```php
@@ -96,10 +96,10 @@ Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kat
 
 Pencairan pinjaman dicatat sebagai transaksi **credit** (uang masuk). Lookup kategori memakai null-safe `$category?->id`. Kategori sistem diidentifikasi lewat kolom `system_key` (dulu `code`, sudah di-drop).
 
-### Edit Pinjaman (Update)
+### Ubah Pinjaman (Update)
 
 **Alur step-by-step:**
-1. User klik "Edit" pada baris berstatus `active` → dialog form ter-prefill.
+1. User klik "Ubah" pada baris berstatus `active` → dialog form ter-prefill.
 2. `PUT /loans/{loan}` → `can:edit loans` → guard controller: `abort_if($loan->status !== 'active', 403)` — pinjaman lunas tidak bisa diedit.
 3. Validasi `UpdateLoanRequest` (mirip store, tanpa `bank_account_id`).
 4. Lampiran: flag `remove_attachment` menghapus file lama; upload baru menggantikan (file lama di-delete dari disk `public`).

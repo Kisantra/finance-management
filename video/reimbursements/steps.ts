@@ -15,7 +15,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-list'),
         focus: S['staff-list'].summary,
         zoom: 1.25,
-        caption: 'Ringkasan menunjukkan uang Anda di tiap tahap: menunggu review, menunggu dibayar, dan sudah dibayar.',
+        caption: 'Ringkasan menunjukkan uang Anda di tiap tahap: menunggu persetujuan, menunggu dibayar, dan sudah dibayar.',
     },
     {
         src: img('staff-list'),
@@ -86,7 +86,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-drawer-pending'),
         focus: S['staff-drawer-pending'].status,
         zoom: 1.8,
-        caption: 'Pengajuan terkirim. Statusnya kini Menunggu review.',
+        caption: 'Pengajuan terkirim. Statusnya kini Menunggu persetujuan.',
         chime: true,
         duration: 100,
     },
@@ -110,7 +110,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-list'),
         focus: S['fm-list'].statusFilter,
         zoom: 1.5,
-        caption: 'Filter Menunggu review menampilkan antrean yang perlu ditinjau.',
+        caption: 'Filter Menunggu persetujuan menampilkan antrean yang perlu ditinjau.',
     },
     {
         src: img('fm-list'),
@@ -254,7 +254,7 @@ export const REJECT_STAFF_STEPS: Step[] = [
         cursor: S['staff-drawer-rejected'].resubmit,
         click: true,
         zoom: 1.7,
-        caption: 'Klik Perbaiki & ajukan ulang. Setelah diperbaiki dan diajukan, statusnya kembali Menunggu review.',
+        caption: 'Klik Perbaiki & ajukan ulang. Setelah diperbaiki dan diajukan, statusnya kembali Menunggu persetujuan.',
         duration: 150,
     },
 ];

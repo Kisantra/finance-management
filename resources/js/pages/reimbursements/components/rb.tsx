@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react';
 import { StatusPill } from '@/components/dashboard/widget';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { t, tk } from '@/i18n';
 
 /*
  * Bahan bersama modul Reimbursement (gaya Obsidian). Komponen visual umum — BTN, CARD, FIELD,
@@ -11,11 +12,11 @@ import { cn } from '@/lib/utils';
 export type ReimbursementStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'paid';
 
 export const STATUS_LABEL: Record<ReimbursementStatus, string> = {
-    draft: 'Draft',
-    pending: 'Menunggu review',
-    approved: 'Disetujui',
-    rejected: 'Ditolak',
-    paid: 'Lunas',
+    draft: tk('Draft'),
+    pending: tk('Menunggu persetujuan'),
+    approved: tk('Disetujui'),
+    rejected: tk('Ditolak'),
+    paid: tk('Lunas'),
 };
 
 /** Tone sesuai design system: tunggu = wait, aktif = act, final = ikon centang/silang. */
@@ -24,21 +25,21 @@ export function ReimbursementStatusPill({ status, className }: { status: string;
         case 'paid':
             return (
                 <StatusPill tone="pos" icon={<Check className="h-3 w-3" strokeWidth={3} />} className={className}>
-                    Lunas
+                    {t('Lunas')}
                 </StatusPill>
             );
         case 'rejected':
             return (
                 <StatusPill tone="late" icon={<X className="h-3 w-3" strokeWidth={3} />} className={className}>
-                    Ditolak
+                    {t('Ditolak')}
                 </StatusPill>
             );
         case 'approved':
-            return <StatusPill tone="act" className={className}>Disetujui</StatusPill>;
+            return <StatusPill tone="act" className={className}>{t('Disetujui')}</StatusPill>;
         case 'pending':
-            return <StatusPill tone="wait" className={className}>Menunggu review</StatusPill>;
+            return <StatusPill tone="wait" className={className}>{t('Menunggu persetujuan')}</StatusPill>;
         default:
-            return <StatusPill tone="neutral" className={className}>Draft</StatusPill>;
+            return <StatusPill tone="neutral" className={className}>{t('Draft')}</StatusPill>;
     }
 }
 
@@ -67,7 +68,7 @@ export async function rbAction(url: string, method: 'POST' | 'DELETE', body?: Re
         ? Object.fromEntries(Object.entries(data.errors as Record<string, string[]>).map(([k, v]) => [k, v[0]]))
         : res.ok
           ? {}
-          : { _: data.message ?? `Server membalas ${res.status}.` };
+          : { _: data.message ?? t('Server membalas {{status}}.', { status: res.status }) };
     return { ok: res.ok, message: data.message, id: data.id, errors };
 }
 

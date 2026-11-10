@@ -44,6 +44,7 @@ import type {
     TransferFilters,
     TransferRow,
 } from './types';
+import { t, Trans } from '@/i18n';
 
 interface Props {
     rows: TransferRow[];
@@ -90,10 +91,10 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
     };
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) apply({ search, page: 1 });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -133,11 +134,11 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success(`${selected.length} transfer berhasil dihapus`);
+                    toast.success(t('{{count}} transfer berhasil dihapus', { count: selected.length }));
                     setSelected([]);
                     setBulkDeleteOpen(false);
                 },
-                onError: () => toast.error('Gagal menghapus'),
+                onError: () => toast.error(t('Gagal menghapus')),
                 onFinish: () => setDeleteProcessing(false),
             },
         );
@@ -161,27 +162,27 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
     const periodLabel =
         filters.date_from && filters.date_to
             ? `${formatDate(filters.date_from)} – ${formatDate(filters.date_to)}`
-            : 'Semua waktu';
+            : t('Semua waktu');
 
     return (
         <AppLayout>
-            <Head title="Transfer & Penyesuaian" />
+            <Head title={t('Transfer & Penyesuaian', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Transfer & Penyesuaian"
-                    description="Riwayat transfer antar rekening internal Anda."
+                    title={t('Transfer & Penyesuaian', { context: 'menu' })}
+                    description={t('Riwayat transfer antar rekening internal Anda.')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="cash-flow" />
                             <Button variant="outline" size="md" onClick={exportPdf}>
                                 <Download className="w-4 h-4" />
-                                Export PDF
+                                {t('Ekspor PDF')}
                             </Button>
                             {canCreate && accounts.length > 1 && (
                                 <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
                                     <Plus className="w-4 h-4" />
-                                    Input Transfer
+                                    {t('Catat Transfer')}
                                 </Button>
                             )}
                         </div>
@@ -191,7 +192,7 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                 <CashFlowStatsBar
                     stats={stats}
                     period={periodLabel}
-                    primaryLabel="Total Transfer"
+                    primaryLabel={t('Total Transfer')}
                     primaryTone="purple"
                 />
 
@@ -199,26 +200,26 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <DatePicker
                             mode="range"
-                            label="Rentang Tanggal"
+                            label={t('Rentang Tanggal')}
                             value={{ from: parseIso(filters.date_from), to: parseIso(filters.date_to) }}
                             onChange={(r) => apply({ date_from: isoOrNull(r.from), date_to: isoOrNull(r.to), page: 1 })}
-                            placeholder="Pilih rentang"
+                            placeholder={t('Pilih rentang')}
                             clearable
                         />
                         <Combobox
-                            label="Rekening Terkait"
+                            label={t('Rekening Terkait')}
                             options={bankAccountOptions}
                             value={filters.bank_accounts[0] ?? null}
                             onChange={(v) => apply({ bank_accounts: v ? [Number(v)] : [], page: 1 })}
-                            placeholder="Semua rekening"
+                            placeholder={t('Semua rekening')}
                             clearable
                         />
                         <Input
-                            label="Cari"
+                            label={t('Cari')}
                             icon={<Search className="w-4 h-4" />}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Deskripsi, referensi..."
+                            placeholder={t('Deskripsi, referensi...')}
                         />
                     </div>
 
@@ -227,18 +228,22 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="w-3 h-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <span className="text-sm text-dark-500 dark:text-dark-400">
-                                Menampilkan <span className="tabular-nums">{rows.length}</span> dari{' '}
-                                <span className="tabular-nums">{pagination.total}</span> hasil
+                                <Trans
+                                    i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil"
+                                    count={pagination.total}
+                                    values={{ shown: rows.length }}
+                                    components={{ b: <span className="tabular-nums" /> }}
+                                />
                             </span>
                         </div>
                         {activeFilterCount > 0 && (
                             <Button variant="ghost" size="sm" onClick={reset}>
                                 <X className="w-3.5 h-3.5" />
-                                Reset
+                                {t('Hapus filter')}
                             </Button>
                         )}
                     </div>
@@ -248,8 +253,8 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                     {rows.length === 0 ? (
                         <EmptyState
                             icon={<ArrowLeftRight className="w-7 h-7" />}
-                            title="Belum ada transfer"
-                            description="Buat transfer pertama Anda dari halaman Kas & Bank."
+                            title={t('Belum ada transfer')}
+                            description={t('Buat transfer pertama Anda dari halaman Kas & Bank.')}
                         />
                     ) : (
                         <div className="overflow-x-auto">
@@ -260,19 +265,19 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                                             <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Tanggal
+                                            {t('Tanggal')}
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Alur Transfer
+                                            {t('Alur Transfer')}
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden lg:table-cell">
-                                            Deskripsi
+                                            {t('Deskripsi')}
                                         </th>
                                         <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Jumlah
+                                            {t('Jumlah')}
                                         </th>
                                         <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">
-                                            Total Debit
+                                            {t('Total Keluar')}
                                         </th>
                                     </tr>
                                 </thead>
@@ -331,7 +336,7 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                                                 </div>
                                                 {row.admin_fee > 0 && (
                                                     <div className="text-[11px] text-dark-500 dark:text-dark-400">
-                                                        + admin {formatCurrency(row.admin_fee)}
+                                                        {t('+ admin {{amount}}', { amount: formatCurrency(row.admin_fee) })}
                                                     </div>
                                                 )}
                                             </td>
@@ -356,16 +361,16 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
                         <div className="flex items-center gap-2">
                             <Badge variant="default">{selected.length}</Badge>
                             <span className="text-sm font-medium text-dark-900 dark:text-dark-50">
-                                transfer dipilih
+                                {t('transfer dipilih', { count: selected.length })}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="zinc" size="sm" onClick={() => setSelected([])}>
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button variant="red" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                                 <Trash2 className="w-3.5 h-3.5" />
-                                Hapus
+                                {t('Hapus')}
                             </Button>
                         </div>
                     </div>
@@ -375,9 +380,9 @@ export default function CashFlowTransfers({ rows, pagination, stats, filters, ba
             <ConfirmDialog
                 open={bulkDeleteOpen}
                 onOpenChange={setBulkDeleteOpen}
-                title={`Hapus ${selected.length} transfer?`}
-                description="Pasangan transfer (debit + credit) akan ikut terhapus. Tindakan ini tidak dapat dibatalkan."
-                confirmLabel={`Hapus ${selected.length}`}
+                title={t('Hapus {{count}} transfer?', { count: selected.length })}
+                description={t('Kedua sisi transfer (keluar dan masuk) akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.')}
+                confirmLabel={t('Hapus {{n}}', { n: selected.length })}
                 loading={deleteProcessing}
                 onConfirm={handleBulkDelete}
             />
@@ -416,7 +421,7 @@ function AccountChip({ account, tone }: AccountChipProps) {
         green: 'border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10 text-green-700 dark:text-green-300',
     };
     if (!account) {
-        return <span className="text-xs text-dark-400 dark:text-dark-500 italic">tidak diketahui</span>;
+        return <span className="text-xs text-dark-400 dark:text-dark-500 italic">{t('tidak diketahui')}</span>;
     }
     return (
         <div className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs min-w-0 max-w-44', toneMap[tone])}>

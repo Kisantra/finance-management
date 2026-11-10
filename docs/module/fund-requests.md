@@ -1,4 +1,4 @@
-# Modul: Permintaan Dana (Fund Requests)
+# Modul: Pengajuan Dana (Fund Requests)
 
 > Modul pengajuan dana operasional dengan alur persetujuan berjenjang: karyawan menyusun pengajuan berisi rincian item biaya, mengajukannya untuk direview, lalu setelah disetujui dananya dicairkan oleh finance dari rekening bank — pencairan otomatis membuat transaksi bank debit per item. Route prefix `/fund-requests`, seluruh grup digate `can:view fund requests`, dengan permission tambahan `create/edit/delete/approve/disburse fund requests` per aksi.
 
@@ -165,7 +165,7 @@ $fundRequest->disburse($transactionIds[0], $validated['disbursement_date'], auth
 
 Baris tabel dapat dibuka menjadi dialog detail (`index.tsx`) yang menampilkan: header pengajuan, lampiran pengajuan (`AttachmentPreviewButton`), daftar item (deskripsi, kategori, qty × harga, amount), jejak review, dan **seksi Pencairan** — nama rekening tujuan (`disbursement_account_name` dari `bankTransaction.bankAccount`) serta bukti bayar (`disbursement_attachment_url/name` diambil dari `BankTransaction` tertaut, bukan dari fund request sendiri).
 
-### Export PDF Rekap (`GET /fund-requests/export/pdf` dan `/fund-requests/export/pdf/preview`)
+### Ekspor PDF Rekap (`GET /fund-requests/export/pdf` dan `/fund-requests/export/pdf/preview`)
 
 **Alur step-by-step:**
 1. Kedua endpoint digate `can:view fund requests`, didefinisikan sebagai closure di `routes/web.php` (nama route `fund-requests.export.pdf` dan `.preview`).
@@ -189,7 +189,7 @@ Baris tabel dapat dibuka menjadi dialog detail (`index.tsx`) yang menampilkan: h
 - **Transaction Categories** — `category_id` item diambil dari `TransactionCategory::selectOptions('expense')` (parent disabled, child dipilih); kategori terbawa ke transaksi bank sehingga pengeluaran pencairan terklasifikasi otomatis.
 - **Company Profile** — `computed_abbreviation` menentukan segmen kedua nomor pengajuan (`KSN`).
 - **Sidebar badge (`HandleInertiaRequests::getActionCounts`)** — hitungan `fund_requests` = jumlah `pending` (bila user bisa approve) + jumlah `approved` (bila user bisa disburse); permission-aware.
-- **Dashboard** — saat ini tidak menampilkan data permintaan dana (tidak ada referensi `FundRequest` di `DashboardController`); satu-satunya penanda di luar modul adalah badge sidebar.
+- **Dashboard** — saat ini tidak menampilkan data pengajuan dana (tidak ada referensi `FundRequest` di `DashboardController`); satu-satunya penanda di luar modul adalah badge sidebar.
 - **Laporan Laba Rugi** — sesuai kebijakan project, pencairan fund request langsung menjadi beban lewat transaksi bank berkategori.
 
 ## Invarian & Jebakan

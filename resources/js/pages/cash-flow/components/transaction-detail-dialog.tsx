@@ -35,6 +35,7 @@ import { useCan } from '@/hooks/use-can';
 import { cashJournal, splitCashJournal, type JournalLine } from '@/lib/journal';
 import { cn, formatCurrency, formatDate, toastErrors, toLocalIso } from '@/lib/utils';
 import type { FilterOption } from '../types';
+import { t } from '@/i18n';
 
 /* ─── Discriminated union for dialog data ───────────────────── */
 
@@ -200,7 +201,7 @@ export function TransactionDetailDialog({ open, onOpenChange, data, categoryOpti
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Transaksi berhasil diperbarui');
+                toast.success(t('Transaksi berhasil diperbarui'));
                 onOpenChange(false);
             },
             onError: (errs) => toastErrors(errs, 'Gagal menyimpan perubahan'),
@@ -306,7 +307,7 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                            {isIncome ? 'Edit Pemasukan' : 'Edit Pengeluaran'}
+                            {isIncome ? t('Ubah Pemasukan') : t('Ubah Pengeluaran')}
                         </DialogTitle>
                         <p className="text-sm text-dark-500 dark:text-dark-400 mt-0.5">
                             ID #{data.id}
@@ -319,7 +320,7 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                 Jurnal, Deskripsi, Nomor Referensi, Lampiran. Rekening tidak bisa diganti di sini (tampil nonaktif). */}
             <form id="tx-edit-form" onSubmit={onSubmit} className="space-y-4 px-6 py-5">
                 <CurrencyInput
-                    label="Jumlah *"
+                    label={t('Jumlah *')}
                     value={form.amount}
                     onChange={(v) => setData('amount', v)}
                     error={errors.amount}
@@ -327,51 +328,51 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <DatePicker
                         mode="single"
-                        label="Tanggal *"
+                        label={t('Tanggal *')}
                         value={form.transaction_date ? new Date(form.transaction_date + 'T00:00:00') : null}
                         onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
                         error={errors.transaction_date}
                     />
-                    <Input label="Rekening" value={saved?.account ?? '—'} disabled readOnly />
+                    <Input label={t('Rekening')} value={saved?.account ?? '—'} disabled readOnly />
                 </div>
                 <div>
                     <div className="mb-1.5 flex items-center justify-between">
-                        <Label>Kategori *</Label>
+                        <Label>{t('Kategori *')}</Label>
                         <Button type="button" variant="link" size="sm" onClick={() => setQuickAddOpen(true)} className="h-auto gap-1 px-0 text-xs">
                             <Plus className="h-3 w-3" aria-hidden="true" />
-                            Tambah
+                            {t('Tambah')}
                         </Button>
                     </div>
                     <Combobox
                         options={withFinancingGroup(categoryOptions)}
                         value={form.category_id ?? undefined}
                         onChange={(v) => setData('category_id', v ? Number(v) : null)}
-                        placeholder="Pilih kategori"
+                        placeholder={t('Pilih kategori')}
                         error={errors.category_id}
                     />
                     {isFinancingCategory(categoryOptions, form.category_id) && (
                         <FinancingHint direction={isIncome ? 'credit' : 'debit'} amount={form.amount} />
                     )}
                 </div>
-                <JournalBox mode={changed ? 'preview' : 'saved'} lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
+                <JournalBox mode={changed ? 'preview' : 'saved'} lines={journal} placeholder={t('Pilih kategori untuk melihat jurnalnya.')} />
                 <Textarea
-                    label="Deskripsi *"
+                    label={t('Deskripsi *')}
                     value={form.description}
                     onChange={(e) => setData('description', e.target.value)}
-                    placeholder="Deskripsi transaksi"
+                    placeholder={t('Deskripsi transaksi')}
                     rows={2}
                     className="min-h-0" // dua baris persis (bawaan Textarea minimal 80 px)
                     error={errors.description}
                 />
                 <Input
-                    label="Nomor Referensi"
+                    label={t('Nomor Referensi')}
                     value={form.reference_number}
                     onChange={(e) => setData('reference_number', e.target.value)}
-                    placeholder="Opsional"
+                    placeholder={t('Opsional')}
                     error={errors.reference_number}
                 />
                 <FileUpload
-                    label="Lampiran"
+                    label={t('Lampiran')}
                     value={form.attachment}
                     onChange={(f) => {
                         setData('attachment', f);
@@ -393,7 +394,7 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
 
             <DialogFooter>
                 <Button type="button" variant="zinc" size="md" onClick={onClose} disabled={processing}>
-                    Batal
+                    {t('Batal')}
                 </Button>
                 {can(isIncome ? 'edit income' : 'edit expense') && (
                     <Button
@@ -403,7 +404,7 @@ function TransactionEditContent({ data, form, setData, errors, processing, categ
                         size="md"
                         disabled={processing}
                     >
-                        {processing ? 'Menyimpan…' : 'Simpan Perubahan'}
+                        {processing ? t('Menyimpan…') : t('Simpan Perubahan')}
                     </Button>
                 )}
             </DialogFooter>
@@ -427,7 +428,7 @@ function TransactionReadOnlyContent({ data, onClose }: { data: TransactionDialog
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                            {isIncome ? 'Rincian Pemasukan' : 'Rincian Pengeluaran'}
+                            {isIncome ? t('Rincian Pemasukan') : t('Rincian Pengeluaran')}
                         </DialogTitle>
                         <p className="text-sm text-dark-500 dark:text-dark-400 mt-0.5">ID #{data.id}</p>
                     </div>
@@ -436,23 +437,23 @@ function TransactionReadOnlyContent({ data, onClose }: { data: TransactionDialog
 
             <div className="px-6 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <DetailField label="Jumlah">
+                    <DetailField label={t('Jumlah')}>
                         <span className={cn('text-lg font-bold', isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
                             {isIncome ? '+' : '−'}{formatCurrency(data.amount)}
                         </span>
                     </DetailField>
-                    <DetailField label="Tanggal">{formatDate(data.date)}</DetailField>
-                    <DetailField label="Kategori">
+                    <DetailField label={t('Tanggal')}>{formatDate(data.date)}</DetailField>
+                    <DetailField label={t('Kategori')}>
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                             {data.category_label ?? '—'}
                             {data.is_financing && <FinancingBadge />}
                         </span>
                     </DetailField>
-                    <DetailField label="Referensi">
+                    <DetailField label={t('Referensi')}>
                         <span className="font-mono">{data.reference_number ?? '—'}</span>
                     </DetailField>
                     <div className="col-span-2">
-                        <DetailField label="Deskripsi">{data.description ?? '—'}</DetailField>
+                        <DetailField label={t('Deskripsi')}>{data.description ?? '—'}</DetailField>
                     </div>
                 </div>
 
@@ -466,7 +467,7 @@ function TransactionReadOnlyContent({ data, onClose }: { data: TransactionDialog
                         className="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                     >
                         <Paperclip className="w-3.5 h-3.5" />
-                        {data.attachment_name ?? 'Lihat Lampiran'}
+                        {data.attachment_name ?? t('Lihat Lampiran')}
                     </a>
                 )}
 
@@ -475,7 +476,7 @@ function TransactionReadOnlyContent({ data, onClose }: { data: TransactionDialog
 
             <DialogFooter>
                 <Button variant="zinc" size="md" onClick={onClose}>
-                    Tutup
+                    {t('Tutup')}
                 </Button>
             </DialogFooter>
         </>
@@ -499,7 +500,7 @@ function PaymentDetailContent({ data, onClose }: PaymentDetailProps) {
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                            Detail Pembayaran Invoice
+                            {t('Detail Pembayaran Invoice')}
                         </DialogTitle>
                         {data.invoice_number && (
                             <p className="text-sm font-mono text-dark-500 dark:text-dark-400 mt-0.5">
@@ -512,18 +513,18 @@ function PaymentDetailContent({ data, onClose }: PaymentDetailProps) {
 
             <div className="px-6 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <DetailField label="Jumlah">
+                    <DetailField label={t('Jumlah')}>
                         <span className="text-lg font-bold text-green-600 dark:text-green-400">
                             +{formatCurrency(data.amount)}
                         </span>
                     </DetailField>
-                    <DetailField label="Tanggal">
+                    <DetailField label={t('Tanggal')}>
                         {formatDate(data.date)}
                     </DetailField>
-                    <DetailField label="Klien">
+                    <DetailField label={t('Klien')}>
                         {data.client_name ?? '—'}
                     </DetailField>
-                    <DetailField label="Referensi">
+                    <DetailField label={t('Referensi')}>
                         <span className="font-mono">{data.reference_number ?? '—'}</span>
                     </DetailField>
                 </div>
@@ -538,26 +539,26 @@ function PaymentDetailContent({ data, onClose }: PaymentDetailProps) {
                             className="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                         >
                             <Paperclip className="w-3.5 h-3.5" />
-                            {data.attachment_name ?? 'Lihat Lampiran'}
+                            {data.attachment_name ?? t('Lihat Lampiran')}
                         </a>
                     </>
                 )}
 
                 <JournalBox
                     lines={data.journal}
-                    caption="Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar"
+                    caption={t('Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar')}
                 />
 
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-900/30 px-4 py-3">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
-                        Pembayaran ini terhubung dengan invoice. Untuk mengedit, buka halaman Invoice.
+                        {t('Pembayaran ini terhubung dengan invoice. Untuk mengubahnya, buka halaman Invoice.')}
                     </p>
                 </div>
             </div>
 
             <DialogFooter>
                 <Button variant="zinc" size="md" onClick={onClose}>
-                    Tutup
+                    {t('Tutup')}
                 </Button>
             </DialogFooter>
         </>
@@ -588,7 +589,7 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                            Detail Transfer
+                            {t('Detail Transfer')}
                         </DialogTitle>
                         {data.reference_number && (
                             <p className="text-xs font-mono text-dark-400 dark:text-dark-500 mt-0.5">
@@ -615,12 +616,12 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
 
                 {/* Amount summary */}
                 <div className="grid grid-cols-3 gap-3 text-center">
-                    <SumStat label="Ditransfer" value={data.amount} color="purple" />
-                    <SumStat label="Biaya Admin" value={data.admin_fee} color="zinc" />
-                    <SumStat label="Total Debit" value={data.total_debit} color="red" />
+                    <SumStat label={t('Ditransfer')} value={data.amount} color="purple" />
+                    <SumStat label={t('Biaya Admin')} value={data.admin_fee} color="zinc" />
+                    <SumStat label={t('Total Keluar')} value={data.total_debit} color="red" />
                 </div>
 
-                <JournalBox lines={data.journal} caption="Jurnal otomatis dari rekening asal & tujuan · belum buku besar" />
+                <JournalBox lines={data.journal} caption={t('Jurnal otomatis dari rekening asal & tujuan · belum buku besar')} />
 
                 <Separator />
 
@@ -633,7 +634,7 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                         className="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                     >
                         <Paperclip className="w-3.5 h-3.5" />
-                        {data.attachment_name ?? 'Lihat Lampiran'}
+                        {data.attachment_name ?? t('Lihat Lampiran')}
                     </a>
                 )}
             </div>
@@ -642,21 +643,21 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
             <form id="transfer-edit-form" onSubmit={onSubmit} className="px-6 pb-5">
                 <div className="rounded-xl border border-secondary-200 dark:border-dark-600 p-4 space-y-4">
                     <p className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wide">
-                        Edit Transfer
+                        {t('Ubah Transfer')}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <DatePicker
                             mode="single"
-                            label="Tanggal *"
+                            label={t('Tanggal *')}
                             value={form.transaction_date ? new Date(form.transaction_date + 'T00:00:00') : null}
                             onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
                             error={errors.transaction_date}
                         />
                         <Input
-                            label="Deskripsi *"
+                            label={t('Deskripsi *')}
                             value={form.description}
                             onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Deskripsi transfer"
+                            placeholder={t('Deskripsi transfer')}
                             error={errors.description}
                         />
                     </div>
@@ -666,7 +667,7 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
 
             <DialogFooter>
                 <Button variant="zinc" size="md" onClick={onClose} disabled={processing}>
-                    {can('edit transfer') ? 'Batal' : 'Tutup'}
+                    {can('edit transfer') ? t('Batal') : t('Tutup')}
                 </Button>
                 {can('edit transfer') && (
                     <Button
@@ -676,7 +677,7 @@ function TransferEditContent({ data, form, setData, errors, processing, onSubmit
                         size="md"
                         disabled={processing}
                     >
-                        {processing ? 'Menyimpan…' : 'Simpan Perubahan'}
+                        {processing ? t('Menyimpan…') : t('Simpan Perubahan')}
                     </Button>
                 )}
             </DialogFooter>
@@ -717,7 +718,7 @@ function AccountChip({ account, tone }: { account: { account_name: string; bank_
         green: 'border-green-200 dark:border-green-900/40 bg-green-50/60 dark:bg-green-900/10 text-green-700 dark:text-green-300',
     };
     if (!account) {
-        return <span className="text-xs text-dark-400 italic">tidak diketahui</span>;
+        return <span className="text-xs text-dark-400 italic">{t('tidak diketahui')}</span>;
     }
     return (
         <div className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs min-w-0 max-w-48', toneMap[tone])}>

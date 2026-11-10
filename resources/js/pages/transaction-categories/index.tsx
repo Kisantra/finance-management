@@ -37,6 +37,7 @@ import { cn, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { PL_GROUP_CONFIG } from './components/pl-groups';
 import { TemplateDialog } from './components/template-dialog';
+import { t, tk, Trans } from '@/i18n';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -96,11 +97,11 @@ interface Props extends SharedProps {
 // Pendanaan bernada netral (outline), sama dengan penanda Pendanaan di Arus Kas: ia jenis uang yang
 // tidak masuk Laba Rugi, bukan arah keluar — oranye (ob-neg) dulu membacanya seperti pengeluaran.
 const TYPE_CONFIG: Record<string, { label: string; color: 'green' | 'red' | 'blue' | 'purple' | 'orange' | 'outline' }> = {
-    income: { label: 'Pemasukan', color: 'green' },
-    expense: { label: 'Pengeluaran', color: 'red' },
-    financing: { label: 'Pendanaan', color: 'outline' },
-    transfer: { label: 'Transfer', color: 'purple' },
-    adjustment: { label: 'Penyesuaian', color: 'blue' },
+    income: { label: tk('Pemasukan'), color: 'green' },
+    expense: { label: tk('Pengeluaran'), color: 'red' },
+    financing: { label: tk('Pendanaan'), color: 'outline' },
+    transfer: { label: tk('Transfer'), color: 'purple' },
+    adjustment: { label: tk('Penyesuaian'), color: 'blue' },
 };
 
 /* ─────────────────────────────────── category form ─── */
@@ -124,7 +125,7 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
     const availableParents = parentOptions.filter((p) => p.type === form.data.type);
     const plGroupOptions = Object.entries(PL_GROUP_CONFIG)
         .filter(([, cfg]) => cfg.type === form.data.type)
-        .map(([val, cfg]) => ({ value: val, label: cfg.label }));
+        .map(([val, cfg]) => ({ value: val, label: t(cfg.label) }));
 
     return (
         <>
@@ -135,14 +136,14 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">{title}</DialogTitle>
-                        <p className="text-sm text-dark-500 dark:text-dark-400">Tipe, nama, dan parent kategori</p>
+                        <p className="text-sm text-dark-500 dark:text-dark-400">{t('Tipe, nama, dan induk kategori')}</p>
                     </div>
                 </div>
             </DialogHeader>
 
             <div className="px-6 py-4 space-y-4">
                 <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">Tipe *</label>
+                    <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">{t('Tipe *')}</label>
                     <div className="grid grid-cols-2 gap-2">
                         {Object.entries(TYPE_CONFIG).map(([val, cfg]) => (
                             <button
@@ -156,7 +157,7 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
                                         : 'border-secondary-300 dark:border-dark-600 text-dark-600 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700',
                                 )}
                             >
-                                {cfg.label}
+                                {t(cfg.label)}
                             </button>
                         ))}
                     </div>
@@ -164,31 +165,31 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
                 </div>
 
                 <Input
-                    label="Nama Kategori *"
+                    label={t('Nama Kategori *')}
                     value={form.data.label}
                     onChange={(e) => form.setData('label', e.target.value)}
                     error={form.errors.label}
-                    placeholder="Contoh: Gaji Karyawan"
+                    placeholder={t('Contoh: Gaji Karyawan')}
                 />
 
                 {plGroupOptions.length > 0 && (
                     <Combobox
-                        label="Grup Laba Rugi (opsional)"
+                        label={t('Grup Laba Rugi (opsional)')}
                         options={plGroupOptions}
                         value={form.data.pl_group || null}
                         onChange={(v) => form.setData('pl_group', v != null ? String(v) : '')}
-                        placeholder="Belum diklasifikasi"
+                        placeholder={t('Belum diklasifikasi')}
                         error={form.errors.pl_group}
                     />
                 )}
 
                 {availableParents.length > 0 && (
                     <Combobox
-                        label="Parent Kategori (opsional)"
+                        label={t('Kategori induk (opsional)')}
                         options={availableParents.map((p) => ({ value: p.id, label: p.label }))}
                         value={form.data.parent_id ? Number(form.data.parent_id) : null}
                         onChange={(v) => form.setData('parent_id', v != null ? String(v) : '')}
-                        placeholder="Kategori Utama (tanpa parent)"
+                        placeholder={t('Tanpa induk')}
                         error={form.errors.parent_id}
                     />
                 )}
@@ -196,7 +197,7 @@ function CategoryForm({ form, parentOptions, onCancel, title, submitLabel }: Cat
 
             <DialogFooter>
                 <Button variant="zinc" onClick={onCancel} disabled={form.processing} className="w-full sm:w-auto order-2 sm:order-1">
-                    Batal
+                    {t('Batal')}
                 </Button>
                 <Button type="submit" variant="primary" loading={form.processing} className="w-full sm:w-auto order-1 sm:order-2">
                     {submitLabel}
@@ -225,10 +226,10 @@ export default function TransactionCategoriesIndex() {
     const isMounted = React.useRef(false);
     React.useEffect(() => {
         if (!isMounted.current) { isMounted.current = true; return; }
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             router.get(companyUrl('/transaction-categories'), { search: search || undefined, type: typeFilter || undefined, pl_status: plStatus || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
         }, 300);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
     }, [search]);
 
     function handleTypeFilter(val: string) {
@@ -248,7 +249,7 @@ export default function TransactionCategoriesIndex() {
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
         createForm.post(companyUrl('/transaction-categories'), {
-            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Kategori berhasil ditambahkan.'); },
+            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success(t('Kategori berhasil ditambahkan.')); },
             onError: (errs) => toastErrors(errs, 'CreateCategory'),
         });
     }
@@ -265,7 +266,7 @@ export default function TransactionCategoriesIndex() {
         e.preventDefault();
         if (!editTarget) return;
         editForm.put(companyUrl(`/transaction-categories/${editTarget.id}`), {
-            onSuccess: () => { setEditTarget(null); toast.success('Kategori berhasil diperbarui.'); },
+            onSuccess: () => { setEditTarget(null); toast.success(t('Kategori berhasil diperbarui.')); },
             onError: (errs) => toastErrors(errs, 'UpdateCategory'),
         });
     }
@@ -296,7 +297,7 @@ export default function TransactionCategoriesIndex() {
         router.delete(companyUrl(`/transaction-categories/${deleteTarget.id}`), {
             data: reassignToId ? { reassign_to_id: reassignToId } : {},
             preserveScroll: true,
-            onSuccess: () => { setDeleteTarget(null); setReassignToId(null); toast.success('Kategori berhasil dihapus.'); },
+            onSuccess: () => { setDeleteTarget(null); setReassignToId(null); toast.success(t('Kategori berhasil dihapus.')); },
             onError: (errs) => toastErrors(errs, 'DeleteCategory'),
             onFinish: () => setDeleteProcessing(false),
         });
@@ -304,22 +305,22 @@ export default function TransactionCategoriesIndex() {
 
     return (
         <>
-            <Head title="Kategori Transaksi" />
+            <Head title={t('Kategori Transaksi', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Kategori Transaksi"
-                    description="Kelola kategori pemasukan, pengeluaran, dan transfer"
+                    title={t('Kategori Transaksi', { context: 'menu' })}
+                    description={t('Kelola kategori pemasukan, pengeluaran, dan transfer')}
                     action={
                         <div className="flex flex-wrap items-center gap-2">
                             <TutorialButton slug="transaction-categories" />
                             {can('manage categories') && (
                                 <Button variant="outline" size="md" icon={<LayoutTemplate className="h-4 w-4" />} onClick={() => setTemplateOpen(true)}>
-                                    Pakai Template
+                                    {t('Pakai Template')}
                                 </Button>
                             )}
                             <Button variant="primary" size="md" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                                Tambah Kategori
+                                {t('Tambah Kategori')}
                             </Button>
                         </div>
                     }
@@ -327,10 +328,10 @@ export default function TransactionCategoriesIndex() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <StatsCard label="Total Kategori" value={stats.total} icon={<Layers className="w-6 h-6" />} color="blue" />
-                    <StatsCard label="Kategori Utama" value={stats.parents} icon={<FolderOpen className="w-6 h-6" />} color="green" />
-                    <StatsCard label="Sub Kategori" value={stats.children} icon={<GitBranch className="w-6 h-6" />} color="purple" />
-                    <StatsCard label="Belum Diklasifikasi" value={stats.unclassified} icon={<TriangleAlert className="w-6 h-6" />} color={stats.unclassified > 0 ? 'red' : 'green'} />
+                    <StatsCard label={t('Total Kategori')} value={stats.total} icon={<Layers className="w-6 h-6" />} color="blue" />
+                    <StatsCard label={t('Kategori induk')} value={stats.parents} icon={<FolderOpen className="w-6 h-6" />} color="green" />
+                    <StatsCard label={t('Subkategori')} value={stats.children} icon={<GitBranch className="w-6 h-6" />} color="purple" />
+                    <StatsCard label={t('Belum diklasifikasi')} value={stats.unclassified} icon={<TriangleAlert className="w-6 h-6" />} color={stats.unclassified > 0 ? 'red' : 'green'} />
                 </div>
 
                 {/* Filters */}
@@ -339,7 +340,7 @@ export default function TransactionCategoriesIndex() {
                         <Input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Cari kategori..."
+                            placeholder={t('Cari kategori...')}
                             icon={<Search className="h-4 w-4" />}
                             iconRight={search ? (
                                 <button onClick={() => setSearch('')}>
@@ -351,10 +352,10 @@ export default function TransactionCategoriesIndex() {
 
                     <div className="w-full sm:w-48">
                         <Combobox
-                            options={Object.entries(TYPE_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
+                            options={Object.entries(TYPE_CONFIG).map(([val, cfg]) => ({ value: val, label: t(cfg.label) }))}
                             value={typeFilter || null}
                             onChange={(v) => handleTypeFilter(v != null ? String(v) : '')}
-                            placeholder="Semua Tipe"
+                            placeholder={t('Semua Tipe')}
                         />
                     </div>
 
@@ -365,11 +366,11 @@ export default function TransactionCategoriesIndex() {
                         onClick={toggleUnclassified}
                         className="shrink-0"
                     >
-                        Belum diklasifikasi
+                        {t('Belum diklasifikasi')}
                     </Button>
 
                     <span className="text-sm text-dark-500 dark:text-dark-400 shrink-0 pb-0.5">
-                        {categories.from ?? 0}–{categories.to ?? 0} dari {categories.total}
+                        {t('{{from}}–{{to}} dari {{total}}', { from: categories.from ?? 0, to: categories.to ?? 0, total: categories.total })}
                     </span>
                 </div>
 
@@ -378,12 +379,12 @@ export default function TransactionCategoriesIndex() {
                     <table className="w-full text-sm">
                         <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
                             <tr>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Tipe</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Nama</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Parent</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Grup L/R</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Digunakan</th>
-                                <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Aksi</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Tipe')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Nama')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Induk')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Grup L/R')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Digunakan')}</th>
+                                <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Aksi')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -391,7 +392,7 @@ export default function TransactionCategoriesIndex() {
                                 <tr>
                                     <td colSpan={6} className="px-4 py-12 text-center text-dark-400 dark:text-dark-500">
                                         <FolderTree className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                        <p>Belum ada kategori</p>
+                                        <p>{t('Belum ada kategori')}</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -400,7 +401,7 @@ export default function TransactionCategoriesIndex() {
                                     return (
                                         <tr key={cat.id} className="hover:bg-secondary-50/80 dark:hover:bg-dark-800/50 transition-colors">
                                             <td className="px-3 py-3 align-middle">
-                                                <Badge variant={cfg?.color ?? 'blue'}>{cfg?.label ?? cat.type}</Badge>
+                                                <Badge variant={cfg?.color ?? 'blue'}>{cfg ? t(cfg.label) : cat.type}</Badge>
                                             </td>
                                             <td className="px-3 py-3 align-middle font-medium text-dark-900 dark:text-dark-50">
                                                 {cat.parent_label && (
@@ -408,7 +409,7 @@ export default function TransactionCategoriesIndex() {
                                                 )}
                                                 {cat.label}
                                                 {cat.children_count > 0 && (
-                                                    <span className="ml-2 text-xs text-dark-400 dark:text-dark-500">({cat.children_count} sub)</span>
+                                                    <span className="ml-2 text-xs text-dark-400 dark:text-dark-500">{t('({{count}} sub)', { count: cat.children_count })}</span>
                                                 )}
                                             </td>
                                             <td className="px-3 py-3 align-middle text-dark-500 dark:text-dark-400">
@@ -416,9 +417,9 @@ export default function TransactionCategoriesIndex() {
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 {cat.pl_group ? (
-                                                    <Badge variant="zinc">{PL_GROUP_CONFIG[cat.pl_group]?.label ?? cat.pl_group}</Badge>
+                                                    <Badge variant="zinc">{PL_GROUP_CONFIG[cat.pl_group] ? t(PL_GROUP_CONFIG[cat.pl_group].label) : cat.pl_group}</Badge>
                                                 ) : cat.type === 'financing' ? (
-                                                    <span className="text-xs text-ob-ink-3">Tidak masuk Laba Rugi</span>
+                                                    <span className="text-xs text-ob-ink-3">{t('Tidak masuk Laba Rugi')}</span>
                                                 ) : (
                                                     <span className="text-xs text-dark-300 dark:text-dark-600">—</span>
                                                 )}
@@ -427,9 +428,9 @@ export default function TransactionCategoriesIndex() {
                                                 {(() => {
                                                     const usage = cat.transactions_count + cat.fund_request_items_count + cat.reimbursements_count;
                                                     return usage > 0 ? (
-                                                        <Badge variant="green">{usage} pemakaian</Badge>
+                                                        <Badge variant="green">{t('{{count}} pemakaian', { count: usage })}</Badge>
                                                     ) : (
-                                                        <span className="text-xs text-dark-300 dark:text-dark-600">Belum digunakan</span>
+                                                        <span className="text-xs text-dark-300 dark:text-dark-600">{t('Belum digunakan')}</span>
                                                     );
                                                 })()}
                                             </td>
@@ -450,7 +451,7 @@ export default function TransactionCategoriesIndex() {
                                                                 </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                Hapus atau pindahkan {cat.children_count} sub-kategori terlebih dahulu
+                                                                {t('Hapus atau pindahkan {{count}} subkategori terlebih dahulu', { count: cat.children_count })}
                                                             </TooltipContent>
                                                         </Tooltip>
                                                         </TooltipProvider>
@@ -474,16 +475,16 @@ export default function TransactionCategoriesIndex() {
                     {categories.last_page > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 border-t border-secondary-200 dark:border-dark-600">
                             <span className="text-sm text-dark-500 dark:text-dark-400">
-                                Halaman {categories.current_page} dari {categories.last_page}
+                                {t('Halaman {{current}} dari {{last}}', { current: categories.current_page, last: categories.last_page })}
                             </span>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm" disabled={categories.current_page <= 1}
                                     onClick={() => router.get(companyUrl('/transaction-categories'), { ...filters, page: categories.current_page - 1 }, { preserveState: true })}>
-                                    Sebelumnya
+                                    {t('Sebelumnya')}
                                 </Button>
                                 <Button variant="outline" size="sm" disabled={categories.current_page >= categories.last_page}
                                     onClick={() => router.get(companyUrl('/transaction-categories'), { ...filters, page: categories.current_page + 1 }, { preserveState: true })}>
-                                    Berikutnya
+                                    {t('Berikutnya')}
                                 </Button>
                             </div>
                         </div>
@@ -498,7 +499,7 @@ export default function TransactionCategoriesIndex() {
             <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) createForm.reset(); }}>
                 <DialogContent size="md">
                     <form onSubmit={submitCreate}>
-                        <CategoryForm form={createForm} parentOptions={parentOptions} onCancel={() => { setCreateOpen(false); createForm.reset(); }} title="Tambah Kategori" submitLabel="Simpan Kategori" />
+                        <CategoryForm form={createForm} parentOptions={parentOptions} onCancel={() => { setCreateOpen(false); createForm.reset(); }} title={t('Tambah Kategori')} submitLabel={t('Simpan Kategori')} />
                     </form>
                 </DialogContent>
             </Dialog>
@@ -507,7 +508,7 @@ export default function TransactionCategoriesIndex() {
             <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
                 <DialogContent size="md">
                     <form onSubmit={submitEdit}>
-                        <CategoryForm form={editForm} parentOptions={parentOptions} onCancel={() => setEditTarget(null)} title="Edit Kategori" submitLabel="Perbarui Kategori" />
+                        <CategoryForm form={editForm} parentOptions={parentOptions} onCancel={() => setEditTarget(null)} title={t('Ubah Kategori')} submitLabel={t('Perbarui Kategori')} />
                     </form>
                 </DialogContent>
             </Dialog>
@@ -516,9 +517,9 @@ export default function TransactionCategoriesIndex() {
             <ConfirmDialog
                 open={!!deleteTarget && deleteUsageCount === 0}
                 onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-                title="Hapus Kategori"
-                description={deleteTarget ? `Hapus kategori "${deleteTarget.label}"?` : ''}
-                confirmLabel="Hapus"
+                title={t('Hapus Kategori')}
+                description={deleteTarget ? t('Hapus kategori "{{name}}"?', { name: deleteTarget.label }) : ''}
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
                 onConfirm={confirmDelete}
             />
@@ -527,7 +528,7 @@ export default function TransactionCategoriesIndex() {
             <Dialog open={!!deleteTarget && deleteUsageCount > 0} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
                 <DialogContent size="md">
                     <DialogHeader>
-                        <DialogTitle>Hapus Kategori</DialogTitle>
+                        <DialogTitle>{t('Hapus Kategori')}</DialogTitle>
                     </DialogHeader>
                     {deleteTarget && (
                         <div className="p-6 space-y-4">
@@ -535,35 +536,39 @@ export default function TransactionCategoriesIndex() {
                                 <TriangleAlert className="w-5 h-5 shrink-0 text-yellow-600 dark:text-yellow-500 mt-0.5" />
                                 <div className="text-sm text-dark-700 dark:text-dark-300">
                                     <p>
-                                        Kategori <span className="font-medium">"{deleteTarget.label}"</span> masih digunakan oleh:
+                                        <Trans
+                                            i18nKey='Kategori <b>"{{name}}"</b> masih digunakan oleh:'
+                                            values={{ name: deleteTarget.label }}
+                                            components={{ b: <span className="font-medium" /> }}
+                                        />
                                     </p>
                                     <ul className="mt-1 list-disc list-inside text-dark-600 dark:text-dark-400">
                                         {deleteTarget.transactions_count > 0 && (
-                                            <li>{deleteTarget.transactions_count} transaksi</li>
+                                            <li>{t('{{count}} transaksi', { count: deleteTarget.transactions_count })}</li>
                                         )}
                                         {deleteTarget.fund_request_items_count > 0 && (
-                                            <li>{deleteTarget.fund_request_items_count} item permintaan dana</li>
+                                            <li>{t('{{count}} item pengajuan dana', { count: deleteTarget.fund_request_items_count })}</li>
                                         )}
                                         {deleteTarget.reimbursements_count > 0 && (
-                                            <li>{deleteTarget.reimbursements_count} reimbursement</li>
+                                            <li>{t('{{count}} reimbursement', { count: deleteTarget.reimbursements_count })}</li>
                                         )}
                                     </ul>
                                     <p className="mt-1">
-                                        Pilih kategori pengganti — semua data di atas akan dipindahkan ke sana sebelum kategori ini dihapus.
+                                        {t('Pilih kategori pengganti — semua data di atas akan dipindahkan ke sana sebelum kategori ini dihapus.')}
                                     </p>
                                 </div>
                             </div>
                             <Combobox
-                                label="Pindahkan ke Kategori *"
+                                label={t('Pindahkan ke Kategori *')}
                                 options={reassignTargetOptions}
                                 value={reassignToId}
                                 onChange={(v) => setReassignToId(v ? Number(v) : null)}
-                                placeholder="Pilih kategori pengganti"
+                                placeholder={t('Pilih kategori pengganti')}
                             />
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="zinc" size="sm" onClick={() => setDeleteTarget(null)}>Batal</Button>
+                        <Button variant="zinc" size="sm" onClick={() => setDeleteTarget(null)}>{t('Batal')}</Button>
                         <Button
                             variant="red"
                             size="sm"
@@ -571,7 +576,7 @@ export default function TransactionCategoriesIndex() {
                             disabled={deleteProcessing || !reassignToId}
                         >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Pindahkan & Hapus
+                            {t('Pindahkan & Hapus')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

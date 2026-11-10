@@ -12,6 +12,7 @@ import { companyUrl } from '@/lib/company';
 import { cn, toastErrors } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { plGroupLabel } from './pl-groups';
+import { t, tk, Trans } from '@/i18n';
 
 /* ─────────────────────────────────── types (CategoryTemplateService::plan) ─── */
 
@@ -44,19 +45,19 @@ export interface TemplatePreview {
 }
 
 const STATUS: Record<TemplateStatus, { label: string; variant: 'blue' | 'zinc' | 'yellow' }> = {
-    new: { label: 'Baru', variant: 'blue' },
-    existing: { label: 'Sudah ada', variant: 'zinc' },
-    skipped: { label: 'Dilewati', variant: 'yellow' },
+    new: { label: tk('Baru'), variant: 'blue' },
+    existing: { label: tk('Sudah ada'), variant: 'zinc' },
+    skipped: { label: tk('Dilewati'), variant: 'yellow' },
 };
 
 const SECTIONS = [
-    { type: 'income', title: 'Pemasukan' },
-    { type: 'expense', title: 'Pengeluaran' },
-    { type: 'financing', title: 'Pendanaan' },
+    { type: 'income', title: tk('Pemasukan') },
+    { type: 'expense', title: tk('Pengeluaran') },
+    { type: 'financing', title: tk('Pendanaan') },
 ] as const;
 
 /** Kolom "Baris Laba Rugi" untuk grup Pendanaan. */
-const TANPA_LABA_RUGI = 'Tidak masuk Laba Rugi';
+const TANPA_LABA_RUGI = tk('Tidak masuk Laba Rugi');
 
 /* ─────────────────────────────────── rows ─── */
 
@@ -75,15 +76,15 @@ function PreviewRow({ label, pl, status, note, parent = false }: RowProps) {
         <div className={cn('flex items-start gap-3', parent ? 'px-4 py-3' : 'py-2 pl-8 pr-4')}>
             <div className="min-w-0 flex-1">
                 <p className={cn('wrap-break-word text-sm text-ob-ink', parent && 'font-semibold')}>{label}</p>
-                {pl && <p className="mt-0.5 text-xs text-ob-ink-2 sm:hidden">Laba Rugi: {pl}</p>}
+                {pl && <p className="mt-0.5 text-xs text-ob-ink-2 sm:hidden">{t('Laba Rugi: {{name}}', { name: pl })}</p>}
                 {note && <div className="mt-0.5 wrap-break-word text-xs leading-relaxed text-ob-ink-3">{note}</div>}
             </div>
             <span className="hidden w-36 shrink-0 pt-0.5 text-xs text-ob-ink-2 sm:block">
-                <span className="sr-only">Baris Laba Rugi: </span>
+                <span className="sr-only">{t('Baris Laba Rugi:')} </span>
                 {pl ?? '—'}
             </span>
             <span className="flex w-21 shrink-0 justify-end">
-                <Badge variant={STATUS[status].variant}>{STATUS[status].label}</Badge>
+                <Badge variant={STATUS[status].variant}>{t(STATUS[status].label)}</Badge>
             </span>
         </div>
     );
@@ -94,7 +95,7 @@ function GroupCard({ group }: { group: TemplateGroup }) {
     const reused = group.status === 'existing' && group.existing_label !== null && group.existing_label !== group.label;
     // Pendanaan tidak punya baris Laba Rugi (pl_group null) — tulis itu, bukan "Belum diklasifikasi".
     const pendanaan = group.type === 'financing';
-    const plLabel = (plGroup: string | null) => (pendanaan ? TANPA_LABA_RUGI : plGroupLabel(plGroup));
+    const plLabel = (plGroup: string | null) => (pendanaan ? t(TANPA_LABA_RUGI) : plGroupLabel(plGroup));
 
     return (
         <div className="overflow-hidden rounded-2xl border border-ob-line">
@@ -108,7 +109,7 @@ function GroupCard({ group }: { group: TemplateGroup }) {
                         group.reason ? (
                             <span className="text-ob-wait">{group.reason}</span>
                         ) : reused ? (
-                            <>Sub baru ditempel ke kategori induk lama &ldquo;{group.existing_label}&rdquo;.</>
+                            t('Sub baru ditempel ke kategori induk lama “{{name}}”.', { name: group.existing_label })
                         ) : null
                     }
                 />
@@ -129,7 +130,7 @@ function GroupCard({ group }: { group: TemplateGroup }) {
                             note={
                                 // Catatan hanya bila sub itu tinggal di grup lain; di grupnya sendiri cukup badge.
                                 child.status === 'existing' && child.existing_parent_id !== group.category_id ? (
-                                    <>Sudah ada di grup &ldquo;{child.existing_parent_label}&rdquo;, tidak diubah.</>
+                                    t('Sudah ada di grup “{{name}}”, tidak diubah.', { name: child.existing_parent_label })
                                 ) : child.reason ? (
                                     <span className="text-ob-wait">{child.reason}</span>
                                 ) : null
@@ -144,7 +145,7 @@ function GroupCard({ group }: { group: TemplateGroup }) {
 
 function PreviewSkeleton() {
     return (
-        <div className="space-y-4" aria-busy="true" aria-label="Memuat pratinjau template">
+        <div className="space-y-4" aria-busy="true" aria-label={t('Memuat pratinjau template')}>
             <div className="grid gap-2 sm:grid-cols-3">
                 {[0, 1, 2].map((i) => (
                     <Skeleton key={i} className="h-18.5 rounded-2xl" />
@@ -170,7 +171,7 @@ function PreviewNotice({ title, text, onRetry }: { title: string; text: string; 
             <p className="max-w-[46ch] text-xs leading-relaxed text-ob-ink-2">{text}</p>
             {onRetry && (
                 <Button variant="outline" size="sm" onClick={onRetry} className="mt-1">
-                    Coba lagi
+                    {t('Coba lagi')}
                 </Button>
             )}
         </div>
@@ -231,7 +232,7 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
                 onStart: () => setApplying(true),
                 onSuccess: (page) => {
                     const flash = page.props.flash as SharedProps['flash'] | undefined;
-                    toast.success(flash?.success ?? 'Template kategori diterapkan.');
+                    toast.success(flash?.success ?? t('Template kategori diterapkan.'));
                     onOpenChange(false);
                 },
                 onError: (errs) => toastErrors(errs, 'ApplyCategoryTemplate'),
@@ -244,11 +245,9 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
         <Dialog open={open} onOpenChange={(o) => !applying && onOpenChange(o)}>
             <DialogContent size="2xl" className="flex h-[min(90vh,760px)] flex-col overflow-hidden">
                 <DialogHeader className="shrink-0">
-                    <DialogTitle>Pakai Template Kategori</DialogTitle>
+                    <DialogTitle>{t('Pakai Template Kategori')}</DialogTitle>
                     <DialogDescription>
-                        Kategori pemasukan, pengeluaran, dan pendanaan siap pakai, tersusun mengikuti urutan bagan akun: pendapatan lebih dulu,
-                        lalu harga pokok dan beban, terakhir pendanaan. Pemasukan dan pengeluaran sudah punya baris Laba Rugi; pendanaan tidak
-                        masuk Laba Rugi.
+                        {t('Kategori pemasukan, pengeluaran, dan pendanaan siap pakai, tersusun mengikuti urutan bagan akun: pendapatan lebih dulu, lalu harga pokok dan beban, terakhir pendanaan. Pemasukan dan pengeluaran sudah punya baris Laba Rugi; pendanaan tidak masuk Laba Rugi.')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -257,15 +256,19 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
                 <ScrollArea className="min-h-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:block!">
                     <div className="space-y-5 px-6 py-5">
                         <ul className="list-disc space-y-1.5 pl-5 text-[13px] leading-relaxed text-ob-ink-2">
-                            <li>Kategori yang namanya sudah ada dilewati. Huruf besar/kecil dan spasi berlebih tidak dibedakan, tetapi nama yang hanya mirip dianggap berbeda.</li>
-                            <li>Kategori lama tidak diubah: nama, tipe, grup Laba Rugi, dan induknya tetap.</li>
+                            <li>{t('Kategori yang namanya sudah ada dilewati. Huruf besar/kecil dan spasi berlebih tidak dibedakan, tetapi nama yang hanya mirip dianggap berbeda.')}</li>
+                            <li>{t('Kategori lama tidak diubah: nama, tipe, grup Laba Rugi, dan induknya tetap.')}</li>
                             <li>
-                                <span className="font-semibold text-ob-ink">(Tanpa Invoice)</span>: pendapatan dan HPP penjualan lewat invoice sudah dihitung
-                                otomatis di Laba Rugi. Kategori ini hanya untuk yang tidak memakai invoice, jangan catat ulang penjualan ber-invoice.
+                                <Trans
+                                    i18nKey="<b>(Tanpa Invoice)</b>: pendapatan dan HPP penjualan lewat invoice sudah dihitung otomatis di Laba Rugi. Kategori ini hanya untuk yang tidak memakai invoice, jangan catat ulang penjualan ber-invoice."
+                                    components={{ b: <span className="font-semibold text-ob-ink" /> }}
+                                />
                             </li>
                             <li>
-                                <span className="font-semibold text-ob-ink">Pendanaan</span> (setoran modal, prive, setor PPN, setor titipan pajak klien)
-                                mengubah saldo rekening tetapi tidak masuk Laba Rugi. Kategorinya bisa dipilih di Catat Pemasukan dan Catat Pengeluaran.
+                                <Trans
+                                    i18nKey="<b>Pendanaan</b> (setoran modal, prive, setor PPN, setor titipan pajak klien) mengubah saldo rekening tetapi tidak masuk Laba Rugi. Kategorinya bisa dipilih di Catat Pemasukan dan Catat Pengeluaran."
+                                    components={{ b: <span className="font-semibold text-ob-ink" /> }}
+                                />
                             </li>
                         </ul>
 
@@ -273,27 +276,27 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
 
                         {state === 'error' && (
                             <PreviewNotice
-                                title="Pratinjau template gagal dimuat"
-                                text="Belum ada kategori yang dibuat. Periksa koneksi, lalu coba lagi."
+                                title={t('Pratinjau template gagal dimuat')}
+                                text={t('Belum ada kategori yang dibuat. Periksa koneksi, lalu coba lagi.')}
                                 onRetry={load}
                             />
                         )}
 
                         {state === 'ready' && !preview && (
                             <PreviewNotice
-                                title="Pratinjau tidak tersedia"
-                                text="Hanya pengguna yang boleh mengelola kategori yang dapat memakai template."
+                                title={t('Pratinjau tidak tersedia')}
+                                text={t('Hanya pengguna yang boleh mengelola kategori yang dapat memakai template.')}
                             />
                         )}
 
                         {state === 'ready' && preview && (
                             <>
                                 <div className="grid gap-2 sm:grid-cols-3">
-                                    <StatsCard inModal label="Baru" value={preview.summary.new} icon={<Plus />} color="blue" />
-                                    <StatsCard inModal label="Sudah ada" value={preview.summary.existing} icon={<CircleCheck />} color="purple" />
+                                    <StatsCard inModal label={t('Baru')} value={preview.summary.new} icon={<Plus />} color="blue" />
+                                    <StatsCard inModal label={t('Sudah ada')} value={preview.summary.existing} icon={<CircleCheck />} color="purple" />
                                     <StatsCard
                                         inModal
-                                        label="Dilewati"
+                                        label={t('Dilewati')}
                                         value={preview.summary.skipped}
                                         icon={<CircleSlash />}
                                         color={preview.summary.skipped > 0 ? 'yellow' : 'purple'}
@@ -302,7 +305,7 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
 
                                 {toCreate === 0 && (
                                     <p className="rounded-2xl bg-ob-inner px-4 py-3 text-[13px] text-ob-ink-2">
-                                        Semua {total} kategori template sudah ada atau dilewati. Tidak ada yang perlu dibuat.
+                                        {t('Semua {{count}} kategori template sudah ada atau dilewati. Tidak ada yang perlu dibuat.', { count: total })}
                                     </p>
                                 )}
 
@@ -311,10 +314,10 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
                                         {/* px-[17px] = tepi 1 px + px-4 baris, agar judul kolom sejajar dengan isinya. */}
                                         <div className="flex items-end gap-3 px-[17px]">
                                             <h3 id={`template-${type}`} className="min-w-0 flex-1 text-sm font-semibold text-ob-ink">
-                                                {title}
+                                                {t(title)}
                                             </h3>
-                                            <span className="hidden w-36 shrink-0 text-xs text-ob-ink-3 sm:block">Baris Laba Rugi</span>
-                                            <span className="hidden w-21 shrink-0 text-right text-xs text-ob-ink-3 sm:block">Status</span>
+                                            <span className="hidden w-36 shrink-0 text-xs text-ob-ink-3 sm:block">{t('Baris Laba Rugi')}</span>
+                                            <span className="hidden w-21 shrink-0 text-right text-xs text-ob-ink-3 sm:block">{t('Status')}</span>
                                         </div>
                                         <div className="space-y-3">
                                             {preview.groups
@@ -332,10 +335,10 @@ export function TemplateDialog({ open, onOpenChange }: TemplateDialogProps) {
 
                 <DialogFooter className="shrink-0">
                     <Button variant="zinc" onClick={() => onOpenChange(false)} disabled={applying} className="w-full sm:w-auto">
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button variant="primary" onClick={apply} loading={applying} disabled={toCreate === 0} className="w-full sm:w-auto">
-                        {state !== 'ready' ? 'Buat kategori' : toCreate > 0 ? `Buat ${toCreate} kategori` : 'Tidak ada kategori baru'}
+                        {state !== 'ready' ? t('Buat kategori') : toCreate > 0 ? t('Buat {{count}} kategori', { count: toCreate }) : t('Tidak ada kategori baru')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

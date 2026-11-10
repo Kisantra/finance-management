@@ -15,14 +15,14 @@ export const TOUR_STEPS: Step[] = [
         src: img('fm-list'),
         focus: S['fm-list'].stats,
         zoom: 1.3,
-        caption: 'Kategori Utama mengelompokkan Sub Kategori. Belum Diklasifikasi = kategori Pemasukan/Pengeluaran tanpa Grup Laba Rugi.',
+        caption: 'Kategori induk mengelompokkan Subkategori. Belum diklasifikasi = kategori Pemasukan/Pengeluaran tanpa Grup Laba Rugi.',
         duration: 130,
     },
     {
         src: img('fm-list'),
         focus: S['fm-list'].table,
         zoom: 1.15,
-        caption: 'Tabel menampilkan Tipe, Parent, Grup L/R, dan berapa kali kategori sudah dipakai.',
+        caption: 'Tabel menampilkan Tipe, Induk, Grup L/R, dan berapa kali kategori sudah dipakai.',
         duration: 110,
     },
 ];
@@ -135,7 +135,7 @@ export const CREATE_STEPS: Step[] = [
         focus: S['fm-form-filled'].parent,
         cursor: S['fm-form-filled'].parent,
         zoom: 1.7,
-        caption: 'Pilih Parent agar menjadi sub kategori. Hanya sub kategori yang bisa dipilih saat mencatat transaksi.',
+        caption: 'Pilih Kategori induk agar menjadi subkategori. Hanya subkategori yang bisa dipilih saat mencatat transaksi.',
         duration: 130,
     },
     {
@@ -151,7 +151,7 @@ export const CREATE_STEPS: Step[] = [
         src: img('fm-created'),
         focus: S['fm-created'].created,
         zoom: 1.4,
-        caption: 'Kategori baru tampil dengan parent dan grupnya, dan langsung bisa dipilih di form transaksi.',
+        caption: 'Kategori baru tampil dengan induk dan grupnya, dan langsung bisa dipilih di form transaksi.',
         chime: true,
         duration: 110,
     },
@@ -223,7 +223,7 @@ export const DELETE_STEPS: Step[] = [
         src: img('fm-reassign-options'),
         focus: S['fm-reassign-options'].entries,
         zoom: 1.5,
-        caption: 'Pilih kategori pengganti bertipe sama, berformat Kategori utama → Sub kategori. Daftar ini juga memuat kategori utama tanpa panah; jangan pilih yang itu.',
+        caption: 'Pilih kategori pengganti bertipe sama, berformat Kategori induk → Subkategori. Daftar ini juga memuat kategori induk tanpa panah; jangan pilih yang itu.',
         duration: 150,
     },
     {
@@ -232,7 +232,7 @@ export const DELETE_STEPS: Step[] = [
         cursor: S['fm-reassign-filled'].confirm,
         click: true,
         zoom: 1.5,
-        caption: 'Pilih sub kategori (Kategori utama → Sub kategori), lalu klik Pindahkan & Hapus.',
+        caption: 'Pilih subkategori (Kategori induk → Subkategori), lalu klik Pindahkan & Hapus.',
         duration: 120,
     },
     {
@@ -247,7 +247,7 @@ export const DELETE_STEPS: Step[] = [
         src: img('fm-parent-locked'),
         focus: around(S['fm-parent-locked'].lock, S['fm-parent-locked'].tooltip),
         zoom: 1.7,
-        caption: 'Kategori utama yang masih punya sub kategori tidak bisa dihapus. Hapus atau pindahkan sub kategorinya dulu.',
+        caption: 'Kategori induk yang masih punya subkategori tidak bisa dihapus. Hapus atau pindahkan subkategorinya dulu.',
         duration: 130,
     },
 ];
@@ -258,7 +258,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-picker'),
         focus: around(S['admin-picker'].group, S['admin-picker'].option),
         zoom: 1.5,
-        caption: 'Di form transaksi, kategori utama hanya menjadi judul kelompok; yang bisa dipilih adalah sub kategorinya.',
+        caption: 'Di form transaksi, kategori induk hanya menjadi judul kelompok; yang bisa dipilih adalah subkategorinya.',
         duration: 140,
     },
     {
@@ -272,7 +272,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-breakdown'),
         focus: S['admin-breakdown'].breakdown,
         zoom: 1.4,
-        caption: 'Breakdown Kategori di Rekening Bank ikut menggabungkannya: Langganan Software Rp 3.438.000.',
+        caption: 'Rincian per Kategori di Rekening Bank ikut menggabungkannya: Langganan Software Rp 3.438.000.',
         duration: 130,
     },
     {

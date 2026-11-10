@@ -32,7 +32,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -40,7 +40,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -92,7 +92,7 @@ async (page) => {
       template: m.getByRole('button', { name: 'Pakai Template' }),
       tutorial: m.getByRole('button', { name: 'Tutorial' }),
       stats: m.getByText('Total Kategori').locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
-      unclassifiedStat: m.getByText('Belum Diklasifikasi', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
+      unclassifiedStat: m.getByText('Belum diklasifikasi', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
       search: m.getByPlaceholder('Cari kategori...'),
       type: m.getByRole('button', { name: 'Semua Tipe' }),
       unclassified: m.getByRole('button', { name: 'Belum diklasifikasi' }),
@@ -127,7 +127,7 @@ async (page) => {
       expense: top(m).getByRole('button', { name: 'Pengeluaran', exact: true }),
       name: top(m).getByLabel('Nama Kategori *'),
       plGroup: top(m).getByLabel('Grup Laba Rugi (opsional)'),
-      parent: top(m).getByLabel('Parent Kategori (opsional)'),
+      parent: top(m).getByLabel('Kategori induk (opsional)'),
       submit: top(m).getByRole('button', { name: /Simpan Kategori|Perbarui Kategori/ }),
     });
     await snap(m, 'fm-form-empty', form());
@@ -140,7 +140,7 @@ async (page) => {
     await m.getByRole('option', { name: 'Beban Operasional' }).waitFor();
     await snap(m, 'fm-form-plgroup', { ...form(), listbox: m.getByRole('listbox'), option: m.getByRole('option', { name: 'Beban Operasional' }) });
     await m.getByRole('option', { name: 'Beban Operasional' }).click();
-    await pick(m, top(m).getByLabel('Parent Kategori (opsional)'), 'Beban Pemasaran');
+    await pick(m, top(m).getByLabel('Kategori induk (opsional)'), 'Beban Pemasaran');
     await snap(m, 'fm-form-filled', form());
     if (!iklanExists) {
       await top(m).getByRole('button', { name: 'Simpan Kategori' }).click();
@@ -159,10 +159,10 @@ async (page) => {
     await snap(m, 'fm-delete-simple', { dialog: top(m), confirm: top(m).getByRole('button', { name: 'Hapus', exact: true }) });
     await top(m).getByRole('button', { name: 'Batal' }).click();
 
-    /* ── Edit: beri Grup Laba Rugi untuk "Langganan Software" ── */
+    /* ── Ubah: beri Grup Laba Rugi untuk "Langganan Software" ── */
     await search(m, 'Langganan Software');
     await row(m, SOFTWARE).getByRole('button').first().click();
-    await top(m).getByText('Edit Kategori').waitFor();
+    await top(m).getByText('Ubah Kategori').waitFor();
     const classified = (await top(m).getByLabel('Grup Laba Rugi (opsional)').innerText()).includes('Beban Operasional');
     await snap(m, 'fm-edit', form());
     if (!classified) {
@@ -233,11 +233,11 @@ async (page) => {
     const bri = await (await a.request.get(BASE + '/api/bank-accounts')).json();
     const briId = bri.find((o) => o.label.startsWith('BRI - Proyek Klien')).value;
     await a.goto(`${BASE}/bank-accounts?account=${briId}`);
-    await a.getByRole('heading', { name: 'Breakdown Kategori' }).waitFor();
-    await a.getByRole('heading', { name: 'Breakdown Kategori' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await a.getByRole('heading', { name: 'Rincian per Kategori' }).waitFor();
+    await a.getByRole('heading', { name: 'Rincian per Kategori' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
     await a.mouse.wheel(0, -100);
     await snap(a, 'admin-breakdown', {
-      breakdown: a.getByRole('heading', { name: 'Breakdown Kategori' }).locator('xpath=ancestor::div[contains(@class,"rounded")][2]'),
+      breakdown: a.getByRole('heading', { name: 'Rincian per Kategori' }).locator('xpath=ancestor::div[contains(@class,"rounded")][2]'),
       legend: a.getByText('Langganan Software').first(),
     });
 

@@ -5,15 +5,15 @@ import { guide } from './guide';
 import { ADMIN_IMPACT_STEPS, ADMIN_STEPS, DISBURSE_STEPS, FM_STEPS, REJECT_FM_STEPS, REJECT_STAFF_STEPS, STAFF_STEPS } from './steps';
 
 const flow = guide.flow!;
-const outro = { id: 'outro', frames: 90, node: <Outro where="Operasional › Permintaan Dana" action="Buat Permintaan" /> };
-const flowScene = { id: 'flow', frames: flowSceneFrames(flow), node: <FlowScene flow={flow} title="Alur sebuah permintaan dana" />, chapter: 'Alur' };
+const outro = { id: 'outro', frames: 90, node: <Outro where="Operasional › Pengajuan Dana" action="Buat Pengajuan" /> };
+const flowScene = { id: 'flow', frames: flowSceneFrames(flow), node: <FlowScene flow={flow} title="Alur sebuah pengajuan dana" />, chapter: 'Alur' };
 
 export const TUTORIALS: Tutorials = {
     staff: buildTutorial('FundRequestsStaff', ROLES.staff, [
         { id: 'intro', frames: 105, node: <Intro module={guide.title} role={ROLES.staff} title="Mengajukan dana operasional" summary="Merinci kebutuhan per item, mengajukan, lalu memantau sampai dananya cair." />, chapter: 'Pengantar' },
         flowScene,
-        walk('walk-create', STAFF_STEPS, ROLES.staff, 'Membuat permintaan'),
-        chapterCard('chapter-reject', ROLES.staff, 2, 2, 'Bila permintaan ditolak', 'Baca catatannya, lalu buat permintaan baru.', 'Bila ditolak'),
+        walk('walk-create', STAFF_STEPS, ROLES.staff, 'Membuat pengajuan'),
+        chapterCard('chapter-reject', ROLES.staff, 2, 2, 'Bila pengajuan ditolak', 'Baca catatannya, lalu buat pengajuan baru.', 'Bila ditolak'),
         walk('walk-reject', REJECT_STAFF_STEPS, ROLES.staff),
         outro,
     ]),
@@ -23,7 +23,7 @@ export const TUTORIALS: Tutorials = {
         walk('walk-review', FM_STEPS, ROLES.fm, 'Meninjau'),
         chapterCard('chapter-disburse', ROLES.fm, 2, 3, 'Mencairkan dana', 'Setiap item menjadi satu transaksi pengeluaran di rekening.', 'Mencairkan'),
         walk('walk-disburse', DISBURSE_STEPS, ROLES.fm),
-        chapterCard('chapter-reject', ROLES.fm, 3, 3, 'Menolak permintaan', 'Selalu tulis alasannya di Catatan Review.', 'Menolak'),
+        chapterCard('chapter-reject', ROLES.fm, 3, 3, 'Menolak pengajuan', 'Selalu tulis alasannya di Catatan peninjau.', 'Menolak'),
         walk('walk-reject', REJECT_FM_STEPS, ROLES.fm),
         outro,
     ]),
@@ -34,7 +34,7 @@ export const TUTORIALS: Tutorials = {
         { id: 'record', frames: recordSceneFrames(guide.records![0]), node: <RecordScene record={guide.records![0]} />, chapter: 'Transaksi bank' },
         walk('walk-impact', ADMIN_IMPACT_STEPS, ROLES.admin, 'Jejak di modul lain'),
         { id: 'warnings', frames: warningsSceneFrames(guide.warnings!.length), node: <WarningsScene warnings={guide.warnings!} />, chapter: 'Perhatian' },
-        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Hapus permintaan'),
+        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Hapus pengajuan'),
         { id: 'recap', frames: 300, node: <RecapScene guide={guide} />, chapter: 'Ringkasan hak akses' },
         outro,
     ]),

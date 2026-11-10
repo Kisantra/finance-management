@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { BTN, SURFACE, longDate, rp } from '@/pages/invoices/components/ob';
 import { LoanStatusPill, interestLabel, totalInterest } from './pjm';
 import type { LoanRow } from '../types';
+import { t, Trans } from '@/i18n';
 
 /*
  * Rincian satu pinjaman. Panel samping, bukan modal di tengah: isinya tabel jadwal yang
@@ -48,10 +49,10 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
                         <LoanStatusPill status={row.status} />
                     </SheetTitle>
                     <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
-                        {row.loan_number} · {longDate(row.start_date)} sampai {longDate(row.maturity_date)}
+                        {t('{{number}} · {{start}} sampai {{end}}', { number: row.loan_number, start: longDate(row.start_date), end: longDate(row.maturity_date) })}
                     </SheetDescription>
                 </div>
-                <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label="Tutup rincian">
+                <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label={t('Tutup rincian')}>
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -60,16 +61,16 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
                 {/* Tiga angka yang menjawab "berapa, berapa mahal, berapa per bulan".
                     Menumpuk di bawah sm: sepertiga lebar 360 px memotong nominalnya jadi "Rp 120.0…". */}
                 <div className="grid grid-cols-1 gap-3 divide-y divide-ob-line rounded-2xl bg-ob-inner p-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-y-0">
-                    <Fakta label="Pokok" value={rp(row.principal_amount)} />
+                    <Fakta label={t('Pokok')} value={rp(row.principal_amount)} />
                     {/* Sub hanya untuk bunga persentase: pada bunga nominal, interestLabel() mengembalikan
                         nominal yang sama dan barisnya cuma mengulang angka di atasnya. */}
-                    <Fakta label="Bunga" value={rp(bunga)} sub={row.interest_type === 'percentage' ? interestLabel(row) : undefined} />
-                    <Fakta label="Angsuran / bulan" value={rp(angsuranPerBulan)} sub={`${row.term_months} bulan`} />
+                    <Fakta label={t('Bunga')} value={rp(bunga)} sub={row.interest_type === 'percentage' ? interestLabel(row) : undefined} />
+                    <Fakta label={t('Angsuran / bulan')} value={rp(angsuranPerBulan)} sub={t('{{count}} bulan', { count: row.term_months })} />
                 </div>
 
-                <section aria-label="Progres pelunasan pokok" className="flex flex-col gap-2">
+                <section aria-label={t('Progres pelunasan pokok')} className="flex flex-col gap-2">
                     <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                        <span className="font-semibold text-ob-ink">Pelunasan pokok</span>
+                        <span className="font-semibold text-ob-ink">{t('Pelunasan pokok')}</span>
                         <span className="tabular-nums text-ob-ink-2">{persenTerbayar}%</span>
                     </div>
                     <div
@@ -78,39 +79,45 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
                         aria-valuenow={persenTerbayar}
                         aria-valuemin={0}
                         aria-valuemax={100}
-                        aria-label="Persentase pokok yang sudah dibayar"
+                        aria-label={t('Persentase pokok yang sudah dibayar')}
                     >
                         <div className="h-full rounded-full bg-ob-act-fill" style={{ width: `${persenTerbayar}%` }} />
                     </div>
                     <div className="flex flex-wrap justify-between gap-2 text-xs text-ob-ink-2">
                         <span>
-                            Dibayar <span className="tabular-nums text-ob-ink">{rp(row.paid_principal)}</span>
-                            {row.paid_interest > 0 && (
-                                <>
-                                    {' '}
-                                    · bunga <span className="tabular-nums text-ob-ink">{rp(row.paid_interest)}</span>
-                                </>
+                            {row.paid_interest > 0 ? (
+                                <Trans
+                                    i18nKey="Dibayar <b>{{principal}}</b> · bunga <b>{{interest}}</b>"
+                                    values={{ principal: rp(row.paid_principal), interest: rp(row.paid_interest) }}
+                                    components={{ b: <span className="tabular-nums text-ob-ink" /> }}
+                                />
+                            ) : (
+                                <Trans
+                                    i18nKey="Dibayar <b>{{principal}}</b>"
+                                    values={{ principal: rp(row.paid_principal) }}
+                                    components={{ b: <span className="tabular-nums text-ob-ink" /> }}
+                                />
                             )}
                         </span>
                         <span>
-                            Sisa pokok{' '}
+                            {t('Sisa pokok')}{' '}
                             <span className={cn('tabular-nums', row.remaining_principal > 0 ? 'text-ob-neg' : 'text-ob-pos')}>
-                                {row.remaining_principal > 0 ? rp(row.remaining_principal) : 'lunas'}
+                                {row.remaining_principal > 0 ? rp(row.remaining_principal) : t('lunas')}
                             </span>
                         </span>
                     </div>
                 </section>
 
-                <section aria-label="Jadwal angsuran" className="flex flex-col gap-3 border-t border-ob-line pt-5">
-                    <h3 className="text-base font-semibold text-ob-ink">Jadwal angsuran</h3>
-                    <JadwalAngsuran path={`/loans/${row.id}/schedule`} label={`Jadwal angsuran utang ${row.loan_number}`} />
+                <section aria-label={t('Jadwal angsuran')} className="flex flex-col gap-3 border-t border-ob-line pt-5">
+                    <h3 className="text-base font-semibold text-ob-ink">{t('Jadwal angsuran')}</h3>
+                    <JadwalAngsuran path={`/loans/${row.id}/schedule`} label={t('Jadwal angsuran utang {{number}}', { number: row.loan_number })} />
                 </section>
 
                 {(row.purpose || row.contract_attachment_url) && (
-                    <section aria-label="Lampiran dan catatan" className="flex flex-col gap-3 border-t border-ob-line pt-5">
+                    <section aria-label={t('Lampiran dan catatan')} className="flex flex-col gap-3 border-t border-ob-line pt-5">
                         {row.purpose && (
                             <div className="flex flex-col gap-1">
-                                <span className="text-[13px] font-semibold text-ob-ink">Tujuan pinjaman</span>
+                                <span className="text-[13px] font-semibold text-ob-ink">{t('Tujuan pinjaman')}</span>
                                 <p className="text-[13px] leading-relaxed text-ob-ink-2">{row.purpose}</p>
                             </div>
                         )}
@@ -122,7 +129,7 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
                                 className="flex items-center gap-2 rounded-xl border border-ob-line px-3 py-2.5 text-[13px] font-semibold text-ob-ink hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                             >
                                 <FileText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />
-                                Buka dokumen kontrak
+                                {t('Buka dokumen kontrak')}
                             </a>
                         )}
                     </section>
@@ -133,16 +140,16 @@ function Isi({ row, onClose, onEdit, onPay, onDelete }: { row: LoanRow; onClose:
                 {/* Hapus hanya selama belum ada pembayaran — setelahnya menghapus berarti membalik transaksi bank. */}
                 {row.paid_principal === 0 && (
                     <Button variant="ghost" className={cn(BTN.ghost, 'mr-auto text-ob-late hover:text-ob-late')} onClick={() => onDelete(row)} icon={<Trash2 className="h-4 w-4" />}>
-                        Hapus
+                        {t('Hapus')}
                     </Button>
                 )}
                 {row.status === 'active' && (
                     <>
                         <Button variant="outline" className={BTN.secondary} onClick={() => onEdit(row)} icon={<Pencil className="h-4 w-4" />}>
-                            Edit
+                            {t('Ubah')}
                         </Button>
                         <Button className={BTN.primary} onClick={() => onPay(row)} icon={<Banknote className="h-4 w-4" />}>
-                            Catat pembayaran
+                            {t('Catat pembayaran')}
                         </Button>
                     </>
                 )}

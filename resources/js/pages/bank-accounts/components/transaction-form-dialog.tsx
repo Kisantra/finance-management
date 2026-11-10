@@ -25,7 +25,8 @@ import { companyUrl } from '@/lib/company';
 import { cashJournal } from '@/lib/journal';
 import { toLocalIso } from '@/lib/utils';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
-import type { AccountPickerItem, CategoryOption } from '../types';
+import { bankNameLabel, type AccountPickerItem, type CategoryOption } from '../types';
+import { t } from '@/i18n';
 
 interface Props {
     open: boolean;
@@ -114,7 +115,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
 
     const accountOptions = accounts.map((a) => ({
         value: a.id,
-        label: `${a.account_name} — ${a.bank_name}`,
+        label: `${a.account_name} — ${bankNameLabel(a.bank_name, a.type)}`,
     }));
 
     // Grup Pendanaan (selalu terakhir) diberi judul bagian + penanda di pemicu.
@@ -133,13 +134,13 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(isIncome ? 'Pemasukan berhasil dicatat' : 'Pengeluaran berhasil dicatat');
+                toast.success(isIncome ? t('Pemasukan berhasil dicatat') : t('Pengeluaran berhasil dicatat'));
                 // Jangan tutup modal — reset field saja agar bisa input berikutnya
                 setData(emptyForm(accountId, type));
                 clearErrors();
             },
             onError: () => {
-                toast.error('Periksa kembali isian form');
+                toast.error(t('Periksa kembali isian form'));
             },
         });
     };
@@ -168,12 +169,12 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                         </div>
                         <div>
                             <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                {isIncome ? 'Catat Pemasukan' : 'Catat Pengeluaran'}
+                                {isIncome ? t('Catat Pemasukan') : t('Catat Pengeluaran')}
                             </DialogTitle>
                             <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">
                                 {isIncome
-                                    ? 'Tambahkan transaksi pemasukan ke rekening.'
-                                    : 'Tambahkan transaksi pengeluaran dari rekening.'}
+                                    ? t('Tambahkan transaksi pemasukan ke rekening.')
+                                    : t('Tambahkan transaksi pengeluaran dari rekening.')}
                             </p>
                         </div>
                     </div>
@@ -183,7 +184,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                     Jurnal selebar dialog — tanpa ruang kosong di samping isian pendek. */}
                 <form id="transaction-form" onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
                     <CurrencyInput
-                        label="Jumlah *"
+                        label={t('Jumlah *')}
                         value={data.amount}
                         onChange={(v) => setData('amount', v)}
                         error={errors.amount}
@@ -192,18 +193,18 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <DatePicker
                             mode="single"
-                            label="Tanggal *"
+                            label={t('Tanggal *')}
                             value={data.transaction_date ? new Date(data.transaction_date + 'T00:00:00') : null}
                             onChange={(d) => setData('transaction_date', d ? toLocalIso(d) : '')}
                             clearable={false}
                             error={errors.transaction_date}
                         />
                         <Combobox
-                            label="Rekening *"
+                            label={t('Rekening *')}
                             options={accountOptions}
                             value={data.bank_account_id}
                             onChange={(v) => setData('bank_account_id', Number(v))}
-                            placeholder="Pilih rekening"
+                            placeholder={t('Pilih rekening')}
                             clearable={false}
                             error={errors.bank_account_id}
                         />
@@ -211,17 +212,17 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
 
                     <div>
                         <div className="mb-1.5 flex items-center justify-between">
-                            <Label>Kategori *</Label>
+                            <Label>{t('Kategori *')}</Label>
                             <Button type="button" variant="link" size="sm" onClick={() => setQuickAddOpen(true)} className="h-auto gap-1 px-0 text-xs">
                                 <Plus className="h-3 w-3" aria-hidden="true" />
-                                Tambah
+                                {t('Tambah')}
                             </Button>
                         </div>
                         <Combobox
                             options={categoryOptions}
                             value={data.category_id ?? undefined}
                             onChange={(v) => setData('category_id', v ? Number(v) : null)}
-                            placeholder="Pilih kategori"
+                            placeholder={t('Pilih kategori')}
                             error={errors.category_id}
                         />
                         {isFinancing && (
@@ -229,34 +230,34 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                         )}
                     </div>
 
-                    <JournalBox mode="preview" lines={journal} placeholder="Pilih kategori untuk melihat jurnalnya." />
+                    <JournalBox mode="preview" lines={journal} placeholder={t('Pilih kategori untuk melihat jurnalnya.')} />
 
                     <Textarea
-                        label="Deskripsi *"
+                        label={t('Deskripsi *')}
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
-                        placeholder="Deskripsi singkat transaksi"
+                        placeholder={t('Deskripsi singkat transaksi')}
                         rows={2}
                         className="min-h-0" // dua baris persis (bawaan Textarea minimal 80 px)
                         error={errors.description}
                     />
 
                     <Input
-                        label="Nomor Referensi"
+                        label={t('Nomor Referensi')}
                         value={data.reference_number}
                         onChange={(e) => setData('reference_number', e.target.value)}
-                        placeholder="Opsional"
+                        placeholder={t('Opsional')}
                         error={errors.reference_number}
                     />
 
                     <FileUpload
-                        label="Lampiran Bukti"
+                        label={t('Lampiran Bukti')}
                         value={data.attachment}
                         onChange={(f) => setData('attachment', f)}
                         accept={['.pdf', '.jpg', '.jpeg', '.png']}
                         maxSizeMb={5}
                         error={errors.attachment}
-                        hint="Opsional — bukti pembayaran/struk"
+                        hint={t('Opsional — bukti pembayaran/struk')}
                     />
                 </form>
 
@@ -276,7 +277,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                         disabled={processing}
                         className="w-full sm:w-auto order-2 sm:order-1"
                     >
-                        Tutup
+                        {t('Tutup')}
                     </Button>
                     <Button
                         type="submit"
@@ -285,7 +286,7 @@ export function TransactionFormDialog({ open, onOpenChange, accountId, accounts,
                         variant={isIncome ? 'green' : 'red'}
                         className="w-full sm:w-auto order-1 sm:order-2"
                     >
-                        {isIncome ? 'Simpan Pemasukan' : 'Simpan Pengeluaran'}
+                        {isIncome ? t('Simpan Pemasukan') : t('Simpan Pengeluaran')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

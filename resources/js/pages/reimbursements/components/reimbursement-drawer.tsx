@@ -18,6 +18,7 @@ import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import { BTN, dateTime, FIELD, longDate, rp, SURFACE } from '@/pages/invoices/components/ob';
 import { PersonAvatar, rbAction, ReimbursementStatusPill, type ReimbursementStatus } from './rb';
 import { ReimbursementFormSheet, type CategoryOption } from './reimbursement-form-sheet';
+import { t, tk } from '@/i18n';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -71,13 +72,13 @@ type LoadState = { kind: 'loading' } | { kind: 'ready'; detail: ReimbursementDet
 
 /* Pilihan kategori pemohon — sama dengan Reimbursement::categories() di server. */
 const CATEGORY_OPTIONS: CategoryOption[] = [
-    { label: 'Transportasi', value: 'transport' },
-    { label: 'Makan & jamuan', value: 'meals' },
-    { label: 'Perlengkapan kantor', value: 'office_supplies' },
-    { label: 'Komunikasi', value: 'communication' },
-    { label: 'Akomodasi', value: 'accommodation' },
-    { label: 'Kesehatan', value: 'medical' },
-    { label: 'Lainnya', value: 'other' },
+    { label: tk('Transportasi'), value: 'transport' },
+    { label: tk('Makan & jamuan'), value: 'meals' },
+    { label: tk('Perlengkapan kantor'), value: 'office_supplies' },
+    { label: tk('Komunikasi'), value: 'communication' },
+    { label: tk('Akomodasi'), value: 'accommodation' },
+    { label: tk('Kesehatan'), value: 'medical' },
+    { label: tk('Lainnya'), value: 'other' },
 ];
 
 /* ─────────────────────────────────── drawer ─── */
@@ -103,12 +104,12 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
         try {
             const res = await api(`/reimbursements/${id}/data`, { signal });
             if (res.status === 404) return setState({ kind: 'missing' });
-            if (!res.ok) throw new Error(`Server membalas ${res.status}.`);
+            if (!res.ok) throw new Error(t('Server membalas {{status}}.', { status: res.status }));
             setState({ kind: 'ready', detail: await res.json() });
         } catch (e) {
             if (signal?.aborted) return;
             console.error('[ReimbursementDetail]', e);
-            setState({ kind: 'error', message: e instanceof Error ? e.message : 'Periksa koneksi lalu coba lagi.' });
+            setState({ kind: 'error', message: e instanceof Error ? e.message : t('Periksa koneksi lalu coba lagi.') });
         }
     }, []);
 
@@ -133,8 +134,8 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
         const result = await rbAction(`/reimbursements/${detail.id}/submit`, 'POST').catch(() => null);
         setBusy(false);
         setDialog(null);
-        if (!result?.ok) return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'Ajukan reimbursement');
-        toast.success(result.message ?? 'Reimbursement diajukan');
+        if (!result?.ok) return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'Ajukan reimbursement');
+        toast.success(result.message ?? t('Reimbursement diajukan'));
         refresh();
     };
 
@@ -144,15 +145,15 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
         const result = await rbAction(`/reimbursements/${detail.id}`, 'DELETE').catch(() => null);
         setBusy(false);
         setDialog(null);
-        if (!result?.ok) return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'Hapus reimbursement');
-        toast.success(result.message ?? 'Reimbursement dihapus');
+        if (!result?.ok) return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'Hapus reimbursement');
+        toast.success(result.message ?? t('Reimbursement dihapus'));
         onClose();
         onChanged();
     };
 
     const copyLink = async () => {
         await navigator.clipboard?.writeText(window.location.href).catch(() => {});
-        toast.success('Tautan pengajuan disalin');
+        toast.success(t('Tautan pengajuan disalin'));
     };
 
     const rejected = detail?.status === 'rejected';
@@ -161,11 +162,11 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
         <>
             <Sheet open={reimbursementId != null} onOpenChange={(o) => !o && onClose()}>
                 <SheetContent hideClose aria-describedby={undefined} className={cn(SURFACE, 'max-w-[840px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
-                    <SheetTitle className="sr-only">{detail ? `Reimbursement — ${detail.title}` : 'Detail reimbursement'}</SheetTitle>
+                    <SheetTitle className="sr-only">{detail ? t('Reimbursement — {{title}}', { title: detail.title }) : t('Detail reimbursement')}</SheetTitle>
 
                     {/* ── bilah atas: aksi sesuai status & izin ── */}
                     <div className="flex shrink-0 flex-wrap items-center gap-2.5 px-6 pb-3 pt-5">
-                        <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label="Tutup detail">
+                        <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label={t('Tutup detail')}>
                             <X className="h-4 w-4" />
                         </Button>
                         {detail && (
@@ -175,7 +176,7 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
                                     variant="ghost"
                                     className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover"
                                     onClick={copyLink}
-                                    aria-label="Salin tautan pengajuan"
+                                    aria-label={t('Salin tautan pengajuan')}
                                 >
                                     <Link2 className="h-4 w-4" />
                                 </Button>
@@ -183,46 +184,46 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
                                     {detail.can_review && (
                                         <>
                                             <Button variant="outline" className={cn(BTN.secondary, 'h-10')} onClick={() => setDialog('reject')} icon={<X className="h-4 w-4" />}>
-                                                Tolak
+                                                {t('Tolak')}
                                             </Button>
                                             <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('approve')} icon={<Check className="h-4 w-4" />}>
-                                                Setujui
+                                                {t('Setujui')}
                                             </Button>
                                         </>
                                     )}
                                     {detail.can_pay && (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('pay')} icon={<Wallet className="h-4 w-4" />}>
-                                            Bayar
+                                            {t('Bayar')}
                                         </Button>
                                     )}
                                     {rejected && detail.can_edit ? (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('edit')} icon={<Pencil className="h-4 w-4" />}>
-                                            Perbaiki &amp; ajukan ulang
+                                            {t('Perbaiki & ajukan ulang')}
                                         </Button>
                                     ) : (
                                         detail.can_submit && (
                                             <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('submit')} icon={<Send className="h-4 w-4" />}>
-                                                Ajukan
+                                                {t('Ajukan')}
                                             </Button>
                                         )
                                     )}
                                     {(detail.can_edit || detail.can_delete) && (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" className={BTN.icon} aria-label="Aksi lain">
+                                                <Button variant="outline" className={BTN.icon} aria-label={t('Aksi lain')}>
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-48">
                                                 {detail.can_edit && (
                                                     <DropdownMenuItem onClick={() => setDialog('edit')}>
-                                                        <Pencil className="h-4 w-4" /> Edit pengajuan
+                                                        <Pencil className="h-4 w-4" /> {t('Ubah pengajuan')}
                                                     </DropdownMenuItem>
                                                 )}
                                                 {detail.can_edit && detail.can_delete && <DropdownMenuSeparator />}
                                                 {detail.can_delete && (
                                                     <DropdownMenuItem className="text-ob-late focus:text-ob-late" onClick={() => setDialog('delete')}>
-                                                        <Trash2 className="h-4 w-4" /> Hapus pengajuan
+                                                        <Trash2 className="h-4 w-4" /> {t('Hapus pengajuan')}
                                                     </DropdownMenuItem>
                                                 )}
                                             </DropdownMenuContent>
@@ -237,11 +238,11 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
                         {state.kind === 'loading' && <DrawerSkeleton />}
                         {state.kind === 'missing' && (
                             <DrawerNotice
-                                title="Pengajuan tidak ditemukan"
-                                text="Tautan ini mengarah ke pengajuan yang sudah dihapus, atau bukan milik Anda. Halaman di belakang tetap terbuka."
+                                title={t('Pengajuan tidak ditemukan')}
+                                text={t('Tautan ini mengarah ke pengajuan yang sudah dihapus, atau bukan milik Anda. Halaman di belakang tetap terbuka.')}
                                 action={
                                     <Button variant="outline" className={BTN.small} onClick={onClose}>
-                                        Tutup
+                                        {t('Tutup')}
                                     </Button>
                                 }
                             />
@@ -249,11 +250,11 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
                         {state.kind === 'error' && (
                             <DrawerNotice
                                 alert
-                                title={`Pengajuan #${reimbursementId} tidak dapat dimuat`}
+                                title={t('Pengajuan #{{id}} tidak dapat dimuat', { id: reimbursementId })}
                                 text={state.message}
                                 action={
                                     <Button variant="outline" className={BTN.small} onClick={() => setAttempt((n) => n + 1)}>
-                                        Coba lagi
+                                        {t('Coba lagi')}
                                     </Button>
                                 }
                             />
@@ -276,25 +277,25 @@ export function ReimbursementDrawer({ reimbursementId, onClose, onChanged }: Dra
                     <ReimbursementFormSheet
                         open={dialog === 'edit'}
                         onOpenChange={(o) => !o && setDialog(null)}
-                        categoryOptions={CATEGORY_OPTIONS}
+                        categoryOptions={CATEGORY_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
                         initial={{ ...detail, status: detail.status }}
                         onSaved={refresh}
                     />
                     <ConfirmDialog
                         open={dialog === 'submit'}
                         onOpenChange={(o) => !o && setDialog(null)}
-                        title="Ajukan pengajuan ini?"
-                        description={`"${detail.title}" sebesar ${rp(detail.amount)} masuk ke antrean review finance dan tidak bisa diubah selama ditinjau.`}
-                        confirmLabel="Ajukan"
+                        title={t('Ajukan pengajuan ini?')}
+                        description={t('"{{title}}" sebesar {{amount}} masuk ke antrean persetujuan tim keuangan dan tidak bisa diubah selama ditinjau.', { title: detail.title, amount: rp(detail.amount) })}
+                        confirmLabel={t('Ajukan')}
                         loading={busy}
                         onConfirm={submit}
                     />
                     <ConfirmDialog
                         open={dialog === 'delete'}
                         onOpenChange={(o) => !o && setDialog(null)}
-                        title="Hapus pengajuan"
-                        description={`"${detail.title}" beserta bukti terlampir akan dihapus permanen.`}
-                        confirmLabel="Hapus pengajuan"
+                        title={t('Hapus pengajuan')}
+                        description={t('"{{title}}" beserta bukti terlampir akan dihapus permanen.', { title: detail.title })}
+                        confirmLabel={t('Hapus pengajuan')}
                         loading={busy}
                         onConfirm={destroy}
                     />
@@ -317,7 +318,7 @@ function DrawerBody({ detail }: { detail: ReimbursementDetail }) {
                 <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ob-ink-2">
                     <PersonAvatar name={detail.user.name} className="h-6 w-6 text-[10px]" />
                     <span className="font-medium text-ob-ink">{detail.user.name ?? '—'}</span>
-                    {detail.expense_date && <span>· pengeluaran {longDate(detail.expense_date)}</span>}
+                    {detail.expense_date && <span>· {t('pengeluaran {{date}}', { date: longDate(detail.expense_date) })}</span>}
                     <span>· {detail.category_label}</span>
                 </p>
             </div>
@@ -325,20 +326,20 @@ function DrawerBody({ detail }: { detail: ReimbursementDetail }) {
             {detail.status === 'rejected' && (
                 <div role="note" className="flex flex-col gap-1 rounded-2xl border border-ob-late/30 bg-ob-late/8 p-4 text-[13px]">
                     <span className="font-semibold text-ob-late">
-                        Ditolak{detail.reviewer_name ? ` oleh ${detail.reviewer_name}` : ''}
+                        {detail.reviewer_name ? t('Ditolak oleh {{name}}', { name: detail.reviewer_name }) : t('Ditolak')}
                         {detail.reviewed_at ? ` · ${dateTime(detail.reviewed_at)}` : ''}
                     </span>
-                    <span className="text-ob-ink">{detail.review_notes || 'Tanpa catatan dari peninjau.'}</span>
+                    <span className="text-ob-ink">{detail.review_notes || t('Tanpa catatan dari peninjau.')}</span>
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Metric label="Nominal" value={rp(detail.amount)} />
-                <Metric label="Sudah dibayar" value={rp(detail.amount_paid)} valueClass={detail.amount_paid > 0 ? 'text-ob-pos' : undefined} sub={showPayment ? `${paidPct}% terbayar` : undefined} />
-                <Metric label="Sisa" value={rp(detail.amount_remaining)} />
+                <Metric label={t('Nominal')} value={rp(detail.amount)} />
+                <Metric label={t('Sudah dibayar')} value={rp(detail.amount_paid)} valueClass={detail.amount_paid > 0 ? 'text-ob-pos' : undefined} sub={showPayment ? t('{{percent}}% terbayar', { percent: paidPct }) : undefined} />
+                <Metric label={t('Sisa')} value={rp(detail.amount_remaining)} />
             </div>
             {showPayment && (
-                <div className="h-1.5 overflow-hidden rounded-full bg-ob-chip" role="progressbar" aria-label="Terbayar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-1.5 overflow-hidden rounded-full bg-ob-chip" role="progressbar" aria-label={t('Terbayar')} aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
                     <div className="h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
                 </div>
             )}
@@ -346,27 +347,27 @@ function DrawerBody({ detail }: { detail: ReimbursementDetail }) {
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="flex min-w-0 flex-col gap-5">
                     <section className="flex flex-col gap-3">
-                        <h3 className="text-[13px] font-semibold text-ob-ink">Rincian</h3>
+                        <h3 className="text-[13px] font-semibold text-ob-ink">{t('Rincian')}</h3>
                         <dl className="grid grid-cols-[150px_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-[13px]">
-                            <dt className="text-ob-ink-2">Kategori pemohon</dt>
+                            <dt className="text-ob-ink-2">{t('Kategori pemohon')}</dt>
                             <dd className="text-ob-ink">{detail.category_label}</dd>
-                            <dt className="text-ob-ink-2">Kategori akuntansi</dt>
-                            <dd className={detail.transaction_category ? 'text-ob-ink' : 'text-ob-ink-3'}>{detail.transaction_category ?? 'Ditentukan finance saat menyetujui'}</dd>
-                            <dt className="text-ob-ink-2">Tanggal pengeluaran</dt>
+                            <dt className="text-ob-ink-2">{t('Kategori akuntansi')}</dt>
+                            <dd className={detail.transaction_category ? 'text-ob-ink' : 'text-ob-ink-3'}>{detail.transaction_category ?? t('Ditentukan tim keuangan saat menyetujui')}</dd>
+                            <dt className="text-ob-ink-2">{t('Tanggal pengeluaran')}</dt>
                             <dd className="text-ob-ink">{detail.expense_date ? longDate(detail.expense_date) : '—'}</dd>
-                            <dt className="text-ob-ink-2">Keterangan</dt>
-                            <dd className={cn('whitespace-pre-line', detail.description ? 'text-ob-ink' : 'text-ob-ink-3')}>{detail.description || 'Tidak ada keterangan'}</dd>
+                            <dt className="text-ob-ink-2">{t('Keterangan')}</dt>
+                            <dd className={cn('whitespace-pre-line', detail.description ? 'text-ob-ink' : 'text-ob-ink-3')}>{detail.description || t('Tidak ada keterangan')}</dd>
                         </dl>
                     </section>
 
                     <section className="flex flex-col gap-3">
-                        <h3 className="text-[13px] font-semibold text-ob-ink">Bukti</h3>
+                        <h3 className="text-[13px] font-semibold text-ob-ink">{t('Bukti')}</h3>
                         <ReceiptCard detail={detail} />
                     </section>
                 </div>
 
                 <section className="flex flex-col gap-3 self-start rounded-2xl border border-ob-line bg-ob-inner p-4">
-                    <h3 className="text-xs font-semibold text-ob-ink-2">Riwayat</h3>
+                    <h3 className="text-xs font-semibold text-ob-ink-2">{t('Riwayat')}</h3>
                     <Timeline detail={detail} />
                 </section>
             </div>
@@ -381,7 +382,7 @@ function ReceiptCard({ detail }: { detail: ReimbursementDetail }) {
         return (
             <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ob-line-strong px-4 py-5 text-[13px] text-ob-ink-2">
                 <FileText className="h-5 w-5 shrink-0 text-ob-ink-3" aria-hidden="true" />
-                Tidak ada bukti dilampirkan.
+                {t('Tidak ada bukti dilampirkan.')}
             </div>
         );
     }
@@ -392,10 +393,10 @@ function ReceiptCard({ detail }: { detail: ReimbursementDetail }) {
                 <button
                     type="button"
                     onClick={() => setPreview(true)}
-                    aria-label={`Perbesar bukti ${detail.attachment_name}`}
+                    aria-label={t('Perbesar bukti {{name}}', { name: detail.attachment_name })}
                     className="block w-full overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                 >
-                    <img src={detail.attachment_url} alt={`Bukti: ${detail.attachment_name}`} className="max-h-[260px] w-full rounded-xl bg-ob-card object-contain" />
+                    <img src={detail.attachment_url} alt={t('Bukti: {{name}}', { name: detail.attachment_name })} className="max-h-[260px] w-full rounded-xl bg-ob-card object-contain" />
                 </button>
             )}
             <div className="flex items-center gap-3 px-1">
@@ -404,7 +405,7 @@ function ReceiptCard({ detail }: { detail: ReimbursementDetail }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ob-ink">{detail.attachment_name}</span>
                 <Button type="button" variant="outline" className={BTN.small} onClick={() => setPreview(true)}>
-                    Buka
+                    {t('Buka')}
                 </Button>
             </div>
             <FilePreviewDialog open={preview} onOpenChange={setPreview} fileName={detail.attachment_name} fileUrl={detail.attachment_url} />
@@ -416,35 +417,35 @@ type Step = { at: string | null; title: string; body?: React.ReactNode; tone: 'd
 
 /** Riwayat vertikal: langkah yang sudah terjadi, lalu langkah berikutnya yang ditunggu. */
 function Timeline({ detail }: { detail: ReimbursementDetail }) {
-    const steps: Step[] = [{ at: detail.created_at, title: 'Dibuat', body: detail.user.name ?? undefined, tone: 'done' }];
+    const steps: Step[] = [{ at: detail.created_at, title: t('Dibuat'), body: detail.user.name ?? undefined, tone: 'done' }];
 
     if (detail.reviewed_at && (detail.status === 'approved' || detail.status === 'paid')) {
         steps.push({
             at: detail.reviewed_at,
-            title: `Disetujui${detail.reviewer_name ? ` · ${detail.reviewer_name}` : ''}`,
-            body: [detail.transaction_category && `Kategori ${detail.transaction_category}`, detail.review_notes].filter(Boolean).join(' — ') || undefined,
+            title: detail.reviewer_name ? t('Disetujui · {{name}}', { name: detail.reviewer_name }) : t('Disetujui'),
+            body: [detail.transaction_category && t('Kategori {{name}}', { name: detail.transaction_category }), detail.review_notes].filter(Boolean).join(' — ') || undefined,
             tone: 'done',
         });
     }
     if (detail.reviewed_at && detail.status === 'rejected') {
-        steps.push({ at: detail.reviewed_at, title: `Ditolak${detail.reviewer_name ? ` · ${detail.reviewer_name}` : ''}`, body: detail.review_notes ?? undefined, tone: 'late' });
+        steps.push({ at: detail.reviewed_at, title: detail.reviewer_name ? t('Ditolak · {{name}}', { name: detail.reviewer_name }) : t('Ditolak'), body: detail.review_notes ?? undefined, tone: 'late' });
     }
     detail.payments.forEach((p, i) => {
         const last = detail.status === 'paid' && i === detail.payments.length - 1;
         steps.push({
             // Tanggal bayar (bukan waktu pencatatan) yang relevan untuk pemohon & arus kas.
             at: p.payment_date,
-            title: `${last ? 'Pelunasan' : 'Pembayaran'} ${rp(p.amount)}`,
-            body: [p.bank_account_name, p.payer_name && `oleh ${p.payer_name}`, p.notes && `Ref ${p.notes}`].filter(Boolean).join(' · '),
+            title: last ? t('Pelunasan {{amount}}', { amount: rp(p.amount) }) : t('Pembayaran {{amount}}', { amount: rp(p.amount) }),
+            body: [p.bank_account_name, p.payer_name && t('oleh {{name}}', { name: p.payer_name }), p.notes && t('Ref {{number}}', { number: p.notes })].filter(Boolean).join(' · '),
             tone: 'pos',
         });
     });
 
     const next: Record<ReimbursementStatus, string | null> = {
-        draft: 'Belum diajukan',
-        pending: 'Menunggu review finance',
-        approved: `Menunggu pembayaran · sisa ${rp(detail.amount_remaining)}`,
-        rejected: 'Menunggu perbaikan dari pemohon',
+        draft: t('Belum diajukan'),
+        pending: t('Menunggu persetujuan tim keuangan'),
+        approved: t('Menunggu pembayaran · sisa {{amount}}', { amount: rp(detail.amount_remaining) }),
+        rejected: t('Menunggu perbaikan dari pemohon'),
         paid: null,
     };
     if (next[detail.status]) steps.push({ at: null, title: next[detail.status] as string, tone: 'next' });
@@ -492,7 +493,7 @@ function DialogHead({ title, sub, onClose }: { title: string; sub?: React.ReactN
                     <DialogDescription className="sr-only">{title}</DialogDescription>
                 )}
             </div>
-            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={onClose} aria-label="Tutup">
+            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={onClose} aria-label={t('Tutup')}>
                 <X className="h-4 w-4" />
             </Button>
         </div>
@@ -551,9 +552,9 @@ function ReviewDialog({
         setSaving(false);
         if (!result?.ok) {
             setErrors(result?.errors ?? {});
-            return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'Review reimbursement');
+            return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'Review reimbursement');
         }
-        toast.success(result.message ?? (approve ? 'Disetujui' : 'Ditolak'));
+        toast.success(result.message ?? (approve ? t('Disetujui') : t('Ditolak')));
         onOpenChange(false);
         onDone();
     };
@@ -562,11 +563,11 @@ function ReviewDialog({
         <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
             <DialogContent size="md" hideClose className={DIALOG}>
                 <DialogHead
-                    title={approve ? 'Setujui pengajuan' : 'Tolak pengajuan'}
+                    title={approve ? t('Setujui pengajuan') : t('Tolak pengajuan')}
                     sub={
                         approve
-                            ? 'Pilih kategori akuntansi; kategori ini dipakai untuk transaksi bank saat pembayaran.'
-                            : 'Pemohon bisa memperbaiki lalu mengajukan ulang. Jelaskan apa yang perlu diperbaiki.'
+                            ? t('Pilih kategori akuntansi; kategori ini dipakai untuk transaksi bank saat pembayaran.')
+                            : t('Pemohon bisa memperbaiki lalu mengajukan ulang. Jelaskan apa yang perlu diperbaiki.')
                     }
                     onClose={() => onOpenChange(false)}
                 />
@@ -581,25 +582,25 @@ function ReviewDialog({
                     <div className={cn(FIELD, 'flex flex-col gap-4')}>
                         {approve && (
                             <Combobox
-                                label="Kategori akuntansi"
+                                label={t('Kategori akuntansi')}
                                 options={detail.review_category_options}
                                 value={categoryId}
                                 onChange={(v) => {
                                     setCategoryId(v ? Number(v) : null);
                                     setErrors({});
                                 }}
-                                placeholder="Pilih kategori pengeluaran"
-                                searchPlaceholder="Cari kategori…"
+                                placeholder={t('Pilih kategori pengeluaran')}
+                                searchPlaceholder={t('Cari kategori…')}
                                 error={errors.category_id}
                                 clearable={false}
                             />
                         )}
                         <Textarea
                             id="rb-review-notes"
-                            label={approve ? 'Catatan (opsional)' : 'Alasan penolakan'}
+                            label={approve ? t('Catatan (opsional)') : t('Alasan penolakan')}
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            placeholder={approve ? 'Catatan untuk pemohon…' : 'cth. Lampirkan struk asli dari restoran.'}
+                            placeholder={approve ? t('Catatan untuk pemohon…') : t('cth. Lampirkan struk asli dari restoran.')}
                             rows={3}
                             maxLength={500}
                             error={errors.review_notes}
@@ -607,7 +608,7 @@ function ReviewDialog({
                     </div>
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)} disabled={saving}>
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button
                             type="submit"
@@ -616,7 +617,7 @@ function ReviewDialog({
                             disabled={approve && !categoryId}
                             icon={approve ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
                         >
-                            {approve ? 'Setujui' : 'Tolak pengajuan'}
+                            {approve ? t('Setujui') : t('Tolak pengajuan')}
                         </Button>
                     </div>
                 </form>
@@ -655,9 +656,9 @@ function PayDialog({ open, onOpenChange, detail, onDone }: { open: boolean; onOp
         setSaving(false);
         if (!result?.ok) {
             setErrors(result?.errors ?? {});
-            return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'Pembayaran reimbursement');
+            return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'Pembayaran reimbursement');
         }
-        toast.success(result.message ?? 'Pembayaran dicatat');
+        toast.success(result.message ?? t('Pembayaran dicatat'));
         onOpenChange(false);
         onDone();
     };
@@ -666,8 +667,8 @@ function PayDialog({ open, onOpenChange, detail, onDone }: { open: boolean; onOp
         <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
             <DialogContent size="md" hideClose className={DIALOG}>
                 <DialogHead
-                    title="Bayar reimbursement"
-                    sub="Mencatat transaksi keluar dari rekening yang dipilih. Boleh dicicil; nominal tidak boleh melebihi sisa."
+                    title={t('Bayar reimbursement')}
+                    sub={t('Mencatat transaksi keluar dari rekening yang dipilih. Boleh dicicil; nominal tidak boleh melebihi sisa.')}
                     onClose={() => onOpenChange(false)}
                 />
                 <form
@@ -677,40 +678,40 @@ function PayDialog({ open, onOpenChange, detail, onDone }: { open: boolean; onOp
                     }}
                     className="flex flex-col gap-4"
                 >
-                    <Summary detail={detail} label="Sisa" value={rp(detail.amount_remaining)} />
+                    <Summary detail={detail} label={t('Sisa')} value={rp(detail.amount_remaining)} />
                     <div className={cn(FIELD, 'flex flex-col gap-4')}>
                         <Combobox
-                            label="Rekening sumber"
+                            label={t('Rekening sumber')}
                             options={detail.bank_account_options}
                             value={bankId}
                             onChange={(v) => {
                                 setBankId(v ? Number(v) : null);
                                 setErrors((e) => ({ ...e, bank_account_id: '' }));
                             }}
-                            placeholder="Pilih rekening"
+                            placeholder={t('Pilih rekening')}
                             error={errors.bank_account_id || undefined}
                             clearable={false}
                         />
                         <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
-                            <DatePicker label="Tanggal bayar" value={date} onChange={setDate} maxDate={new Date()} clearable={false} error={errors.payment_date} />
+                            <DatePicker label={t('Tanggal bayar')} value={date} onChange={setDate} maxDate={new Date()} clearable={false} error={errors.payment_date} />
                             <CurrencyInput
-                                label="Nominal"
+                                label={t('Nominal')}
                                 value={amount}
                                 onChange={(v) => {
                                     setAmount(v);
                                     setErrors((e) => ({ ...e, payment_amount: '' }));
                                 }}
-                                error={over ? `Melebihi sisa ${rp(detail.amount_remaining)}.` : errors.payment_amount || undefined}
+                                error={over ? t('Melebihi sisa {{amount}}.', { amount: rp(detail.amount_remaining) }) : errors.payment_amount || undefined}
                             />
                         </div>
-                        <Input id="rb-pay-ref" label="Nomor referensi (opsional)" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="cth. TRF-2026-1008" maxLength={255} />
+                        <Input id="rb-pay-ref" label={t('Nomor referensi (opsional)')} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('cth. TRF-2026-1008')} maxLength={255} />
                     </div>
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)} disabled={saving}>
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" className={BTN.primary} loading={saving} disabled={!bankId || !date || amount <= 0 || over} icon={<Wallet className="h-4 w-4" />}>
-                            {amount >= detail.amount_remaining ? 'Bayar lunas' : 'Bayar sebagian'}
+                            {amount >= detail.amount_remaining ? t('Bayar lunas') : t('Bayar sebagian')}
                         </Button>
                     </div>
                 </form>
@@ -744,7 +745,7 @@ function DrawerNotice({ title, text, action, alert }: { title: string; text: str
 
 function DrawerSkeleton() {
     return (
-        <div className="flex flex-col gap-5 pt-2" aria-label="Memuat pengajuan" aria-busy="true">
+        <div className="flex flex-col gap-5 pt-2" aria-label={t('Memuat pengajuan')} aria-busy="true">
             <Skeleton className="h-7 w-72 rounded-lg bg-ob-chip dark:bg-ob-chip" />
             <Skeleton className="h-4 w-80 rounded-lg bg-ob-chip dark:bg-ob-chip" />
             <div className="grid grid-cols-3 gap-3">

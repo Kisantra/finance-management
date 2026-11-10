@@ -21,7 +21,7 @@ export function ReceivableStatusPill({ status }: { status: ReceivableStatus }) {
     if (status === 'paid_off') {
         return (
             <StatusPill tone="pos" icon={<Check className="h-3 w-3" strokeWidth={3} />}>
-                {t('Lunas')}
+                {t('Lunas', { context: 'pinjaman' })}
             </StatusPill>
         );
     }
@@ -36,7 +36,7 @@ export function ReceivableStatusPill({ status }: { status: ReceivableStatus }) {
         return <StatusPill tone="wait">{t('Menunggu persetujuan')}</StatusPill>;
     }
     if (status === 'active') {
-        return <StatusPill tone="act">{t('Aktif')}</StatusPill>;
+        return <StatusPill tone="act">{t('Aktif', { context: 'pinjaman' })}</StatusPill>;
     }
     return <StatusPill tone="neutral">{t('Draft')}</StatusPill>;
 }

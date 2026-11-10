@@ -17,9 +17,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmented-control';
 import { CurrencyInput } from '@/components/shared/currency-input';
-import { BANKS } from '@/lib/banks';
+import { BANKS, bankDescription } from '@/lib/banks';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import type { AccountListItem, AccountType, CustodianOption } from '../types';
+import { t } from '@/i18n';
 
 interface Props {
     open: boolean;
@@ -42,21 +43,23 @@ interface AccountForm {
 }
 
 /* Nilai yang diisi server untuk akun kas (BankAccount::CASH_BANK_NAME / CASH_CODE_PREFIX). */
+// i18n-abaikan: nilai tersimpan bank_name akun kas (data), bukan teks tampilan
 const CASH_BANK_NAME = 'Tunai';
 const CASH_CODE_PREFIX = 'KAS-';
 
-const TYPE_OPTIONS: SegmentedOption<AccountType>[] = [
-    { value: 'bank', label: 'Bank', icon: <Building2 className="h-4 w-4" /> },
-    { value: 'cash', label: 'Kas', icon: <Wallet className="h-4 w-4" /> },
+const typeOptions = (): SegmentedOption<AccountType>[] => [
+    { value: 'bank', label: t('Bank'), icon: <Building2 className="h-4 w-4" /> },
+    { value: 'cash', label: t('Kas'), icon: <Wallet className="h-4 w-4" /> },
 ];
 
 /* Saran Nama Bank dari katalog; nama di luar daftar tetap boleh diketik. */
-const BANK_OPTIONS: AutocompleteOption[] = BANKS.map((bank) => ({
-    value: bank.name,
-    description: bank.description,
-    keywords: bank.aliases,
-    icon: <BankLogo bankName={bank.name} className="h-8 w-8 rounded-lg" />,
-}));
+const bankOptions = (): AutocompleteOption[] =>
+    BANKS.map((bank) => ({
+        value: bank.name,
+        description: bankDescription(bank),
+        keywords: bank.aliases,
+        icon: <BankLogo bankName={bank.name} className="h-8 w-8 rounded-lg" />,
+    }));
 
 function initialData(account?: AccountListItem | null): AccountForm {
     return {
@@ -90,7 +93,7 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
     const custodianChoices = React.useMemo(() => {
         const current = account?.custodian_id;
         if (!current || custodianOptions.some((o) => o.value === current)) return custodianOptions;
-        return [...custodianOptions, { value: current, label: `${account?.custodian_name ?? 'Pengguna'} (bukan anggota lagi)` }];
+        return [...custodianOptions, { value: current, label: t('{{name}} (bukan anggota lagi)', { name: account?.custodian_name ?? t('Pengguna') }) }];
     }, [custodianOptions, account?.custodian_id, account?.custodian_name]);
 
     const changeType = (type: AccountType) => {
@@ -121,13 +124,16 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
         const opts = {
             preserveScroll: true,
             onSuccess: () => {
-                const noun = isCash ? 'Kas' : 'Rekening';
-                toast.success(isEdit ? `${noun} berhasil diperbarui` : `${noun} berhasil ditambahkan`);
+                toast.success(
+                    isEdit
+                        ? isCash ? t('Kas berhasil diperbarui') : t('Rekening berhasil diperbarui')
+                        : isCash ? t('Kas berhasil ditambahkan') : t('Rekening berhasil ditambahkan'),
+                );
                 onOpenChange(false);
                 if (!isEdit) reset();
             },
             onError: () => {
-                toast.error('Periksa kembali isian form');
+                toast.error(t('Periksa kembali isian form'));
             },
         };
 
@@ -138,12 +144,12 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
         }
     };
 
-    const title = isEdit ? (isCash ? 'Edit Kas' : 'Edit Rekening Bank') : isCash ? 'Tambah Kas' : 'Tambah Rekening Bank';
+    const title = isEdit ? (isCash ? t('Ubah Kas') : t('Ubah Rekening Bank')) : isCash ? t('Tambah Kas') : t('Tambah Rekening Bank');
     const description = isCash
-        ? 'Kas tunai atau kas kecil yang dipegang seorang penanggung jawab. Tidak perlu nomor rekening.'
+        ? t('Kas tunai atau kas kecil yang dipegang seorang penanggung jawab. Tidak perlu nomor rekening.')
         : isEdit
-          ? 'Perbarui informasi rekening bank.'
-          : 'Tambahkan rekening bank baru ke daftar akun Anda.';
+          ? t('Perbarui informasi rekening bank.')
+          : t('Tambahkan rekening bank baru ke daftar akun Anda.');
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,8 +168,8 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
 
                 <form id="account-form" onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
                     <SegmentedControl
-                        label="Jenis *"
-                        options={TYPE_OPTIONS}
+                        label={t('Jenis *')}
+                        options={typeOptions()}
                         value={data.type}
                         onChange={changeType}
                         columns={2}
@@ -173,10 +179,10 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="sm:col-span-2">
                             <Input
-                                label={isCash ? 'Nama Kas *' : 'Nama Pemilik Rekening *'}
+                                label={isCash ? t('Nama Kas *') : t('Nama Pemilik Rekening *')}
                                 value={data.account_name}
                                 onChange={(e) => setData('account_name', e.target.value)}
-                                placeholder={isCash ? 'Mis. Kas Kecil Kantor' : 'Mis. PT Kisantra Solidaritas'}
+                                placeholder={isCash ? t('Mis. Kas Kecil Kantor') : t('Mis. PT Kisantra Solidaritas')}
                                 error={errors.account_name}
                             />
                         </div>
@@ -184,39 +190,39 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                         {isCash ? (
                             <>
                                 <Combobox
-                                    label="Penanggung Jawab"
+                                    label={t('Penanggung Jawab')}
                                     options={custodianChoices}
                                     value={data.custodian_id}
                                     onChange={(v) => setData('custodian_id', v ? Number(v) : null)}
-                                    placeholder="Pilih anggota perusahaan"
-                                    searchPlaceholder="Cari nama..."
-                                    emptyText="Tidak ada anggota."
-                                    hint="Orang yang memegang uang kas ini."
+                                    placeholder={t('Pilih anggota perusahaan')}
+                                    searchPlaceholder={t('Cari nama...')}
+                                    emptyText={t('Tidak ada anggota.')}
+                                    hint={t('Orang yang memegang uang kas ini.')}
                                     error={errors.custodian_id}
                                 />
                                 <CurrencyInput
-                                    label="Plafon"
+                                    label={t('Plafon')}
                                     value={data.cash_limit}
                                     onChange={(v) => setData('cash_limit', v)}
                                     error={errors.cash_limit}
-                                    hint="Batas saldo kas kecil. Bila saldo di bawahnya, selisihnya tampil sebagai kebutuhan isi ulang. Kosongkan bila tidak ada."
+                                    hint={t('Batas saldo kas kecil. Bila saldo di bawahnya, selisihnya tampil sebagai kebutuhan isi ulang. Kosongkan bila tidak ada.')}
                                 />
                             </>
                         ) : (
                             <>
                                 <Input
-                                    label="Nomor Rekening *"
+                                    label={t('Nomor Rekening *')}
                                     value={data.account_number}
                                     onChange={(e) => setData('account_number', e.target.value)}
                                     placeholder="1234567890"
                                     error={errors.account_number}
                                 />
                                 <Autocomplete
-                                    label="Nama Bank *"
+                                    label={t('Nama Bank *')}
                                     value={data.bank_name}
                                     onChange={(v) => setData('bank_name', v)}
-                                    options={BANK_OPTIONS}
-                                    placeholder="Ketik atau pilih, mis. BCA"
+                                    options={bankOptions()}
+                                    placeholder={t('Ketik atau pilih, mis. BCA')}
                                     icon={
                                         <BankLogo
                                             bankName={data.bank_name}
@@ -224,25 +230,25 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                                             fallback={<Building2 className="h-4 w-4 text-ob-ink-3" />}
                                         />
                                     }
-                                    hint="Pilih dari daftar, atau ketik sendiri bila bank tidak ada."
+                                    hint={t('Pilih dari daftar, atau ketik sendiri bila bank tidak ada.')}
                                     error={errors.bank_name}
                                 />
                                 <Input
-                                    label="Cabang"
+                                    label={t('Cabang')}
                                     value={data.branch}
                                     onChange={(e) => setData('branch', e.target.value)}
-                                    placeholder="Cabang Sudirman"
+                                    placeholder={t('Cabang Sudirman')}
                                     error={errors.branch}
                                 />
                             </>
                         )}
 
                         <CurrencyInput
-                            label="Saldo Awal *"
+                            label={t('Saldo Awal *')}
                             value={data.initial_balance}
                             onChange={(v) => setData('initial_balance', v)}
                             error={errors.initial_balance}
-                            hint={isEdit ? 'Mengubah saldo awal akan menggeser saldo total.' : undefined}
+                            hint={isEdit ? t('Mengubah saldo awal akan menggeser saldo total.') : undefined}
                         />
                     </div>
                 </form>
@@ -255,7 +261,7 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                         disabled={processing}
                         className="w-full sm:w-auto order-2 sm:order-1"
                     >
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button
                         type="submit"
@@ -264,7 +270,7 @@ export function AccountFormDialog({ open, onOpenChange, account, custodianOption
                         variant="primary"
                         className="w-full sm:w-auto order-1 sm:order-2"
                     >
-                        {isEdit ? 'Simpan Perubahan' : isCash ? 'Tambah Kas' : 'Tambah Rekening'}
+                        {isEdit ? t('Simpan Perubahan') : isCash ? t('Tambah Kas') : t('Tambah Rekening')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

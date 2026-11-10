@@ -32,7 +32,7 @@ export const guide: ModuleGuide = {
     flow: {
         steps: [
             { label: 'Draft', tone: 'neutral', role: ROLES.staff, what: 'Mencatat biaya + struk' },
-            { label: 'Menunggu review', tone: 'wait', role: ROLES.staff, what: 'Mengajukan' },
+            { label: 'Menunggu persetujuan', tone: 'wait', role: ROLES.staff, what: 'Mengajukan' },
             { label: 'Disetujui', tone: 'act', role: ROLES.fm, what: 'Menyetujui + pilih kategori' },
             { label: 'Lunas', tone: 'pos', role: ROLES.fm, what: 'Membayar dari rekening' },
         ],
@@ -47,7 +47,7 @@ export const guide: ModuleGuide = {
                 'Buka **Operasional › Reimbursement**, lalu klik **Buat pengajuan**.',
                 'Isi **Judul** (untuk apa biayanya), **Nominal** sesuai struk, **Tanggal pengeluaran**, dan **Kategori** biaya.',
                 'Tambahkan keterangan bila perlu dan unggah foto struk (JPG, PNG, atau PDF, maksimal 5 MB).',
-                'Klik **Simpan draft** bila belum lengkap, atau **Ajukan** untuk mengirim ke peninjau. Status menjadi **Menunggu review**.',
+                'Klik **Simpan draft** bila belum lengkap, atau **Ajukan** untuk mengirim ke peninjau. Status menjadi **Menunggu persetujuan**.',
             ],
         },
         {
@@ -55,14 +55,14 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Buka pengajuan berstatus **Ditolak** dan baca alasan dari peninjau.',
-                'Klik **Perbaiki & ajukan ulang**, ubah isinya, lalu **Ajukan ulang**. Status kembali **Menunggu review**.',
+                'Klik **Perbaiki & ajukan ulang**, ubah isinya, lalu **Ajukan ulang**. Status kembali **Menunggu persetujuan**.',
             ],
         },
         {
             title: 'Meninjau pengajuan',
             role: ROLES.fm,
             steps: [
-                'Pilih **Semua pengajuan**, lalu filter **Menunggu review**.',
+                'Pilih **Semua pengajuan**, lalu filter **Menunggu persetujuan**.',
                 'Klik pengajuan untuk membuka detail; periksa nominal, rincian, dan foto bukti.',
                 'Klik **Setujui** dan pilih **Kategori akuntansi** (catatan opsional), atau klik **Tolak** dan tulis alasannya.',
             ],
@@ -114,7 +114,7 @@ export const guide: ModuleGuide = {
             title: 'Isi transaksi bank yang dibuat otomatis',
             subtitle: 'Contoh dari pembayaran tadi, beserta asal setiap datanya.',
             rows: [
-                { label: 'Jenis', value: 'Keluar (debit)', source: 'Otomatis', tone: 'neutral' },
+                { label: 'Jenis', value: 'Uang keluar', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Rekening', value: 'BCA - Operasional', source: 'Dialog Bayar', tone: 'pos' },
                 { label: 'Tanggal', value: '11 Okt 2026 (tanggal bayar)', source: 'Dialog Bayar', tone: 'pos' },
                 { label: 'Jumlah', value: '−Rp 185.000', source: 'Dialog Bayar', tone: 'pos' },
@@ -134,7 +134,7 @@ export const guide: ModuleGuide = {
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
     matrix: [
         { action: 'Membuat & mengajukan pengajuan', cells: [true, true, true] },
-        { action: 'Mengedit & mengajukan ulang (milik sendiri)', cells: [true, true, true] },
+        { action: 'Mengubah & mengajukan ulang (milik sendiri)', cells: [true, true, true] },
         { action: 'Melihat pengajuan semua karyawan', cells: [false, true, true] },
         { action: 'Menyetujui / menolak', cells: [false, true, true] },
         { action: 'Membayar (lunas / cicilan)', cells: [false, true, true] },

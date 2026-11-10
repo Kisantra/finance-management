@@ -43,6 +43,7 @@ import { TransactionFormDialog } from './components/transaction-form-dialog';
 import { TransactionsTab } from './components/transactions-tab';
 import { TransferDialog } from './components/transfer-dialog';
 import type { AccountDetail, AccountListItem, CustodianOption, OverallSummary } from './types';
+import { t, Trans } from '@/i18n';
 
 interface Props {
     accounts: AccountListItem[];
@@ -129,45 +130,45 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
 
     const handleAccountDelete = () => {
         if (!deleteAccount) return;
-        const noun = deleteAccount.type === 'cash' ? 'kas' : 'rekening';
+        const isCash = deleteAccount.type === 'cash';
         setDeleteProcessing(true);
         router.delete(bankAccountsRoutes.destroy.url({ bankAccount: deleteAccount.id }), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(noun === 'kas' ? 'Kas berhasil dihapus' : 'Rekening berhasil dihapus');
+                toast.success(isCash ? t('Kas berhasil dihapus') : t('Rekening berhasil dihapus'));
                 setDeleteAccount(null);
             },
-            onError: () => toast.error(`Gagal menghapus ${noun}`),
+            onError: () => toast.error(isCash ? t('Gagal menghapus kas') : t('Gagal menghapus rekening')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
 
     const exportPdf = () => {
         if (!filters.account) {
-            toast.warning('Pilih akun terlebih dulu');
+            toast.warning(t('Pilih akun terlebih dulu'));
             return;
         }
         // Path literal kehilangan segmen /c/{company}; di multi-tenancy itu 404.
         const url = companyUrl(`/bank-account/export/pdf?bank_account_id=${filters.account}`);
         window.open(url, '_blank');
-        toast.info('Membuka laporan PDF...');
+        toast.info(t('Membuka laporan PDF...'));
     };
 
     return (
         <AppLayout>
-            <Head title="Kas & Bank" />
+            <Head title={t('Kas & Bank', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Kas & Bank"
-                    description="Pantau saldo, transaksi, dan pembayaran di semua rekening bank dan kas tunai Anda."
+                    title={t('Kas & Bank', { context: 'menu' })}
+                    description={t('Pantau saldo, transaksi, dan pembayaran di semua rekening bank dan kas tunai Anda.')}
                     action={
                         <div className="flex items-center gap-2 flex-wrap">
                             <TutorialButton slug="bank-accounts" />
                             {openCreate && (
                                 <Button variant="primary" size="md" onClick={openCreate}>
                                     <Plus className="w-4 h-4" />
-                                    Tambah Akun
+                                    {t('Tambah Akun')}
                                 </Button>
                             )}
                         </div>
@@ -178,17 +179,17 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                     <div className="bg-white dark:bg-dark-700 border border-secondary-200 dark:border-dark-600 rounded-xl">
                         <EmptyState
                             icon={<Building2 className="w-7 h-7" />}
-                            title="Belum ada akun"
+                            title={t('Belum ada akun')}
                             description={
                                 openCreate
-                                    ? 'Mulai dengan menambahkan rekening bank atau kas tunai pertama Anda untuk melacak transaksi.'
-                                    : 'Belum ada rekening bank atau kas tunai yang dicatat perusahaan ini.'
+                                    ? t('Mulai dengan menambahkan rekening bank atau kas tunai pertama Anda untuk melacak transaksi.')
+                                    : t('Belum ada rekening bank atau kas tunai yang dicatat perusahaan ini.')
                             }
                             action={
                                 openCreate && (
                                     <Button onClick={openCreate}>
                                         <Plus className="w-4 h-4" />
-                                        Tambah Akun
+                                        {t('Tambah Akun')}
                                     </Button>
                                 )
                             }
@@ -236,17 +237,17 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         <h2 className="min-w-0 break-words text-xl font-bold leading-tight text-dark-900 dark:text-dark-50">
                                                             {selectedAccount.account_name}
                                                         </h2>
-                                                        {selectedIsCash && <Badge variant="outline" className="shrink-0">Kas</Badge>}
+                                                        {selectedIsCash && <Badge variant="outline" className="shrink-0">{t('Kas')}</Badge>}
                                                         <TrendBadge trend={selectedAccount.trend} />
                                                     </div>
                                                     <p className="mt-0.5 break-words text-sm text-dark-500 dark:text-dark-400">
                                                         {selectedIsCash ? (
                                                             <>
-                                                                Kas tunai
+                                                                {t('Kas tunai')}
                                                                 {selectedAccount.custodian_name && (
                                                                     <>
                                                                         <span className="mx-2">·</span>
-                                                                        Penanggung jawab: {selectedAccount.custodian_name}
+                                                                        {t('Penanggung jawab: {{name}}', { name: selectedAccount.custodian_name })}
                                                                     </>
                                                                 )}
                                                             </>
@@ -264,14 +265,24 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                     </p>
                                                     {selectedIsCash && !!selectedAccount.cash_limit && (
                                                         <p className="mt-0.5 text-xs text-ob-ink-2">
-                                                            Plafon <span className="whitespace-nowrap">{formatCurrency(selectedAccount.cash_limit)}</span>
                                                             {selectedAccount.refill_amount > 0 ? (
-                                                                <span className="font-medium text-ob-wait">
-                                                                    {' '}· perlu isi ulang{' '}
-                                                                    <span className="whitespace-nowrap">{formatCurrency(selectedAccount.refill_amount)}</span>
-                                                                </span>
+                                                                <Trans
+                                                                    i18nKey="Plafon <b>{{limit}}</b> <tanda>· perlu isi ulang <b>{{refill}}</b></tanda>"
+                                                                    values={{
+                                                                        limit: formatCurrency(selectedAccount.cash_limit),
+                                                                        refill: formatCurrency(selectedAccount.refill_amount),
+                                                                    }}
+                                                                    components={{
+                                                                        b: <span className="whitespace-nowrap" />,
+                                                                        tanda: <span className="font-medium text-ob-wait" />,
+                                                                    }}
+                                                                />
                                                             ) : (
-                                                                ' · saldo sudah mencapai plafon'
+                                                                <Trans
+                                                                    i18nKey="Plafon <b>{{limit}}</b> · saldo sudah mencapai plafon"
+                                                                    values={{ limit: formatCurrency(selectedAccount.cash_limit) }}
+                                                                    components={{ b: <span className="whitespace-nowrap" /> }}
+                                                                />
                                                             )}
                                                         </p>
                                                     )}
@@ -282,7 +293,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                 {selectedAccount.refill_amount > 0 && can('create transfer') && (
                                                     <Button size="sm" variant="yellow" onClick={() => openRefill(selectedAccount)}>
                                                         <HandCoins className="w-4 h-4" />
-                                                        Isi ulang
+                                                        {t('Isi ulang')}
                                                     </Button>
                                                 )}
                                                 {can('create expense') && (
@@ -292,7 +303,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         className="bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/40"
                                                     >
                                                         <ArrowUpRight className="w-4 h-4" />
-                                                        Pengeluaran
+                                                        {t('Pengeluaran')}
                                                     </Button>
                                                 )}
                                                 {can('create income') && (
@@ -302,7 +313,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         className="bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900/40"
                                                     >
                                                         <ArrowDownLeft className="w-4 h-4" />
-                                                        Pemasukan
+                                                        {t('Pemasukan')}
                                                     </Button>
                                                 )}
                                                 {can('create transfer') && (
@@ -312,7 +323,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         className="bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-900/40"
                                                     >
                                                         <ArrowLeftRight className="w-4 h-4" />
-                                                        <span className="hidden sm:inline">Transfer</span>
+                                                        <span className="hidden sm:inline">{t('Transfer')}</span>
                                                     </Button>
                                                 )}
 
@@ -327,12 +338,12 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                         {canEditAccount && (
                                                             <DropdownMenuItem onClick={() => setEditAccount(selectedAccount)}>
                                                                 <Pencil className="w-4 h-4" />
-                                                                {selectedIsCash ? 'Edit Kas' : 'Edit Rekening'}
+                                                                {selectedIsCash ? t('Ubah Kas') : t('Ubah Rekening')}
                                                             </DropdownMenuItem>
                                                         )}
                                                         <DropdownMenuItem onClick={exportPdf}>
                                                             <Download className="w-4 h-4" />
-                                                            Export PDF
+                                                            {t('Ekspor PDF')}
                                                         </DropdownMenuItem>
                                                         {canDeleteAccount && (
                                                             <>
@@ -342,7 +353,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                                     className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
-                                                                    {selectedIsCash ? 'Hapus Kas' : 'Hapus Rekening'}
+                                                                    {selectedIsCash ? t('Hapus Kas') : t('Hapus Rekening')}
                                                                 </DropdownMenuItem>
                                                             </>
                                                         )}
@@ -363,8 +374,8 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                             <div className="flex items-center gap-4 mb-4">
                                                 <Tabs
                                                     items={[
-                                                        { value: 'transactions', label: 'Transaksi', icon: <ArrowLeftRight className="h-4 w-4" /> },
-                                                        { value: 'payments', label: 'Pembayaran', icon: <Wallet className="h-4 w-4" /> },
+                                                        { value: 'transactions', label: t('Transaksi'), icon: <ArrowLeftRight className="h-4 w-4" /> },
+                                                        { value: 'payments', label: t('Pembayaran'), icon: <Wallet className="h-4 w-4" /> },
                                                     ]}
                                                     value={activeTab}
                                                     onChange={(v) => setActiveTab(v as TabKey)}
@@ -373,8 +384,8 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                                     <div className="h-px flex-1 bg-linear-to-r from-zinc-200 dark:from-dark-600 to-transparent" />
                                                     <p className="text-xs text-dark-400 dark:text-dark-500 whitespace-nowrap">
                                                         {activeTab === 'transactions'
-                                                            ? 'Transaksi yang dicatat manual'
-                                                            : 'Pembayaran invoice ke rekening ini'}
+                                                            ? t('Transaksi yang dicatat manual')
+                                                            : t('Pembayaran invoice ke rekening ini')}
                                                     </p>
                                                 </div>
                                             </div>
@@ -391,8 +402,8 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                                     <div className="bg-white dark:bg-dark-700 border border-secondary-200 dark:border-dark-600 rounded-xl">
                                         <EmptyState
                                             icon={<Building2 className="w-7 h-7" />}
-                                            title="Pilih akun"
-                                            description="Klik salah satu rekening atau kas di sidebar untuk melihat detailnya."
+                                            title={t('Pilih akun')}
+                                            description={t('Klik salah satu rekening atau kas di daftar akun untuk melihat detailnya.')}
                                         />
                                     </div>
                                 )}
@@ -415,9 +426,13 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
             <ConfirmDialog
                 open={deleteAccount !== null}
                 onOpenChange={(open) => !open && setDeleteAccount(null)}
-                title={deleteAccount?.type === 'cash' ? 'Hapus kas?' : 'Hapus rekening?'}
-                description={`${deleteAccount?.type === 'cash' ? 'Kas' : 'Rekening'} "${deleteAccount?.account_name}" akan dihapus. Tindakan ini tidak dapat dibatalkan.`}
-                confirmLabel="Hapus"
+                title={deleteAccount?.type === 'cash' ? t('Hapus kas?') : t('Hapus rekening?')}
+                description={
+                    deleteAccount?.type === 'cash'
+                        ? t('Kas "{{name}}" akan dihapus. Tindakan ini tidak dapat dibatalkan.', { name: deleteAccount?.account_name })
+                        : t('Rekening "{{name}}" akan dihapus. Tindakan ini tidak dapat dibatalkan.', { name: deleteAccount?.account_name })
+                }
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
                 onConfirm={handleAccountDelete}
             />
@@ -456,6 +471,7 @@ export default function BankAccountsIndex({ accounts, overallSummary, detail, fi
                               amount: refillAccount.refill_amount,
                               // Penarikan tunai dari bank umumnya tanpa biaya transfer; ubah bila ada.
                               adminFee: 0,
+                              // i18n-abaikan: isian awal deskripsi yang tersimpan ke database (D8), tetap Indonesia
                               description: `Isi ulang ${refillAccount.account_name}`,
                           }
                         : null
@@ -477,7 +493,7 @@ function TrendBadge({ trend }: { trend: 'up' | 'down' }) {
                 : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400',
         )}>
             {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-            {isUp ? 'Naik' : 'Turun'}
+            {isUp ? t('Naik') : t('Turun')}
         </span>
     );
 }

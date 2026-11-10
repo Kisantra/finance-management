@@ -12,6 +12,7 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import { BTN, FIELD, SURFACE } from '@/pages/invoices/components/ob';
 import { rbAction } from './rb';
+import { t } from '@/i18n';
 
 export interface CategoryOption {
     label: string;
@@ -91,7 +92,7 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
         setBusy(null);
 
         if (!result) {
-            toastErrors({ _: 'Periksa koneksi lalu coba lagi.' }, 'Simpan reimbursement');
+            toastErrors({ _: t('Periksa koneksi lalu coba lagi.') }, 'Simpan reimbursement');
             return;
         }
         if (!result.ok) {
@@ -99,7 +100,7 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
             toastErrors(result.errors, 'Simpan reimbursement');
             return;
         }
-        toast.success(result.message ?? 'Tersimpan');
+        toast.success(result.message ?? t('Tersimpan'));
         onOpenChange(false);
         onSaved(result.id ?? initial?.id ?? 0, action);
     };
@@ -112,14 +113,14 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
             <SheetContent hideClose className={cn(SURFACE, 'max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
-                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit pengajuan' : 'Buat pengajuan'}</SheetTitle>
+                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? t('Ubah pengajuan') : t('Buat pengajuan')}</SheetTitle>
                         <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
                             {resubmit
-                                ? 'Perbaiki sesuai catatan peninjau, lalu ajukan ulang.'
-                                : 'Catat biaya yang Anda bayar lebih dulu untuk keperluan kantor.'}
+                                ? t('Perbaiki sesuai catatan peninjau, lalu ajukan ulang.')
+                                : t('Catat biaya yang Anda bayar lebih dulu untuk keperluan kantor.')}
                         </SheetDescription>
                     </div>
-                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label="Tutup form" disabled={!!busy}>
+                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label={t('Tutup form')} disabled={!!busy}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
@@ -136,19 +137,19 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
                     <div className={cn(FIELD, 'flex flex-col gap-5')}>
                     <Input
                         id="rb-title"
-                        label="Judul"
+                        label={t('Judul')}
                         value={title}
                         onChange={(e) => {
                             setTitle(e.target.value);
                             clear('title');
                         }}
                         error={errors.title}
-                        placeholder="cth. Taksi ke kantor klien"
+                        placeholder={t('cth. Taksi ke kantor klien')}
                         maxLength={255}
                     />
                     <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
                         <CurrencyInput
-                            label="Nominal"
+                            label={t('Nominal')}
                             value={amount}
                             onChange={(v) => {
                                 setAmount(v);
@@ -157,7 +158,7 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
                             error={errors.amount}
                         />
                         <DatePicker
-                            label="Tanggal pengeluaran"
+                            label={t('Tanggal pengeluaran')}
                             value={expenseDate}
                             onChange={(d) => {
                                 setExpenseDate(d);
@@ -168,30 +169,30 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
                         />
                     </div>
                     <Combobox
-                        label="Kategori"
+                        label={t('Kategori')}
                         options={categoryOptions}
                         value={category}
                         onChange={(v) => {
                             setCategory(v ? String(v) : null);
                             clear('category');
                         }}
-                        placeholder="Pilih kategori biaya"
+                        placeholder={t('Pilih kategori biaya')}
                         error={errors.category}
                     />
                     <Textarea
                         id="rb-description"
-                        label="Keterangan (opsional)"
+                        label={t('Keterangan (opsional)')}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         error={errors.description}
-                        placeholder="Untuk apa biaya ini, siapa yang terlibat…"
+                        placeholder={t('Untuk apa biaya ini, siapa yang terlibat…')}
                         rows={3}
                         maxLength={1000}
                     />
                     </div>
                     <FileUpload
-                        label="Bukti / kuitansi (opsional)"
-                        hint="JPG, PNG, atau PDF, maksimal 5 MB."
+                        label={t('Bukti / kuitansi (opsional)')}
+                        hint={t('JPG, PNG, atau PDF, maksimal 5 MB.')}
                         value={file}
                         onChange={(f) => {
                             setFile(f);
@@ -208,15 +209,15 @@ export function ReimbursementFormSheet({ open, onOpenChange, categoryOptions, in
 
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-ob-line px-6 py-4">
                     <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)} disabled={!!busy}>
-                        Batal
+                        {t('Batal')}
                     </Button>
                     {!resubmit && (
                         <Button type="button" variant="outline" className={BTN.secondary} onClick={() => save('draft')} loading={busy === 'draft'} disabled={!!busy}>
-                            Simpan draft
+                            {t('Simpan draft')}
                         </Button>
                     )}
                     <Button type="submit" form="reimbursement-form" className={BTN.primary} loading={busy === 'submit'} disabled={!!busy} icon={<Send className="h-4 w-4" />}>
-                        {resubmit ? 'Ajukan ulang' : 'Ajukan'}
+                        {resubmit ? t('Ajukan ulang') : t('Ajukan')}
                     </Button>
                 </div>
             </SheetContent>

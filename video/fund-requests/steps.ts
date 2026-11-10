@@ -4,11 +4,11 @@ import { around, SCREENS, SHOTS, type ShotName } from './shots';
 const img = (name: ShotName) => SCREENS[name];
 const S = SHOTS;
 
-/** Staff membuat & mengajukan permintaan dana. */
+/** Staff membuat & mengajukan pengajuan dana. */
 export const STAFF_STEPS: Step[] = [
     {
         src: img('staff-list-empty'),
-        caption: 'Buka menu Operasional › Permintaan Dana. Di sini Anda mengajukan dana sebelum uangnya dipakai.',
+        caption: 'Buka menu Operasional › Pengajuan Dana. Di sini Anda mengajukan dana sebelum uangnya dipakai.',
         duration: 110,
     },
     {
@@ -17,14 +17,14 @@ export const STAFF_STEPS: Step[] = [
         cursor: S['staff-list-empty'].create,
         click: true,
         zoom: 1.6,
-        caption: 'Klik Buat Permintaan untuk mulai.',
+        caption: 'Klik Buat Pengajuan untuk mulai.',
         duration: 90,
     },
     {
         src: img('staff-form-empty'),
         focus: S['staff-form-empty'].number,
         zoom: 1.5,
-        caption: 'Form terbuka di panel samping. Nomor Permintaan terisi otomatis; biarkan saja.',
+        caption: 'Form terbuka di panel samping. Nomor Pengajuan terisi otomatis; biarkan saja.',
         duration: 110,
     },
     {
@@ -42,7 +42,7 @@ export const STAFF_STEPS: Step[] = [
         cursor: S['staff-form-priority'].option,
         click: true,
         zoom: 1.5,
-        caption: 'Pilih Prioritas: Low, Medium, High, atau Urgent, sesuai seberapa mendesak dananya.',
+        caption: 'Pilih Prioritas: Rendah, Sedang, Tinggi, atau Mendesak, sesuai seberapa mendesak dananya.',
     },
     {
         src: img('staff-form-date'),
@@ -154,26 +154,26 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-list-pending'),
         focus: S['staff-list-pending'].status,
         zoom: 1.8,
-        caption: 'Permintaan terkirim dengan status Pending Review. Tunggu keputusan finance.',
+        caption: 'Pengajuan terkirim dengan status Menunggu persetujuan. Tunggu keputusan finance.',
         chime: true,
         duration: 110,
     },
 ];
 
-/** Staff: permintaan yang ditolak. */
+/** Staff: pengajuan yang ditolak. */
 export const REJECT_STAFF_STEPS: Step[] = [
     {
         src: img('staff-list-final'),
         focus: around(S['staff-list-final'].row2, S['staff-list-final'].row1),
         zoom: 1.3,
-        caption: 'Status terbaru selalu tampil di daftar: Disbursed berarti dana sudah dikirim, Rejected berarti ditolak.',
+        caption: 'Status terbaru selalu tampil di daftar: Dicairkan berarti dana sudah dikirim, Ditolak berarti ditolak.',
         duration: 140,
     },
     {
         src: img('staff-detail-rejected'),
         focus: S['staff-detail-rejected'].notes,
         zoom: 1.6,
-        caption: 'Klik permintaan yang ditolak untuk membaca siapa peninjaunya dan Catatan Review-nya.',
+        caption: 'Klik pengajuan yang ditolak untuk membaca siapa peninjaunya dan Catatan peninjau-nya.',
         duration: 130,
     },
     {
@@ -181,7 +181,7 @@ export const REJECT_STAFF_STEPS: Step[] = [
         focus: S['staff-detail-rejected'].edit,
         cursor: S['staff-detail-rejected'].edit,
         zoom: 1.8,
-        caption: 'Permintaan Rejected tidak bisa diajukan ulang. Edit hanya mengubah isinya; statusnya tetap Rejected.',
+        caption: 'Pengajuan Ditolak tidak bisa diajukan ulang. Tombol Ubah hanya mengubah isinya; statusnya tetap Ditolak.',
         duration: 150,
     },
     {
@@ -189,7 +189,7 @@ export const REJECT_STAFF_STEPS: Step[] = [
         focus: S['staff-list-final'].remove,
         cursor: S['staff-list-final'].remove,
         zoom: 1.9,
-        caption: 'Jadi buat permintaan baru dengan isi yang sudah diperbaiki. Yang lama boleh dihapus lewat ikon tempat sampah.',
+        caption: 'Jadi buat pengajuan baru dengan isi yang sudah diperbaiki. Yang lama boleh dihapus lewat ikon tempat sampah.',
         duration: 150,
     },
 ];
@@ -200,13 +200,13 @@ export const FM_STEPS: Step[] = [
         src: img('fm-list'),
         focus: S['fm-list'].tabs,
         zoom: 1.7,
-        caption: 'Finance manager membuka tab Semua Pengajuan: permintaan dari semua karyawan.',
+        caption: 'Finance manager membuka tab Semua Pengajuan: pengajuan dari semua karyawan.',
     },
     {
         src: img('fm-list'),
         focus: S['fm-list'].filters,
         zoom: 1.3,
-        caption: 'Saring dengan Status, Prioritas, atau Pemohon untuk menemukan antrean Pending Review.',
+        caption: 'Saring dengan Status, Prioritas, atau Pemohon untuk menemukan antrean Menunggu persetujuan.',
     },
     {
         src: img('fm-list'),
@@ -214,7 +214,7 @@ export const FM_STEPS: Step[] = [
         cursor: S['fm-list'].row,
         click: true,
         zoom: 1.3,
-        caption: 'Klik sebuah permintaan untuk membuka detailnya.',
+        caption: 'Klik sebuah pengajuan untuk membuka detailnya.',
         duration: 100,
     },
     {
@@ -246,7 +246,7 @@ export const FM_STEPS: Step[] = [
         cursor: S['fm-approve-empty'].notes,
         click: true,
         zoom: 1.6,
-        caption: 'Dialog Setujui terbuka. Catatan Review boleh diisi untuk pemohon (opsional).',
+        caption: 'Dialog Setujui terbuka. Catatan peninjau boleh diisi untuk pemohon (opsional).',
         duration: 100,
     },
     {
@@ -270,7 +270,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-list-approved'),
         focus: S['fm-list-approved'].status,
         zoom: 2,
-        caption: 'Status menjadi Approved. Uang belum keluar sampai dicairkan.',
+        caption: 'Status menjadi Disetujui. Uang belum keluar sampai dicairkan.',
         chime: true,
         duration: 110,
     },
@@ -284,7 +284,7 @@ export const DISBURSE_STEPS: Step[] = [
         cursor: S['fm-list-approved'].disburse,
         click: true,
         zoom: 2,
-        caption: 'Klik Cairkan pada permintaan Approved.',
+        caption: 'Klik Cairkan pada pengajuan Disetujui.',
         duration: 100,
     },
     {
@@ -340,7 +340,7 @@ export const DISBURSE_STEPS: Step[] = [
         src: img('fm-detail-disbursed'),
         focus: S['fm-detail-disbursed'].disbursement,
         zoom: 1.4,
-        caption: 'Status Disbursed. Detail mencatat rekening, tanggal, siapa yang mencairkan, dan bukti pembayarannya.',
+        caption: 'Status Dicairkan. Detail mencatat rekening, tanggal, siapa yang mencairkan, dan bukti pembayarannya.',
         chime: true,
         duration: 140,
     },
@@ -361,7 +361,7 @@ export const REJECT_FM_STEPS: Step[] = [
         cursor: S['fm-reject-empty'].notes,
         click: true,
         zoom: 1.4,
-        caption: 'Klik Tolak di detail permintaan. Dialog Tolak Permintaan Dana terbuka.',
+        caption: 'Klik Tolak di detail pengajuan. Dialog Tolak Pengajuan Dana terbuka.',
         duration: 100,
     },
     {
@@ -369,7 +369,7 @@ export const REJECT_FM_STEPS: Step[] = [
         focus: S['fm-reject'].notes,
         type: S['fm-reject'].notes,
         zoom: 1.6,
-        caption: 'Saat menolak, tulis alasannya di Catatan Review. Kolom ini opsional, tetapi pemohon perlu tahu sebabnya.',
+        caption: 'Saat menolak, tulis alasannya di Catatan peninjau. Kolom ini opsional, tetapi pemohon perlu tahu sebabnya.',
         duration: 140,
     },
     {
@@ -378,7 +378,7 @@ export const REJECT_FM_STEPS: Step[] = [
         cursor: S['fm-reject'].confirm,
         click: true,
         zoom: 2,
-        caption: 'Klik Tolak. Permintaan Rejected tidak bisa diajukan ulang; pemohon perlu membuat permintaan baru.',
+        caption: 'Klik Tolak. Pengajuan Ditolak tidak bisa diajukan ulang; pemohon perlu membuat pengajuan baru.',
         duration: 140,
     },
 ];
@@ -389,7 +389,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('fm-detail-disbursed'),
         focus: S['fm-detail-disbursed'].disbursement,
         zoom: 1.4,
-        caption: 'Pencairan tercatat di detail permintaan: rekening, tanggal, siapa yang mencairkan, dan bukti transfernya.',
+        caption: 'Pencairan tercatat di detail pengajuan: rekening, tanggal, siapa yang mencairkan, dan bukti transfernya.',
         duration: 140,
     },
     {
@@ -442,7 +442,7 @@ export const ADMIN_STEPS: Step[] = [
         src: img('admin-list'),
         focus: S['admin-list'].rows,
         zoom: 1.35,
-        caption: 'Admin bisa menghapus permintaan di status apa pun, termasuk yang sudah Disbursed.',
+        caption: 'Admin bisa menghapus pengajuan di status apa pun, termasuk yang sudah Dicairkan.',
         duration: 130,
     },
     {
@@ -450,7 +450,7 @@ export const ADMIN_STEPS: Step[] = [
         focus: S['admin-delete'].dialog,
         cursor: S['admin-delete'].confirm,
         zoom: 1.7,
-        caption: 'Menghapus yang sudah Disbursed tidak menghapus transaksinya: saldo dan laporan tetap. Koreksi juga di Arus Kas.',
+        caption: 'Menghapus yang sudah Dicairkan tidak menghapus transaksinya: saldo dan laporan tetap. Koreksi juga di Arus Kas.',
         duration: 160,
     },
 ];

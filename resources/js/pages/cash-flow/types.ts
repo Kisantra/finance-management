@@ -57,6 +57,7 @@ export interface CombinedRow extends RowKind {
     invoice_number: string | null;
     client_name: string | null;
     bank_name: string;
+    account_type?: string | null;
     category_id: number | null;
     category_label: string | null;
     description: string | null;
@@ -101,6 +102,7 @@ export interface IncomeRow extends RowKind {
     invoice_number: string | null;
     client_name: string | null;
     bank_name: string;
+    account_type?: string | null;
     category_id: number | null;
     category_label: string | null;
     description: string | null;
@@ -133,6 +135,7 @@ export interface ExpenseRow extends RowKind {
     category_id: number;
     category_label: string | null;
     bank_name: string;
+    account_type?: string | null;
     account_name: string;
     input_by: string | null;
     attachment_url: string | null;
