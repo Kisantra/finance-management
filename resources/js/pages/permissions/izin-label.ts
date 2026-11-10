@@ -86,35 +86,35 @@ const LABEL_IZIN: Record<string, string> = {
 };
 
 /**
- * Nama modul = kunci kelompok dari server (`ucwords` bagian kedua kode izin, mis. "Fund Requests").
+ * Nama modul = kunci kelompok dari server (`ucwords` bagian kedua kode izin, mis. "Fund Requests", "Bank-accounts"); dicocokkan tanpa membedakan kapital.
  * Kuncinya tetap dikirim apa adanya ke server; label hanya tampilan.
  */
 const LABEL_MODUL: Record<string, string> = {
-    'Dashboard': tk('Ringkasan', 'menu'),
-    'Clients': tk('Klien', 'menu'),
-    'Services': tk('Layanan', 'menu'),
-    'Invoices': tk('Invoice', 'menu'),
-    'Payments': tk('Pembayaran', 'menu'),
-    'Bank-Accounts': tk('Kas & Bank', 'menu'),
-    'Income': tk('Pemasukan', 'menu'),
-    'Expense': tk('Pengeluaran', 'menu'),
-    'Transfer': tk('Transfer', 'menu'),
-    'Recurring-Invoices': tk('Invoice Berulang', 'menu'),
-    'Categories': tk('Kategori Transaksi', 'menu'),
-    'Reimbursements': tk('Reimbursement', 'menu'),
-    'Fund Requests': tk('Pengajuan Dana', 'menu'),
-    'Loans': tk('Utang', 'menu'),
-    'Receivables': tk('Piutang', 'menu'),
-    'Permissions': tk('Izin & Peran', 'menu'),
-    'Users': tk('Pengguna', 'menu'),
-    'Companies': tk('Perusahaan', 'menu'),
-    'Feedbacks': tk('Masukan', 'menu'),
-    'Profit-Loss': tk('Laba Rugi', 'menu'),
-    'Pdf Templates': tk('Template PDF', 'menu'),
-    'Company Profile': tk('Profil Perusahaan', 'menu'),
-    'Invoice Settings': tk('Penomoran Invoice', 'menu'),
-    'Claude': tk('Koneksi Claude', 'menu'),
-    'Other': tk('Lainnya', 'menu'),
+    'dashboard': tk('Ringkasan', 'menu'),
+    'clients': tk('Klien', 'menu'),
+    'services': tk('Layanan', 'menu'),
+    'invoices': tk('Invoice', 'menu'),
+    'payments': tk('Pembayaran', 'menu'),
+    'bank-accounts': tk('Kas & Bank', 'menu'),
+    'income': tk('Pemasukan', 'menu'),
+    'expense': tk('Pengeluaran', 'menu'),
+    'transfer': tk('Transfer', 'menu'),
+    'recurring-invoices': tk('Invoice Berulang', 'menu'),
+    'categories': tk('Kategori Transaksi', 'menu'),
+    'reimbursements': tk('Reimbursement', 'menu'),
+    'fund requests': tk('Pengajuan Dana', 'menu'),
+    'loans': tk('Utang', 'menu'),
+    'receivables': tk('Piutang', 'menu'),
+    'permissions': tk('Izin & Peran', 'menu'),
+    'users': tk('Pengguna', 'menu'),
+    'companies': tk('Perusahaan', 'menu'),
+    'feedbacks': tk('Masukan', 'menu'),
+    'profit-loss': tk('Laba Rugi', 'menu'),
+    'pdf templates': tk('Template PDF', 'menu'),
+    'company profile': tk('Profil Perusahaan', 'menu'),
+    'invoice settings': tk('Penomoran Invoice', 'menu'),
+    'claude': tk('Koneksi Claude', 'menu'),
+    'other': tk('Lainnya', 'menu'),
 };
 
 /** Label tampilan sebuah kode izin; kode yang belum dipetakan tampil apa adanya. */
@@ -125,6 +125,6 @@ export function izinLabel(kode: string): string {
 
 /** Label tampilan sebuah kelompok modul izin; kelompok yang belum dipetakan tampil apa adanya. */
 export function modulIzinLabel(kunci: string): string {
-    const label = LABEL_MODUL[kunci];
+    const label = LABEL_MODUL[kunci.toLowerCase()];
     return label ? t(label, { context: 'menu' }) : kunci;
 }

@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { formatTanggal, t, tk } from '@/i18n';
+import { compactRupiah } from '@/components/dashboard/cash-flow-chart';
 import { AppLayout } from '@/layouts/app-layout';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
@@ -1530,9 +1531,9 @@ export default function RecurringInvoicesIndex({
                                     height={260}
                                     series={[{ name: t('Pendapatan'), data: analytics.chart.map((c) => c.revenue) }]}
                                     options={{
-                                        chart: { toolbar: { show: false }, background: 'transparent' },
-                                        xaxis: { categories: analytics.chart.map((c) => c.label), labels: { style: { colors: '#71717a', fontSize: '12px' } } },
-                                        yaxis: { labels: { formatter: (v) => `Rp ${(v / 1000000).toFixed(1)}M`, style: { colors: '#71717a', fontSize: '11px' } } },
+                                        chart: { toolbar: { show: false }, background: 'transparent', accessibility: { description: t('Grafik batang pendapatan invoice berulang') } },
+                                        xaxis: { categories: analytics.chart.map((c, i) => (c.label.startsWith('Q') ? c.label : formatTanggal(new Date(analyticsYear, i, 1), { month: 'short' }))), labels: { style: { colors: '#71717a', fontSize: '12px' } } },
+                                        yaxis: { labels: { formatter: (v) => (v === 0 ? 'Rp 0' : `Rp ${compactRupiah(Number(v))}`), style: { colors: '#71717a', fontSize: '11px' } } },
                                         colors: ['#2563eb'],
                                         plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
                                         dataLabels: { enabled: false },

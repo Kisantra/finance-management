@@ -5,6 +5,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { AccountDetail } from '../types';
 import { t } from '@/i18n';
+import { compactRupiah } from '@/components/dashboard/cash-flow-chart';
 
 interface Props {
     detail: AccountDetail;
@@ -15,9 +16,7 @@ interface Props {
 const DONUT_COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#ef4444', '#10b981', '#6366f1'];
 
 function formatCompact(value: number): string {
-    if (Math.abs(value) >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
-    if (Math.abs(value) >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(0)}jt`;
-    if (Math.abs(value) >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}K`;
+    if (Math.abs(value) >= 1_000) return `Rp ${compactRupiah(value)}`;
     return formatCurrency(value);
 }
 
@@ -53,6 +52,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                 background: 'transparent',
                 fontFamily: 'Inter, sans-serif',
                 animations: { enabled: true, speed: 350 },
+                accessibility: { description: t('Grafik batang pemasukan dan pengeluaran per bulan') },
             },
             xaxis: {
                 categories: chart_months.map((m) => m.month),
@@ -94,6 +94,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                 background: 'transparent',
                 fontFamily: 'Inter, sans-serif',
                 animations: { speed: 400 },
+                accessibility: { description: t('Grafik donat pengeluaran per kategori') },
             },
             labels: category_breakdown.map((c) => c.name),
             colors: DONUT_COLORS.slice(0, category_breakdown.length || 1),

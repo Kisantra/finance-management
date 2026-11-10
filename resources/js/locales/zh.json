@@ -2172,5 +2172,20 @@
     "↑ Uang keluar": "↑ 流出",
     "↓ Uang masuk": "↓ 流入",
     "Masuk_arah": "流入",
-    "Keluar_arah": "流出"
+    "Keluar_arah": "流出",
+    "Notifikasi_menu": "通知",
+    "Pengguna & Izin_menu": "用户与权限",
+    "{{seconds}} dtk": "{{seconds}} 秒",
+    "{{minutes}} mnt {{seconds}} dtk": "{{minutes}} 分 {{seconds}} 秒",
+    "Belum ada video tutorial untuk peran Anda di modul ini.": "此模块暂无适用于您角色的教程视频。",
+    "Video per peran": "按角色分类的视频",
+    "Bab tutorial": "教程章节",
+    "Daftar pilihan": "选项列表",
+    "Alamat": "地址",
+    "Grafik batang pemasukan dan pengeluaran per bulan": "按月收入与支出柱状图",
+    "Grafik donat pengeluaran per kategori": "按类别支出环形图",
+    "Generik": "通用",
+    "Grafik batang pendapatan invoice berulang": "定期账单收入柱状图",
+    "Halaman": "页面",
+    "Diperbarui": "更新时间"
 }

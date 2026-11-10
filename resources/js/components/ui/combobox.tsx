@@ -221,7 +221,7 @@ export function Combobox({
                     className={cn('min-w-(--radix-popover-trigger-width) overflow-hidden p-0', popoverWidth ?? 'w-(--radix-popover-trigger-width)')}
                     align="start"
                 >
-                    <CommandPrimitive shouldFilter={false}>
+                    <CommandPrimitive shouldFilter={false} label={t('Daftar pilihan')}>
                         <div className="flex items-center border-b border-ob-line px-3">
                             <Search className="mr-2.5 h-3.5 w-3.5 shrink-0 text-ob-ink-3" />
                             <CommandPrimitive.Input
@@ -232,6 +232,7 @@ export function Combobox({
                             />
                         </div>
                         <CommandPrimitive.List
+                            label={t('Daftar pilihan')}
                             className="max-h-60 overflow-y-auto p-2"
                             onWheel={(e) => e.stopPropagation()}
                         >

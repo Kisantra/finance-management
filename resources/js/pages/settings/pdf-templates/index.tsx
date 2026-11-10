@@ -161,7 +161,7 @@ export default function PdfTemplatesIndex() {
     const columns: ColumnDef<PdfTemplate, unknown>[] = [
         {
             id: 'name',
-            header: 'Nama',
+            header: t('Nama'),
             accessorKey: 'name',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2.5">
@@ -179,7 +179,7 @@ export default function PdfTemplatesIndex() {
         },
         {
             id: 'status',
-            header: 'Status',
+            header: t('Status'),
             cell: ({ row }) =>
                 row.original.is_default ? (
                     <Badge variant="green" className="gap-1">
@@ -192,7 +192,7 @@ export default function PdfTemplatesIndex() {
         },
         {
             id: 'updated_at',
-            header: 'Diperbarui',
+            header: t('Diperbarui'),
             cell: ({ row }) => (
                 <span className="text-sm text-dark-500 dark:text-dark-400">{formatDate(row.original.updated_at)}</span>
             ),

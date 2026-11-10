@@ -232,13 +232,13 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
             <div className="flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Invoice', { context: 'menu' })}</h1>
                         <p className="text-[13px] text-ob-ink-2">
                             {t('{{period}} · {{count}} invoice', { period: periodLabel, count: invoices.total })}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex max-w-full flex-wrap items-center gap-2">
                         <TutorialButton slug="invoices" />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -326,7 +326,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                 <section aria-label={t('Daftar invoice')} className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                            <div role="group" aria-label={t('Filter status')} className="ob-no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                            <div role="group" aria-label={t('Filter status')} className="flex max-w-full flex-wrap items-center gap-0.5 rounded-2xl border border-ob-line bg-ob-rail p-[3px] sm:rounded-full">
                                 {STATUS_TABS.map((tab) => {
                                     const on = f.status === tab.value;
                                     const count = tab.countKey ? (stats[tab.countKey] as number) : segmentTotal;

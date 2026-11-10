@@ -1797,10 +1797,10 @@ export default function PdfTemplateEdit() {
     // ── Band subtitles ────────────────────────────────────────────────────────
 
     const bandSubtitle: Record<BandName, string> = {
-        header: bands.header.repeat ? 'Tiap halaman' : 'Halaman pertama',
-        content: 'Dinamis ⇕',
-        footerFlow: 'Setelah konten',
-        footerFixed: 'Tiap halaman',
+        header: bands.header.repeat ? t('Tiap halaman') : t('Halaman pertama'),
+        content: t('Dinamis ⇕'),
+        footerFlow: t('Setelah konten'),
+        footerFixed: t('Tiap halaman'),
     };
 
     // ── Layer groups for left panel ───────────────────────────────────────────
@@ -2398,7 +2398,7 @@ export default function PdfTemplateEdit() {
                                     : t('Tabel Item')
                                 : t('Properti')
                         }
-                        meta={selected ? undefined : 'Halaman'}
+                        meta={selected ? undefined : t('Halaman')}
                     />
 
                     {!selected ? (

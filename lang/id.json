@@ -11,5 +11,12 @@
     "This password reset link will expire in :count minutes.": "Tautan atur ulang kata sandi ini kedaluwarsa dalam :count menit.",
     "Verify Email Address": "Verifikasi Alamat Email",
     "Whoops!": "Ups!",
-    "You are receiving this email because we received a password reset request for your account.": "Anda menerima email ini karena kami menerima permintaan atur ulang kata sandi untuk akun Anda."
+    "You are receiving this email because we received a password reset request for your account.": "Anda menerima email ini karena kami menerima permintaan atur ulang kata sandi untuk akun Anda.",
+    "This action is unauthorized.": "Anda tidak memiliki izin untuk melakukan tindakan ini.",
+    "Unauthenticated.": "Anda belum masuk. Silakan masuk terlebih dahulu.",
+    "Too Many Attempts.": "Terlalu banyak percobaan. Coba lagi beberapa saat lagi.",
+    "CSRF token mismatch.": "Sesi halaman sudah kedaluwarsa. Muat ulang halaman lalu coba lagi.",
+    "User does not have the right permissions.": "Akun Anda tidak memiliki izin untuk tindakan ini.",
+    "User does not have the right roles.": "Peran akun Anda tidak diizinkan untuk tindakan ini.",
+    "User is not logged in.": "Anda belum masuk. Silakan masuk terlebih dahulu."
 }

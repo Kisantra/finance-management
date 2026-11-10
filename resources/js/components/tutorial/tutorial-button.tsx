@@ -5,12 +5,18 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { bahasaAktif, t, Trans } from '@/i18n';
+import { bahasaAktif, t, tk, Trans } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { BTN, SURFACE } from '@/pages/invoices/components/ob';
 import type { TutorialVideosProps } from './tutorial-videos';
 
 type VideosProps = Omit<TutorialVideosProps, 'tutorials'>;
+
+/** Judul panduan yang belum punya padanan di menu aplikasi: didaftarkan agar kamus memuatnya. */
+const JUDUL_MODUL: Record<string, string> = {
+    Notifikasi: tk('Notifikasi', 'menu'),
+    'Pengguna & Izin': tk('Pengguna & Izin', 'menu'),
+};
 
 const cache = new Map<string, React.LazyExoticComponent<React.ComponentType<VideosProps>>>();
 
@@ -61,7 +67,7 @@ export function TutorialButton({ slug, className }: { slug: string; className?: 
                         <div className="mb-4 flex items-start justify-between gap-4">
                             <div className="min-w-0">
                                 <DialogTitle className="text-xl font-semibold text-ob-ink dark:text-ob-ink">
-                                    {t('Tutorial {{module}}', { module: guide.title.toLowerCase() })}
+                                    {t('Tutorial {{module}}', { module: t(JUDUL_MODUL[guide.title] ?? guide.title, { context: 'menu' }).toLowerCase() })}
                                 </DialogTitle>
                                 <DialogDescription className="mt-1 text-[13px] leading-relaxed text-ob-ink-2 dark:text-ob-ink-2">
                                     <Trans

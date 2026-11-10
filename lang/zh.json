@@ -419,5 +419,12 @@
     "Tata letak tersimpan.": "版式已保存。",
     "Aplikasi belum dipasang. Selesaikan langkah pemasangan di /setup.": "应用尚未安装。请在 /setup 完成安装向导。",
     "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori transfer.": "损益分组仅适用于收入和支出类别，不适用于转账类别。",
-    "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori pendanaan.": "损益分组仅适用于收入和支出类别，不适用于筹资类别。"
+    "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori pendanaan.": "损益分组仅适用于收入和支出类别，不适用于筹资类别。",
+    "This action is unauthorized.": "您无权执行此操作。",
+    "Unauthenticated.": "您尚未登录，请先登录。",
+    "Too Many Attempts.": "尝试次数过多，请稍后再试。",
+    "CSRF token mismatch.": "页面会话已过期，请刷新页面后重试。",
+    "User does not have the right permissions.": "您的账户无权执行此操作。",
+    "User does not have the right roles.": "您的账户角色无权执行此操作。",
+    "User is not logged in.": "您尚未登录，请先登录。"
 }

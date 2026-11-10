@@ -282,7 +282,7 @@ function RoleFormDialog({
                                                     ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-500 text-primary-600 dark:text-primary-400 scale-105'
                                                     : 'border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-dark-500 dark:text-dark-400 hover:border-primary-300 dark:hover:border-primary-600',
                                             )}
-                                            title={iconName}
+                                            aria-pressed={selected}
                                         >
                                             <RoleIcon name={iconName} className="w-4 h-4" />
                                         </button>

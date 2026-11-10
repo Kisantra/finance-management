@@ -2268,5 +2268,20 @@
     "X": "X",
     "Y": "Y",
     "Masuk_arah": "In",
-    "Keluar_arah": "Out"
+    "Keluar_arah": "Out",
+    "Notifikasi_menu": "Notifications",
+    "Pengguna & Izin_menu": "Users & Permissions",
+    "{{seconds}} dtk": "{{seconds}} sec",
+    "{{minutes}} mnt {{seconds}} dtk": "{{minutes}} min {{seconds}} sec",
+    "Belum ada video tutorial untuk peran Anda di modul ini.": "There's no tutorial video for your role in this module yet.",
+    "Video per peran": "Videos by role",
+    "Bab tutorial": "Tutorial chapters",
+    "Daftar pilihan": "Options",
+    "Alamat": "Address",
+    "Grafik batang pemasukan dan pengeluaran per bulan": "Bar chart of income and expenses per month",
+    "Grafik donat pengeluaran per kategori": "Donut chart of expenses by category",
+    "Generik": "Generic",
+    "Grafik batang pendapatan invoice berulang": "Bar chart of recurring invoice revenue",
+    "Halaman": "Page",
+    "Diperbarui": "Updated"
 }

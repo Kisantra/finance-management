@@ -5,6 +5,7 @@
  *   npm run i18n:check                          # seluruh resources/js
  *   npm run i18n:check -- --scope pages/invoices # hanya folder/berkas tertentu (boleh berulang)
  *   npm run i18n:check -- --ringkas             # hanya ringkasan per folder
+ *   npm run i18n:check -- --root <folder>       # akar sumber lain (dipakai tes pemindai; berisi locales/{en,zh}.json)
  *   npm run i18n:check -- --kunci-hilang x.json # tulis kunci yang belum ada di kamus (bahan penerjemah)
  *
  * Yang diperiksa (galat = keluar dengan kode 1):
@@ -36,11 +37,8 @@ import process from 'node:process';
 import ts from 'typescript';
 
 const ROOT = process.cwd();
-const SRC = path.join(ROOT, 'resources', 'js');
-const BERKAS_KAMUS = {
-    en: path.join(SRC, 'locales', 'en.json'),
-    zh: path.join(SRC, 'locales', 'zh.json'),
-};
+let SRC = path.join(ROOT, 'resources', 'js');
+let BERKAS_KAMUS = {};
 const DIABAIKAN = ['pages/guide/', 'routes/', 'actions/', 'wayfinder/', 'locales/'];
 
 /* ── Argumen ─────────────────────────────────────────────────────────────────────────────────── */
@@ -58,6 +56,8 @@ for (let i = 0; i < argv.length; i++) {
         cakupan.push(a.split('=').slice(1).join('='));
     } else if (a === '--ringkas' || a === '--summary') {
         hanyaRingkasan = true;
+    } else if (a === '--root') {
+        SRC = path.resolve(ROOT, argv[++i]);
     } else if (a === '--kunci-hilang') {
         berkasKunciHilang = argv[++i];
     } else if (a === '--help' || a === '-h') {
@@ -82,6 +82,7 @@ function resolveCakupan(p) {
     }
     return ada;
 }
+BERKAS_KAMUS = { en: path.join(SRC, 'locales', 'en.json'), zh: path.join(SRC, 'locales', 'zh.json') };
 const cakupanAbs = cakupan.map(resolveCakupan);
 const pindaiPenuh = cakupanAbs.length === 0;
 
@@ -263,7 +264,7 @@ const PROP_TEKS = new Set([
     'caption', 'aria-label', 'aria-description', 'aria-valuetext', 'aria-roledescription', 'alt', 'tooltip',
     'confirmLabel', 'cancelLabel', 'placeholderTo', 'subtitle', 'heading', 'helperText', 'message', 'text',
     'tag', 'section', 'centerLabel', 'centerSub', 'suffix', 'prefix', 'summary', 'note', 'okLabel',
-    'actionLabel', 'loadingText',
+    'actionLabel', 'loadingText', 'meta',
 ]);
 
 /** Kunci objek yang nilainya teks tampilan (peta label, opsi Combobox/Tabs/SegmentedControl, dst.). */
@@ -271,14 +272,14 @@ const KUNCI_LABEL = new Set([
     'label', 'labels', 'title', 'description', 'hint', 'placeholder', 'searchPlaceholder', 'emptyText',
     'emptyMessage', 'caption', 'tooltip', 'text', 'message', 'section', 'tag', 'confirmLabel', 'cancelLabel',
     'subtitle', 'heading', 'helper', 'helperText', 'summary', 'note', 'placeholderTo', 'centerLabel',
-    'centerSub', 'aria-label', 'ariaLabel', 'alt',
+    'centerSub', 'aria-label', 'ariaLabel', 'alt', 'header', 'meta',
 ]);
 
 /** Segmen nama variabel penanda peta label (STATUS_LABEL, typeLabels, WEEKDAYS, …). */
 const SEGMEN_PETA = new Set([
     'label', 'labels', 'text', 'texts', 'title', 'titles', 'caption', 'captions', 'message', 'messages',
     'hint', 'hints', 'judul', 'teks', 'pesan', 'keterangan', 'description', 'descriptions', 'copy', 'month',
-    'months', 'bulan', 'weekday', 'weekdays', 'hari',
+    'months', 'bulan', 'weekday', 'weekdays', 'hari', 'subtitle', 'subtitles', 'header', 'headers',
 ]);
 
 function segmenNama(nama) {
@@ -344,7 +345,14 @@ function pindai(abs) {
             galat.push({ berkas, baris: i + 1, kolom: 1, jenis: 'abaikan-tanpa-alasan', pesan: 'komentar i18n-abaikan wajib diberi alasan' });
         }
     });
-    const diabaikan = (b) => abaikan.get(b) || abaikan.get(b - 1);
+    /** Komentar di baris yang sama berlaku; komentar di baris atas hanya bila baris itu murni komentar (bukan ekor kode). */
+    const diabaikan = (b) => {
+        if (abaikan.get(b)) {
+            return abaikan.get(b);
+        }
+        const atas = (baris[b - 2] ?? '').trim();
+        return /^(\/\/|\{\/\*|\/\*|\*)/.test(atas) ? abaikan.get(b - 1) : null;
+    };
 
     /** Berkas ini memakai t() dari @/i18n (impor bernama `t`). */
     const memakaiT = sf.statements.some(
@@ -460,8 +468,13 @@ function pindai(abs) {
         const lokasi = `${berkas}:${line + 1}`;
         if (!lama) {
             kunciDipakai.set(kunci, { jamak, lokasi, node: nodeKunci, berkas, baris: line + 1, diabaikan: Boolean(diabaikan(line + 1)) });
-        } else if (jamak && !lama.jamak) {
-            lama.jamak = true;
+        } else {
+            if (jamak && !lama.jamak) {
+                lama.jamak = true;
+            }
+            if (!diabaikan(line + 1) && lama.diabaikan) {
+                Object.assign(lama, { lokasi, berkas, baris: line + 1, diabaikan: false });
+            }
         }
     }
 

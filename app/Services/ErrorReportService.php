@@ -157,10 +157,10 @@ class ErrorReportService
      * 2. Hanya status < 500. Pesan exception 5xx bisa memuat SQL beserta datanya;
      *    itu sebabnya detail teknis di kelas ini pun hanya dikirim ke role admin.
      * 3. Pesan yang berbau internal ditolak: backslash (nama kelas ber-namespace),
-     *    "SQLSTATE", dan "No query results for model" — yang terakhir dihasilkan
+     *    "SQLSTATE", "The route …" (rute tidak ditemukan), dan "No query results for model" — yang terakhir dihasilkan
      *    route-model binding pada 404 dan membocorkan nama model beserta id-nya.
      */
-    private static function pesanKhusus(Throwable $e, int $status): ?string
+    private static function pesanKhusus(Throwable $e, int $status, string $locale): ?string
     {
         if (! $e instanceof HttpExceptionInterface || $status >= 500) {
             return null;
@@ -178,7 +178,7 @@ class ErrorReportService
             }
         }
 
-        return $pesan;
+        return __($pesan, [], $locale);
     }
 
     /**
@@ -204,7 +204,7 @@ class ErrorReportService
         [$title, $description] = $this->judulDanPenjelasan($status, $e, $locale);
         [$judulLaporan] = $this->judulDanPenjelasan($status, $e, SetDocumentLocale::LOCALE);
 
-        $description = self::pesanKhusus($e, $status) ?? $description;
+        $description = self::pesanKhusus($e, $status, $locale) ?? $description;
 
         $user = $request->user();
 
