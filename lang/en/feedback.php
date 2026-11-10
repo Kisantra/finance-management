@@ -4,12 +4,12 @@
  * Label jenis, status, dan prioritas Masukan (dipakai accessor Feedback::*_label).
  */
 return [
-    'type_bug' => 'Bug Report',
-    'type_feature' => 'Feature Request',
-    'type_feedback' => 'Feedback',
+    'type_bug' => 'Bug',
+    'type_feature' => 'Feature request',
+    'type_feedback' => 'Suggestion',
 
     'status_open' => 'Open',
-    'status_in_progress' => 'In Progress',
+    'status_in_progress' => 'In progress',
     'status_resolved' => 'Resolved',
     'status_closed' => 'Closed',
 

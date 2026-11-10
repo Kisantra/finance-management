@@ -194,6 +194,31 @@ return [
     |
     */
 
-    'attributes' => [],
+    'attributes' => [
+        'title' => 'title',
+        'description' => 'description',
+        'amount' => 'amount',
+        'expense_date' => 'expense date',
+        'category' => 'category',
+        'category_id' => 'transaction category',
+        'attachment' => 'attachment',
+        'action' => 'action',
+        'review_notes' => 'review notes',
+        'bank_account_id' => 'bank account',
+        'payment_date' => 'payment date',
+        'payment_amount' => 'payment amount',
+        'reference_notes' => 'reference notes',
+        'name' => 'name',
+        'email' => 'email',
+        'password' => 'password',
+        'phone' => 'phone',
+        'address' => 'address',
+        'notes' => 'notes',
+        'date' => 'date',
+        'start_date' => 'start date',
+        'end_date' => 'end date',
+        'due_date' => 'due date',
+        'issue_date' => 'issue date',
+    ],
 
 ];
