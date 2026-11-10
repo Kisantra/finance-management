@@ -208,11 +208,11 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                         <div className="flex items-center gap-3 text-xs">
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 bg-green-500 rounded-full" />
-                                <span className="text-dark-500 dark:text-dark-400">{t('Masuk')}</span>
+                                <span className="text-dark-500 dark:text-dark-400">{t('Masuk', { context: 'arah' })}</span>
                             </span>
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                                <span className="text-dark-500 dark:text-dark-400">{t('Keluar')}</span>
+                                <span className="text-dark-500 dark:text-dark-400">{t('Keluar', { context: 'arah' })}</span>
                             </span>
                         </div>
                     </div>

@@ -32,7 +32,7 @@ import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import { t, tk, Trans } from '@/i18n';
+import { intlLocale, t, tk, Trans } from '@/i18n';
 
 interface Company {
     id: number;
@@ -182,7 +182,7 @@ export default function CompanySettings() {
                                 <p className="font-semibold">{t('Lengkapi profil perusahaan sebelum melanjutkan')}</p>
                                 <p className="mt-1">
                                     {t('Perusahaan ini belum bisa dipakai siapa pun sampai profilnya disimpan. Yang masih kosong: {{fields}}.', {
-                                        fields: missingFields.map((field) => (FIELD_LABEL[field] ? t(FIELD_LABEL[field]) : field)).join(', '),
+                                        fields: new Intl.ListFormat(intlLocale(), { style: 'long', type: 'conjunction' }).format(missingFields.map((field) => (FIELD_LABEL[field] ? t(FIELD_LABEL[field]) : field))),
                                     })}
                                 </p>
                             </div>

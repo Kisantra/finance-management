@@ -365,7 +365,7 @@ export default function CashFlowAll({
                                                 </td>
                                                 <td className="hidden px-3 py-3 align-top md:table-cell">
                                                     <div className="flex flex-col items-start gap-1">
-                                                        <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? t('Masuk') : t('Keluar')}</Badge>
+                                                        <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? t('Masuk', { context: 'arah' }) : t('Keluar', { context: 'arah' })}</Badge>
                                                         {row.is_financing && <FinancingBadge className="xl:hidden" />}
                                                     </div>
                                                 </td>

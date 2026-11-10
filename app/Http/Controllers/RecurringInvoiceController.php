@@ -292,8 +292,8 @@ class RecurringInvoiceController extends Controller
         return response()->json([
             'generated' => $generated,
             'message' => $generated > 0
-                ? __(':count invoice berhasil digenerate.', ['count' => $generated])
-                : __('Tidak ada invoice yang perlu digenerate untuk bulan ini.'),
+                ? __(':count invoice berhasil dibuat.', ['count' => $generated])
+                : __('Tidak ada invoice yang perlu dibuat untuk bulan ini.'),
         ]);
     }
 
@@ -427,7 +427,7 @@ class RecurringInvoiceController extends Controller
                 'message' => __('Invoice draft dibuat. Terbitkan invoice untuk mendapat nomor resmi.'),
             ]);
         } catch (\Exception $e) {
-            return response()->json(['message' => __('Gagal mempublish invoice: :pesan', ['pesan' => $e->getMessage()])], 500);
+            return response()->json(['message' => __('Gagal menjadikan invoice: :pesan', ['pesan' => $e->getMessage()])], 500);
         }
     }
 

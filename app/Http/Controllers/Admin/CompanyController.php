@@ -22,7 +22,7 @@ class CompanyController extends Controller
     {
         $organization = $request->user()->organization;
 
-        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organization mana pun.'));
+        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organisasi mana pun.'));
 
         $daftar = Company::query()
             ->where('organization_id', $organization->id)
@@ -105,7 +105,7 @@ class CompanyController extends Controller
     {
         $organization = $request->user()->organization;
 
-        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organization mana pun.'));
+        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organisasi mana pun.'));
 
         if ($organization->hasReachedCompanyQuota()) {
             return back()->withErrors(['slug' => __('Kuota perusahaan organization ini (:kuota) sudah penuh.', ['kuota' => $organization->company_quota])]);
@@ -124,7 +124,7 @@ class CompanyController extends Controller
             Log::error('Provisioning perusahaan gagal', ['slug' => $validated['slug'], 'error' => $e->getMessage()]);
             Company::where('id', $validated['slug'])->update(['status' => 'failed']);
 
-            return back()->withErrors(['slug' => __('Provisioning gagal di tengah jalan — perusahaan berstatus "failed", gunakan tombol Coba Ulang. Detail ada di log.')]);
+            return back()->withErrors(['slug' => __('Penyiapan perusahaan gagal di tengah jalan — gunakan tombol Coba Ulang. Detail ada di log.')]);
         }
 
         $this->grantCreatorAccess($request, $company);
@@ -134,7 +134,7 @@ class CompanyController extends Controller
 
     public function retry(Request $request, Company $targetCompany): RedirectResponse
     {
-        abort_unless($targetCompany->status === 'failed', 403, __('Hanya perusahaan berstatus "failed" yang bisa dicoba ulang.'));
+        abort_unless($targetCompany->status === 'failed', 403, __('Hanya perusahaan yang penyiapannya gagal yang bisa dicoba ulang.'));
         abort_unless($targetCompany->organization_id === $request->user()->organization_id, 403);
 
         $attributes = [
@@ -163,7 +163,7 @@ class CompanyController extends Controller
 
         $this->grantCreatorAccess($request, $company);
 
-        return back()->with('success', __('Perusahaan :nama berhasil di-provision ulang.', ['nama' => $company->name]));
+        return back()->with('success', __('Perusahaan :nama berhasil disiapkan ulang.', ['nama' => $company->name]));
     }
 
     /** Pembuat otomatis menjadi anggota + admin perusahaan baru (tanpa ini tidak ada yang bisa masuk). */

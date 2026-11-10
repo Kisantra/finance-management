@@ -172,9 +172,12 @@ class TransactionCategoryController extends Controller
         // baris yang tidak pernah muncul di laporan mana pun, tetapi terlihat
         // sudah terklasifikasi pada matriks kategori — menyesatkan.
         if ($validated['pl_group'] !== null && ! in_array($transactionCategory->type, ['income', 'expense'], true)) {
-            return back()->withErrors([
-                'pl_group' => __('Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori :tipe.', ['tipe' => $transactionCategory->type]),
-            ]);
+            // Satu kalimat utuh per jenis: kode jenis mentah (transfer/financing) tidak boleh tampil di pesan.
+            $pesan = $transactionCategory->type === 'transfer'
+                ? __('Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori transfer.')
+                : __('Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori pendanaan.');
+
+            return back()->withErrors(['pl_group' => $pesan]);
         }
 
         $transactionCategory->update(['pl_group' => $validated['pl_group'] ?? null]);

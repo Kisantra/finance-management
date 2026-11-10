@@ -23,8 +23,9 @@ use Tests\TestCase;
 
 /**
  * Teks server mengikuti bahasa pengguna (flash, validasi, notifikasi), sementara teks yang DISIMPAN
- * ke database tetap Bahasa Indonesia (aturan emas, D7/D8). Kunci terjemahan belum diisi penerjemah,
- * jadi penangan kunci hilang dipasang: kunci yang diterjemahkan di bahasa zh tampil berawalan "[zh] ".
+ * ke database tetap Bahasa Indonesia (aturan emas, D7/D8). Jalur terjemahan diuji dengan bahasa uji "xx"
+ * tanpa kamus: kunci yang lewat __() tampil berawalan "[xx] ", tidak bergantung isi kamus zh/en.
+ * Uji D8 tetap memakai zh asli (kamusnya terisi, deskripsi tersimpan tetap harus Indonesia).
  */
 class TeksServerLokaleTest extends TestCase
 {
@@ -44,6 +45,9 @@ class TeksServerLokaleTest extends TestCase
 
     private User $adminId;
 
+    /** Pengguna berbahasa uji "xx" tanpa kamus: membuktikan teks server lewat penerjemah apa pun isi kamusnya. */
+    private User $adminXx;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -61,9 +65,12 @@ class TeksServerLokaleTest extends TestCase
         $this->adminZh->assignRole('admin');
         $this->adminId = User::factory()->create(['locale' => 'id']);
         $this->adminId->assignRole('admin');
+        config(['app.available_locales' => ['id', 'en', 'zh', 'xx']]);
+        $this->adminXx = User::factory()->create(['locale' => 'xx']);
+        $this->adminXx->assignRole('admin');
 
         Lang::handleMissingKeysUsing(
-            fn (string $key, array $replace, ?string $locale): string => ($locale ?? App::getLocale()) === 'zh' ? "[zh] {$key}" : $key,
+            fn (string $key, array $replace, ?string $locale): string => ($locale ?? App::getLocale()) === 'xx' ? "[xx] {$key}" : $key,
         );
     }
 
@@ -77,9 +84,9 @@ class TeksServerLokaleTest extends TestCase
 
     public function test_flash_mengikuti_bahasa_pengguna(): void
     {
-        $this->actingAs($this->adminZh)
+        $this->actingAs($this->adminXx)
             ->delete('/services/'.Service::factory()->create()->id)
-            ->assertSessionHas('success', '[zh] Layanan berhasil dihapus.');
+            ->assertSessionHas('success', '[xx] Layanan berhasil dihapus.');
 
         $this->actingAs($this->adminId)
             ->delete('/services/'.Service::factory()->create()->id)
@@ -88,8 +95,8 @@ class TeksServerLokaleTest extends TestCase
 
     public function test_pesan_validasi_form_request_mengikuti_bahasa_pengguna(): void
     {
-        $this->actingAs($this->adminZh)->post('/bank-accounts', [])
-            ->assertSessionHasErrors(['account_name' => '[zh] Nama akun wajib diisi.']);
+        $this->actingAs($this->adminXx)->post('/bank-accounts', [])
+            ->assertSessionHasErrors(['account_name' => '[xx] Nama akun wajib diisi.']);
 
         $this->actingAs($this->adminId)->post('/bank-accounts', [])
             ->assertSessionHasErrors(['account_name' => 'Nama akun wajib diisi.']);
@@ -103,12 +110,12 @@ class TeksServerLokaleTest extends TestCase
             'start_date' => '2026-01-01', 'maturity_date' => '2027-01-01', 'status' => 'active',
         ]);
 
-        $this->actingAs($this->adminZh)->post("/loans/{$loan->id}/pay", [
+        $this->actingAs($this->adminXx)->post("/loans/{$loan->id}/pay", [
             'bank_account_id' => BankAccount::factory()->create(['initial_balance' => 5_000_000])->id,
             'payment_date' => '2026-02-01',
             'principal_paid' => 2_000_000,
             'interest_paid' => 0,
-        ])->assertSessionHasErrors(['principal_paid' => '[zh] Pembayaran pokok melebihi sisa pokok (Rp 1.000.000).']);
+        ])->assertSessionHasErrors(['principal_paid' => '[xx] Pembayaran pokok melebihi sisa pokok (Rp 1.000.000).']);
     }
 
     public function test_deskripsi_tersimpan_tetap_indonesia_dan_tautan_modul_jalan_di_bahasa_zh(): void
@@ -174,7 +181,7 @@ class TeksServerLokaleTest extends TestCase
 
     public function test_notifikasi_baru_tersimpan_indonesia_dan_tampil_dalam_bahasa_pembaca(): void
     {
-        $pelapor = User::factory()->create(['locale' => 'zh']);
+        $pelapor = User::factory()->create(['locale' => 'xx']);
         $pelapor->assignRole(Role::firstOrCreate(['name' => 'staff']));
         $feedback = Feedback::create([
             'user_id' => $pelapor->id, 'title' => 'Tombol macet', 'description' => 'Tidak bisa diklik.',
@@ -191,8 +198,8 @@ class TeksServerLokaleTest extends TestCase
         $this->assertSame('Tanggapan Masukan', $tersimpan->data['i18n']['title']);
 
         $respons = $this->actingAs($pelapor)->getJson('/notifications')->assertOk();
-        $respons->assertJsonPath('items.0.title', '[zh] Tanggapan Masukan');
-        $respons->assertJsonPath('items.0.message', '[zh] Masukan "Tombol macet" telah ditanggapi oleh '.$this->adminId->name);
+        $respons->assertJsonPath('items.0.title', '[xx] Tanggapan Masukan');
+        $respons->assertJsonPath('items.0.message', '[xx] Masukan "Tombol macet" telah ditanggapi oleh '.$this->adminId->name);
 
         $this->actingAs(User::query()->find($pelapor->id)->forceFill(['locale' => 'id']))
             ->getJson('/notifications')
@@ -201,26 +208,26 @@ class TeksServerLokaleTest extends TestCase
 
     public function test_notifikasi_jenis_masukan_baru_menerjemahkan_label_jenis(): void
     {
-        $this->adminZh->companies()->syncWithoutDetaching([self::TEST_COMPANY]);
+        $this->adminXx->companies()->syncWithoutDetaching([self::TEST_COMPANY]);
 
         $this->actingAs($this->adminId)->post('/feedbacks', [
             'type' => 'feature', 'priority' => 'low', 'title' => 'Judul uji', 'description' => 'Deskripsi uji.',
         ])->assertSessionHasNoErrors();
 
-        $tersimpan = AppNotification::query()->where('user_id', $this->adminZh->id)->sole();
+        $tersimpan = AppNotification::query()->where('user_id', $this->adminXx->id)->sole();
         $this->assertSame('Masukan Baru', $tersimpan->title);
         $this->assertStringContainsString('mengirim Fitur: Judul uji', $tersimpan->message);
 
-        $this->actingAs($this->adminZh)->getJson('/notifications')
-            ->assertJsonPath('items.0.title', '[zh] Masukan Baru')
-            ->assertJsonPath('items.0.message', '[zh] '.$this->adminId->name.' mengirim '.__('feedback.type_feature', [], 'zh').': Judul uji');
+        $this->actingAs($this->adminXx)->getJson('/notifications')
+            ->assertJsonPath('items.0.title', '[xx] Masukan Baru')
+            ->assertJsonPath('items.0.message', '[xx] '.$this->adminId->name.' mengirim '.__('feedback.type_feature', [], 'xx').': Judul uji');
     }
 
     public function test_notifikasi_lama_tanpa_i18n_tampil_apa_adanya(): void
     {
-        AppNotification::notify($this->adminZh->id, 'invoice_created', 'Invoice Baru', 'Invoice 001 dibuat');
+        AppNotification::notify($this->adminXx->id, 'invoice_created', 'Invoice Baru', 'Invoice 001 dibuat');
 
-        $this->actingAs($this->adminZh)->getJson('/notifications')
+        $this->actingAs($this->adminXx)->getJson('/notifications')
             ->assertOk()
             ->assertJsonPath('items.0.title', 'Invoice Baru')
             ->assertJsonPath('items.0.message', 'Invoice 001 dibuat');
@@ -230,12 +237,12 @@ class TeksServerLokaleTest extends TestCase
     {
         config(['app.debug' => false]);
 
-        $this->actingAs($this->adminZh)->get('/_uji/tidak-ada')
+        $this->actingAs($this->adminXx)->get('/_uji/tidak-ada')
             ->assertNotFound()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('error', false)
-                ->where('title', '[zh] Halaman tidak ditemukan')
-                ->where('home_label', '[zh] Pilih Perusahaan')
+                ->where('title', '[xx] Halaman tidak ditemukan')
+                ->where('home_label', '[xx] Pilih Perusahaan')
                 ->where('report.fields.0.value', '404 — Halaman tidak ditemukan'));
     }
 }

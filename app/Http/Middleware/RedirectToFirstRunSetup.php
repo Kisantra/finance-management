@@ -25,7 +25,7 @@ class RedirectToFirstRunSetup
         }
 
         return $request->expectsJson()
-            ? response()->json(['message' => __('Aplikasi belum dipasang. Selesaikan walkthrough di /setup.')], 503)
+            ? response()->json(['message' => __('Aplikasi belum dipasang. Selesaikan langkah pemasangan di /setup.')], 503)
             : redirect('/setup');
     }
 }

@@ -104,7 +104,7 @@ class PdfTemplateController extends Controller
         ]);
 
         return redirect()->route('settings.pdf-templates.edit', $copy)
-            ->with('success', __('Template berhasil diduplikat.'));
+            ->with('success', __('Template berhasil digandakan.'));
     }
 
     public function setDefault(PdfTemplate $pdfTemplate): RedirectResponse
@@ -187,7 +187,7 @@ class PdfTemplateController extends Controller
             'layout' => $layout,
         ]);
 
-        return back()->with('success', __('Layout tersimpan.'));
+        return back()->with('success', __('Tata letak tersimpan.'));
     }
 
     /**
