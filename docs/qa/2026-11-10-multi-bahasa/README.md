@@ -68,3 +68,40 @@ Satu kata sandi acak untuk semua akun QA, disimpan di luar repo (tidak dicantumk
 
 Versi 1280 px (ID/EN/ZH × Dashboard, Arus Kas, dialog Catat Pemasukan, Invoice, Login, serta PDF invoice ZH dan ID) disimpan di luar repo
 (scratchpad `bhs/pr-sebelum/`) dan dipindahkan ke `docs/pr/<tanggal>-multi-bahasa/` oleh orkestrator.
+
+---
+
+# Gelombang 5: QA "sesudah" (10 November 2026)
+
+Setelah seluruh pekerjaan multi bahasa di-commit (cabang `fitur/multi-bahasa`, `b516112`), lingkungan `bhs` yang sama dipakai lagi.
+
+| Berkas | Isi |
+|---|---|
+| [`test-cases/multi-bahasa-sesudah.md`](test-cases/multi-bahasa-sesudah.md) | 40 case: N01–N02 (ID), A01–A09 (dugaan lama dibalik + tata letak), C01–C29 (matriks modul §6 dengan pemindai DOM) |
+| [`pemindai-dom.md`](pemindai-dom.md) | Tabel per layar, daftar pengecualian sah, daftar temuan F01–F13 dengan lokasi dan dugaan berkas sumber |
+| [`manifests/multi-bahasa-sesudah.json`](manifests/multi-bahasa-sesudah.json) | Sumber data case dan bukti |
+| `evidence/multi-bahasa-sesudah/` | Tangkapan layar per langkah (420 px; perbandingan N02 dan tata letak A09 lebih lebar) |
+
+## Skor per kriteria
+
+| Kriteria | Hasil |
+|---|---|
+| K7 ZH: 0 sisa teks non-pengecualian | **Belum**: 12 temuan unik (F01–F12) di 1.111 layar/keadaan |
+| K7 EN: 0 sisa Indonesia | **Belum**: 8 temuan unik (F01, F02, F05–F10), sebagian besar bukan kata Indonesia murni (F05–F08 adalah slug/satuan/bulan tetap) |
+| Pemilih bahasa, persistensi, halaman login (A01, A02, A03, A08) | 4 dari 4 lulus |
+| Dokumen tetap Indonesia dengan huruf benar (A04) | Lulus |
+| DatePicker (A05) | Lulus |
+| Grafik (A06) | Sebagian: sumbu X ikut bahasa; sumbu Y Kas & Bank memakai "jt" (F06), label aksesibilitas Inggris (F07) |
+| Email reset kata sandi id/en/zh (A07) | Lulus |
+| Tata letak (A09) | 1280 px tanpa selisih; 390 px: 1 temuan (F13, EN) |
+| Regresi tampilan Indonesia (N01, N02) | Lulus; perbedaan hanya perapian yang disengaja |
+| Matriks §6 (C01–C29) | 15 lulus, 14 gagal karena F01–F12 (tidak ada yang rusak total) |
+| Console `[i18n] belum diterjemahkan` | 2 kunci: "Alamat", "Generik" |
+| Halaman Reimbursement (keluhan pengguna) | Bersih di ZH dan EN: daftar, form, drawer rincian tiap status, dialog tinjau/bayar |
+
+## Lingkungan tambahan
+
+- Akun tambahan di `bhs_central` (kata sandi acak yang sama, di luar repo): `qa1`–`qa3@bhs.test` (finance manager), `qa4@bhs.test` (admin), dipakai agar proses paralel tidak berebut `users.locale`.
+- Data tambahan lewat skrip yang menolak berjalan di luar `bhs_central`: layanan, invoice draft dan jatuh tempo lewat, reimbursement dan pengajuan dana tiap status, utang/piutang lunas, template berulang, tiga Masukan, notifikasi. Dua template PDF dan beberapa transaksi uji dibuat oleh crawler.
+- Skrip (di luar repo, `...\scratchpadhs\`): `crawl.py`, `rows2.py`, `special.py`, `pdfbuilder.py`, `layout.py`, `rawscan.py`, `after1.py`, `after2.py`, `final_report.py`.
+- Screenshot 1280 px untuk dokumen PR: `...\scratchpadhs\pr-sesudah\` (`{id,en,zh}-{dashboard,aruskas,dialog-pemasukan,invoice,login,reimbursement}.png` dan `{id,en,zh}-pdf-invoice.png`).

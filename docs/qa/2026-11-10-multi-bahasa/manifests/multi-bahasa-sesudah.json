@@ -1,0 +1,1053 @@
+{
+  "module": "multi-bahasa-sesudah",
+  "title": "QA \"sesudah\": Multi bahasa (ID · EN · ZH)",
+  "kicker": "QA 10 NOVEMBER 2026 · MULTI BAHASA · SESUDAH PERUBAHAN",
+  "date": "10 November 2026",
+  "environment": "database bhs_central + bhs_central_tenant_bahasaqa (lingkungan gelombang 1, data ditambah), php artisan serve --env=bhs di http://127.0.0.1:8149, MySQL 8.0.45, PHP 8.5.4, aset dari Vite dev server pengembang ([::1]:5173, tidak diubah), Chromium headless 145 lewat Python Playwright 1.58 (1280x900 dan 390x844), kode cabang fitur/multi-bahasa di b516112",
+  "scope": "Seluruh matriks §6 (29 baris) dengan pemindai DOM otomatis di ZH dan EN (3 peran: admin, finance manager, staf), ulang kasus N01 dan A01–A08 dengan dugaan berbalik, tata letak 1280/390 px, dan regresi tampilan Indonesia.",
+  "shots_src": "../evidence/multi-bahasa-sesudah",
+  "shots_dst": "../evidence/multi-bahasa-sesudah",
+  "evidence_into": "../test-cases/multi-bahasa-sesudah.md",
+  "report_out": "../report/Laporan-QA-multi-bahasa-sesudah.pdf",
+  "summary": [
+    "40 case: 24 lulus, 16 gagal. Kasus berdugaan gelombang 1 (A01–A08) sudah berbalik: EN berfungsi, toast dan validasi ZH Mandarin, preferensi bertahan lintas sesi, PDF tetap Indonesia dengan huruf benar, DatePicker mengikuti bahasa, email reset kata sandi dalam id/en/zh, pemilih bahasa di halaman login. Hanya A06 (satuan sumbu Y Kas & Bank) dan A09 (tata letak EN 390 px) belum lulus.",
+    "Syarat K7 (0 sisa teks antarmuka non-pengecualian) BELUM tercapai: pemindai menemukan 13 temuan unik (F01–F13): 6 berprioritas sedang, 7 rendah. Halaman Reimbursement yang dikeluhkan pengguna kini bersih di ZH dan EN (daftar, form, drawer rincian, dialog tinjau/bayar).",
+    "Pemindai mencakup 1.100 layar/keadaan (ZH 1.111, EN 1.100) dari 38 halaman, 9 kombinasi peran × bahasa; console hanya mencatat dua kunci hilang: \"Alamat\" dan \"Generik\"."
+  ],
+  "bugs": [
+    {
+      "id": "F01",
+      "title": "Klien › Tambah Klien (label bidang \"Alamat\"); Perusahaan › Perusahaan baru (baris pratinjau \"Alamat\")",
+      "sifat": "Prioritas Sedang",
+      "cases": "C04, C24",
+      "gejala": "\"Alamat\" (tetap Indonesia)",
+      "sebab": "resources/js/pages/clients/index.tsx:232, resources/js/pages/admin/companies/index.tsx:486; kunci \"Alamat\" belum ada di resources/js/locales/en.json dan zh.json (console: \"[i18n] belum diterjemahkan: Alamat\")",
+      "cakupan": "Bahasa terdampak: EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F02",
+      "title": "Invoice › editor (pilihan template cetak), dialog Cetak invoice, Invoice baru",
+      "sifat": "Prioritas Sedang",
+      "cases": "C06",
+      "gejala": "\"Generik\" (nama template cetak, tetap Indonesia)",
+      "sebab": "resources/js/pages/invoices/create.tsx:95, resources/js/pages/invoices/components/print-invoice-dialog.tsx:36; kunci \"Generik\" belum ada di en.json/zh.json (console \"[i18n] belum diterjemahkan: Generik\")",
+      "cakupan": "Bahasa terdampak: EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F03",
+      "title": "Pesan validasi server: Layanan, Kategori Transaksi, Pengguna, Perusahaan, Pengajuan Dana (item)",
+      "sifat": "Prioritas Sedang",
+      "cases": "C05, C12, C14, C23, C24",
+      "gejala": "Nama atribut mentah: \"type不能为空。\", \"role不能为空。\", \"label…\", \"slug…\", \"abbreviation…\", \"items.0.description不能为空。\", \"items.0.category_id…\", \"items.0.unit_price…\"; di ID: \"Type wajib diisi.\"",
+      "sebab": "lang/zh/validation.php dan lang/id/validation.php, bagian attributes: tambah type, role, label, slug, abbreviation, items.*.description, items.*.category_id, items.*.unit_price (dan en bila ingin rapi)",
+      "cakupan": "Bahasa terdampak: ZH, ID (EN tampak wajar)",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F04",
+      "title": "Halaman error 403 (staf membuka /admin/users)",
+      "sifat": "Prioritas Sedang",
+      "cases": "C28",
+      "gejala": "\"This action is unauthorized.\" di bawah judul 访问被拒绝 / Akses ditolak",
+      "sebab": "Pesan bawaan Laravel (AuthorizationException) diteruskan ke halaman error; kunci \"This action is unauthorized.\" belum ada di lang/id.json dan lang/zh.json, atau halaman error perlu memetakan pesan bawaan",
+      "cakupan": "Bahasa terdampak: ZH, ID (EN kebetulan benar)",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F05",
+      "title": "Izin & Peran › judul grup modul",
+      "sifat": "Prioritas Rendah",
+      "cases": "C25",
+      "gejala": "\"Bank-accounts\", \"Profit-loss\", \"Recurring-invoices\" (slug mentah berhuruf besar awal)",
+      "sebab": "resources/js/pages/permissions (judul grup memakai CSS capitalize pada slug modul); perlu peta label modul seperti grup lain (交易类别, 客户)",
+      "cakupan": "Bahasa terdampak: ID, EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F06",
+      "title": "Kas & Bank › grafik Pemasukan vs Pengeluaran (sumbu Y)",
+      "sifat": "Prioritas Rendah",
+      "cases": "C10",
+      "gejala": "\"Rp 100jt\", \"Rp 80jt\", … \"Rp 1jt\" (singkatan Indonesia \"jt\"; Dashboard sudah memakai \"M\"/\"百万\")",
+      "sebab": "resources/js/pages/bank-accounts/components/account-charts.tsx:19 (template `Rp ${…}jt`), bandingkan resources/js/components/dashboard/cash-flow-chart.tsx:34 yang memakai t()",
+      "cakupan": "Bahasa terdampak: ID, EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F07",
+      "title": "Grafik ApexCharts (Kas & Bank, Invoice Berulang › Analitik)",
+      "sifat": "Prioritas Rendah",
+      "cases": "C07, C10",
+      "gejala": "aria-label Inggris bawaan pustaka: \"bar chart with 2 data series: 收入, 支出\", \"donut chart with 6 data series\"",
+      "sebab": "konfigurasi ApexCharts (chart.accessibility / locale) di account-charts.tsx dan analitik invoice berulang",
+      "cakupan": "Bahasa terdampak: ID, EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F08",
+      "title": "Invoice Berulang › tab Analitik",
+      "sifat": "Prioritas Sedang",
+      "cases": "C07",
+      "gejala": "Sumbu X berbahasa Inggris tetap (\"Jan Feb … May Aug Oct Dec\", juga di sesi ID dan ZH) dan sumbu Y \"Rp 0.0M\"",
+      "sebab": "resources/js/pages/recurring-invoices (komponen grafik analitik): nama bulan dan satuan dipatok, tidak memakai dateLocale()/t()",
+      "cakupan": "Bahasa terdampak: ID, EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F09",
+      "title": "Setiap Combobox (daftar pilihan cmdk)",
+      "sifat": "Prioritas Rendah",
+      "cases": "C02",
+      "gejala": "aria-label \"Suggestions\" (bawaan cmdk) pada daftar pilihan",
+      "sebab": "resources/js/components/ui/combobox.tsx / autocomplete.tsx: beri label pada <Command.List label={t(...)}>",
+      "cakupan": "Bahasa terdampak: ID, EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F10",
+      "title": "Pengaturan › Template PDF: daftar (judul kolom \"Nama\", \"Diperbarui\", \"Status\") dan editor Template Builder (lencana kanvas \"Halaman pertama\", \"Tiap halaman\", \"Dinamis ⇕\", \"Setelah konten\"; lencana panel properti \"Halaman\")",
+      "sifat": "Prioritas Sedang",
+      "cases": "C21",
+      "gejala": "Tetap Indonesia di EN dan ZH",
+      "sebab": "resources/js/pages/settings/pdf-templates/index.tsx:164,195 (header: literal), resources/js/pages/settings/pdf-templates/edit.tsx:1800-1801,2401 (literal di objek band/meta; yang di baris 562-585 sudah t())",
+      "cakupan": "Bahasa terdampak: EN, ZH",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F11",
+      "title": "Dialog Tutorial (semua modul)",
+      "sifat": "Prioritas Rendah",
+      "cases": "C29",
+      "gejala": "Pengendali pemutar berbahasa Inggris: \"Pause video\", \"Mute sound\", \"Enter Fullscreen\"; \"Bab tutorial\", \"Tutorial Admin\", tab peran \"Staff\"; judul tercampur \"教程：ringkasan\"; durasi \"1 mnt 27 dtk\"",
+      "sebab": "resources/js/components/tutorial/* (tutorial-videos.tsx:14 durasi \"mnt/dtk\" literal; kontrol pemutar Remotion); isi panduan sendiri sengaja Indonesia (K3)",
+      "cakupan": "Bahasa terdampak: ZH (EN: judul \"Tutorial: ringkasan\" memakai nama modul Indonesia)",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F12",
+      "title": "Izin & Peran › dialog Tambah Peran › pemilih ikon",
+      "sifat": "Prioritas Rendah",
+      "cases": "C25",
+      "gejala": "title/aria-label berupa nama ikon mentah (\"shield-check\", \"banknote\", \"briefcase\", …)",
+      "sebab": "resources/js/pages/permissions/index.tsx:285 (title={iconName})",
+      "cakupan": "Bahasa terdampak: ZH (juga EN, ID)",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    },
+    {
+      "id": "F13",
+      "title": "Invoice, header halaman pada lebar 390 px",
+      "sifat": "Prioritas Sedang",
+      "cases": "",
+      "gejala": "Tombol \"Create Invoice\" terpotong di tepi kanan layar; tab \"Partially paid\" terpotong; deskripsi bagian Profil Perusahaan terpotong elipsis",
+      "sebab": "baris aksi PageHeader pada invoices/index.tsx: perlu flex-wrap atau ikon saja di lebar sempit",
+      "cakupan": "Bahasa terdampak: EN (390 px)",
+      "perbaikan": "Tidak diperbaiki di QA ini (aturan: catat dan lanjut)."
+    }
+  ],
+  "cases": [
+    {
+      "section": "A. KONDISI NORMAL"
+    },
+    {
+      "id": "N01",
+      "title": "Tampilan Indonesia (baseline sesudah perubahan)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tampilan ID tetap normal",
+      "steps": [
+        {
+          "img": "N01-1",
+          "cap": "Dashboard (Ringkasan) bahasa Indonesia, pemilih ID."
+        },
+        {
+          "img": "N01-2",
+          "cap": "Arus Kas tab Semua, Indonesia."
+        },
+        {
+          "img": "N01-3",
+          "cap": "Dialog Catat Pemasukan, Indonesia."
+        },
+        {
+          "img": "N01-4",
+          "cap": "Daftar Invoice, Indonesia (status \"Terbit\" menggantikan \"Terkirim\")."
+        }
+      ]
+    },
+    {
+      "id": "N02",
+      "title": "Regresi tampilan Indonesia: sebelum vs sesudah",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tampilan ID sama seperti sebelum, kecuali perapian disengaja",
+      "steps": [
+        {
+          "img": "N02-1",
+          "cap": "Dashboard ID: kiri sebelum, kanan sesudah (pemilih bahasa kini berikon; badge Operasional; status \"Terbit\" menggantikan \"Terkirim\"; \"Lewat jatuh tempo\")."
+        },
+        {
+          "img": "N02-2",
+          "cap": "Arus Kas (Semua) ID: kiri sebelum, kanan sesudah; tata letak sama (data bertambah karena transaksi uji)."
+        },
+        {
+          "img": "N02-3",
+          "cap": "Dialog Catat Pemasukan ID: kiri sebelum, kanan sesudah; \"drag & drop\" menjadi \"seret & lepas\"; selebihnya identik."
+        },
+        {
+          "img": "N02-4",
+          "cap": "Daftar Invoice ID: kiri sebelum, kanan sesudah; \"Terkirim\" menjadi \"Terbit\"; draft tanpa nomor menampilkan \"belum bernomor\"."
+        },
+        {
+          "img": "N02-5",
+          "cap": "Login ID: kiri sebelum, kanan sesudah; tombol \"Masuk ke Dasbor\" menjadi \"Masuk\"; pemilih bahasa baru di pojok; panel pratinjau \"Terkirim\" menjadi \"Terbit\", \"Lewat tempo\" menjadi \"Lewat jatuh tempo\"."
+        }
+      ]
+    },
+    {
+      "section": "B. KASUS BERDUGAAN GELOMBANG 1 (DIBALIK) DAN TATA LETAK"
+    },
+    {
+      "id": "A01",
+      "title": "Pilih EN: kini berfungsi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "EN bisa dipilih dan seluruh tampilan, toast, dan validasi berbahasa Inggris",
+      "steps": [
+        {
+          "img": "A01-1",
+          "cap": "Menu bahasa di header terbuka: Indonesia, English, 中文 (endonim) dengan ID terpilih."
+        },
+        {
+          "img": "A01-2",
+          "cap": "Setelah memilih EN: seluruh Dashboard berbahasa Inggris, pemilih menunjukkan EN."
+        },
+        {
+          "img": "A01-3",
+          "cap": "Dialog Record Income (EN) terisi: label, kotak Jurnal, tombol berbahasa Inggris."
+        },
+        {
+          "img": "A01-4",
+          "cap": "Toast sukses setelah menyimpan di sesi EN."
+        },
+        {
+          "img": "A01-5",
+          "cap": "Formulir kosong dikirim di sesi EN: pesan validasi server dan toast berbahasa Inggris."
+        }
+      ]
+    },
+    {
+      "id": "A02",
+      "title": "Pilih ZH: label, toast, dan validasi Mandarin",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "ZH: label, toast, dan validasi berbahasa Mandarin",
+      "steps": [
+        {
+          "img": "A02-1",
+          "cap": "Setelah memilih ZH: Dashboard seluruhnya Mandarin; pemilih menunjukkan ZH."
+        },
+        {
+          "img": "A02-2",
+          "cap": "Dialog 登记收入 (ZH) terisi: label, kotak Jurnal, dan tombol berbahasa Mandarin."
+        },
+        {
+          "img": "A02-3",
+          "cap": "Toast sukses setelah menyimpan di sesi ZH."
+        },
+        {
+          "img": "A02-4",
+          "cap": "Formulir kosong dikirim di sesi ZH: pesan validasi server dan toast berbahasa Mandarin."
+        }
+      ]
+    },
+    {
+      "id": "A03",
+      "title": "Preferensi bahasa bertahan lintas sesi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "ZH → keluar → sesi baru → login: bahasa kembali ZH",
+      "steps": [
+        {
+          "img": "A03-1",
+          "cap": "Sesi ZH: menu pengguna dibuka, pilih Keluar (退出登录)."
+        },
+        {
+          "img": "A03-2",
+          "cap": "Cookie dibersihkan (sesi baru), halaman login dibuka: tampilan mengikuti bahasa bawaan (belum ada identitas pengguna)."
+        },
+        {
+          "img": "A03-3",
+          "cap": "Login ulang di sesi baru: bahasa ZH dipakai kembali (pemilih ZH, tampilan Mandarin) sesuai users.locale."
+        }
+      ]
+    },
+    {
+      "id": "A04",
+      "title": "PDF invoice di sesi ZH tetap Indonesia dengan huruf benar",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Dokumen terkunci Indonesia",
+      "steps": [
+        {
+          "img": "A04-1",
+          "cap": "Sesi ZH: dialog 打印 (Cetak invoice) dalam bahasa Mandarin; dokumennya akan tetap Indonesia."
+        },
+        {
+          "img": "A04-2",
+          "cap": "Halaman 1 PDF invoice yang diunduh saat bahasa ZH: label dan terbilang Indonesia dengan huruf benar."
+        }
+      ]
+    },
+    {
+      "id": "A05",
+      "title": "DatePicker di sesi ZH dan EN",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Kalender ikut bahasa aktif",
+      "steps": [
+        {
+          "img": "A05-1",
+          "cap": "DatePicker pada dialog Catat Pemasukan di sesi ZH: judul bulan, kepala hari, dan aria-label."
+        },
+        {
+          "img": "A05-2",
+          "cap": "DatePicker pada dialog Catat Pemasukan di sesi EN: judul bulan, kepala hari, dan aria-label."
+        }
+      ]
+    },
+    {
+      "id": "A06",
+      "title": "Grafik Dashboard dan Kas & Bank di ZH dan EN",
+      "verdict": "Terbukti sebagian",
+      "attempts": "f",
+      "note": "Label tanggal dan satuan grafik mengikuti bahasa",
+      "steps": [
+        {
+          "img": "A06-1",
+          "cap": "Dashboard sesi ZH: sumbu grafik, keterangan periode, dan kalender."
+        },
+        {
+          "img": "A06-2",
+          "cap": "Kas & Bank sesi ZH, potongan grafik Pemasukan vs Pengeluaran."
+        },
+        {
+          "img": "A06-3",
+          "cap": "Dashboard sesi EN: sumbu grafik, keterangan periode, dan kalender."
+        },
+        {
+          "img": "A06-4",
+          "cap": "Kas & Bank sesi EN, potongan grafik Pemasukan vs Pengeluaran."
+        }
+      ]
+    },
+    {
+      "id": "A07",
+      "title": "Email lupa kata sandi dalam bahasa peminta",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Email id/en/zh sesuai bahasa halaman peminta",
+      "steps": [
+        {
+          "img": "A07-1",
+          "cap": "Halaman lupa kata sandi, sesi ID."
+        },
+        {
+          "img": "A07-2",
+          "cap": "Setelah mengirim (ID): pesan konfirmasi berbahasa Indonesia di halaman."
+        },
+        {
+          "img": "A07-3",
+          "cap": "Halaman lupa kata sandi, sesi EN."
+        },
+        {
+          "img": "A07-4",
+          "cap": "Setelah mengirim (EN): pesan konfirmasi di halaman."
+        },
+        {
+          "img": "A07-5",
+          "cap": "Halaman lupa kata sandi, sesi ZH."
+        },
+        {
+          "img": "A07-6",
+          "cap": "Setelah mengirim (ZH): pesan konfirmasi di halaman."
+        }
+      ]
+    },
+    {
+      "id": "A08",
+      "title": "Pemilih bahasa di halaman login",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Tamu bisa memilih bahasa dan pilihannya ikut ke akun",
+      "steps": [
+        {
+          "img": "A08-1",
+          "cap": "Halaman login (tamu, sesi baru): pemilih bahasa ID di pojok halaman."
+        },
+        {
+          "img": "A08-2",
+          "cap": "Menu pemilih bahasa di halaman login terbuka."
+        },
+        {
+          "img": "A08-3",
+          "cap": "Memilih EN sebagai tamu: halaman login berbahasa Inggris."
+        },
+        {
+          "img": "A08-4",
+          "cap": "Memilih ZH sebagai tamu: halaman login berbahasa Mandarin."
+        },
+        {
+          "img": "A08-5",
+          "cap": "Tamu memilih EN lalu login: dashboard langsung berbahasa Inggris dan users.locale tersimpan en."
+        }
+      ]
+    },
+    {
+      "id": "A09",
+      "title": "Tata letak EN dan ZH pada 1280 px dan 390 px",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Cek teks terpotong, tumpang tindih, dan gulir horizontal",
+      "steps": [
+        {
+          "img": "A09-1",
+          "cap": "390 px, Invoice: EN (kiri) tombol \"Create Invoice\" terpotong di tepi kanan dan tab \"Partially paid\" terpotong; ZH (kanan) muat."
+        },
+        {
+          "img": "A09-2",
+          "cap": "390 px, Dashboard: EN (kiri) dan ZH (kanan) muat tanpa gulir horizontal; label sumbu grafik dipotong rapi (juga di ID)."
+        },
+        {
+          "img": "A09-3",
+          "cap": "390 px, Arus Kas: EN (kiri) dan ZH (kanan); tombol aksi turun baris, tidak ada tumpang tindih."
+        },
+        {
+          "img": "A09-4",
+          "cap": "390 px, Profil Perusahaan: EN (kiri) deskripsi bagian terpotong elipsis; ZH (kanan) muat."
+        },
+        {
+          "img": "A09-5",
+          "cap": "1280 px, Reimbursement: EN (kiri) dan ZH (kanan) tanpa pemotongan."
+        }
+      ]
+    },
+    {
+      "section": "C. MATRIKS MODUL §6 (PEMINDAI DOM ZH + EN)"
+    },
+    {
+      "id": "C01",
+      "title": "Kerangka aplikasi: sidebar, header, pemilih bahasa, menu pengguna",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Kerangka aplikasi: sidebar, header, pemilih bahasa, menu pengguna",
+      "steps": [
+        {
+          "img": "C01-1",
+          "cap": "ZH: sidebar semua grup dibuka, header, pemilih bahasa."
+        },
+        {
+          "img": "C01-2",
+          "cap": "EN: sidebar semua grup dibuka."
+        },
+        {
+          "img": "C01-3",
+          "cap": "ZH: menu pengguna (pengaturan, profil perusahaan, keluar)."
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "Komponen katalog: Combobox, DatePicker, Dialog, FileUpload, Pagination",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Komponen katalog: Combobox, DatePicker, Dialog, FileUpload, Pagination",
+      "steps": [
+        {
+          "img": "C02-1",
+          "cap": "ZH: dialog Catat Pemasukan (Combobox, DatePicker, FileUpload, kotak Jurnal)."
+        },
+        {
+          "img": "C02-2",
+          "cap": "EN: dialog yang sama."
+        },
+        {
+          "img": "C02-3",
+          "cap": "ZH: validasi kosong pada dialog."
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "Dashboard",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Dashboard",
+      "steps": [
+        {
+          "img": "C03-1",
+          "cap": "ZH: Dashboard."
+        },
+        {
+          "img": "C03-2",
+          "cap": "EN: Dashboard."
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "Klien",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Klien",
+      "steps": [
+        {
+          "img": "C04-1",
+          "cap": "ZH: daftar klien."
+        },
+        {
+          "img": "C04-2",
+          "cap": "ZH: dialog Tambah Klien."
+        },
+        {
+          "img": "C04-3",
+          "cap": "EN: dialog Add Client."
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "title": "Layanan",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Layanan",
+      "steps": [
+        {
+          "img": "C05-1",
+          "cap": "ZH: daftar layanan."
+        },
+        {
+          "img": "C05-2",
+          "cap": "ZH: validasi kosong Tambah Layanan."
+        },
+        {
+          "img": "C05-3",
+          "cap": "EN: validasi kosong Add Service."
+        }
+      ]
+    },
+    {
+      "id": "C06",
+      "title": "Invoice & pembayaran",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Invoice & pembayaran",
+      "steps": [
+        {
+          "img": "C06-1",
+          "cap": "ZH: daftar invoice (status Draft/Terbit/Sebagian/Lunas)."
+        },
+        {
+          "img": "C06-2",
+          "cap": "EN: daftar invoice."
+        },
+        {
+          "img": "C06-3",
+          "cap": "ZH: editor invoice baru."
+        },
+        {
+          "img": "C06-4",
+          "cap": "ZH: drawer rincian invoice Sebagian dibayar (pembayaran, riwayat)."
+        }
+      ]
+    },
+    {
+      "id": "C07",
+      "title": "Invoice berulang",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Invoice berulang",
+      "steps": [
+        {
+          "img": "C07-1",
+          "cap": "ZH: Invoice Berulang (Template)."
+        },
+        {
+          "img": "C07-2",
+          "cap": "EN: Recurring Invoices."
+        },
+        {
+          "img": "C07-3",
+          "cap": "ZH: form template baru."
+        }
+      ]
+    },
+    {
+      "id": "C08",
+      "title": "Piutang",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Piutang",
+      "steps": [
+        {
+          "img": "C08-1",
+          "cap": "ZH: daftar piutang."
+        },
+        {
+          "img": "C08-2",
+          "cap": "EN: daftar piutang."
+        },
+        {
+          "img": "C08-3",
+          "cap": "ZH: validasi dialog Tambah Piutang."
+        }
+      ]
+    },
+    {
+      "id": "C09",
+      "title": "Laporan Laba Rugi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Laporan Laba Rugi",
+      "steps": [
+        {
+          "img": "C09-1",
+          "cap": "ZH: Laba Rugi."
+        },
+        {
+          "img": "C09-2",
+          "cap": "EN: Profit & Loss."
+        }
+      ]
+    },
+    {
+      "id": "C10",
+      "title": "Kas & Bank",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Kas & Bank",
+      "steps": [
+        {
+          "img": "C10-1",
+          "cap": "ZH: Kas & Bank (grafik berlabel server)."
+        },
+        {
+          "img": "C10-2",
+          "cap": "EN: Cash & Bank."
+        }
+      ]
+    },
+    {
+      "id": "C11",
+      "title": "Pemasukan & Pengeluaran",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Pemasukan & Pengeluaran",
+      "steps": [
+        {
+          "img": "C11-1",
+          "cap": "ZH: Arus Kas tab Semua."
+        },
+        {
+          "img": "C11-2",
+          "cap": "EN: Cash Flow tab All."
+        },
+        {
+          "img": "C11-3",
+          "cap": "ZH: Transfer & Penyesuaian."
+        }
+      ]
+    },
+    {
+      "id": "C12",
+      "title": "Kategori Transaksi",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Kategori Transaksi",
+      "steps": [
+        {
+          "img": "C12-1",
+          "cap": "ZH: kategori transaksi (nama kategori tetap Indonesia: data)."
+        },
+        {
+          "img": "C12-2",
+          "cap": "EN: kategori transaksi."
+        },
+        {
+          "img": "C12-3",
+          "cap": "ZH: validasi dialog kategori."
+        }
+      ]
+    },
+    {
+      "id": "C13",
+      "title": "Reimbursement",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Reimbursement",
+      "steps": [
+        {
+          "img": "C13-1",
+          "cap": "ZH: Reimbursement (halaman yang dikeluhkan pengguna)."
+        },
+        {
+          "img": "C13-2",
+          "cap": "EN: Reimbursement."
+        },
+        {
+          "img": "C13-3",
+          "cap": "ZH: validasi dialog pengajuan."
+        },
+        {
+          "img": "C13-4",
+          "cap": "ZH: rincian reimbursement status Menunggu (tombol Tolak/Setujui), seluruh isi Mandarin."
+        },
+        {
+          "img": "C13-5",
+          "cap": "ZH: rincian reimbursement status Disetujui (tombol Bayar)."
+        }
+      ]
+    },
+    {
+      "id": "C14",
+      "title": "Pengajuan Dana",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Pengajuan Dana",
+      "steps": [
+        {
+          "img": "C14-1",
+          "cap": "ZH: Pengajuan Dana (tiap status)."
+        },
+        {
+          "img": "C14-2",
+          "cap": "EN: Fund Requests."
+        },
+        {
+          "img": "C14-3",
+          "cap": "ZH: form pengajuan baru."
+        },
+        {
+          "img": "C14-4",
+          "cap": "ZH: rincian pengajuan dana (status Disetujui, tombol Cairkan)."
+        }
+      ]
+    },
+    {
+      "id": "C15",
+      "title": "Utang",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Utang",
+      "steps": [
+        {
+          "img": "C15-1",
+          "cap": "ZH: Utang."
+        },
+        {
+          "img": "C15-2",
+          "cap": "EN: Debts."
+        },
+        {
+          "img": "C15-3",
+          "cap": "ZH: validasi dialog Tambah Utang."
+        }
+      ]
+    },
+    {
+      "id": "C16",
+      "title": "Notifikasi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Notifikasi",
+      "steps": [
+        {
+          "img": "C16-1",
+          "cap": "ZH: panel notifikasi (Masukan baru)."
+        },
+        {
+          "img": "C16-2",
+          "cap": "EN: panel notifikasi."
+        }
+      ]
+    },
+    {
+      "id": "C17",
+      "title": "Masukan (Feedback)",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Masukan (Feedback)",
+      "steps": [
+        {
+          "img": "C17-1",
+          "cap": "ZH: daftar Masukan."
+        },
+        {
+          "img": "C17-2",
+          "cap": "EN: Feedback list."
+        },
+        {
+          "img": "C17-3",
+          "cap": "ZH: dialog Masukan melayang, validasi kosong."
+        }
+      ]
+    },
+    {
+      "id": "C18",
+      "title": "Pengaturan: hub, Profil, Kata sandi",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Pengaturan: hub, Profil, Kata sandi",
+      "steps": [
+        {
+          "img": "C18-1",
+          "cap": "ZH: hub Pengaturan."
+        },
+        {
+          "img": "C18-2",
+          "cap": "ZH: Profil."
+        },
+        {
+          "img": "C18-3",
+          "cap": "EN: Kata sandi."
+        }
+      ]
+    },
+    {
+      "id": "C19",
+      "title": "Pengaturan: Profil Perusahaan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Pengaturan: Profil Perusahaan",
+      "steps": [
+        {
+          "img": "C19-1",
+          "cap": "ZH: Profil Perusahaan."
+        },
+        {
+          "img": "C19-2",
+          "cap": "EN: Company Profile."
+        }
+      ]
+    },
+    {
+      "id": "C20",
+      "title": "Pengaturan: Penomoran Invoice",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Pengaturan: Penomoran Invoice",
+      "steps": [
+        {
+          "img": "C20-1",
+          "cap": "ZH: Penomoran Invoice."
+        },
+        {
+          "img": "C20-2",
+          "cap": "EN: Invoice Numbering."
+        }
+      ]
+    },
+    {
+      "id": "C21",
+      "title": "Pengaturan: Template PDF & Builder",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Pengaturan: Template PDF & Builder",
+      "steps": [
+        {
+          "img": "C21-1",
+          "cap": "ZH: dialog Template baru."
+        },
+        {
+          "img": "C21-2",
+          "cap": "ZH: editor Template Builder (menu zh)."
+        },
+        {
+          "img": "C21-3",
+          "cap": "EN: editor Template Builder."
+        }
+      ]
+    },
+    {
+      "id": "C22",
+      "title": "Koneksi Claude",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Koneksi Claude",
+      "steps": [
+        {
+          "img": "C22-1",
+          "cap": "ZH: Koneksi Claude."
+        },
+        {
+          "img": "C22-2",
+          "cap": "EN: Claude Connection."
+        }
+      ]
+    },
+    {
+      "id": "C23",
+      "title": "Pengguna",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Pengguna",
+      "steps": [
+        {
+          "img": "C23-1",
+          "cap": "ZH: Pengguna."
+        },
+        {
+          "img": "C23-2",
+          "cap": "ZH: validasi dialog Tambah Pengguna."
+        },
+        {
+          "img": "C23-3",
+          "cap": "EN: Users."
+        }
+      ]
+    },
+    {
+      "id": "C24",
+      "title": "Perusahaan (admin)",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Perusahaan (admin)",
+      "steps": [
+        {
+          "img": "C24-1",
+          "cap": "ZH: Perusahaan."
+        },
+        {
+          "img": "C24-2",
+          "cap": "ZH: dialog Perusahaan baru."
+        },
+        {
+          "img": "C24-3",
+          "cap": "EN: Companies."
+        }
+      ]
+    },
+    {
+      "id": "C25",
+      "title": "Izin & Peran",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Izin & Peran",
+      "steps": [
+        {
+          "img": "C25-1",
+          "cap": "ZH: Izin & Peran (kode izin tampil sebagai kode kecil; judul grup Bank-accounts belum diterjemahkan)."
+        },
+        {
+          "img": "C25-2",
+          "cap": "EN: Permissions & Roles."
+        },
+        {
+          "img": "C25-3",
+          "cap": "ZH: dialog Tambah Peran."
+        }
+      ]
+    },
+    {
+      "id": "C26",
+      "title": "Autentikasi & email",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Autentikasi & email",
+      "steps": [
+        {
+          "img": "C26-1",
+          "cap": "ZH: login."
+        },
+        {
+          "img": "C26-2",
+          "cap": "ZH: login dengan kredensial salah."
+        },
+        {
+          "img": "C26-3",
+          "cap": "ZH: lupa kata sandi, email tak valid."
+        },
+        {
+          "img": "C26-4",
+          "cap": "EN: atur ulang kata sandi, token palsu."
+        }
+      ]
+    },
+    {
+      "id": "C27",
+      "title": "Setup & pemilihan perusahaan",
+      "verdict": "Pass",
+      "attempts": "p",
+      "note": "Matriks §6: Setup & pemilihan perusahaan",
+      "steps": [
+        {
+          "img": "C27-1",
+          "cap": "ZH: /choose-company dibuka oleh tamu: dialihkan ke login."
+        },
+        {
+          "img": "C27-2",
+          "cap": "EN: /setup dibuka oleh tamu: dialihkan ke login."
+        }
+      ]
+    },
+    {
+      "id": "C28",
+      "title": "Halaman error",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Halaman error",
+      "steps": [
+        {
+          "img": "C28-1",
+          "cap": "ZH: halaman 403 (staf membuka /admin/users)."
+        },
+        {
+          "img": "C28-2",
+          "cap": "ZH: halaman 404."
+        },
+        {
+          "img": "C28-3",
+          "cap": "EN: halaman 403."
+        }
+      ]
+    },
+    {
+      "id": "C29",
+      "title": "Panduan & video (di luar cakupan K3)",
+      "verdict": "Fail",
+      "attempts": "f",
+      "note": "Matriks §6: Panduan & video (di luar cakupan K3)",
+      "steps": [
+        {
+          "img": "C29-1",
+          "cap": "ZH: /panduan: isi tetap Indonesia sesuai keputusan K3."
+        },
+        {
+          "img": "C29-2",
+          "cap": "EN: /panduan."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "CAT-1",
+      "title": "Cakupan pemindai dan batasnya",
+      "body": "ZH: setiap kata berhuruf Latin di luar pengecualian ditandai. EN: teks yang sama persis dengan kunci Indonesia di kamus, kata Indonesia umum, perbandingan dengan layar ID, dan log console \"[i18n] belum diterjemahkan\". Teks Indonesia yang tertulis langsung di kode dan tidak punya kunci kamus bisa lolos di EN, tetapi tertangkap di ZH sebagai huruf Latin."
+    },
+    {
+      "id": "CAT-2",
+      "title": "Non-i18n yang terlihat di console",
+      "body": "Peringatan React \"<div> cannot be a descendant of <p>\" (hydration, 15 kali) dan peringatan Radix tentang DialogContent tanpa Description (285 kali); keduanya bukan masalah bahasa."
+    }
+  ],
+  "tooling_problems": [
+    "Tiga proses crawler paralel membuat server uji lambat pada putaran pertama; proses finance manager dan staf dihentikan lalu dijalankan ulang dengan batas klik lebih kecil. Waktu tunggu Playwright dinaikkan ke 60 detik. Bukan masalah aplikasi.",
+    "Putaran pertama klik baris daftar mengambil drawer yang masih berupa kerangka pemuat (skeleton); diulang dengan menunggu skeleton hilang (rows2). Hasil yang dipakai adalah putaran kedua.",
+    "Dialog Template Baru: tombol \"Buat Template\" bukan type=submit sehingga lokator pertama gagal; diganti lokator tombol kedua dari belakang.",
+    "Pemindai awal menandai nama modul pada semua layar sebagai \"Indonesia?\" karena kata \"data\" di daftar kata henti (mis. \"Master Data\", \"data as of\"); kata itu dibuang dan semua temuan dihitung ulang. Data seed/uji dikecualikan lewat daftar string dari database tenant.",
+    "Pemindai menyimpan hanya temuan, bukan seluruh teks; untuk menguji ulang aturan pengecualian tanpa mengulang crawler penuh, dibuat satu pindaian dasar mentah per halaman (zh, en, id) yang dibandingkan dengan aturan lebih ketat; hasilnya sama.",
+    "Alat uji tidak menjangkau: perusahaan baru yang profilnya belum lengkap (halaman company-not-ready), instalasi baru (/setup untuk pengguna yang sudah ada diarahkan ke login), dan halaman 500. Ketiganya tidak diuji."
+  ],
+  "honesty": "Pengamatan berasal dari eksekusi nyata (UI headless, DB, log mail, PDF). Kualitas terjemahan Mandarin tidak dinilai oleh penutur asli: yang diperiksa hanya apakah masih ada teks Latin, bukan ketepatan istilah. Deteksi teks Indonesia di EN lebih lemah daripada deteksi di ZH (lihat catatan CAT-1). Klik otomatis memicu beberapa aksi nyata di data QA (transaksi uji dan template uji bertambah); data itu tidak dibersihkan. Pemeriksa manusia disarankan membuka sendiri Izin & Peran, Template Builder, dan Invoice Berulang › Analitik dalam ZH."
+}
