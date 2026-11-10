@@ -5,6 +5,7 @@
         "build": "vite build",
         "dev": "vite",
         "types": "tsc --noEmit",
+        "i18n:check": "node scripts/i18n-check.mjs",
         "video": "remotion studio",
         "video:render": "remotion render"
     },

@@ -1,6 +1,7 @@
 import { ChevronLeft } from 'lucide-react';
 import * as React from 'react';
 import { AppLink } from '@/components/app-link';
+import { t } from '@/i18n';
 
 /*
  * Kerangka halaman detail pengaturan (gaya Obsidian). Navigasi antarpengaturan ada di hub
@@ -25,7 +26,7 @@ export function SettingsLayout({ children, title, description, action, bare }: S
                     className="inline-flex w-fit items-center gap-1 rounded-full text-[13px] font-semibold text-ob-ink-2 hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                 >
                     <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                    Pengaturan
+                    {t('Pengaturan', { context: 'menu' })}
                 </AppLink>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">

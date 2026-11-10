@@ -2,9 +2,12 @@ import { router, usePage } from '@inertiajs/react';
 import { Building2, Check, ChevronDown, ChevronRight, LogOut, Menu, Settings } from 'lucide-react';
 import * as React from 'react';
 import { AppLink } from '@/components/app-link';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationDrawer } from '@/components/notifications/notification-drawer';
+import { t, tk } from '@/i18n';
 import { appPath } from '@/lib/company';
+import { roleLabel } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -23,48 +26,49 @@ interface BreadcrumbItem {
     href?: string;
 }
 
+/** Label = kunci terjemahan konteks 'menu' (sama dengan rel navigasi); diterjemahkan saat render lewat menu(). */
 const BREADCRUMB_MAP: Record<string, BreadcrumbItem[]> = {
-    '/dashboard': [{ label: 'Ringkasan' }],
-    '/clients': [{ label: 'Master Data' }, { label: 'Klien' }],
-    '/services': [{ label: 'Master Data' }, { label: 'Layanan' }],
-    '/invoices': [{ label: 'Keuangan' }, { label: 'Invoice' }],
+    '/dashboard': [{ label: tk('Ringkasan', 'menu') }],
+    '/clients': [{ label: tk('Master Data', 'menu') }, { label: tk('Klien', 'menu') }],
+    '/services': [{ label: tk('Master Data', 'menu') }, { label: tk('Layanan', 'menu') }],
+    '/invoices': [{ label: tk('Keuangan', 'menu') }, { label: tk('Invoice', 'menu') }],
     '/invoices/create': [
-        { label: 'Keuangan' },
-        { label: 'Invoice', href: '/invoices' },
-        { label: 'Buat Baru' },
+        { label: tk('Keuangan', 'menu') },
+        { label: tk('Invoice', 'menu'), href: '/invoices' },
+        { label: tk('Buat Baru', 'menu') },
     ],
-    '/recurring-invoices': [{ label: 'Keuangan' }, { label: 'Invoice Berulang' }],
-    '/bank-accounts': [{ label: 'Keuangan' }, { label: 'Kas & Bank' }],
-    '/cash-flow/all': [{ label: 'Arus Kas' }, { label: 'Pemasukan & Pengeluaran' }],
+    '/recurring-invoices': [{ label: tk('Keuangan', 'menu') }, { label: tk('Invoice Berulang', 'menu') }],
+    '/bank-accounts': [{ label: tk('Keuangan', 'menu') }, { label: tk('Kas & Bank', 'menu') }],
+    '/cash-flow/all': [{ label: tk('Arus Kas', 'menu') }, { label: tk('Pemasukan & Pengeluaran', 'menu') }],
     '/cash-flow/income': [
-        { label: 'Arus Kas' },
-        { label: 'Pemasukan & Pengeluaran', href: '/cash-flow' },
-        { label: 'Pemasukan' },
+        { label: tk('Arus Kas', 'menu') },
+        { label: tk('Pemasukan & Pengeluaran', 'menu'), href: '/cash-flow' },
+        { label: tk('Pemasukan', 'menu') },
     ],
     '/cash-flow/expenses': [
-        { label: 'Arus Kas' },
-        { label: 'Pemasukan & Pengeluaran', href: '/cash-flow' },
-        { label: 'Pengeluaran' },
+        { label: tk('Arus Kas', 'menu') },
+        { label: tk('Pemasukan & Pengeluaran', 'menu'), href: '/cash-flow' },
+        { label: tk('Pengeluaran', 'menu') },
     ],
-    '/cash-flow/transfers': [{ label: 'Arus Kas' }, { label: 'Transfer & Penyesuaian' }],
-    '/transaction-categories': [{ label: 'Operasional' }, { label: 'Kategori Transaksi' }],
-    '/fund-requests': [{ label: 'Operasional' }, { label: 'Permintaan Dana' }],
-    '/reimbursements': [{ label: 'Operasional' }, { label: 'Reimbursement' }],
-    '/loans': [{ label: 'Utang & Piutang' }, { label: 'Utang' }],
-    '/receivables': [{ label: 'Utang & Piutang' }, { label: 'Piutang' }],
-    '/reports/profit-loss': [{ label: 'Laporan' }, { label: 'Laba Rugi' }],
-    '/feedbacks': [{ label: 'Administrasi' }, { label: 'Feedback' }],
-    '/admin/permissions': [{ label: 'Administrasi' }, { label: 'Izin & Peran' }],
-    '/admin/users': [{ label: 'Administrasi' }, { label: 'Pengguna' }],
-    '/admin/companies': [{ label: 'Administrasi' }, { label: 'Perusahaan' }],
-    '/panduan': [{ label: 'Panduan' }],
-    '/settings': [{ label: 'Pengaturan' }],
-    '/settings/profile': [{ label: 'Pengaturan' }, { label: 'Profil' }],
-    '/settings/password': [{ label: 'Pengaturan' }, { label: 'Kata Sandi' }],
-    '/settings/claude': [{ label: 'Pengaturan' }, { label: 'Koneksi Claude' }],
-    '/settings/company': [{ label: 'Pengaturan' }, { label: 'Profil Perusahaan' }],
-    '/settings/invoice-numbering': [{ label: 'Pengaturan' }, { label: 'Penomoran Invoice' }],
-    '/settings/pdf-templates': [{ label: 'Pengaturan' }, { label: 'Template PDF' }],
+    '/cash-flow/transfers': [{ label: tk('Arus Kas', 'menu') }, { label: tk('Transfer & Penyesuaian', 'menu') }],
+    '/transaction-categories': [{ label: tk('Operasional', 'menu') }, { label: tk('Kategori Transaksi', 'menu') }],
+    '/fund-requests': [{ label: tk('Operasional', 'menu') }, { label: tk('Permintaan Dana', 'menu') }],
+    '/reimbursements': [{ label: tk('Operasional', 'menu') }, { label: tk('Reimbursement', 'menu') }],
+    '/loans': [{ label: tk('Utang & Piutang', 'menu') }, { label: tk('Utang', 'menu') }],
+    '/receivables': [{ label: tk('Utang & Piutang', 'menu') }, { label: tk('Piutang', 'menu') }],
+    '/reports/profit-loss': [{ label: tk('Laporan', 'menu') }, { label: tk('Laba Rugi', 'menu') }],
+    '/feedbacks': [{ label: tk('Administrasi', 'menu') }, { label: tk('Feedback', 'menu') }],
+    '/admin/permissions': [{ label: tk('Administrasi', 'menu') }, { label: tk('Izin & Peran', 'menu') }],
+    '/admin/users': [{ label: tk('Administrasi', 'menu') }, { label: tk('Pengguna', 'menu') }],
+    '/admin/companies': [{ label: tk('Administrasi', 'menu') }, { label: tk('Perusahaan', 'menu') }],
+    '/panduan': [{ label: tk('Panduan', 'menu') }],
+    '/settings': [{ label: tk('Pengaturan', 'menu') }],
+    '/settings/profile': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Profil', 'menu') }],
+    '/settings/password': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Kata Sandi', 'menu') }],
+    '/settings/claude': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Koneksi Claude', 'menu') }],
+    '/settings/company': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Profil Perusahaan', 'menu') }],
+    '/settings/invoice-numbering': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Penomoran Invoice', 'menu') }],
+    '/settings/pdf-templates': [{ label: tk('Pengaturan', 'menu') }, { label: tk('Template PDF', 'menu') }],
 };
 
 function getBreadcrumbs(url: string): BreadcrumbItem[] {
@@ -73,76 +77,14 @@ function getBreadcrumbs(url: string): BreadcrumbItem[] {
     const prefixMatch = Object.entries(BREADCRUMB_MAP).find(
         ([key]) => key !== '/' && path.startsWith(key + '/'),
     );
-    return prefixMatch ? prefixMatch[1] : [{ label: 'Ringkasan' }];
+    return prefixMatch ? prefixMatch[1] : [{ label: tk('Ringkasan', 'menu') }];
 }
 
-const LOCALES = [
-    { code: 'id', label: 'ID', name: 'Indonesia' },
-    { code: 'en', label: 'EN', name: 'English' },
-    { code: 'zh', label: 'ZH', name: '中文' },
-];
+/** Terjemahan label menu/breadcrumb (konteks 'menu': EN jamak "Invoices", sedangkan kolom "Invoice"). */
+const menu = (label: string) => t(label, { context: 'menu' });
 
 const PILL =
     'flex items-center justify-center rounded-full border border-ob-line bg-ob-rail text-ob-ink transition-colors hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
-
-function LanguageSwitcher({ locale }: { locale: string }) {
-    const [open, setOpen] = React.useState(false);
-    const ref = React.useRef<HTMLDivElement>(null);
-    const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
-
-    React.useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
-
-    const switchLocale = (code: string) => {
-        setOpen(false);
-        router.post('/language', { locale: code }, { preserveScroll: false });
-    };
-
-    return (
-        <div ref={ref} className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                aria-label={`Bahasa: ${current.name}`}
-                className={cn(PILL, 'h-11 px-4 text-xs font-semibold')}
-            >
-                {current.label}
-            </button>
-            {open && (
-                <div
-                    role="listbox"
-                    className="absolute right-0 top-full z-50 mt-1.5 flex w-40 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20"
-                >
-                    {LOCALES.map((loc) => (
-                        <button
-                            key={loc.code}
-                            type="button"
-                            role="option"
-                            aria-selected={loc.code === locale}
-                            onClick={() => switchLocale(loc.code)}
-                            className={cn(
-                                'flex h-[34px] items-center justify-between rounded-[10px] px-2.5 text-[13px] text-left',
-                                loc.code === locale
-                                    ? 'bg-ob-inner font-semibold text-ob-ink'
-                                    : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
-                            )}
-                        >
-                            <span>{loc.name}</span>
-                            <span className="text-xs text-ob-ink-3">{loc.label}</span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
 
 /** Chip akun: avatar inisial + nama + peran; membuka menu profil, perusahaan, keluar. */
 function UserChip() {
@@ -176,15 +118,15 @@ function UserChip() {
                 onClick={() => setOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label={`Akun: ${user?.name ?? 'Pengguna'}`}
+                aria-label={t('Akun: {{name}}', { name: user?.name ?? t('Pengguna', { context: 'nama' }) })}
                 className={cn(PILL, 'h-11 gap-2.5 pl-1.5 pr-3.5')}
             >
                 <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-ob-chip text-xs font-bold text-ob-ink">
                     {initials}
                 </span>
                 <span aria-hidden="true" className="hidden flex-col items-start leading-tight sm:flex">
-                    <span className="max-w-40 truncate text-[13px] font-semibold text-ob-ink">{user?.name ?? 'Pengguna'}</span>
-                    <span className="text-xs text-ob-ink-2">{auth.roles?.[0] ?? ''}</span>
+                    <span className="max-w-40 truncate text-[13px] font-semibold text-ob-ink">{user?.name ?? t('Pengguna', { context: 'nama' })}</span>
+                    <span className="text-xs text-ob-ink-2">{auth.roles?.[0] ? roleLabel(auth.roles[0]) : ''}</span>
                 </span>
                 <ChevronDown className={cn('hidden h-4 w-4 text-ob-ink-3 transition-transform sm:block', open && 'rotate-180')} />
             </button>
@@ -206,7 +148,7 @@ function UserChip() {
                      */}
                     {companies.length > 1 && (
                         <>
-                            <span className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-ob-ink-3">Perusahaan</span>
+                            <span className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-ob-ink-3">{menu('Perusahaan')}</span>
                             {companies.map((c) => {
                                 const aktif = c.slug === company?.slug;
 
@@ -228,14 +170,14 @@ function UserChip() {
                         </>
                     )}
                     <AppLink href="/settings" role="menuitem" className={item} onClick={() => setOpen(false)}>
-                        <Settings className="h-4 w-4 opacity-70" /> Pengaturan
+                        <Settings className="h-4 w-4 opacity-70" /> {menu('Pengaturan')}
                     </AppLink>
                     <AppLink href="/settings/company" role="menuitem" className={item} onClick={() => setOpen(false)}>
-                        <Building2 className="h-4 w-4 opacity-70" /> Profil perusahaan
+                        <Building2 className="h-4 w-4 opacity-70" /> {t('Profil perusahaan')}
                     </AppLink>
                     {/* Lewat klien Inertia agar token CSRF selalu segar (riwayat "419 PAGE EXPIRED"). */}
                     <button type="button" role="menuitem" onClick={() => router.post('/logout')} className={cn(item, 'text-ob-late hover:text-ob-late')}>
-                        <LogOut className="h-4 w-4 opacity-80" /> Keluar
+                        <LogOut className="h-4 w-4 opacity-80" /> {t('Keluar')}
                     </button>
                 </div>
             )}
@@ -244,7 +186,6 @@ function UserChip() {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-    const { locale } = usePage<SharedProps>().props;
     const currentUrl = usePage().url;
     const breadcrumbs = getBreadcrumbs(currentUrl);
     const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -255,26 +196,26 @@ export function Header({ onMenuClick }: HeaderProps) {
             <button
                 type="button"
                 onClick={onMenuClick}
-                aria-label="Buka navigasi"
+                aria-label={t('Buka navigasi')}
                 className={cn(PILL, 'lg:hidden h-11 w-11 shrink-0')}
             >
                 <Menu className="h-5 w-5" />
             </button>
 
-            <nav aria-label="Lokasi" className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
+            <nav aria-label={t('Lokasi')} className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">
                 {breadcrumbs.map((crumb, i) => {
                     const last = i === breadcrumbs.length - 1;
                     return (
                         <React.Fragment key={i}>
                             {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ob-ink-3/60" />}
                             {last ? (
-                                <span className="truncate font-semibold text-ob-ink">{crumb.label}</span>
+                                <span className="truncate font-semibold text-ob-ink">{menu(crumb.label)}</span>
                             ) : crumb.href ? (
                                 <AppLink href={crumb.href} className="shrink-0 font-medium text-ob-ink-3 hover:text-ob-ink">
-                                    {crumb.label}
+                                    {menu(crumb.label)}
                                 </AppLink>
                             ) : (
-                                <span className="shrink-0 font-medium text-ob-ink-3">{crumb.label}</span>
+                                <span className="shrink-0 font-medium text-ob-ink-3">{menu(crumb.label)}</span>
                             )}
                         </React.Fragment>
                     );
@@ -282,7 +223,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </nav>
 
             <div className="flex shrink-0 items-center gap-2.5">
-                <LanguageSwitcher locale={locale} />
+                <LanguageSwitcher compact className="h-11 bg-ob-rail px-4" />
                 <div className={cn(PILL, 'h-11 w-11')}>
                     <NotificationBell onOpenDrawer={() => setDrawerOpen(true)} />
                 </div>

@@ -1,9 +1,9 @@
 import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import * as React from 'react';
 import { DayPicker, useDayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
+import { dateLocale, polaTanggal, t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 
@@ -45,15 +45,17 @@ export interface DatePickerMonthProps extends BaseProps {
 
 export type DatePickerProps = DatePickerSingleProps | DatePickerRangeProps | DatePickerMonthProps;
 
-/* ─── Month names (Indonesian short) ───────────────────── */
+/* ─── Month names & date labels (bahasa aktif) ─────────── */
 
-const MONTH_NAMES_SHORT = Array.from({ length: 12 }, (_, i) =>
-    format(new Date(2024, i, 1), 'MMM', { locale: idLocale }),
-);
+/*
+ * Dihitung saat render, BUKAN saat modul dimuat: modul halaman (dan komponen ini) dievaluasi sebelum
+ * initI18n() memasang bahasa aktif. Bahasa tidak berganti selama halaman hidup (ganti = muat ulang).
+ */
+const monthNames = (pattern: 'MMM' | 'MMMM') =>
+    Array.from({ length: 12 }, (_, i) => format(new Date(2024, i, 1), pattern, { locale: dateLocale() }));
 
-const MONTH_NAMES_FULL = Array.from({ length: 12 }, (_, i) =>
-    format(new Date(2024, i, 1), 'MMMM', { locale: idLocale }),
-);
+/** "09 Agt 2026" · "09 Aug 2026" · "2026年8月9日" */
+const formatDay = (date: Date) => format(date, polaTanggal('tanggal'), { locale: dateLocale() });
 
 /* ─── Obsidian classes ─────────────────────────────────── */
 /*
@@ -181,14 +183,7 @@ function MonthCaptionInner({
     const { goToMonth, nextMonth, previousMonth } = useDayPicker();
     const month = calendarMonth.date;
 
-    const monthOptions = React.useMemo(
-        () =>
-            Array.from({ length: 12 }, (_, i) => ({
-                value: i,
-                label: format(new Date(2024, i, 1), 'MMM', { locale: idLocale }),
-            })),
-        [],
-    );
+    const monthOptions = React.useMemo(() => monthNames('MMM').map((label, i) => ({ value: i, label })), []);
 
     const yearOptions = React.useMemo(
         () =>
@@ -205,7 +200,7 @@ function MonthCaptionInner({
                 type="button"
                 disabled={!previousMonth}
                 onClick={() => previousMonth && goToMonth(previousMonth)}
-                aria-label="Bulan sebelumnya"
+                aria-label={t('Bulan sebelumnya')}
                 className={NAV_BUTTON}
             >
                 <ChevronLeft className="h-4 w-4" />
@@ -213,7 +208,7 @@ function MonthCaptionInner({
 
             <div className="flex items-center gap-0.5">
                 <CalendarDropdown
-                    label={format(month, 'MMMM', { locale: idLocale })}
+                    label={format(month, 'MMMM', { locale: dateLocale() })}
                     options={monthOptions}
                     selected={month.getMonth()}
                     onSelect={(m) => goToMonth(new Date(month.getFullYear(), m, 1))}
@@ -230,7 +225,7 @@ function MonthCaptionInner({
                 type="button"
                 disabled={!nextMonth}
                 onClick={() => nextMonth && goToMonth(nextMonth)}
-                aria-label="Bulan berikutnya"
+                aria-label={t('Bulan berikutnya')}
                 className={NAV_BUTTON}
             >
                 <ChevronRight className="h-4 w-4" />
@@ -257,6 +252,8 @@ function MonthGrid({
     toYear: number;
 }) {
     const now = new Date();
+    const shortNames = React.useMemo(() => monthNames('MMM'), []);
+    const fullNames = React.useMemo(() => monthNames('MMMM'), []);
     const selectedYear = selectedValue ? parseInt(selectedValue.split('-')[0]) : null;
     const selectedMonth = selectedValue ? parseInt(selectedValue.split('-')[1]) - 1 : null;
 
@@ -268,7 +265,7 @@ function MonthGrid({
                     type="button"
                     disabled={year <= fromYear}
                     onClick={() => onYearChange(year - 1)}
-                    aria-label="Tahun sebelumnya"
+                    aria-label={t('Tahun sebelumnya')}
                     className={NAV_BUTTON}
                 >
                     <ChevronLeft className="h-4 w-4" />
@@ -280,7 +277,7 @@ function MonthGrid({
                     type="button"
                     disabled={year >= toYear}
                     onClick={() => onYearChange(year + 1)}
-                    aria-label="Tahun berikutnya"
+                    aria-label={t('Tahun berikutnya')}
                     className={NAV_BUTTON}
                 >
                     <ChevronRight className="h-4 w-4" />
@@ -289,7 +286,7 @@ function MonthGrid({
 
             {/* Month grid — 3 columns × 4 rows */}
             <div className="grid grid-cols-3 gap-1.5">
-                {MONTH_NAMES_SHORT.map((name, idx) => {
+                {shortNames.map((name, idx) => {
                     const isSelected = selectedYear === year && selectedMonth === idx;
                     const isCurrentMonth = now.getFullYear() === year && now.getMonth() === idx;
 
@@ -301,7 +298,7 @@ function MonthGrid({
                                 const mm = String(idx + 1).padStart(2, '0');
                                 onSelect(`${year}-${mm}`);
                             }}
-                            title={MONTH_NAMES_FULL[idx]}
+                            title={fullNames[idx]}
                             className={cn(
                                 TILE,
                                 'h-9 w-full',
@@ -332,7 +329,7 @@ export function DatePicker(props: DatePickerProps) {
         maxDate,
         fromYear = new Date().getFullYear() - 10,
         toYear = new Date().getFullYear() + 5,
-        placeholder = 'Pilih tanggal...',
+        placeholder = t('Pilih tanggal...'),
     } = props;
 
     const [open, setOpen] = React.useState(false);
@@ -375,8 +372,11 @@ export function DatePicker(props: DatePickerProps) {
     const triggerLabel = isMonth ? (
         monthValue ? (
             <span className="truncate text-ob-ink">
-                {MONTH_NAMES_FULL[parseInt(monthValue.split('-')[1]) - 1]}{' '}
-                {monthValue.split('-')[0]}
+                {format(
+                    new Date(parseInt(monthValue.split('-')[0]), parseInt(monthValue.split('-')[1]) - 1, 1),
+                    polaTanggal('bulanTahun'),
+                    { locale: dateLocale() },
+                )}
             </span>
         ) : (
             <span className="text-ob-ink-3">{placeholder}</span>
@@ -387,21 +387,19 @@ export function DatePicker(props: DatePickerProps) {
         ) : (
             <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className={cn('truncate', rangeValue?.from ? 'text-ob-ink' : 'text-ob-ink-3')}>
-                    {rangeValue?.from
-                        ? format(rangeValue.from, 'dd MMM yyyy', { locale: idLocale })
-                        : placeholder}
+                    {rangeValue?.from ? formatDay(rangeValue.from) : placeholder}
                 </span>
                 <span className="shrink-0 text-ob-ink-3">→</span>
                 <span className={cn('truncate', rangeValue?.to ? 'text-ob-ink' : 'text-ob-ink-3')}>
                     {rangeValue?.to
-                        ? format(rangeValue.to, 'dd MMM yyyy', { locale: idLocale })
-                        : (props as DatePickerRangeProps).placeholderTo ?? 'Tanggal akhir...'}
+                        ? formatDay(rangeValue.to)
+                        : (props as DatePickerRangeProps).placeholderTo ?? t('Tanggal akhir...')}
                 </span>
             </div>
         )
     ) : (
         <span className={cn('truncate', singleValue ? 'text-ob-ink' : 'text-ob-ink-3')}>
-            {singleValue ? format(singleValue, 'dd MMM yyyy', { locale: idLocale }) : placeholder}
+            {singleValue ? formatDay(singleValue) : placeholder}
         </span>
     );
 
@@ -513,7 +511,7 @@ export function DatePicker(props: DatePickerProps) {
                             <span
                                 role="button"
                                 tabIndex={0}
-                                aria-label="Hapus tanggal"
+                                aria-label={t('Hapus tanggal')}
                                 onClick={handleClear}
                                 onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
                                 className="ml-1.5 shrink-0 rounded-full p-1 text-ob-ink-3 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
@@ -556,7 +554,12 @@ export function DatePicker(props: DatePickerProps) {
                         <>
                         <DayPicker
                             {...pickerProps}
-                            locale={idLocale}
+                            // Locale dari react-day-picker/locale: nama bulan/hari DAN label aria pustaka
+                            // ("Ke bulan berikutnya", "Hari ini, …") ikut bahasa aktif.
+                            locale={dateLocale()}
+                            // Navigasi bawaan disembunyikan total (bukan sekadar kelas `hidden`): tombolnya
+                            // tetap di DOM dan membawa label aria kedua. Navigasi memakai MonthCaption.
+                            hideNavigation
                             disabled={[
                                 ...(minDate ? [{ before: minDate }] : []),
                                 ...(maxDate ? [{ after: maxDate }] : []),
@@ -589,10 +592,10 @@ export function DatePicker(props: DatePickerProps) {
                             <div className="mt-1 flex items-center justify-between gap-3 border-t border-ob-line px-1 pt-2.5 pb-0.5">
                                 <span className="text-xs text-ob-ink-2">
                                     {draftRange.from && draftRange.to
-                                        ? `${format(draftRange.from, 'dd MMM', { locale: idLocale })} → ${format(draftRange.to, 'dd MMM yyyy', { locale: idLocale })}`
+                                        ? `${format(draftRange.from, polaTanggal('hariBulan'), { locale: dateLocale() })} → ${formatDay(draftRange.to)}`
                                         : draftRange.from
-                                          ? `${format(draftRange.from, 'dd MMM yyyy', { locale: idLocale })} → ...`
-                                          : 'Pilih tanggal awal'}
+                                          ? `${formatDay(draftRange.from)} → ...`
+                                          : t('Pilih tanggal awal')}
                                 </span>
                                 <div className="flex shrink-0 items-center gap-1.5">
                                     <button
@@ -603,7 +606,7 @@ export function DatePicker(props: DatePickerProps) {
                                             FOCUS_RING,
                                         )}
                                     >
-                                        Batal
+                                        {t('Batal')}
                                     </button>
                                     <button
                                         type="button"
@@ -614,7 +617,7 @@ export function DatePicker(props: DatePickerProps) {
                                             FOCUS_RING,
                                         )}
                                     >
-                                        Terapkan
+                                        {t('Terapkan')}
                                     </button>
                                 </div>
                             </div>

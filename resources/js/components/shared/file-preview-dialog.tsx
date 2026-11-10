@@ -1,5 +1,6 @@
 import { ExternalLink, Paperclip, ZoomIn, ZoomOut } from 'lucide-react';
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
     Dialog,
@@ -80,7 +81,7 @@ function ImageViewer({ url }: { url: string }) {
             >
                 <img
                     src={url}
-                    alt="Preview"
+                    alt={t('Pratinjau')}
                     className="w-full select-none"
                     style={{
                         display: 'block',
@@ -100,7 +101,7 @@ function ImageViewer({ url }: { url: string }) {
                         type="button"
                         onClick={() => { setZoom((p) => Math.max(1, +(p - 0.5).toFixed(1))); if (zoom - 0.5 <= 1) setOrigin({ x: 50, y: 50 }); }}
                         disabled={zoom <= 1}
-                        aria-label="Perkecil"
+                        aria-label={t('Perkecil')}
                         className={ZOOM_BUTTON}
                     >
                         <ZoomOut className="w-4 h-4" />
@@ -112,14 +113,14 @@ function ImageViewer({ url }: { url: string }) {
                         type="button"
                         onClick={() => setZoom((p) => Math.min(5, +(p + 0.5).toFixed(1)))}
                         disabled={zoom >= 5}
-                        aria-label="Perbesar"
+                        aria-label={t('Perbesar')}
                         className={ZOOM_BUTTON}
                     >
                         <ZoomIn className="w-4 h-4" />
                     </button>
                 </div>
                 <p className="text-xs text-ob-ink-3">
-                    Scroll untuk zoom · Klik untuk toggle
+                    {t('Scroll untuk zoom · Klik untuk toggle')}
                 </p>
             </div>
         </div>
@@ -132,7 +133,7 @@ function PdfViewer({ url }: { url: string }) {
             className="overflow-hidden rounded-2xl border border-ob-line"
             style={{ height: '70vh' }}
         >
-            <iframe src={url} className="w-full h-full" title="PDF Preview" />
+            <iframe src={url} className="w-full h-full" title={t('Pratinjau PDF')} />
         </div>
     );
 }
@@ -165,7 +166,7 @@ export function FilePreviewDialog({ open, onOpenChange, fileName, fileUrl }: Fil
                             className={cn('shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold', LINK)}
                         >
                             <ExternalLink className="w-3.5 h-3.5" />
-                            Buka tab baru
+                            {t('Buka tab baru')}
                         </a>
                     </div>
                 </DialogHeader>
@@ -178,14 +179,14 @@ export function FilePreviewDialog({ open, onOpenChange, fileName, fileUrl }: Fil
                             <span aria-hidden="true" className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-ob-chip text-ob-ink-2">
                                 <Paperclip className="w-5 h-5" />
                             </span>
-                            <p className="text-[13px] text-ob-ink-2">Preview tidak tersedia untuk jenis file ini.</p>
+                            <p className="text-[13px] text-ob-ink-2">{t('Preview tidak tersedia untuk jenis file ini.')}</p>
                             <a
                                 href={fileUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className={cn('mt-3 text-sm font-semibold', LINK)}
                             >
-                                Buka di tab baru
+                                {t('Buka di tab baru')}
                             </a>
                         </div>
                     )}
@@ -207,7 +208,7 @@ interface AttachmentPreviewButtonProps {
 export function AttachmentPreviewButton({
     url,
     name,
-    label = 'Lampiran',
+    label = t('Lampiran'),
     className,
     iconSize = 'w-3 h-3',
 }: AttachmentPreviewButtonProps) {

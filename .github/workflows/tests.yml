@@ -98,5 +98,10 @@ jobs:
       - name: Periksa tipe TypeScript
         run: npm run types
 
+      # Multi bahasa (id/en/zh): tidak ada teks tampilan tanpa t(), kunci t()/tk()/<Trans> lengkap di
+      # resources/js/locales/{en,zh}.json dengan placeholder & tag yang sama. Lihat CLAUDE.md › Multi Bahasa.
+      - name: Periksa teks multi bahasa
+        run: npm run i18n:check
+
       - name: Run Tests
         run: ./vendor/bin/phpunit

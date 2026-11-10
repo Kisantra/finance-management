@@ -10,6 +10,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 
 export interface QuickAddCategoryResult {
@@ -58,8 +59,8 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
 
     const handleSave = async () => {
         const newErrors: { label?: string; parent_id?: string } = {};
-        if (!label.trim()) newErrors.label = 'Nama kategori wajib diisi';
-        if (mode === 'child' && !parentId) newErrors.parent_id = 'Pilih kelompok kategori';
+        if (!label.trim()) newErrors.label = t('Nama kategori wajib diisi');
+        if (mode === 'child' && !parentId) newErrors.parent_id = t('Pilih kelompok kategori');
         if (Object.keys(newErrors).length) { setErrors(newErrors); return; }
 
         setSaving(true);
@@ -96,7 +97,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                 isGroup,
             });
         } catch {
-            setErrors({ label: 'Terjadi kesalahan jaringan' });
+            setErrors({ label: t('Terjadi kesalahan jaringan') });
         } finally {
             setSaving(false);
         }
@@ -110,7 +111,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                         <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-ob-chip text-ob-ink-2">
                             <Plus className="w-4 h-4" />
                         </div>
-                        <DialogTitle>Tambah Kategori</DialogTitle>
+                        <DialogTitle>{t('Tambah Kategori')}</DialogTitle>
                     </div>
                 </DialogHeader>
 
@@ -126,7 +127,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                             ].join(' ')}
                         >
                             <Tag className="w-3 h-3 shrink-0" />
-                            Sub Kategori
+                            {t('Sub Kategori')}
                         </button>
                         <button
                             type="button"
@@ -137,37 +138,37 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                             ].join(' ')}
                         >
                             <FolderOpen className="w-3 h-3 shrink-0" />
-                            Kelompok
+                            {t('Kelompok')}
                         </button>
                     </div>
 
                     {mode === 'child' && (
                         <Combobox
-                            label="Kelompok Kategori *"
+                            label={t('Kelompok Kategori *')}
                             options={parentOptions}
                             value={parentId ?? undefined}
                             onChange={(v) => setParentId(v ? Number(v) : null)}
-                            placeholder="Pilih kelompok"
+                            placeholder={t('Pilih kelompok')}
                             error={errors.parent_id}
-                            emptyText="Belum ada kelompok. Buat kelompok dulu."
+                            emptyText={t('Belum ada kelompok. Buat kelompok dulu.')}
                         />
                     )}
 
                     {mode === 'group' && (
                         <p className="text-xs text-ob-ink-3">
-                            Kelompok digunakan untuk mengelompokkan sub kategori — tidak bisa dipilih langsung saat mencatat transaksi.
+                            {t('Kelompok digunakan untuk mengelompokkan sub kategori — tidak bisa dipilih langsung saat mencatat transaksi.')}
                         </p>
                     )}
 
                     <Input
-                        label={mode === 'child' ? 'Nama Kategori *' : 'Nama Kelompok *'}
+                        label={mode === 'child' ? t('Nama Kategori *') : t('Nama Kelompok *')}
                         value={label}
                         onChange={(e) => setLabel(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSave(); } }}
                         placeholder={
                             mode === 'child'
-                                ? (type === 'income' ? 'Contoh: Pendapatan Jasa' : 'Contoh: Biaya Operasional')
-                                : (type === 'income' ? 'Contoh: Pendapatan' : 'Contoh: Biaya')
+                                ? (type === 'income' ? t('Contoh: Pendapatan Jasa') : t('Contoh: Biaya Operasional'))
+                                : (type === 'income' ? t('Contoh: Pendapatan') : t('Contoh: Biaya'))
                         }
                         error={errors.label}
                         autoFocus
@@ -176,10 +177,10 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
 
                 <DialogFooter>
                     <Button type="button" variant="zinc" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button type="button" variant="primary" size="sm" disabled={saving} onClick={() => void handleSave()}>
-                        {saving ? 'Menyimpan…' : 'Tambah'}
+                        {saving ? t('Menyimpan…') : t('Tambah')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

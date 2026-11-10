@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn, formatCurrency } from '@/lib/utils';
 
 /*
@@ -53,12 +54,14 @@ export function DonutChart({ slices, size = 140, thickness = 16, centerLabel, ce
         return arc;
     });
 
-    const label = slices.map((s) => `${s.name} ${total ? Math.round((s.value / total) * 100) : 0} persen`).join(', ');
+    const label = slices
+        .map((s) => t('{{name}} {{percent}} persen', { name: s.name, percent: total ? Math.round((s.value / total) * 100) : 0 }))
+        .join(', ');
 
     return (
         <svg
             role="img"
-            aria-label={`Pengeluaran per kategori: ${label}. Total ${formatCurrency(total)}.`}
+            aria-label={t('Pengeluaran per kategori: {{items}}. Total {{total}}.', { items: label, total: formatCurrency(total) })}
             width={size}
             height={size}
             viewBox={`0 0 ${size} ${size}`}

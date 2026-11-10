@@ -1,6 +1,7 @@
 import { Command as CommandPrimitive } from 'cmdk';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { badgeVariants } from './badge';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
@@ -65,15 +66,15 @@ export function Combobox({
     options,
     value,
     onChange,
-    placeholder = 'Pilih...',
-    searchPlaceholder = 'Cari...',
+    placeholder = t('Pilih...'),
+    searchPlaceholder = t('Cari...'),
     label,
     hint,
     error,
     disabled,
     clearable = true,
     className,
-    emptyText = 'Tidak ada data.',
+    emptyText = t('Tidak ada data.'),
     multiple = false,
     popoverWidth,
 }: ComboboxProps & { multiple?: boolean }) {
@@ -309,7 +310,7 @@ export function Combobox({
                                     }}
                                     className="w-full rounded-xl px-3 py-1.5 text-left text-xs font-medium text-ob-ink-2 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
                                 >
-                                    Hapus semua pilihan ({multiValue.length})
+                                    {t('Hapus semua pilihan ({{count}})', { count: multiValue.length })}
                                 </button>
                             </div>
                         )}

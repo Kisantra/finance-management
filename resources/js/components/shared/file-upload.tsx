@@ -1,5 +1,6 @@
 import { ClipboardPaste, Paperclip, Upload, X } from 'lucide-react';
 import * as React from 'react';
+import { t, Trans } from '@/i18n';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 import { FilePreviewDialog } from './file-preview-dialog';
@@ -71,11 +72,11 @@ export function FileUpload({
     const processFile = React.useCallback((file: File) => {
         setSizeError(null);
         if (file.size > maxBytes) {
-            setSizeError(`Ukuran file melebihi batas ${maxSizeMb}MB.`);
+            setSizeError(t('Ukuran file melebihi batas {{size}}MB.', { size: maxSizeMb }));
             return;
         }
         if (acceptedMimes.size > 0 && !acceptedMimes.has(file.type)) {
-            setSizeError('Format file tidak didukung.');
+            setSizeError(t('Format file tidak didukung.'));
             return;
         }
         onChange?.(file);
@@ -131,7 +132,7 @@ export function FileUpload({
             const tooLarge = rejections.some((r) =>
                 r.errors.some((e) => e.code === 'file-too-large'),
             );
-            setSizeError(tooLarge ? `Ukuran file melebihi batas ${maxSizeMb}MB.` : 'Format file tidak didukung.');
+            setSizeError(tooLarge ? t('Ukuran file melebihi batas {{size}}MB.', { size: maxSizeMb }) : t('Format file tidak didukung.'));
         },
         multiple: false,
         noClick: false,
@@ -164,7 +165,7 @@ export function FileUpload({
                         <span className="flex-1 truncate text-sm text-ob-ink">{existingFileName}</span>
                     )}
                     {onRemoveExisting && (
-                        <button type="button" onClick={onRemoveExisting} className={removeBtn} aria-label="Hapus lampiran">
+                        <button type="button" onClick={onRemoveExisting} className={removeBtn} aria-label={t('Hapus lampiran')}>
                             <X className="h-3.5 w-3.5" />
                         </button>
                     )}
@@ -180,7 +181,7 @@ export function FileUpload({
                         type="button"
                         onClick={() => { setSizeError(null); onChange?.(null); }}
                         className={removeBtn}
-                        aria-label="Hapus pilihan"
+                        aria-label={t('Hapus pilihan')}
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
@@ -212,17 +213,17 @@ export function FileUpload({
 
                     <div className="text-center">
                         <p className="text-sm text-ob-ink-2">
-                            {isDragActive
-                                ? 'Lepaskan file di sini...'
-                                : (
-                                    <>
-                                        <span className="font-medium text-ob-act">Klik untuk memilih</span>
-                                        {' '}atau drag & drop
-                                    </>
-                                )}
+                            {isDragActive ? (
+                                t('Lepaskan file di sini...')
+                            ) : (
+                                <Trans
+                                    i18nKey="<b>Klik untuk memilih</b> atau drag & drop"
+                                    components={{ b: <span className="font-medium text-ob-act" /> }}
+                                />
+                            )}
                         </p>
                         <p className="mt-0.5 text-xs text-ob-ink-3">
-                            {acceptedFormats} · maks {maxSizeMb}MB
+                            {t('{{formats}} · maks {{size}}MB', { formats: acceptedFormats, size: maxSizeMb })}
                         </p>
                     </div>
 
@@ -230,7 +231,7 @@ export function FileUpload({
                     {supportsImagePaste && pasteHint && !isDragActive && (
                         <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-ob-line bg-ob-card px-2.5 py-1 text-xs text-ob-ink-2">
                             <ClipboardPaste className="h-3 w-3" />
-                            Ctrl+V untuk paste gambar
+                            {t('Ctrl+V untuk paste gambar')}
                         </div>
                     )}
                 </div>

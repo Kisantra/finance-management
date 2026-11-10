@@ -10,6 +10,7 @@ const PILL = 'shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] tr
 
 export function duration(frames: number): string {
     const seconds = Math.round(frames / 30);
+    // i18n-abaikan: isi pemutar Tutorial/Panduan tetap Bahasa Indonesia (K3), sama dengan judul bab & peran dari video/
     return seconds < 60 ? `${seconds} dtk` : `${Math.floor(seconds / 60)} mnt ${seconds % 60} dtk`;
 }
 
@@ -47,6 +48,7 @@ export default function TutorialVideos({ tutorials, autoPlay = false, fitViewpor
     }, [tab]);
 
     if (!tab || (tab !== leading?.key && !tutorials[tab as RoleKey])) {
+        // i18n-abaikan: isi dialog Tutorial tetap Bahasa Indonesia (K3)
         return <p className="rounded-2xl bg-ob-inner p-5 text-[13px] text-ob-ink-2">Belum ada video tutorial untuk peran Anda di modul ini.</p>;
     }
 
@@ -69,6 +71,7 @@ export default function TutorialVideos({ tutorials, autoPlay = false, fitViewpor
     return (
         <div>
             {tabs.length > 1 && (
+                // i18n-abaikan: pemutar Tutorial (juga dipakai /panduan) adalah isi panduan, tetap Bahasa Indonesia (K3)
                 <div ref={tablist} role="tablist" aria-label="Video per peran" className="ob-no-scrollbar relative mb-4 flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
                     {leading && tabButton(leading.key, leading.label, leading.meta)}
                     {keys.map((key) => tabButton(key, tutorials[key]!.role.label, duration(tutorials[key]!.frames)))}
@@ -102,6 +105,7 @@ function TutorialPlayer({ tutorial, autoPlay, fitViewport }: { tutorial: Tutoria
 
     return (
         // Di dialog, lebar video dibatasi tinggi layar agar judul, tab, video, dan bab muat tanpa menggulir.
+        // i18n-abaikan: isi pemutar Tutorial tetap Bahasa Indonesia (K3)
         <div role="tabpanel" aria-label={`Tutorial ${tutorial.role.label}`} className="mx-auto w-full" style={fitViewport ? { maxWidth: 'calc((100dvh - 19rem) * 16 / 9)' } : undefined}>
             {/* Video memakai token terang (sama dengan screenshot-nya) walau aplikasi sedang mode gelap. */}
             <div className="ob-light overflow-hidden rounded-2xl border border-ob-line bg-ob-page">
@@ -121,6 +125,7 @@ function TutorialPlayer({ tutorial, autoPlay, fitViewport }: { tutorial: Tutoria
                 />
             </div>
 
+            {/* i18n-abaikan: isi pemutar Tutorial tetap Bahasa Indonesia (K3) */}
             <nav aria-label="Bab tutorial" className="ob-no-scrollbar mt-4 flex max-w-full gap-1.5 overflow-x-auto">
                 {tutorial.chapters.map((c, i) => (
                     <button

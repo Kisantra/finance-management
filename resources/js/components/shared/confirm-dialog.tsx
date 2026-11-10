@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import {
     Dialog,
     DialogContent,
@@ -28,8 +29,8 @@ export function ConfirmDialog({
     onOpenChange,
     title,
     description,
-    confirmLabel = 'Hapus',
-    cancelLabel = 'Batal',
+    confirmLabel = t('Hapus'),
+    cancelLabel = t('Batal'),
     variant = 'danger',
     loading = false,
     onConfirm,

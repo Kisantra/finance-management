@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 /*
@@ -79,7 +80,7 @@ const DialogContent = React.forwardRef<
             {!hideClose && (
                 <DialogPrimitive.Close className="absolute right-6 top-6 inline-flex h-8 w-8 items-center justify-center rounded-full border border-ob-line bg-ob-card text-ob-ink transition-colors duration-150 ease-out hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page disabled:pointer-events-none disabled:opacity-50">
                     <X className="h-4 w-4" />
-                    <span className="sr-only">Tutup</span>
+                    <span className="sr-only">{t('Tutup')}</span>
                 </DialogPrimitive.Close>
             )}
         </DialogPrimitive.Content>

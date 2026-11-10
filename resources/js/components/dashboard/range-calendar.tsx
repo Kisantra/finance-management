@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
 import { BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as React from 'react';
 import { DayPicker } from 'react-day-picker';
+import { bahasaAktif, dateLocale, polaTanggal, t } from '@/i18n';
 import { cn, toLocalIso } from '@/lib/utils';
 
 /*
@@ -43,13 +43,20 @@ interface RangeCalendarProps {
 
 const parse = (iso: string) => new Date(iso + 'T00:00:00');
 const dayCount = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
-/** "5–12 Okt 2026", "28 Sep – 3 Okt 2026", atau "20 Des 2025 – 3 Jan 2026" — ringkas agar muat di kartu. */
+/**
+ * "5–12 Okt 2026", "28 Sep – 3 Okt 2026", atau "20 Des 2025 – 3 Jan 2026" — ringkas agar muat di kartu.
+ * ZH berurutan tahun-bulan-hari: "2026年10月5日–12日", "2026年9月28日 – 10月3日".
+ */
 const rangeLabel = (a: Date, b: Date) => {
-    const f = (d: Date, pattern: string) => format(d, pattern, { locale: idLocale });
+    const f = (d: Date, pattern: string) => format(d, pattern, { locale: dateLocale() });
+    const full = polaTanggal('tanggalRingkas');
     if (a.getFullYear() !== b.getFullYear()) {
-        return `${f(a, 'd MMM yyyy')} – ${f(b, 'd MMM yyyy')}`;
+        return `${f(a, full)} – ${f(b, full)}`;
     }
-    return a.getMonth() === b.getMonth() ? `${f(a, 'd')}–${f(b, 'd MMM yyyy')}` : `${f(a, 'd MMM')} – ${f(b, 'd MMM yyyy')}`;
+    if (bahasaAktif() === 'zh') {
+        return a.getMonth() === b.getMonth() ? `${f(a, full)}–${f(b, 'd日')}` : `${f(a, full)} – ${f(b, 'M月d日')}`;
+    }
+    return a.getMonth() === b.getMonth() ? `${f(a, 'd')}–${f(b, full)}` : `${f(a, polaTanggal('hariBulanRingkas'))} – ${f(b, full)}`;
 };
 
 export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAction }: RangeCalendarProps) {
@@ -76,7 +83,7 @@ export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAct
         }
         const [a, b] = day < draftFrom ? [day, draftFrom] : [draftFrom, day];
         if (dayCount(a, b) > MAX_DAYS) {
-            setError('Rentang maksimal 2 tahun.');
+            setError(t('Rentang maksimal 2 tahun.'));
             setDraftFrom(null);
             return;
         }
@@ -100,11 +107,11 @@ export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAct
 
     const status = draftFrom
         ? lo && hi
-            ? `${rangeLabel(lo, hi)} · ${dayCount(lo, hi)} hari · klik untuk terapkan`
-            : `Mulai ${format(draftFrom, 'd MMM yyyy', { locale: idLocale })} · pilih tanggal akhir`
+            ? t('{{range}} · {{count}} hari · klik untuk terapkan', { range: rangeLabel(lo, hi), count: dayCount(lo, hi) })
+            : t('Mulai {{date}} · pilih tanggal akhir', { date: format(draftFrom, polaTanggal('tanggalRingkas'), { locale: dateLocale() }) })
         : from && to && !inactive
-          ? `${rangeLabel(parse(from), parse(to))} · ${dayCount(parse(from), parse(to))} hari`
-          : 'Pilih tanggal awal lalu tanggal akhir';
+          ? t('{{range}} · {{count}} hari', { range: rangeLabel(parse(from), parse(to)), count: dayCount(parse(from), parse(to)) })
+          : t('Pilih tanggal awal lalu tanggal akhir');
 
     const navBtn =
         'flex h-8 w-8 items-center justify-center rounded-full border border-ob-line bg-ob-inner text-ob-ink-2 transition-colors hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill';
@@ -122,13 +129,13 @@ export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAct
                 className={cn('flex flex-col gap-3 transition-opacity duration-200', inactive && !draftFrom && 'opacity-55 hover:opacity-100 focus-within:opacity-100')}
             >
                 <div className="flex items-center justify-between">
-                    <button type="button" onClick={() => setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))} aria-label="Bulan sebelumnya" className={navBtn}>
+                    <button type="button" onClick={() => setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))} aria-label={t('Bulan sebelumnya')} className={navBtn}>
                         <ChevronLeft className="h-4 w-4" />
                     </button>
                     <span aria-live="polite" className="text-[15px] font-semibold capitalize text-ob-ink">
-                        {format(month, 'MMMM, yyyy', { locale: idLocale })}
+                        {format(month, polaTanggal('judulKalender'), { locale: dateLocale() })}
                     </span>
-                    <button type="button" onClick={() => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))} aria-label="Bulan berikutnya" className={navBtn}>
+                    <button type="button" onClick={() => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))} aria-label={t('Bulan berikutnya')} className={navBtn}>
                         <ChevronRight className="h-4 w-4" />
                     </button>
                 </div>
@@ -145,12 +152,12 @@ export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAct
                     modifiersClassNames={{ draft: DRAFT, preview: PREVIEW, previewEnd: PREVIEW_END }}
                     month={month}
                     onMonthChange={setMonth}
-                    locale={idLocale}
+                    locale={dateLocale()}
                     weekStartsOn={1}
                     fixedWeeks
                     showOutsideDays
                     hideNavigation
-                    formatters={{ formatWeekdayName: (d) => format(d, 'EEEEE', { locale: idLocale }) }}
+                    formatters={{ formatWeekdayName: (d) => format(d, 'EEEEE', { locale: dateLocale() }) }}
                     classNames={{
                         root: 'w-full',
                         months: 'w-full',
@@ -191,7 +198,7 @@ export function RangeCalendar({ from, to, onApply, inactive, summary, summaryAct
                         onClick={cancelDraft}
                         className="shrink-0 rounded-full border border-ob-line px-3 py-1.5 text-xs font-semibold text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                     >
-                        Batal
+                        {t('Batal')}
                     </button>
                 ) : (
                     summaryAction

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { t } from '@/i18n';
 import { AppLink } from '@/components/app-link';
 import { cn } from '@/lib/utils';
 
@@ -129,7 +130,7 @@ export function WidgetError({ title, description, onRetry }: { title: string; de
                 onClick={onRetry}
                 className="mt-1 h-8 rounded-xl border border-ob-line bg-ob-card px-3.5 text-xs font-semibold text-ob-ink hover:bg-ob-hover"
             >
-                Coba lagi
+                {t('Coba lagi')}
             </button>
         </div>
     );
