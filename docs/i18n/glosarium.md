@@ -1,6 +1,8 @@
 # Glosarium terjemahan ID → EN → 中文 (zh-CN)
 
-> **Status:** v1, 10 Nov 2026. Disusun T1 (penerjemah Mandarin) untuk fitur multi bahasa (`fitur/multi-bahasa`).
+> **Status:** v1.1, 10 Nov 2026. Disusun T1 (penerjemah Mandarin) untuk fitur multi bahasa (`fitur/multi-bahasa`).
+> **v1.1:** kolom Indonesia mengikuti [`perapian-id.md`](perapian-id.md) (teks Indonesia dirapikan sebelum kamus dibuat).
+> Entri yang istilah Indonesianya berubah bertanda **[baku baru]** beserta ID perapiannya.
 > **Belum ditinjau penutur asli Mandarin.** Setiap pilihan istilah pajak/akuntansi diberi alasan dan rujukan,
 > supaya pemeriksa terjemah-balik (T2) dan peninjau kelak bisa menilai, bukan menebak.
 >
@@ -14,7 +16,7 @@
 2. Urutan prioritas bila ada yang bertentangan: **§1 aturan gaya** → **§3 kata ambigu** → **§2 tabel istilah**.
 3. Satu konsep, satu istilah. Jangan bervariasi demi gaya (mis. jangan berganti-ganti 账户/帐户/户头).
 4. Istilah yang belum ada di sini: pilih padanan baku, lalu laporkan ke T1 agar ditambahkan. Jangan mengarang istilah pajak.
-5. Sumber Indonesia yang memakai kata Inggris (`Draft`, `Pending Review`, `Low`, `Published`, `Permission`) tetap diterjemahkan maknanya ke EN/ZH. Kuncinya tetap teks sumber apa adanya.
+5. **[baku baru]** Kata Inggris di teks sumber sudah dirapikan lewat [`perapian-id.md`](perapian-id.md). Yang tersisa hanya serapan yang sengaja dibiarkan (Invoice, Reimbursement, Draft, Template, File, Email, …; lihat §6 dokumen itu). Terjemahkan maknanya seperti biasa; kuncinya tetap teks sumber apa adanya.
 
 ---
 
@@ -31,7 +33,7 @@
 | U5 | **Tanggal** | Jangan menulis nama bulan/hari di dalam terjemahan. Tanggal dirangkai helper (`formatTanggal()`/`dateLocale()`), lalu disisipkan lewat placeholder. |
 | U6 | **Data vs label** | Yang diterjemahkan hanya **label**. Yang tidak: nama kategori (termasuk kategori template seperti "Setor PPN", "Gaji Karyawan"), nama klien/rekening/layanan, peran buatan pengguna, deskripsi tersimpan (D8: "Transfer masuk - …", "Pembayaran pokok pinjaman - …", "Pembayaran piutang pokok: …"), nilai `Tunai` sebagai nama bank akun kas, kode izin mentah (`view invoices`). |
 | U7 | **Akronim pajak/akuntansi Indonesia** (PPN, PPh, PKP, NPWP, DPP, HPP) | Terjemahan bekerja per kunci, jadi "kemunculan pertama di layar" diwujudkan begini. Pada **label pembuka** (label field, judul kolom, judul kartu/bagian, opsi pilihan, menu, tab) tulis istilah sasaran + akronim asli dalam kurung: ZH `增值税（PPN）`, EN `VAT (PPN)`. Pada **kalimat, toast, hint, badge, dan sel tabel** cukup istilah sasaran: ZH `增值税`, EN `VAT`. Pesan yang berdiri sendiri (error, notifikasi) memakai bentuk berkurung sekali di kalimat itu. Di ZH akronim tidak pernah berdiri sendiri tanpa istilah Mandarin. Akronim dipertahankan karena PDF/Excel tetap berbahasa Indonesia (K2): pengguna perlu mencocokkan layar dengan dokumen. |
-| U8 | **Sumber tidak konsisten** | Bila dua kunci sumber berbeda hanya karena kapital/ejaan ("Belum diklasifikasi" vs "Belum Diklasifikasi", "Lewat tempo" vs "lewat jatuh tempo"), terjemahannya memakai istilah sasaran yang sama. EN tetap mengikuti kapital masing-masing kunci. |
+| U8 | **Sumber tidak konsisten** | Varian yang sudah diketahui disatukan lewat `perapian-id.md`. Bila masih ada dua kunci sumber yang berbeda hanya karena kapital/ejaan, terjemahannya memakai istilah sasaran yang sama. EN tetap mengikuti kapital masing-masing kunci. |
 | U9 | **Jamak** | EN: `_one`/`_other`. ZH & ID: satu bentuk. Ikuti format sufiks kunci yang ditetapkan pilot A2; aturan jamak i18next untuk `zh` hanya mengenal `other`. |
 
 ### 1.2 English
@@ -76,8 +78,8 @@
 |---|---|---|
 | invoice / 账单 | 张 | {{count}} 张账单 |
 | transaksi, pembayaran, transfer, utang, piutang | 笔 | 删除 {{count}} 笔交易？ |
-| pengajuan (reimbursement, permintaan dana) | 份 | {{count}} 份申请 |
-| notifikasi, feedback, catatan | 条 | {{count}} 条通知 |
+| pengajuan (reimbursement, pengajuan dana) | 份 | {{count}} 份申请 |
+| notifikasi, masukan, catatan | 条 | {{count}} 条通知 |
 | pengguna, anggota | 名 | {{count}} 名用户 |
 | kategori, rekening, perusahaan, peran, template | 个 | {{count}} 个类别 |
 | item invoice / item biaya | 项 | {{count}} 项明细 |
@@ -132,7 +134,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Beban | Expense | 费用 | Istilah baku PRC. Berbeda dari Pengeluaran (支出). |
 | Beban Operasional | Operating expenses | 运营费用 | Grup `opex`. PRC memecahnya menjadi 销售/管理/财务费用, tanpa satu pos gabungan. 营业费用 dihindari karena itu nama lama PRC untuk beban penjualan. |
 | Beban Lain | Other expenses | 其他费用 | Grup `other_expense`. Pasangan 其他收入, bukan 营业外支出. |
-| Harga Pokok Penjualan (HPP) / Harga Pokok | Cost of goods sold (COGS) | 营业成本 | Pos laba rugi PRC 营业成本 (akun 主营业务成本). Label pembuka: 营业成本（HPP）. "HPP baris" → 本行成本. Lama 成本 terlalu umum. |
+| Harga Pokok Penjualan (HPP) | Cost of goods sold (COGS) | 营业成本 | **[baku baru]** "Harga Pokok (HPP)" disatukan ke bentuk lengkap (KT03). Pos laba rugi PRC 营业成本 (akun 主营业务成本). Label pembuka: 营业成本（HPP）. "HPP baris" → 本行成本. Lama 成本 terlalu umum. |
 | Laba kotor | Gross profit | 毛利 | |
 | Laba usaha | Operating profit | 营业利润 | Pos PRC. |
 | Laba sebelum pajak | Profit before tax | 税前利润 | Nama formal PRC adalah 利润总额. 税前利润 lebih jelas bagi non-akuntan. |
@@ -145,14 +147,14 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Belum diklasifikasi | Unclassified | 未归类 | Kategori tanpa grup L/R. **Berbeda** dari Tanpa Kategori. |
 | Tanpa Kategori | Uncategorized | 未分类 | Akun jurnal sistem (`UNCATEGORIZED`). |
 | Basis kas | Cash basis | 收付实现制 | Istilah baku PRC; akrual = 权责发生制. |
-| Cost recovery / tutup modal dulu | Cost recovery | 成本回收法 / 先回收成本 | "modal" di sini berarti biaya (lihat §3 *Modal*). |
+| Pemulihan biaya / tutup modal dulu | Cost recovery | 成本回收法 / 先回收成本 | **[baku baru]** dulu "cost-recovery" (LR01). "modal" di sini berarti biaya (lihat §3 *Modal*). |
 | Kas (uang tunai, jenis akun) | Cash | 现金 | Akun neraca PRC 库存现金; di UI cukup 现金. |
 | Bank (jenis akun) | Bank | 银行 | |
 | Arus kas | Cash flow | 现金流 | PRC 现金流量（表）. |
 | Arus bersih | Net cash flow | 净现金流 | |
 | Pemasukan | Income | 收入 | Uang masuk, termasuk pendanaan berpenanda. Dipakai ulang. Lihat §3. |
 | Pengeluaran | Expenses | 支出 | Uang keluar. 支出 ≠ 费用 (Beban). Dipakai ulang. |
-| Masuk / Keluar (arah uang) | In / Out | 流入 / 流出 | "Total masuk" → 流入合计; "Total keluar" → 流出合计. |
+| Masuk / Keluar; Uang masuk / Uang keluar (arah uang) | In / Out; Money in / Money out | 流入 / 流出 | **[baku baru]** "Uang masuk / Uang keluar" menggantikan "(credit) / (debit)" di filter Kas & Bank (KB02). "Total masuk" → 流入合计; "Total keluar" → 流出合计. |
 | Selisih (masuk − keluar) | Net | 净额 | |
 | Transaksi | Transaction | 交易 | "Transaksi Terbaru" → 最近交易. |
 | Mutasi (rekening) | Account activity | 流水 | 银行流水. "rekening & mutasi" → 账户与流水. |
@@ -220,7 +222,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Transfer & Penyesuaian | Transfers & Adjustments | 转账与调整 | |
 | Operasional (grup menu) | Operations | 运营 | Dipakai ulang. |
 | Reimbursement | Reimbursements | 报销 | Dipakai ulang. Satu pengajuan = 报销申请. |
-| Permintaan Dana | Fund Requests | 资金申请 | Dipakai ulang. Ini nama menu/judul; brief menyebutnya "Pengajuan Dana" (lihat baris berikut). "Cairkan Dana" → 拨付资金. |
+| Pengajuan Dana | Fund Requests | 资金申请 | **[baku baru]** dulu "Permintaan Dana" (PD01). Dipakai ulang. "Cairkan Dana" → 拨付资金. |
 | pengajuan (kata umum) | request | 申请 | "Pengajuan saya" → 我的申请; "Semua pengajuan" → 全部申请; "Buat pengajuan" → 新建申请. |
 | Kategori Transaksi | Transaction Categories | 交易类别 | 收支类别 terlalu sempit, karena ada tipe transfer, penyesuaian, dan pendanaan. |
 | Pakai Template | Use template | 使用模板 | "Pakai Template Kategori" → 使用类别模板. Status pratinjau Baru / Sudah ada / Dilewati → 新增 / 已存在 / 已跳过. |
@@ -237,7 +239,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Pengguna | Users | 用户 | Dipakai ulang. |
 | Perusahaan (menu admin, tenant) | Companies | 公司 | Bedakan dari jenis klien/debitur "Perusahaan" → 企业 (§3). |
 | Izin & Peran | Permissions & Roles | 权限与角色 | |
-| Feedback | Feedback | 反馈 | Dipakai ulang. |
+| Masukan | Feedback | 反馈 | **[baku baru]** dulu "Feedback" / "Feedback & Saran" (MS01, keputusan T-2). Dipakai ulang. |
 | Panduan | Guide | 使用指南 | Isi panduan tetap Indonesia (K3). |
 | Tutorial | Tutorial | 教程 | |
 | Pengaturan | Settings | 设置 | Dipakai ulang. |
@@ -247,7 +249,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Template PDF | PDF templates | PDF 模板 | |
 | Koneksi Claude | Claude connection | Claude 连接 | "konektor" → 连接器; "Hanya membaca" → 只读. |
 | Notifikasi | Notifications | 通知 | Dipakai ulang. |
-| Pratinjau | Preview | 预览 | "Pratinjau cetak" → 打印预览. |
+| Pratinjau | Preview | 预览 | **[baku baru]** "Preview" diganti di semua tempat (U05). "Pratinjau cetak" → 打印预览. |
 | Kas kecil | Petty cash | 备用金 | Plafon + isi ulang adalah sistem imprest (定额备用金制度), persis konsep 备用金 di PRC. |
 | Kas tunai | Cash on hand | 现金 | "Kas tunai · Penanggung jawab: …" → 现金 · 保管人：… |
 | Penanggung jawab (kas) | Custodian | 保管人 | Lihat §3: kata ini punya 3 makna. |
@@ -255,17 +257,17 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Isi ulang | Top up | 补足 | Mengisi kembali **sampai plafon** (jumlah = plafon − saldo). |
 | Hanya-lihat | View-only | 仅查看 | Baris pokok utang/piutang. Bedakan dari "Hanya membaca" (akses Claude) → 只读. |
 | Diinput oleh | Entered by | 录入人 | "Tidak tercatat" → 未记录; "Pengguna dihapus" → 已删除用户. |
-| Rekap (ekspor) | Recap | 汇总表 | "Rekap Excel · Default" → 汇总表 Excel · 默认. |
+| Rekap (ekspor) | Recap | 汇总表 | **[baku baru]** "Rekap Excel · Bawaan" (dulu "· Default", U04) → 汇总表 Excel · 默认. |
 | Analitik | Analytics | 分析 | Tab Invoice Berulang. |
 
 ### 2.4 Status
 
 | Indonesia | English | 中文 | Catatan/alasan |
 |---|---|---|---|
-| Draft / draf | Draft | 草稿 | Dipakai ulang. |
+| Draft | Draft | 草稿 | Dipakai ulang. Ejaan KBBI "Draf" menunggu keputusan T-1 (`perapian-id.md` §7); bawaan tetap "Draft". |
 | Belum diajukan | Not submitted | 未提交 | |
-| Terkirim (invoice) | Sent | 已开具 | Status sesudah nomor diberikan. Aplikasi **tidak** mengirim email ("Klien tidak menerima email otomatis"), jadi 已发送 menyesatkan. Ganti lama 已发送. Risiko #2. |
-| Terbit / diterbitkan | Issued | 已开具 | "Invoice diterbitkan: {nomor}" → 账单已开具：{nomor}. |
+| Terbit (status invoice `sent`) | Issued | 已开具 | **[baku baru]** dulu "Terkirim" (INV02, keputusan T-3). Status sesudah nomor resmi diberikan; aplikasi **tidak** mengirim email. Ganti lama 已发送. Risiko #2. |
+| Diterbitkan (dalam kalimat) | Issued | 已开具 | "Invoice diterbitkan: {nomor}" → 账单已开具：{nomor}. |
 | Sebagian / dibayar sebagian (invoice) | Partially paid | 部分收款 | Pola status piutang dagang ERP Tiongkok (未收款 / 部分收款 / 已收款). |
 | Sebagian (pembayaran reimbursement) | Partially paid | 部分付款 | Arah uang keluar. |
 | Lunas | Paid (invoice, reimbursement) / Paid off (utang, piutang) | 已结清 | Satu istilah Mandarin untuk semua modul; EN beda per modul. |
@@ -273,26 +275,26 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Belum dibayar | Unpaid | 未收款 (invoice) / 未付款 (reimbursement) | |
 | Belum kembali (piutang) | Not yet repaid | 未收回 | |
 | Jatuh tempo | Due date (invoice) / Maturity date (utang) | 到期日 | "jatuh tempo terdekat" → 最近到期日. |
-| Lewat (jatuh) tempo | Overdue | 逾期 | Dipakai ulang. "lewat {n} hari" → 逾期 {n} 天. |
-| Terlambat (angsuran) | Late | 逾期 | Sama dengan lewat tempo. |
+| Lewat jatuh tempo | Overdue | 逾期 | **[baku baru]** dulu juga "Lewat tempo" (U09). Dipakai ulang. "lewat {n} hari" → 逾期 {n} 天. |
+| Terlambat (angsuran) | Late | 逾期 | Sama dengan lewat jatuh tempo. |
 | Perlu ditagih | To collect | 待催收 | Tab invoice lewat jatuh tempo lintas bulan. 催收 = menagih piutang yang tertunda. |
-| Menunggu / Menunggu persetujuan | Pending approval | 待审批 | Piutang `pending_approval`. |
-| Menunggu review / Pending Review | Pending review | 待审核 | Reimbursement & Permintaan Dana. "Menunggu review finance" → 待财务审核. |
+| Menunggu persetujuan | Pending approval | 待审批 | **[baku baru]** satu label untuk status menunggu di Piutang (`pending_approval`), Pengajuan Dana, dan Reimbursement (`pending`); dulu "Menunggu", "Pending Review", "Menunggu review" (PT01, PD02, RB01). |
+| Menunggu persetujuan tim keuangan | Awaiting finance approval | 待财务审批 | **[baku baru]** dulu "Menunggu review finance" (RB01). |
 | Menunggu dibayar | Awaiting payment | 待付款 | Kartu reimbursement. |
 | Menunggu perbaikan dari pemohon | Awaiting the requester's revision | 待申请人修改 | |
-| Disetujui / Approved | Approved | 已批准 | Dipakai ulang. |
-| Ditolak / Rejected | Rejected | 已驳回 | Ganti lama 已拒绝. 驳回 = dikembalikan untuk diperbaiki, sesuai alur "Perbaiki & ajukan ulang" (reimbursement & piutang bisa diedit setelah ditolak). Istilah baku sistem persetujuan/reimbursement Tiongkok. Risiko #13. |
-| Dicairkan / Disbursed | Disbursed | 已拨付 | Dipakai ulang. |
+| Disetujui | Approved | 已批准 | **[baku baru]** label "Approved" di Pengajuan Dana diganti (PD02). Dipakai ulang. |
+| Ditolak | Rejected | 已驳回 | **[baku baru]** label "Rejected" di Pengajuan Dana diganti (PD02). Ganti lama 已拒绝. 驳回 = dikembalikan untuk diperbaiki, sesuai alur "Perbaiki & ajukan ulang" (reimbursement & piutang bisa diubah setelah ditolak). Istilah baku sistem persetujuan/reimbursement Tiongkok. Risiko #13. |
+| Dicairkan | Disbursed | 已拨付 | **[baku baru]** label "Disbursed" di Pengajuan Dana diganti (PD02). Dipakai ulang. |
 | Aktif (utang/piutang) | Active | 还款中 | Pinjaman yang sedang dicicil. Ganti lama 活跃 (= ramai/aktif dalam arti keterlibatan). |
 | Aktif / Tidak Aktif (pengguna, klien, template, perusahaan) | Active / Inactive | 启用 / 停用 | "Pengguna Aktif" (statistik) → 启用的用户. |
 | Diarsipkan / Arsip | Archived / Archive | 已归档 / 归档 | |
-| Published (Invoice Berulang) | Published | 已发布 | **Bukan** 已开具: hasil publish adalah invoice Draft tanpa nomor. |
+| Dijadikan invoice (Invoice Berulang) | Converted to invoice | 已转为账单 | **[baku baru]** dulu "Published" (RI03, keputusan T-5). **Bukan** 已开具: hasilnya invoice Draft tanpa nomor. |
 | Gagal (penyediaan perusahaan) | Failed | 失败 | |
 | Bulanan / Triwulanan / Semesteran / Tahunan (frekuensi) | Monthly / Quarterly / Semi-annual / Annual | 每月 / 每季度 / 每半年 / 每年 | Tab "Bulanan" (daftar draft per bulan) → 月度. |
-| Low / Medium / High / Urgent (prioritas Permintaan Dana) | Low / Medium / High / Urgent | 低 / 中 / 高 / 紧急 | |
-| Critical (prioritas feedback) | Critical | 严重 | Ganti lama 紧急, supaya tidak bertabrakan dengan Urgent. |
-| Open / In Progress / Resolved / Closed (feedback) | Open / In progress / Resolved / Closed | 待处理 / 处理中 / 已解决 / 已关闭 | Pola tiket baku. 处理中 menggantikan 进行中 lama: lebih jelas "sedang ditangani". |
-| Bug Report / Feature Request / Kritik/Saran (jenis feedback) | Bug report / Feature request / Feedback | 缺陷报告 / 功能请求 / 意见建议 | Dipakai ulang. |
+| Rendah / Sedang / Tinggi / Mendesak (prioritas Pengajuan Dana) | Low / Medium / High / Urgent | 低 / 中 / 高 / 紧急 | **[baku baru]** dulu label Inggris (PD03). |
+| Kritis (prioritas Masukan) | Critical | 严重 | **[baku baru]** label server "Critical" diganti (MS02). Ganti lama 紧急, supaya tidak bertabrakan dengan Mendesak (紧急). |
+| Terbuka / Diproses / Selesai / Ditutup (status Masukan) | Open / In progress / Resolved / Closed | 待处理 / 处理中 / 已解决 / 已关闭 | **[baku baru]** label server Inggris dan "Sedang Diproses" disatukan (MS02). Pola tiket baku. 处理中 menggantikan 进行中 lama: lebih jelas "sedang ditangani". |
+| Bug / Fitur / Saran (jenis Masukan) | Bug / Feature request / Suggestion | 缺陷 / 功能请求 / 建议 | **[baku baru]** dulu "Bug Report / Feature Request / Kritik/Saran" (server) dan "Feedback" (halaman Masukan) (MS02). |
 
 ### 2.5 Peran & pihak
 
@@ -324,11 +326,11 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Batal | Cancel | 取消 | |
 | Tutup | Close | 关闭 | |
 | Hapus | Delete | 删除 | |
-| Edit / Ubah (tombol, judul) | Edit | 编辑 | Sumber mencampur "Edit" dan "Ubah"; keduanya → 编辑. Di kalimat, "mengubah/diubah" → 修改/已修改. |
+| Ubah (tombol, judul) | Edit | 编辑 | **[baku baru]** "Edit" diganti "Ubah" (U01–U03, keputusan T-4). Di kalimat, "mengubah/diubah" → 修改/已修改. |
 | Perbarui | Update | 更新 | "diperbarui" → 已更新. |
 | Tambah | Add | 新增 | "+ Tambah" → + 新增. Gaya ERP Tiongkok. |
 | Buat | Create / New | 新建 | Tombol/judul pembuka formulir ("Buat Invoice" → 新建账单). Di kalimat "dibuat" → 已创建. |
-| Catat | Record | 登记 | "Catat Pemasukan" → 登记收入; "dicatat" → 已登记. 登记 adalah kata baku pembukuan (收款登记、费用登记). |
+| Catat | Record | 登记 | **[baku baru]** "Input Pemasukan/Pengeluaran/Transfer" diganti "Catat …" (KB01). "Catat Pemasukan" → 登记收入; "dicatat" → 已登记. 登记 adalah kata baku pembukuan (收款登记、费用登记). |
 | Catat pembayaran (invoice) | Record payment | 登记收款 | Lihat §3 *Bayar*. |
 | Catat pembayaran (utang/piutang) | Record payment | 登记还款 | |
 | Ajukan | Submit | 提交 | "Ajukan untuk persetujuan" → 提交审批. |
@@ -336,17 +338,17 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Setujui | Approve | 批准 | |
 | Tolak | Reject | 驳回 | Lihat status Ditolak. |
 | Proses (pengajuan) | Process | 处理 | "Proses pengajuan" → 处理申请. |
-| Tinjau / review | Review | 审核 | |
+| Tinjau | Review | 审核 | **[baku baru]** "Review" / "Direview" diganti (PD05, RB01). |
 | Bayar (reimbursement) | Pay | 付款 | |
-| Cairkan | Disburse | 拨付 | Permintaan Dana. Untuk piutang lihat §3 *Cair*. |
+| Cairkan | Disburse | 拨付 | Pengajuan Dana. Untuk piutang lihat §3 *Cair*. |
 | Terbitkan | Issue | 开具 | |
-| Kirim invoice | Send invoice | 开具账单 | Aksi yang sama dengan "Terbitkan" (memberi nomor, tanpa email). Risiko #2. |
-| Kirim (umum: feedback, tautan) | Send | 发送 | |
+| Terbitkan invoice | Issue invoice | 开具账单 | **[baku baru]** dulu "Kirim invoice" (INV01): satu aksi, satu kata kerja. |
+| Kirim (umum: masukan, tautan) | Send | 发送 | |
 | Kembalikan ke draft | Revert to draft | 退回草稿 | |
-| Generate (Invoice Berulang) | Generate | 生成 | Membuat draft bulanan dari template. |
-| Publish (Invoice Berulang) | Publish | 发布 / 发布为账单 | Tombol "Publish Invoice" → 发布为账单. |
+| Buat Draft (Invoice Berulang) | Create drafts | 生成草稿 | **[baku baru]** dulu "Generate" (RI02). Membuat draft bulanan dari template. |
+| Jadikan Invoice (Invoice Berulang) | Convert to invoice | 转为账单 | **[baku baru]** dulu "Publish" / "Publish Invoice" (RI03, keputusan T-5). |
 | Unduh | Download | 下载 | |
-| Ekspor | Export | 导出 | |
+| Ekspor | Export | 导出 | **[baku baru]** "Export PDF/Excel" diganti (U06). |
 | Cetak | Print | 打印 | |
 | Cari | Search | 搜索 | |
 | Filter | Filter | 筛选 | |
@@ -364,7 +366,8 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Unggah | Upload | 上传 | "seret & lepas" → 拖放. |
 | Arsipkan / Pulihkan | Archive / Restore | 归档 / 恢复 | |
 | Kelola | Manage | 管理 | |
-| Atur ulang (kata sandi) | Reset | 重置 | |
+| Atur ulang (kata sandi) | Reset | 重置 | **[baku baru]** "Kirim Tautan Reset" → "Kirim Tautan Atur Ulang" (AU01). |
+| Hapus filter | Clear filters | 清除筛选 | **[baku baru]** dulu "Reset" / "Reset filter" (U07). |
 | Tandai sudah dibaca | Mark as read | 标为已读 | |
 
 ### 2.7 Kata benda UI
@@ -376,8 +379,8 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Nama bank / Cabang | Bank name / Branch | 银行名称 / 支行 | |
 | Rekening sumber / Rekening tujuan (transfer) | Source account / Destination account | 转出账户 / 转入账户 | Juga akun jurnal cadangan "Rekening asal/tujuan". |
 | Kategori | Category | 类别 | Dipakai ulang. |
-| Kategori induk / Parent / Kategori Utama | Parent category | 上级类别 | Sumber mencampur tiga istilah; semuanya → 上级类别. |
-| Sub kategori | Subcategory | 子类别 | |
+| Kategori induk | Parent category | 上级类别 | **[baku baru]** "Parent" / "Kategori Utama" disatukan (KT01). |
+| Subkategori | Subcategory | 子类别 | **[baku baru]** dulu "Sub Kategori" / "sub kategori" / "sub-kategori" (KT01, KBBI). |
 | Tipe / Jenis | Type | 类型 | |
 | Deskripsi | Description | 摘要 (uang) / 描述 (lainnya) | Lihat §3. |
 | Keterangan | Notes / Description | 说明 | |
@@ -411,7 +414,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Singkatan (perusahaan) | Abbreviation | 简称 | Sumber token `{PT}`. |
 | Kode URL (permanen) | URL code (permanent) | 网址代码（永久） | |
 | Kuota / Grup (organisasi) | Quota / Group | 配额 / 集团 | "Kuota grup" → 集团配额. |
-| Izin / Permission | Permission | 权限 | Sumber mencampur "Izin" dan "Permission". |
+| Izin | Permission | 权限 | **[baku baru]** "Permission" diganti (IZ01). |
 | Akun (pengguna) | Account | 账号 | "Hapus Akun" → 删除账号. |
 | Kata sandi | Password | 密码 | |
 | Nama lengkap / Jabatan / Telepon / Alamat / Email | Full name / Position / Phone / Address / Email | 姓名 / 职位 / 电话 / 地址 / 邮箱 | |
@@ -419,6 +422,8 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Tema: Gelap / Terang | Theme: Dark / Light | 主题：深色 / 浅色 | Ganti lama 暗色/亮色; 深色/浅色 adalah istilah Apple/Microsoft zh-CN. |
 | Bahasa | Language | 语言 | |
 | Opsional / Wajib | Optional / Required | 可选 / 必填 | |
+| Bawaan | Default | 默认 | **[baku baru]** dulu "Default" (U04): template bawaan, peran bawaan, termin bawaan. |
+| Catatan peninjau | Reviewer notes | 审核人备注 | **[baku baru]** dulu "Catatan Review" (PD05). |
 
 ---
 
@@ -432,7 +437,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | | Kuantitas barang | Quantity | 数量 | |
 | **Total** | Label kartu/baris penjumlahan | Total | [X]合计 | "Total masuk" → 流入合计; "Total HPP" → 营业成本合计. |
 | | Angka utama | Total … | 总[X] | "Total Saldo" → 总余额. |
-| | "Total Debit" di dialog Transfer & Detail Transfer (= jumlah + biaya admin yang keluar dari rekening asal) | Total deducted | 转出合计 | **Jangan** 借方合计. Di dialog yang sama, kotak Jurnal menaruh rekening asal di sisi **Kredit**; terjemahan harfiah akan bertentangan. |
+| | "Total Keluar" di dialog Transfer, Detail Transfer, dan tab Transfer (= jumlah + biaya admin yang keluar dari rekening asal; dulu "Total Debit") | Total out | 转出合计 | **[baku baru]** sumber kini "Total Keluar" (KB02). **Jangan** 借方合计: kotak Jurnal di dialog yang sama menaruh rekening asal di sisi **Kredit**. |
 | **Sisa** | Invoice | Balance due | 未收余额 | |
 | | Utang (pokok) | Remaining principal | 剩余本金 | |
 | | Piutang ("belum kembali") | Not yet repaid | 未收回 | |
@@ -440,11 +445,11 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | **Bayar / Pembayaran / dibayar** | Invoice (klien membayar kita) | Payment / paid | 收款 / 已收款 | Dari sudut pandang perusahaan, seperti modul piutang ERP Tiongkok. "Catat pembayaran" → 登记收款; "Pembayaran invoice" (baris Arus Kas, tab Kas & Bank) → 账单收款; "Hapus pembayaran" → 删除收款记录; "{n}% terbayar" → 已收 {n}%. Risiko #14. |
 | | Reimbursement (kita membayar karyawan) | Pay / paid | 付款 / 已付款 | |
 | | Utang & piutang (cicilan pokok/bunga) | Payment | 还款 | "Pembayaran pokok" → 本金还款. |
-| | Permintaan Dana | Disbursement | 拨付 | Tidak memakai "bayar". |
-| **Terbit / Terbitkan / Kirim invoice / Terkirim** | Invoice: memberi nomor resmi, status `sent` | Issue / Send invoice / Sent | 开具 / 开具账单 / 已开具 | Sumber memakai dua kata kerja untuk satu aksi. ZH menyatukannya ke 开具 karena tidak ada email yang terkirim. EN tetap mencerminkan sumber. Risiko #2. |
-| | "Tanggal Terbit" (Invoice Berulang) | Issue date | 开具日期 | |
-| | Publish (Invoice Berulang: draft → invoice Draft) | Publish | 发布 | **Bukan** 开具; hasilnya belum bernomor. |
-| | Kirim (feedback, tautan, email) | Send | 发送 | |
+| | Pengajuan Dana | Disbursement | 拨付 | Tidak memakai "bayar". |
+| **Terbitkan / Terbit** | Invoice: memberi nomor resmi, status `sent` | Issue / Issued | 开具 / 已开具 | **[baku baru]** sumber kini satu kata kerja; dulu juga "Kirim invoice" dan status "Terkirim" (INV01–INV03). |
+| | "Tanggal Invoice" (Invoice Berulang; dulu "Tanggal Terbit") | Invoice date | 账单日期 | **[baku baru]** sama dengan editor invoice (RI06): tanggal invoice yang lahir sebagai Draft. |
+| | "Jadikan Invoice" (Invoice Berulang: draft → invoice Draft; dulu "Publish") | Convert to invoice | 转为账单 | **[baku baru]** (RI03). **Bukan** 开具; hasilnya belum bernomor. |
+| | Kirim (masukan, tautan, email) | Send | 发送 | |
 | **Kas** | Jenis akun / uang tunai | Cash | 现金 | |
 | | Kas kecil | Petty cash | 备用金 | |
 | | Kas & Bank (modul) | Cash & Bank | 现金与银行 | |
@@ -459,7 +464,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | | Akun pengguna ("Hapus Akun", "Informasi Akun") | Account | 账号 | |
 | | Kas & Bank ("Tambah Akun", "Pilih akun", "Belum ada akun") | Account | 账户 | Akun bank/kas. |
 | **Debit / Kredit** | Sisi jurnal (JournalBox) | Debit / Credit | 借方 / 贷方 | Sudut pandang pembukuan perusahaan: uang masuk = rekening didebit. |
-| | Arah mutasi bank (`transaction_type`; teks "transaksi debit/kredit" di Ringkasan) | Debit (money out) / Credit (money in) | 支出 / 收入 (atau 流出 / 流入) | Sudut pandang rekening koran: debit = uang keluar, kebalikan dari sisi jurnal rekening. **Jangan** pakai 借/贷 di konteks ini, supaya tidak bertentangan dengan kotak Jurnal. |
+| | Arah mutasi bank (kode `transaction_type`) | Money out / Money in | 流出 / 流入 | **[baku baru]** teks UI kini "Uang keluar / Uang masuk", bukan "debit / kredit" (KB02). Kode `debit` = uang keluar (sudut pandang rekening koran), kebalikan dari sisi jurnal rekening; **jangan** pakai 借/贷 di luar kotak Jurnal. |
 | **Masuk / Keluar** | Arah uang | In / Out | 流入 / 流出 | |
 | | Autentikasi | Log in / Log out | 登录 / 退出登录 | |
 | **Pemasukan vs Pendapatan** | Pemasukan = uang masuk (tab, tipe kategori, "Catat Pemasukan") | Income | 收入 | Keduanya → 收入 dalam bentuk dasar. Bedanya dibawa kata majemuk & label: Pendapatan Usaha 营业收入, Pendapatan Lain 其他收入, "Pemasukan (masuk Laba Rugi)" → 收入（计入损益）. EN membedakan Income/Revenue. Risiko #8. |
@@ -489,7 +494,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | | Sakelar/keadaan ("PKP aktif", "selama PKP aktif") | On / enabled | 开启 | |
 | **Termin** | Invoice "Termin (hari)" | Payment terms (days) | 账期（天） | Jarak tanggal invoice → jatuh tempo. |
 | | Utang/piutang ("Rencana {n} termin", "termin berikutnya") | Installment | 期 | "termin berikutnya" → 下一期. |
-| **Cair / Cairkan / Pencairan** | Permintaan Dana | Disburse | 拨付 | Dipakai ulang. |
+| **Cair / Cairkan / Pencairan** | Pengajuan Dana | Disburse | 拨付 | Dipakai ulang. |
 | | Piutang (uang perusahaan keluar ke debitur) | Disburse | 放款 | "Piutang disetujui dan dicairkan" → 应收借款已批准并放款. 放款 adalah istilah baku pencairan pinjaman. |
 | | Utang (dana pinjaman masuk ke kita) | Proceeds received | 借款到账 | |
 | **Pinjaman** | Umum | Loan | 借款 | |
@@ -498,19 +503,19 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | **Perusahaan** | Tenant / perusahaan kita (menu admin, pemilih perusahaan) | Company | 公司 | |
 | | Jenis klien / jenis debitur | Company | 企业 | Lawan dari 个人 / 员工. |
 | **Penanggung jawab** | Akun kas | Custodian | 保管人 | |
-| | Klien (`person_in_charge`, token template) | Person in charge | 负责人 | |
+| | Klien (`person_in_charge`, token template) | Person in charge | 负责人 | **[baku baru]** label form klien "PIC (Penanggung Jawab)" (KL01). |
 | | Profil perusahaan ("Penanggung Jawab Keuangan") | Finance officer | 财务负责人 | |
 | **Admin** | Peran | Admin | 管理员 | |
 | | "Biaya Admin" | Admin fee | 手续费 | |
 | **Deskripsi / Keterangan / Catatan** | Deskripsi catatan uang (transaksi, transfer, pembayaran, item biaya) | Description | 摘要 | Kolom 摘要 di voucher & rekening koran Tiongkok. Risiko #15. |
-| | Deskripsi lain (feedback, layanan, template) | Description | 描述 | |
+| | Deskripsi lain (masukan, layanan, template) | Description | 描述 | |
 | | Keterangan | Notes / Description | 说明 | |
 | | Catatan | Notes | 备注 | |
 | **Ringkasan** | Menu & kartu ringkasan modul | Overview / Summary | 概览 | |
-| | Ringkasan teks (judul feedback "Ringkasan singkat dan jelas") | Short summary | 简要概述 | |
+| | Ringkasan teks (judul masukan "Ringkasan singkat dan jelas") | Short summary | 简要概述 | |
 | **Laba Rugi** | Kata benda (laporan, menu) | Profit & Loss | 损益表 | |
 | | Kata sifat ("masuk Laba Rugi") | P&L | 损益 | |
-| **Draft** | Status | Draft | 草稿 | "Draft · belum dikirim" → 草稿 · 未开具. |
+| **Draft** | Status | Draft | 草稿 | **[baku baru]** "Draft · belum terbit" (dulu "· belum dikirim", INV03) → 草稿 · 未开具. Ejaan "Draf" menunggu keputusan T-1. |
 | | "Simpan draft" / "Draft piutang dibuat" | Save draft / Receivable draft created | 保存草稿 / 应收借款草稿已创建 | |
 | **Transfer** | Pindah dana antar rekening (kata benda/kerja, tipe kategori) | Transfer | 转账 | |
 | | Metode pembayaran "Transfer bank" / "Transfer" | Bank transfer | 银行转账 | |
@@ -526,7 +531,8 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 |---|---|---|
 | 账单 | tagihan | Invoice |
 | 定期账单 | tagihan berkala | Invoice Berulang |
-| 开具 / 开具账单 / 已开具 | menerbitkan / menerbitkan tagihan / sudah diterbitkan | Terbitkan / **Kirim invoice** / **Terkirim** |
+| 开具 / 开具账单 / 已开具 | menerbitkan / menerbitkan tagihan / sudah diterbitkan | Terbitkan / Terbitkan invoice / Terbit (**[baku baru]**, kini harfiah) |
+| 转为账单 / 已转为账单 | jadikan tagihan / sudah dijadikan tagihan | Jadikan Invoice / Dijadikan invoice (**[baku baru]**) |
 | 收款 / 登记收款 / 已收款 / 未收款 / 部分收款 | penerimaan / catat penerimaan / … | Pembayaran (invoice) / Catat pembayaran / Sudah dibayar / Belum dibayar / Sebagian |
 | 未收余额 | sisa belum diterima | Sisa tagihan |
 | 应付借款 / 应收借款 / 应付与应收 | pinjaman terutang / pinjaman tertagih / utang & tagihan | Utang / Piutang / Utang & Piutang |
@@ -549,8 +555,8 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 | 摘要 | ringkasan | Deskripsi (catatan uang) |
 | 概览 | ikhtisar | Ringkasan |
 | 登记 / 新增 / 新建 | daftarkan / tambah baru / buat baru | Catat / Tambah / Buat |
-| 转出合计 | total keluar | Total Debit (dialog Transfer) |
-| 支出 / 收入 (arah mutasi) | pengeluaran / pemasukan | debit / kredit (arti rekening koran) |
+| 转出合计 | total keluar | Total Keluar (dialog Transfer; **[baku baru]**, kini harfiah) |
+| 流出 / 流入 (arah mutasi) | uang keluar / uang masuk | Uang keluar / Uang masuk (**[baku baru]**, dulu "debit / kredit") |
 | 基础资料 | data dasar | Master Data |
 | 服务项目 | item layanan | Layanan |
 
@@ -561,14 +567,14 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 | # | Keputusan | Alasan | Alternatif yang ditolak | Yang perlu dinilai penutur asli |
 |---|---|---|---|---|
 | 1 | Invoice → **账单**, bukan 发票 | 发票 di Tiongkok daratan = fapiao (dokumen pajak resmi). Padanan fapiao di sini adalah faktur pajak (税务发票). Terjemahan lama menabrakkan keduanya. | 发票, 销售发票, 请款单 | Apakah akuntan Tionghoa di Indonesia lebih terbiasa menyebut invoice komersial 发票, dan apakah 账单 terasa "tagihan konsumen". |
-| 2 | Terkirim → **已开具**; Kirim invoice & Terbitkan → **开具** | Aplikasi tidak mengirim apa pun; aksinya memberi nomor resmi. ZH menyatukan dua kata kerja sumber. | 已发送 / 发送账单 | Apakah 开具账单 wajar (kolokasi baku: 开具发票). |
+| 2 | Terbit → **已开具**; Terbitkan → **开具** (**[baku baru]**) | Aplikasi tidak mengirim apa pun; aksinya memberi nomor resmi. Sumber kini satu kata kerja (INV01–INV03), jadi yang tersisa hanya soal kolokasi. | 已发送 / 发送账单 | Apakah 开具账单 wajar (kolokasi baku: 开具发票). |
 | 3 | Utang → **应付借款**, Piutang → **应收借款**, grup → **应付与应收** | Simetris dan tak ambigu. 借款 saja bisa berarti piutang karyawan (员工借款); 应收账款 = piutang dagang. | 贷款, 借款, 应收账款, 应收款 | Apakah label menu terlalu panjang atau kaku. |
 | 4 | Pendanaan → **筹资** | Mencerminkan sumber dan istilah laporan arus kas PRC. Namun sumber juga memasukkan setor PPN & titipan pajak ke Pendanaan, yang di PRC termasuk aktivitas operasi. | 融资, 资金往来, 非损益 | Apakah "缴纳增值税" di bawah label 筹资 membingungkan akuntan. |
 | 5 | Titipan pajak → **代收税款**; Titipan Pajak Klien → **代收客户税款** | Dana pass-through (PRC: 其他应付款—代收款项). | 税金寄存 (lama), 代扣代缴, 暂收款 | Apakah 代收 bisa disangka pemungutan resmi oleh pemungut pajak. |
 | 6 | PKP → **增值税纳税人（PKP）**; faktur pajak → **税务发票** | Deskriptif dan bebas kategori khusus PRC. | 一般纳税人, 增值税发票, 税票 | Apakah 增值税纳税人 cukup membedakan PKP dari non-PKP. |
 | 7 | Laba Rugi → **损益表**; Pajak Perusahaan → **企业所得税** | 损益表 satu akar dengan 计入损益. Grup `tax` memang berisi PPh Badan. | 利润表; 公司税费 | Apakah 损益表 terasa usang di PRC; apakah 企业所得税 terlalu spesifik untuk label "Pajak Perusahaan". |
 | 8 | Pemasukan dan Pendapatan sama-sama → **收入** | Pasangan 收入/支出 paling alami untuk uang masuk/keluar. Pembeda dibawa kata majemuk (营业收入) dan label "(计入损益)". | 进账, 收款, 流入 | Apakah tab 收入 yang juga memuat baris 筹资 menyesatkan. |
-| 9 | Debit/kredit arah bank → **支出/收入 (流出/流入)**; "Total Debit" (Transfer) → **转出合计** | Menghindari 借/贷 yang terbalik terhadap kotak Jurnal di layar yang sama. | 借方合计 | Apakah pemisahan ini jelas bagi akuntan. |
+| 9 | Arah mutasi bank → **流出/流入**; "Total Keluar" (Transfer) → **转出合计** (**[baku baru]**) | Sumber kini "Uang masuk/keluar" dan "Total Keluar" (KB02); 借/贷 hanya di kotak Jurnal, sehingga tidak ada lagi arah yang terbalik di layar yang sama. | 借方合计 | Apakah pemisahan ini jelas bagi akuntan. |
 | 10 | Kas kecil → **备用金**, Plafon → **限额**, Isi ulang → **补足**, Penanggung jawab → **保管人** | Persis sistem imprest (定额备用金). | 零用金 (TW), 定额, 补充, 负责人 | Apakah 补足 jelas sebagai tombol. |
 | 11 | Modal Pemilik → **业主资本**, Prive → **业主提款** | Pasangan istilah buku teks untuk usaha milik pemilik. | 实收资本, 利润分配 | Apakah 业主提款 dikenali pengguna non-akuntan. |
 | 12 | Beban Operasional → **运营费用**; Pendapatan/Beban Lain → **其他收入/其他费用** | Kategori aplikasi tidak memetakan 1:1 ke pos PRC (销售/管理/财务费用, 营业外收支). | 营业费用, 营业外收入/支出 | Apakah label ini terasa "tidak baku". |
@@ -579,13 +585,14 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 | 17 | Gaya: **spasi** antara Han dan Latin/angka; akronim berkurung hanya di label (U7, Z8) | Konsisten dengan UI zh-CN Apple/Microsoft. Aturan "pertama di layar" tidak bisa dijamin per kunci. | Tanpa spasi (gaya penerbitan PRC) | Apakah tampilan berspasi terasa wajar. |
 | 18 | Desimal literal tetap format Indonesia (`0,5%`) di EN & ZH | Konsisten dengan angka dari formatter `id-ID` di layar yang sama (D6). | `0.5%` | Apakah koma desimal membingungkan pembaca Mandarin/Inggris. |
 | 19 | Aktif (utang/piutang) → **还款中**; Aktif (pengguna dll.) → **启用** | Status pinjaman ≠ status akun. | 活跃 (lama), 有效 | — |
-| 20 | Publish (Invoice Berulang) → **发布 / 发布为账单 / 已发布**, terpisah dari 开具 | Hasil publish adalah invoice Draft tanpa nomor. | 开具, 生成账单 | Apakah 发布 jelas untuk "memindahkan ke menu Invoice". |
+| 20 | Jadikan Invoice / Dijadikan invoice (Invoice Berulang) → **转为账单 / 已转为账单**, terpisah dari 开具 (**[baku baru]**) | Hasilnya invoice Draft tanpa nomor (RI03). | 发布, 开具, 生成账单 | Apakah 转为账单 jelas untuk "memindahkan ke menu Invoice". |
 
 ---
 
 ## 6. Temuan di sumber (janggal / tidak konsisten)
 
-Untuk orkestrator dan pemilik modul. Glosarium sudah menetapkan cara menerjemahkannya; perbaikan teks ID di luar wewenang T1 (aturan K1).
+Untuk orkestrator dan pemilik modul. Glosarium sudah menetapkan cara menerjemahkannya.
+**v1.1:** butir 1, 2, 3, 5, dan 6 (label klien) kini ditangani lewat [`perapian-id.md`](perapian-id.md); butir 4 (mojibake) dan 8 (`Tunai`) ada di §8 dan §4.3 dokumen itu.
 
 1. **Kata Inggris di teks sumber Indonesia** sehingga kuncinya berbahasa Inggris: status & prioritas Permintaan Dana (`Pending Review`, `Approved`, `Rejected`, `Disbursed`, `Low`…`Urgent`, `fund-requests/index.tsx`, `create.tsx`, `edit.tsx`); label feedback di `lang/id/feedback.php` (`Open`, `In Progress`, `Bug Report`, `Critical`…); Invoice Berulang (`Published`, `Publish Invoice`); halaman izin (`Total Permission`, `Beri Semua Permission`, "Beri akses user lain"); menu `Feedback`; kategori `Parent`/`Sub Kategori`. Tampilan ID tetap campur; EN/ZH akan bersih.
 2. **Satu aksi, dua kata kerja**: "Kirim invoice" (drawer) dan "Terbitkan"/"Simpan & terbitkan" (editor) melakukan hal yang sama. Status "Terkirim" padahal dialog sendiri menyatakan klien tidak menerima email.
