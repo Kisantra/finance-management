@@ -53,7 +53,7 @@ class BankAccountController extends Controller
                 'balance' => $balance,
                 'custodian_id' => $account->custodian_id,
                 'custodian_name' => $account->custodian_id
-                    ? ($custodianNames[$account->custodian_id] ?? 'Pengguna dihapus')
+                    ? ($custodianNames[$account->custodian_id] ?? __('Pengguna dihapus'))
                     : null,
                 'cash_limit' => $account->cash_limit,
                 'refill_amount' => $account->refillAmount($balance),
@@ -114,14 +114,14 @@ class BankAccountController extends Controller
 
         return redirect()
             ->route('bank-accounts.index', ['account' => $account->id])
-            ->with('success', __('pages.account_created_successfully'));
+            ->with('success', __('Rekening bank berhasil ditambahkan'));
     }
 
     public function update(UpdateBankAccountRequest $request, BankAccount $bankAccount): RedirectResponse
     {
         $bankAccount->update($this->accountAttributes($request->validated()));
 
-        return redirect()->back()->with('success', __('pages.account_updated_successfully'));
+        return redirect()->back()->with('success', __('Rekening bank berhasil diperbarui'));
     }
 
     public function destroy(BankAccount $bankAccount): RedirectResponse
@@ -141,23 +141,28 @@ class BankAccountController extends Controller
             if ($jumlahTransaksi > 0) {
                 $contoh = $bankAccount->transactions()
                     ->orderByDesc('id')->limit(3)->pluck('description')->all();
-                $bagian[] = $jumlahTransaksi.' transaksi ('.implode(', ', $contoh).
-                    ($jumlahTransaksi > count($contoh) ? ', …' : '').')';
+                $bagian[] = __(':count transaksi (:contoh)', [
+                    'count' => $jumlahTransaksi,
+                    'contoh' => implode(', ', $contoh).($jumlahTransaksi > count($contoh) ? ', …' : ''),
+                ]);
             }
             if ($jumlahPembayaran > 0) {
                 $contoh = $bankAccount->payments()->with('invoice')
                     ->orderByDesc('id')->limit(3)->get()
-                    ->map(fn ($p) => $p->invoice?->invoice_number ?: 'invoice #'.$p->invoice_id)->all();
-                $bagian[] = $jumlahPembayaran.' pembayaran invoice ('.implode(', ', $contoh).
-                    ($jumlahPembayaran > count($contoh) ? ', …' : '').')';
+                    ->map(fn ($p) => $p->invoice?->invoice_number ?: __('invoice #:id', ['id' => $p->invoice_id]))->all();
+                $bagian[] = __(':count pembayaran invoice (:contoh)', [
+                    'count' => $jumlahPembayaran,
+                    'contoh' => implode(', ', $contoh).($jumlahPembayaran > count($contoh) ? ', …' : ''),
+                ]);
             }
             if ($jumlahPembayaranPinjaman > 0) {
-                $bagian[] = $jumlahPembayaranPinjaman.' pembayaran utang';
+                $bagian[] = __(':count pembayaran utang', ['count' => $jumlahPembayaranPinjaman]);
             }
 
             return redirect()->back()->withErrors([
-                'delete' => 'Rekening tidak dapat dihapus karena masih terkait dengan '.
-                    implode(', ', $bagian).'. Pindahkan atau hapus data tersebut terlebih dahulu.',
+                'delete' => __('Rekening tidak dapat dihapus karena masih terkait dengan :bagian. Pindahkan atau hapus data tersebut terlebih dahulu.', [
+                    'bagian' => implode(', ', $bagian),
+                ]),
             ]);
         }
 
@@ -165,7 +170,7 @@ class BankAccountController extends Controller
 
         return redirect()
             ->route('bank-accounts.index')
-            ->with('success', __('pages.account_deleted_successfully'));
+            ->with('success', __('Rekening berhasil dihapus'));
     }
 
     /**
@@ -241,10 +246,10 @@ class BankAccountController extends Controller
                     'is_all_time' => false,
                 ];
             } catch (\Exception $e) {
-                $period = ['start' => null, 'end' => null, 'label' => __('pages.all_time'), 'is_all_time' => true];
+                $period = ['start' => null, 'end' => null, 'label' => __('Semua Waktu'), 'is_all_time' => true];
             }
         } else {
-            $period = ['start' => null, 'end' => null, 'label' => __('pages.all_time'), 'is_all_time' => true];
+            $period = ['start' => null, 'end' => null, 'label' => __('Semua Waktu'), 'is_all_time' => true];
         }
 
         // Stats for the period

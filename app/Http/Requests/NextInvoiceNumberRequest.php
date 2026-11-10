@@ -29,9 +29,9 @@ class NextInvoiceNumberRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'client_id.required' => 'Pilih klien dulu.',
-            'client_id.exists' => 'Klien tidak ditemukan.',
-            'issue_date.required' => 'Isi tanggal invoice dulu.',
+            'client_id.required' => __('Pilih klien dulu.'),
+            'client_id.exists' => __('Klien tidak ditemukan.'),
+            'issue_date.required' => __('Isi tanggal invoice dulu.'),
         ];
     }
 }

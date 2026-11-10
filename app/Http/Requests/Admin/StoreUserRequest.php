@@ -50,8 +50,8 @@ class StoreUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'companies.min' => 'Pilih minimal satu perusahaan. Pengguna tanpa perusahaan tidak dapat membuka halaman apa pun.',
-            'companies.*.exists' => 'Perusahaan yang dipilih tidak dikenal, atau bukan milik organisasi Anda.',
+            'companies.min' => __('Pilih minimal satu perusahaan. Pengguna tanpa perusahaan tidak dapat membuka halaman apa pun.'),
+            'companies.*.exists' => __('Perusahaan yang dipilih tidak dikenal, atau bukan milik organisasi Anda.'),
         ];
     }
 }

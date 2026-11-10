@@ -359,7 +359,7 @@ class InvoiceController extends Controller
         } else {
             $period = $month
                 ? Carbon::parse($month.'-01')->isoFormat('MMMM Y')
-                : 'Semua Periode';
+                : __('Semua Periode');
         }
 
         return ['rows' => $rows, 'summary' => $summary, 'period' => $period, 'client_ids' => $clientIds];
@@ -557,9 +557,11 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        return redirect()->route('invoices.show', $invoice)->with('success', $publish
-            ? 'Invoice diterbitkan: '.$invoice->invoice_number
-            : 'Invoice disimpan sebagai draft.');
+        $pesan = $publish
+            ? __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number])
+            : __('Invoice disimpan sebagai draft.');
+
+        return redirect()->route('invoices.show', $invoice)->with('success', $pesan);
     }
 
     /**
@@ -776,15 +778,17 @@ class InvoiceController extends Controller
             $invoice->fresh()->updateStatus();
         }
 
-        return redirect()->route('invoices.show', $invoice)->with('success', $publish
-            ? 'Invoice diterbitkan: '.$invoice->invoice_number
-            : 'Invoice berhasil diperbarui.');
+        $pesan = $publish
+            ? __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number])
+            : __('Invoice berhasil diperbarui.');
+
+        return redirect()->route('invoices.show', $invoice)->with('success', $pesan);
     }
 
     public function destroy(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         if ($invoice->payments()->exists()) {
-            return $this->actionResult($request, false, 'Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu.');
+            return $this->actionResult($request, false, __('Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu.'));
         }
 
         DB::transaction(function () use ($invoice) {
@@ -792,13 +796,13 @@ class InvoiceController extends Controller
             $invoice->delete();
         });
 
-        return $this->actionResult($request, true, 'Invoice berhasil dihapus.');
+        return $this->actionResult($request, true, __('Invoice berhasil dihapus.'));
     }
 
     public function send(SendInvoiceRequest $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         if ($invoice->status !== 'draft') {
-            return $this->actionResult($request, false, 'Hanya invoice draft yang dapat dikirim.');
+            return $this->actionResult($request, false, __('Hanya invoice draft yang dapat diterbitkan.'));
         }
 
         $invoice->update([
@@ -806,22 +810,22 @@ class InvoiceController extends Controller
             'status' => 'sent',
         ]);
 
-        return $this->actionResult($request, true, 'Invoice diterbitkan: '.$request->invoice_number);
+        return $this->actionResult($request, true, __('Invoice diterbitkan: :nomor', ['nomor' => $request->invoice_number]));
     }
 
     public function rollback(Request $request, Invoice $invoice): JsonResponse|RedirectResponse
     {
         if ($invoice->status !== 'sent') {
-            return $this->actionResult($request, false, 'Hanya invoice yang sudah terkirim yang bisa di-rollback.');
+            return $this->actionResult($request, false, __('Hanya invoice yang sudah terbit yang bisa dikembalikan ke draft.'));
         }
 
         if (! Invoice::isLatestInNumberingPeriod($invoice)) {
-            return $this->actionResult($request, false, 'Hanya invoice dengan nomor urut terakhir di periodenya yang bisa di-rollback.');
+            return $this->actionResult($request, false, __('Hanya invoice dengan nomor urut terakhir di periodenya yang bisa dikembalikan ke draft.'));
         }
 
         $invoice->update(['invoice_number' => null, 'status' => 'draft']);
 
-        return $this->actionResult($request, true, 'Invoice berhasil dikembalikan ke draft.');
+        return $this->actionResult($request, true, __('Invoice berhasil dikembalikan ke draft.'));
     }
 
     /**

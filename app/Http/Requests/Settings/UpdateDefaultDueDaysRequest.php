@@ -28,10 +28,10 @@ class UpdateDefaultDueDaysRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'days.required' => 'Isi termin dalam hari.',
-            'days.integer' => 'Termin harus berupa angka hari.',
-            'days.min' => 'Termin tidak boleh negatif.',
-            'days.max' => 'Termin maksimal 365 hari.',
+            'days.required' => __('Isi termin dalam hari.'),
+            'days.integer' => __('Termin harus berupa angka hari.'),
+            'days.min' => __('Termin tidak boleh negatif.'),
+            'days.max' => __('Termin maksimal 365 hari.'),
         ];
     }
 }

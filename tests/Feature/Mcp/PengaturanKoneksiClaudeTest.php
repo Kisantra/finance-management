@@ -120,7 +120,7 @@ class PengaturanKoneksiClaudeTest extends TestCase
         $this->actingAs($this->admin)
             ->delete('/settings/claude/'.$claude->getKey())
             ->assertRedirect('/c/'.self::TEST_COMPANY.'/settings/claude')
-            ->assertSessionHas('success', 'Sambungan Claude dicabut. Claude harus login dan meminta izin lagi.');
+            ->assertSessionHas('success', 'Sambungan Claude dicabut. Claude harus masuk dan meminta izin lagi.');
 
         foreach ([$aktif, $kedaluwarsa] as $token) {
             $this->assertTrue($token->fresh()->revoked);

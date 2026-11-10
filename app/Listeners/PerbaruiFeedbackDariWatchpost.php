@@ -29,13 +29,18 @@ class PerbaruiFeedbackDariWatchpost
         'ignored' => 'closed',
     ];
 
-    /** @var array<string, string> */
-    private const PESAN = [
-        'open' => 'dibuka kembali oleh tim IT',
-        'in_progress' => 'sedang dikerjakan tim IT',
-        'resolved' => 'sudah diselesaikan tim IT',
-        'closed' => 'ditutup oleh tim IT',
-    ];
+    /**
+     * Teks pesan per status (kunci terjemahan = teks Indonesia persis).
+     */
+    private function kunciPesan(string $status): string
+    {
+        return match ($status) {
+            'open' => __('Laporan ":judul" dibuka kembali oleh tim IT.', [], 'id'),
+            'in_progress' => __('Laporan ":judul" sedang dikerjakan tim IT.', [], 'id'),
+            'resolved' => __('Laporan ":judul" sudah diselesaikan tim IT.', [], 'id'),
+            default => __('Laporan ":judul" ditutup oleh tim IT.', [], 'id'),
+        };
+    }
 
     public function handle(TicketUpdated $event): void
     {
@@ -73,11 +78,12 @@ class PerbaruiFeedbackDariWatchpost
             return;
         }
 
-        AppNotification::notify(
+        AppNotification::notifyTerjemahan(
             $feedback->user_id,
             'feedback_responded',
-            'Laporan Bug Diperbarui',
-            'Laporan "'.$feedback->title.'" '.self::PESAN[$status].'.',
+            __('Laporan Bug Diperbarui', [], 'id'),
+            $this->kunciPesan($status),
+            ['judul' => $feedback->title],
             [
                 'feedback_id' => $feedback->id,
                 'url' => $feedback->company_id !== null

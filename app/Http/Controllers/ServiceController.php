@@ -87,20 +87,20 @@ class ServiceController extends Controller
     {
         Service::create($request->validated());
 
-        return redirect()->back()->with('success', 'Layanan berhasil ditambahkan.');
+        return redirect()->back()->with('success', __('Layanan berhasil ditambahkan.'));
     }
 
     public function update(UpdateServiceRequest $request, Service $service): RedirectResponse
     {
         $service->update($request->validated());
 
-        return redirect()->back()->with('success', 'Layanan berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Layanan berhasil diperbarui.'));
     }
 
     public function destroy(Service $service): RedirectResponse
     {
         $service->delete();
 
-        return redirect()->back()->with('success', 'Layanan berhasil dihapus.');
+        return redirect()->back()->with('success', __('Layanan berhasil dihapus.'));
     }
 }

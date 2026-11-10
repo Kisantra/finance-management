@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Middleware\SetDocumentLocale;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -25,19 +26,33 @@ class ErrorReportService
     private const TRACE_FRAMES = 8;
 
     /**
-     * @var array<int, array{0: string, 1: string}>
+     * Judul dan penjelasan per kode status, dalam bahasa $locale.
+     *
+     * @return array<int, array{0: string, 1: string}>
      */
-    private const MESSAGES = [
-        400 => ['Permintaan tidak valid', 'Sistem tidak dapat memahami permintaan ini. Muat ulang halaman lalu coba lagi.'],
-        403 => ['Akses ditolak', 'Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.'],
-        404 => ['Halaman tidak ditemukan', 'Alamat yang Anda buka tidak ada, sudah dipindahkan, atau datanya telah dihapus.'],
-        405 => ['Aksi tidak diizinkan', 'Cara halaman ini dibuka tidak didukung. Kembali lalu ulangi dari menu aplikasi.'],
-        413 => ['Berkas terlalu besar', 'Ukuran berkas melebihi batas yang diizinkan server. Perkecil berkasnya lalu unggah lagi.'],
-        419 => ['Sesi Anda sudah berakhir', 'Demi keamanan, sesi ditutup setelah tidak aktif beberapa waktu. Masuk kembali untuk melanjutkan pekerjaan Anda.'],
-        429 => ['Terlalu banyak permintaan', 'Anda mengirim terlalu banyak permintaan dalam waktu singkat. Tunggu sebentar lalu coba lagi.'],
-        500 => ['Terjadi kesalahan di sistem', 'Ini bukan kesalahan Anda. Tim IT dapat menelusurinya dengan ID referensi di bawah.'],
-        503 => ['Sistem sedang tidak tersedia', 'Sistem sedang dalam pemeliharaan atau sibuk. Coba lagi beberapa menit lagi.'],
-    ];
+    private static function pesanStatus(string $locale): array
+    {
+        return [
+            400 => [__('Permintaan tidak valid', [], $locale), __('Sistem tidak dapat memahami permintaan ini. Muat ulang halaman lalu coba lagi.', [], $locale)],
+            403 => [__('Akses ditolak', [], $locale), __('Akun Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin bila Anda merasa seharusnya bisa.', [], $locale)],
+            404 => [__('Halaman tidak ditemukan', [], $locale), __('Alamat yang Anda buka tidak ada, sudah dipindahkan, atau datanya telah dihapus.', [], $locale)],
+            405 => [__('Aksi tidak diizinkan', [], $locale), __('Cara halaman ini dibuka tidak didukung. Kembali lalu ulangi dari menu aplikasi.', [], $locale)],
+            413 => [__('Berkas terlalu besar', [], $locale), __('Ukuran berkas melebihi batas yang diizinkan server. Perkecil berkasnya lalu unggah lagi.', [], $locale)],
+            419 => [__('Sesi Anda sudah berakhir', [], $locale), __('Demi keamanan, sesi ditutup setelah tidak aktif beberapa waktu. Masuk kembali untuk melanjutkan pekerjaan Anda.', [], $locale)],
+            429 => [__('Terlalu banyak permintaan', [], $locale), __('Anda mengirim terlalu banyak permintaan dalam waktu singkat. Tunggu sebentar lalu coba lagi.', [], $locale)],
+            500 => [__('Terjadi kesalahan di sistem', [], $locale), __('Ini bukan kesalahan Anda. Tim IT dapat menelusurinya dengan ID referensi di bawah.', [], $locale)],
+            503 => [__('Sistem sedang tidak tersedia', [], $locale), __('Sistem sedang dalam pemeliharaan atau sibuk. Coba lagi beberapa menit lagi.', [], $locale)],
+        ];
+    }
+
+    /**
+     * Bahasa tampilan pengguna: rute dokumen memaksa locale 'id' selama diproses dan menyimpan bahasa
+     * semula di atribut request; di luar itu bahasa aplikasi saat ini.
+     */
+    private static function bahasaTampilan(Request $request): string
+    {
+        return (string) $request->attributes->get(SetDocumentLocale::DISPLAY_LOCALE_ATTRIBUTE, app()->getLocale());
+    }
 
     /**
      * ID yang sama dipakai di log (lewat context exception) dan di halaman, sehingga
@@ -101,7 +116,7 @@ class ErrorReportService
      *
      * @return array{0: string, 1: string}|null
      */
-    private static function pesanSetupBelumSelesai(Throwable $e): ?array
+    private static function pesanSetupBelumSelesai(Throwable $e, string $locale): ?array
     {
         if (! $e instanceof QueryException) {
             return null;
@@ -113,20 +128,14 @@ class ErrorReportService
 
         if (in_array($cocok[1], self::TABEL_PUSAT, true)) {
             return [
-                'Database pusat belum disiapkan',
-                'Database yang dipakai aplikasi ini belum memiliki tabel perusahaan. '
-                .'Biasanya karena DB_DATABASE di .env masih menunjuk database lama '
-                .'(sebelum multi-perusahaan), atau langkah penyiapan belum dijalankan. '
-                .'Jalankan: php artisan migrate, lalu php artisan central:bootstrap. '
-                .'Setelah mengubah .env, server harus di-restart — nilainya dibaca sekali saat server start.',
+                __('Database pusat belum disiapkan', [], $locale),
+                __('Database yang dipakai aplikasi ini belum memiliki tabel perusahaan. Biasanya karena DB_DATABASE di .env masih menunjuk database lama (sebelum multi-perusahaan), atau langkah penyiapan belum dijalankan. Jalankan: php artisan migrate, lalu php artisan central:bootstrap. Setelah mengubah .env, server harus di-restart — nilainya dibaca sekali saat server start.', [], $locale),
             ];
         }
 
         return [
-            'Database perusahaan belum dimigrasi',
-            'Perusahaan ini sudah terdaftar tetapi tabel datanya belum dibuat. '
-            .'Jalankan: php artisan tenants:migrate. '
-            .'Periksa juga php artisan central:tenants-status untuk melihat perusahaan mana yang tertinggal.',
+            __('Database perusahaan belum dimigrasi', [], $locale),
+            __('Perusahaan ini sudah terdaftar tetapi tabel datanya belum dibuat. Jalankan: php artisan tenants:migrate. Periksa juga php artisan central:tenants-status untuk melihat perusahaan mana yang tertinggal.', [], $locale),
         ];
     }
 
@@ -173,14 +182,27 @@ class ErrorReportService
     }
 
     /**
+     * @return array{0: string, 1: string}
+     */
+    private function judulDanPenjelasan(int $status, Throwable $e, string $locale): array
+    {
+        $pesan = self::pesanStatus($locale);
+
+        return self::pesanSetupBelumSelesai($e, $locale)
+            ?? $pesan[$status]
+            ?? ($status >= 500
+                ? $pesan[500]
+                : [__('Permintaan tidak dapat diproses', [], $locale), __('Terjadi kendala saat memproses permintaan Anda.', [], $locale)]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function props(int $status, Throwable $e, Request $request): array
     {
-        [$title, $description] = self::MESSAGES[$status]
-            ?? ($status >= 500 ? self::MESSAGES[500] : ['Permintaan tidak dapat diproses', 'Terjadi kendala saat memproses permintaan Anda.']);
-
-        [$title, $description] = self::pesanSetupBelumSelesai($e) ?? [$title, $description];
+        $locale = self::bahasaTampilan($request);
+        [$title, $description] = $this->judulDanPenjelasan($status, $e, $locale);
+        [$judulLaporan] = $this->judulDanPenjelasan($status, $e, SetDocumentLocale::LOCALE);
 
         $description = self::pesanKhusus($e, $status) ?? $description;
 
@@ -201,7 +223,7 @@ class ErrorReportService
         }
 
         try {
-            return $this->propsForTeam($status, $title, $description, $user, $company, $e, $request);
+            return $this->propsForTeam($status, $title, $judulLaporan, $description, $user, $company, $e, $request, $locale);
         } finally {
             setPermissionsTeamId($previousTeam);
             $user?->unsetRelation('roles')->unsetRelation('permissions');
@@ -211,7 +233,7 @@ class ErrorReportService
     /**
      * @return array<string, mixed>
      */
-    private function propsForTeam(int $status, string $title, string $description, ?User $user, ?string $company, Throwable $e, Request $request): array
+    private function propsForTeam(int $status, string $title, string $judulLaporan, string $description, ?User $user, ?string $company, Throwable $e, Request $request, string $locale): array
     {
         $canReport = $user !== null
             && $company !== null
@@ -220,9 +242,9 @@ class ErrorReportService
             && $user->can('create feedbacks');
 
         [$homeUrl, $homeLabel] = match (true) {
-            $user === null => [route('login'), 'Masuk'],
-            $company !== null => [route('dashboard', ['company' => $company]), 'Ke Dashboard'],
-            default => [route('choose-company'), 'Pilih Perusahaan'],
+            $user === null => [route('login'), __('Masuk', [], $locale)],
+            $company !== null => [route('dashboard', ['company' => $company]), __('Ke Ringkasan', [], $locale)],
+            default => [route('choose-company'), __('Pilih Perusahaan', [], $locale)],
         };
 
         return [
@@ -239,7 +261,7 @@ class ErrorReportService
             'can_retry' => $request->isMethod('GET'),
             'can_report' => $canReport,
             'report_url' => $canReport ? route('feedbacks.store', ['company' => $company]) : null,
-            'report' => $this->report($status, $title, $e, $request),
+            'report' => $this->report($status, $judulLaporan, $e, $request),
         ];
     }
 

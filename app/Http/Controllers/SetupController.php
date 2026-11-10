@@ -94,8 +94,9 @@ class SetupController extends Controller
 
             return back()
                 ->withInput($request->except('admin_password', 'admin_password_confirmation'))
-                ->with('error', 'Database perusahaan gagal dibuat: '.Str::limit($e->getMessage(), 160)
-                    .' Pastikan user MySQL di .env boleh membuat database, lalu coba lagi.');
+                ->with('error', __('Database perusahaan gagal dibuat: :pesan Pastikan pengguna MySQL di .env boleh membuat database, lalu coba lagi.', [
+                    'pesan' => Str::limit($e->getMessage(), 160),
+                ]));
         }
 
         $admin->companies()->syncWithoutDetaching([$company->getTenantKey()]);
@@ -111,6 +112,6 @@ class SetupController extends Controller
         $request->session()->regenerate();
 
         return redirect("/c/{$company->getTenantKey()}/settings/company")
-            ->with('success', 'Akun admin dan perusahaan pertama siap. Lengkapi profil perusahaan untuk mulai bekerja.');
+            ->with('success', __('Akun admin dan perusahaan pertama siap. Lengkapi profil perusahaan untuk mulai bekerja.'));
     }
 }

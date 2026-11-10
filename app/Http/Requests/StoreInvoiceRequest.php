@@ -52,23 +52,23 @@ class StoreInvoiceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'client_id.required' => 'Klien wajib dipilih.',
-            'client_id.exists' => 'Klien tidak ditemukan.',
-            'issue_date.required' => 'Tanggal invoice wajib diisi.',
-            'due_date.required' => 'Jatuh tempo wajib diisi.',
-            'due_date.after_or_equal' => 'Jatuh tempo tidak boleh sebelum tanggal invoice.',
-            'items.required' => 'Tambahkan minimal satu item.',
-            'items.min' => 'Tambahkan minimal satu item.',
-            'items.*.service_name.required' => 'Nama layanan baris :position wajib diisi.',
-            'items.*.quantity.required' => 'Qty baris :position wajib diisi.',
-            'items.*.quantity.min' => 'Qty baris :position harus lebih dari 0.',
-            'items.*.unit_price.required' => 'Harga satuan baris :position wajib diisi.',
-            'items.*.unit_price.min' => 'Harga satuan baris :position tidak boleh negatif.',
-            'discount_value.min' => 'Diskon tidak boleh negatif.',
-            'faktur.max' => 'Nomor faktur pajak maksimal 50 karakter.',
-            'invoice_number.unique' => 'Nomor ini sudah dipakai invoice lain.',
-            'invoice_number.max' => 'Nomor invoice maksimal 100 karakter.',
-            'discount_value.integer' => 'Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.',
+            'client_id.required' => __('Klien wajib dipilih.'),
+            'client_id.exists' => __('Klien tidak ditemukan.'),
+            'issue_date.required' => __('Tanggal invoice wajib diisi.'),
+            'due_date.required' => __('Jatuh tempo wajib diisi.'),
+            'due_date.after_or_equal' => __('Jatuh tempo tidak boleh sebelum tanggal invoice.'),
+            'items.required' => __('Tambahkan minimal satu item.'),
+            'items.min' => __('Tambahkan minimal satu item.'),
+            'items.*.service_name.required' => __('Nama layanan baris :position wajib diisi.'),
+            'items.*.quantity.required' => __('Qty baris :position wajib diisi.'),
+            'items.*.quantity.min' => __('Qty baris :position harus lebih dari 0.'),
+            'items.*.unit_price.required' => __('Harga satuan baris :position wajib diisi.'),
+            'items.*.unit_price.min' => __('Harga satuan baris :position tidak boleh negatif.'),
+            'discount_value.min' => __('Diskon tidak boleh negatif.'),
+            'faktur.max' => __('Nomor faktur pajak maksimal 50 karakter.'),
+            'invoice_number.unique' => __('Nomor ini sudah dipakai invoice lain.'),
+            'invoice_number.max' => __('Nomor invoice maksimal 100 karakter.'),
+            'discount_value.integer' => __('Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.'),
         ];
     }
 
@@ -97,7 +97,7 @@ class StoreInvoiceRequest extends FormRequest
             }
 
             if ($tipe === 'percentage' && $nilai > 100) {
-                $validator->errors()->add('discount_value', 'Diskon persen tidak boleh melebihi 100%.');
+                $validator->errors()->add('discount_value', __('Diskon persen tidak boleh melebihi 100%.'));
 
                 return;
             }
@@ -108,7 +108,7 @@ class StoreInvoiceRequest extends FormRequest
 
                 if ($nilai > $subtotal) {
                     $validator->errors()->add('discount_value',
-                        'Diskon nominal tidak boleh melebihi subtotal (Rp '.number_format($subtotal, 0, ',', '.').').');
+                        __('Diskon nominal tidak boleh melebihi subtotal (Rp :subtotal).', ['subtotal' => number_format($subtotal, 0, ',', '.')]));
                 }
             }
         });

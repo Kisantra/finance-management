@@ -33,7 +33,7 @@ class PayReceivableRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'bank_account_id.required_if' => 'Rekening tujuan wajib dipilih untuk pembayaran via transfer bank.',
+            'bank_account_id.required_if' => __('Rekening tujuan wajib dipilih untuk pembayaran via transfer bank.'),
         ];
     }
 }

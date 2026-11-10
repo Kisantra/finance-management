@@ -105,13 +105,32 @@ class ItemColumns
         return array_map(
             fn (array $col): array => [
                 'key' => $col['key'],
-                'label' => $col['label'],
+                'label' => self::labelTampil($col['key'], $col['label']),
                 'align' => $col['align'],
                 'format' => $col['format'],
                 'default' => $col['default'],
             ],
             self::catalog(),
         );
+    }
+
+    /**
+     * Label kolom untuk layar (bahasa pengguna). Label yang disimpan ke tata letak & dicetak
+     * ke dokumen tetap Bahasa Indonesia (`label` di catalog()).
+     */
+    private static function labelTampil(string $key, string $label): string
+    {
+        return match ($key) {
+            'no' => __('No'),
+            'description' => __('Deskripsi'),
+            'quantity' => __('Qty'),
+            'unit' => __('Satuan'),
+            'unit_price' => __('Harga Satuan'),
+            'amount' => __('Jumlah'),
+            'cogs_amount' => __('HPP'),
+            'is_tax_deposit' => __('Deposit Pajak'),
+            default => $label,
+        };
     }
 
     /**

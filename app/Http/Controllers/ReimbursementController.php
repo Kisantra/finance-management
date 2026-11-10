@@ -222,8 +222,8 @@ class ReimbursementController extends Controller
         });
 
         $msg = $validated['action'] === 'submit'
-            ? 'Reimbursement berhasil diajukan untuk persetujuan'
-            : 'Reimbursement berhasil disimpan sebagai draft';
+            ? __('Reimbursement berhasil diajukan untuk persetujuan')
+            : __('Reimbursement berhasil disimpan sebagai draft');
 
         if ($request->expectsJson()) {
             return response()->json(['message' => $msg, 'id' => $reimbursement->id]);
@@ -241,7 +241,7 @@ class ReimbursementController extends Controller
 
         if (! $reimbursement->canEdit()) {
             return redirect()->route('reimbursements.index')
-                ->with('error', 'Reimbursement tidak dapat diedit');
+                ->with('error', __('Reimbursement tidak dapat diubah'));
         }
 
         return redirect()->to(route('reimbursements.index').'#reimbursement/'.$reimbursement->id);
@@ -254,7 +254,7 @@ class ReimbursementController extends Controller
         }
 
         if (! $reimbursement->canEdit()) {
-            return $this->actionResult($request, false, 'Reimbursement tidak dapat diedit');
+            return $this->actionResult($request, false, __('Reimbursement tidak dapat diubah'));
         }
 
         $validated = $request->validated();
@@ -293,12 +293,12 @@ class ReimbursementController extends Controller
         });
 
         if ($validated['action'] === 'submit' && $reimbursement->status !== 'pending') {
-            return $this->actionResult($request, false, 'Reimbursement disimpan, tetapi belum dapat diajukan');
+            return $this->actionResult($request, false, __('Reimbursement disimpan, tetapi belum dapat diajukan'));
         }
 
         $msg = $validated['action'] === 'submit'
-            ? 'Reimbursement berhasil diajukan untuk persetujuan'
-            : 'Reimbursement berhasil diperbarui';
+            ? __('Reimbursement berhasil diajukan untuk persetujuan')
+            : __('Reimbursement berhasil diperbarui');
 
         if ($request->expectsJson()) {
             return response()->json(['message' => $msg, 'id' => $reimbursement->id]);
@@ -310,16 +310,16 @@ class ReimbursementController extends Controller
     public function destroy(Request $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
     {
         if ($reimbursement->amount_paid > 0) {
-            return $this->actionResult($request, false, 'Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.');
+            return $this->actionResult($request, false, __('Reimbursement yang sudah memiliki pembayaran tidak dapat dihapus.'));
         }
 
         if (! $reimbursement->canDelete()) {
-            return $this->actionResult($request, false, 'Reimbursement tidak dapat dihapus');
+            return $this->actionResult($request, false, __('Reimbursement tidak dapat dihapus'));
         }
 
         $reimbursement->delete();
 
-        return $this->actionResult($request, true, 'Reimbursement berhasil dihapus');
+        return $this->actionResult($request, true, __('Reimbursement berhasil dihapus'));
     }
 
     public function submit(Request $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
@@ -329,12 +329,12 @@ class ReimbursementController extends Controller
         }
 
         if (! $reimbursement->canSubmit()) {
-            return $this->actionResult($request, false, 'Reimbursement tidak dapat diajukan');
+            return $this->actionResult($request, false, __('Reimbursement tidak dapat diajukan'));
         }
 
         $reimbursement->submit();
 
-        return $this->actionResult($request, true, 'Reimbursement berhasil diajukan untuk persetujuan');
+        return $this->actionResult($request, true, __('Reimbursement berhasil diajukan untuk persetujuan'));
     }
 
     public function review(ReviewReimbursementRequest $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
@@ -342,7 +342,7 @@ class ReimbursementController extends Controller
         abort_if(! auth()->user()->can('approve reimbursements'), 403);
 
         if (! $reimbursement->canReview()) {
-            return $this->actionResult($request, false, 'Reimbursement tidak dapat ditinjau');
+            return $this->actionResult($request, false, __('Reimbursement tidak dapat ditinjau'));
         }
 
         $validated = $request->validated();
@@ -351,12 +351,12 @@ class ReimbursementController extends Controller
             $reimbursement->update(['category_id' => $validated['category_id']]);
             $reimbursement->approve(auth()->id(), $validated['review_notes'] ?? null);
 
-            return $this->actionResult($request, true, 'Reimbursement berhasil disetujui');
+            return $this->actionResult($request, true, __('Reimbursement berhasil disetujui'));
         }
 
         $reimbursement->reject(auth()->id(), $validated['review_notes'] ?? null);
 
-        return $this->actionResult($request, true, 'Reimbursement ditolak');
+        return $this->actionResult($request, true, __('Reimbursement ditolak'));
     }
 
     public function pay(PayReimbursementRequest $request, Reimbursement $reimbursement): JsonResponse|RedirectResponse
@@ -364,7 +364,7 @@ class ReimbursementController extends Controller
         abort_if(! auth()->user()->can('pay reimbursements'), 403);
 
         if (! $reimbursement->canPay()) {
-            return $this->actionResult($request, false, 'Reimbursement tidak dapat dibayar');
+            return $this->actionResult($request, false, __('Reimbursement tidak dapat dibayar'));
         }
 
         $validated = $request->validated();
@@ -392,7 +392,7 @@ class ReimbursementController extends Controller
             );
         });
 
-        return $this->actionResult($request, true, 'Pembayaran berhasil diproses');
+        return $this->actionResult($request, true, __('Pembayaran berhasil diproses'));
     }
 
     private function canSeeAll(): bool

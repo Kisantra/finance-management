@@ -131,7 +131,7 @@ class UserController extends Controller
 
         $this->terapkanKeanggotaan($user, $validated['companies'] ?? null, $validated['role']);
 
-        return redirect()->back()->with('success', 'Pengguna berhasil ditambahkan.');
+        return redirect()->back()->with('success', __('Pengguna berhasil ditambahkan.'));
     }
 
     /**
@@ -167,7 +167,7 @@ class UserController extends Controller
         // MENGHAPUS seluruh keanggotaan pengguna. Validasi di StoreUserRequest
         // sudah menolaknya lebih dulu; ini jaring kalau ada pemanggil lain.
         if ($slugDipilih !== null && $target === []) {
-            abort(422, 'Tidak ada perusahaan sah yang dipilih. Keanggotaan tidak diubah.');
+            abort(422, __('Tidak ada perusahaan sah yang dipilih. Keanggotaan tidak diubah.'));
         }
 
         // Jangan pernah mengeluarkan diri sendiri dari perusahaan yang sedang dibuka:
@@ -287,7 +287,7 @@ class UserController extends Controller
         // yang bisa masuk ke sana tetapi tanpa izin apa pun.
         $this->terapkanKeanggotaan($user, $validated['companies'] ?? null, $validated['role']);
 
-        return redirect()->back()->with('success', 'Pengguna berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Pengguna berhasil diperbarui.'));
     }
 
     public function destroy(User $user): RedirectResponse
@@ -296,12 +296,12 @@ class UserController extends Controller
         $this->pastikanAnggotaPerusahaanAktif($user);
 
         if ($user->id === auth()->id()) {
-            return redirect()->back()->with('error', 'Anda tidak dapat menghapus akun sendiri.');
+            return redirect()->back()->with('error', __('Anda tidak dapat menghapus akun sendiri.'));
         }
 
         $user->delete();
 
-        return redirect()->back()->with('success', 'Pengguna berhasil dihapus.');
+        return redirect()->back()->with('success', __('Pengguna berhasil dihapus.'));
     }
 
     public function bulkDestroy(BulkDestroyUserRequest $request): RedirectResponse
@@ -324,11 +324,11 @@ class UserController extends Controller
         $count = count($ids);
 
         if ($count === 0) {
-            return redirect()->back()->with('error', 'Tidak ada pengguna yang dapat dihapus.');
+            return redirect()->back()->with('error', __('Tidak ada pengguna yang dapat dihapus.'));
         }
 
         User::whereIn('id', $ids)->delete();
 
-        return redirect()->back()->with('success', "Berhasil menghapus {$count} pengguna.");
+        return redirect()->back()->with('success', __('Berhasil menghapus :count pengguna.', ['count' => $count]));
     }
 }

@@ -40,14 +40,14 @@ class EnsureCompanyProfileComplete
         // Langkah 1: profil lengkap.
         if (! $profil || $profil->missingFields() !== []) {
             return $request->user()?->can('manage company profile')
-                ? redirect()->route('settings.company')->with('warning', 'Lengkapi profil perusahaan dulu sebelum melanjutkan.')
+                ? redirect()->route(__('settings.company'))->with('warning', __('Lengkapi profil perusahaan dulu sebelum melanjutkan.'))
                 : Inertia::render('company-not-ready')->toResponse($request);
         }
 
         // Langkah 2: nomor invoice lama (hasil konversi server lama) sudah ditinjau.
         if ($profil->needsInvoiceReview()) {
             return $request->user()?->can('manage invoice settings')
-                ? redirect()->route('settings.invoice-numbering')->with('warning', 'Tinjau nomor invoice lama dulu, supaya invoice berikutnya tidak mengulang nomor yang sudah terkirim.')
+                ? redirect()->route(__('settings.invoice-numbering'))->with('warning', __('Tinjau nomor invoice lama dulu, supaya invoice berikutnya tidak mengulang nomor yang sudah terbit.'))
                 : Inertia::render('company-not-ready')->toResponse($request);
         }
 

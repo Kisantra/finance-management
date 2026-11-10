@@ -22,7 +22,7 @@ class CompanyController extends Controller
     {
         $organization = $request->user()->organization;
 
-        abort_if($organization === null, 403, 'Akun Anda tidak terikat ke organization mana pun.');
+        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organization mana pun.'));
 
         $daftar = Company::query()
             ->where('organization_id', $organization->id)
@@ -105,10 +105,10 @@ class CompanyController extends Controller
     {
         $organization = $request->user()->organization;
 
-        abort_if($organization === null, 403, 'Akun Anda tidak terikat ke organization mana pun.');
+        abort_if($organization === null, 403, __('Akun Anda tidak terikat ke organization mana pun.'));
 
         if ($organization->hasReachedCompanyQuota()) {
-            return back()->withErrors(['slug' => "Kuota perusahaan organization ini ({$organization->company_quota}) sudah penuh."]);
+            return back()->withErrors(['slug' => __('Kuota perusahaan organization ini (:kuota) sudah penuh.', ['kuota' => $organization->company_quota])]);
         }
 
         $validated = $request->validated();
@@ -124,17 +124,17 @@ class CompanyController extends Controller
             Log::error('Provisioning perusahaan gagal', ['slug' => $validated['slug'], 'error' => $e->getMessage()]);
             Company::where('id', $validated['slug'])->update(['status' => 'failed']);
 
-            return back()->withErrors(['slug' => 'Provisioning gagal di tengah jalan — perusahaan berstatus "failed", gunakan tombol Coba Ulang. Detail ada di log.']);
+            return back()->withErrors(['slug' => __('Provisioning gagal di tengah jalan — perusahaan berstatus "failed", gunakan tombol Coba Ulang. Detail ada di log.')]);
         }
 
         $this->grantCreatorAccess($request, $company);
 
-        return back()->with('success', "Perusahaan {$company->name} siap dipakai di /c/{$company->getTenantKey()}.");
+        return back()->with('success', __('Perusahaan :nama siap dipakai di /c/:kode.', ['nama' => $company->name, 'kode' => $company->getTenantKey()]));
     }
 
     public function retry(Request $request, Company $targetCompany): RedirectResponse
     {
-        abort_unless($targetCompany->status === 'failed', 403, 'Hanya perusahaan berstatus "failed" yang bisa dicoba ulang.');
+        abort_unless($targetCompany->status === 'failed', 403, __('Hanya perusahaan berstatus "failed" yang bisa dicoba ulang.'));
         abort_unless($targetCompany->organization_id === $request->user()->organization_id, 403);
 
         $attributes = [
@@ -158,12 +158,12 @@ class CompanyController extends Controller
             Log::error('Retry provisioning gagal', ['slug' => $attributes['id'], 'error' => $e->getMessage()]);
             Company::where('id', $attributes['id'])->update(['status' => 'failed']);
 
-            return back()->withErrors(['slug' => 'Coba ulang masih gagal — periksa log server.']);
+            return back()->withErrors(['slug' => __('Coba ulang masih gagal — periksa log server.')]);
         }
 
         $this->grantCreatorAccess($request, $company);
 
-        return back()->with('success', "Perusahaan {$company->name} berhasil di-provision ulang.");
+        return back()->with('success', __('Perusahaan :nama berhasil di-provision ulang.', ['nama' => $company->name]));
     }
 
     /** Pembuat otomatis menjadi anggota + admin perusahaan baru (tanpa ini tidak ada yang bisa masuk). */

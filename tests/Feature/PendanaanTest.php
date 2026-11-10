@@ -128,7 +128,7 @@ class PendanaanTest extends TestCase
 
         $induk = TransactionCategory::whereNull('parent_id')->where('label', 'Pajak Titipan & PPN')->sole();
         $this->actingAs($this->fm)->post('/bank-transactions', $this->payload($induk, 'debit'))
-            ->assertSessionHasErrors(['category_id' => 'Kategori "Pajak Titipan & PPN" adalah kategori induk. Pilih salah satu sub-kategorinya.']);
+            ->assertSessionHasErrors(['category_id' => 'Kategori "Pajak Titipan & PPN" adalah kategori induk. Pilih salah satu subkategorinya.']);
 
         // Induk pendanaan tanpa anak (bentuk lama "Setoran Modal") juga ditolak: dipakai langsung,
         // ia membuat Pakai Template melewati grupnya.

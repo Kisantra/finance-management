@@ -123,7 +123,7 @@ class TransactionCategoryController extends Controller
             ], 201);
         }
 
-        return redirect()->back()->with('success', 'Kategori berhasil ditambahkan.');
+        return redirect()->back()->with('success', __('Kategori berhasil ditambahkan.'));
     }
 
     /**
@@ -134,10 +134,13 @@ class TransactionCategoryController extends Controller
     {
         $hasil = $template->apply();
 
-        $pesan = "{$hasil['created']} kategori dibuat, {$hasil['existing']} dilewati karena sudah ada.";
+        $pesan = __(':created kategori dibuat, :existing dilewati karena sudah ada.', [
+            'created' => $hasil['created'],
+            'existing' => $hasil['existing'],
+        ]);
 
         if ($hasil['skipped'] > 0) {
-            $pesan .= " {$hasil['skipped']} lainnya dilewati, alasannya tercantum di pratinjau Pakai Template.";
+            $pesan .= ' '.__(':skipped lainnya dilewati, alasannya tercantum di pratinjau Pakai Template.', ['skipped' => $hasil['skipped']]);
         }
 
         return redirect()->back()->with('success', $pesan);
@@ -146,12 +149,12 @@ class TransactionCategoryController extends Controller
     public function update(UpdateTransactionCategoryRequest $request, TransactionCategory $transactionCategory): RedirectResponse
     {
         if ($transactionCategory->isSystem()) {
-            return redirect()->back()->withErrors(['update' => 'Kategori sistem tidak dapat diubah karena dipakai otomatis oleh modul Utang/Piutang.']);
+            return redirect()->back()->withErrors(['update' => __('Kategori sistem tidak dapat diubah karena dipakai otomatis oleh modul Utang/Piutang.')]);
         }
 
         $transactionCategory->update($request->validated());
 
-        return redirect()->back()->with('success', 'Kategori berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Kategori berhasil diperbarui.'));
     }
 
     /**
@@ -170,7 +173,7 @@ class TransactionCategoryController extends Controller
         // sudah terklasifikasi pada matriks kategori — menyesatkan.
         if ($validated['pl_group'] !== null && ! in_array($transactionCategory->type, ['income', 'expense'], true)) {
             return back()->withErrors([
-                'pl_group' => 'Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori '.$transactionCategory->type.'.',
+                'pl_group' => __('Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori :tipe.', ['tipe' => $transactionCategory->type]),
             ]);
         }
 
@@ -182,11 +185,11 @@ class TransactionCategoryController extends Controller
     public function destroy(Request $request, TransactionCategory $transactionCategory): RedirectResponse
     {
         if ($transactionCategory->isSystem()) {
-            return redirect()->back()->withErrors(['delete' => 'Kategori sistem tidak dapat dihapus karena dipakai otomatis oleh modul Utang/Piutang.']);
+            return redirect()->back()->withErrors(['delete' => __('Kategori sistem tidak dapat dihapus karena dipakai otomatis oleh modul Utang/Piutang.')]);
         }
 
         if ($transactionCategory->children()->exists()) {
-            return redirect()->back()->withErrors(['delete' => 'Kategori ini memiliki sub-kategori. Hapus sub-kategori terlebih dahulu.']);
+            return redirect()->back()->withErrors(['delete' => __('Kategori ini memiliki subkategori. Hapus subkategorinya terlebih dahulu.')]);
         }
 
         $validated = $request->validate([
@@ -206,7 +209,7 @@ class TransactionCategoryController extends Controller
             : null;
 
         if ($inUse && ! $reassignTo) {
-            return redirect()->back()->withErrors(['delete' => 'Kategori ini masih digunakan. Pilih kategori pengganti untuk memindahkan data yang terhubung.']);
+            return redirect()->back()->withErrors(['delete' => __('Kategori ini masih digunakan. Pilih kategori pengganti untuk memindahkan data yang terhubung.')]);
         }
 
         // Kategori yang punya anak hanya berfungsi sebagai judul grup; transaksi
@@ -216,12 +219,12 @@ class TransactionCategoryController extends Controller
         // tetap pengganti yang sah.
         if ($inUse && $reassignTo->children()->exists()) {
             return redirect()->back()->withErrors([
-                'reassign_to_id' => 'Kategori pengganti tidak boleh kategori induk. Pilih kategori yang tidak memiliki sub-kategori.',
+                'reassign_to_id' => __('Kategori pengganti tidak boleh kategori induk. Pilih kategori yang tidak memiliki subkategori.'),
             ]);
         }
 
         if ($inUse && $reassignTo->type !== $transactionCategory->type) {
-            return redirect()->back()->withErrors(['delete' => 'Kategori pengganti harus bertipe sama.']);
+            return redirect()->back()->withErrors(['delete' => __('Kategori pengganti harus bertipe sama.')]);
         }
 
         DB::transaction(function () use ($transactionCategory, $reassignTo, $inUse) {
@@ -234,6 +237,6 @@ class TransactionCategoryController extends Controller
             $transactionCategory->delete();
         });
 
-        return redirect()->back()->with('success', 'Kategori berhasil dihapus.');
+        return redirect()->back()->with('success', __('Kategori berhasil dihapus.'));
     }
 }

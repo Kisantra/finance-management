@@ -35,9 +35,9 @@ class StoreCompanyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'slug.regex' => 'Kode URL hanya boleh huruf kecil, angka, dan strip (mis. pt-kinara).',
-            'slug.unique' => 'Kode URL sudah dipakai perusahaan lain.',
-            'abbreviation.alpha' => 'Singkatan hanya boleh huruf (dipakai pada nomor invoice).',
+            'slug.regex' => __('Kode URL hanya boleh huruf kecil, angka, dan strip (mis. pt-kinara).'),
+            'slug.unique' => __('Kode URL sudah dipakai perusahaan lain.'),
+            'abbreviation.alpha' => __('Singkatan hanya boleh huruf (dipakai pada nomor invoice).'),
         ];
     }
 

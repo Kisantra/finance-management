@@ -181,7 +181,7 @@ class TransactionCategory extends Model
                     || self::POKOK_MODUL[$kategori->system_key]['direction'] === $arah);
 
             if ($pokok->isNotEmpty()) {
-                $options[] = ['label' => 'Dari Utang & Piutang', 'value' => -1, 'disabled' => true, 'financing' => true];
+                $options[] = ['label' => __('Dari Utang & Piutang'), 'value' => -1, 'disabled' => true, 'financing' => true];
 
                 foreach ($pokok as $kategori) {
                     $options[] = ['label' => '↳ '.$kategori->label, 'value' => $kategori->id, 'financing' => true];

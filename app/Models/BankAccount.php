@@ -89,7 +89,7 @@ class BankAccount extends Model
         $nama = trim((string) $accountName);
 
         if ($type === self::TYPE_CASH || trim((string) $bankName) === '') {
-            return $nama !== '' ? $nama : 'Kas';
+            return $nama !== '' ? $nama : __('Kas');
         }
 
         return $nama.' — '.$bankName;

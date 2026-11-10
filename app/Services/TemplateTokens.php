@@ -36,143 +36,143 @@ class TemplateTokens
             // ── Invoice ──────────────────────────────────────────────────────
             [
                 'path' => 'invoice.number',
-                'label' => 'No. Invoice',
+                'label' => __('No. Invoice'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->invoice_number ?? ''),
             ],
             [
                 'path' => 'invoice.issue_date',
-                'label' => 'Tanggal Terbit',
+                'label' => __('Tanggal Terbit'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatDate($inv->issue_date),
             ],
             [
                 'path' => 'invoice.date',
-                'label' => 'Tanggal (alias issue_date)',
+                'label' => __('Tanggal (alias issue_date)'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatDate($inv->issue_date),
             ],
             [
                 'path' => 'invoice.due_date',
-                'label' => 'Jatuh Tempo',
+                'label' => __('Jatuh Tempo'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatDate($inv->due_date),
             ],
             [
                 'path' => 'invoice.status',
-                'label' => 'Status',
+                'label' => __('Status'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::translateStatus((string) ($inv->status ?? '')),
             ],
             [
                 'path' => 'invoice.subtotal',
-                'label' => 'Subtotal',
+                'label' => __('Subtotal'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->subtotal ?? 0)),
             ],
             [
                 'path' => 'invoice.discount_amount',
-                'label' => 'Diskon',
+                'label' => __('Diskon'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->discount_amount ?? 0)),
             ],
             [
                 'path' => 'invoice.dpp',
-                'label' => 'DPP (dasar PPN)',
+                'label' => __('DPP (dasar PPN)'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah($inv->dpp_amount),
             ],
             [
                 'path' => 'invoice.ppn_rate',
-                'label' => 'Tarif PPN',
+                'label' => __('Tarif PPN'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (float) $inv->ppn_rate > 0
                     ? rtrim(rtrim(number_format((float) $inv->ppn_rate, 2, ',', '.'), '0'), ',').'%'
                     : '',
             ],
             [
                 'path' => 'invoice.ppn_amount',
-                'label' => 'PPN',
+                'label' => __('PPN'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->ppn_amount ?? 0)),
             ],
             [
                 'path' => 'invoice.total_amount',
-                'label' => 'Total',
+                'label' => __('Total'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->total_amount ?? 0)),
             ],
             [
                 'path' => 'invoice.amount_paid',
-                'label' => 'Sudah Dibayar',
+                'label' => __('Sudah Dibayar'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) $inv->amount_paid),
             ],
             [
                 'path' => 'invoice.amount_remaining',
-                'label' => 'Sisa Tagihan',
+                'label' => __('Sisa Tagihan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) $inv->amount_remaining),
             ],
             [
                 'path' => 'invoice.notes',
-                'label' => 'Catatan',
+                'label' => __('Catatan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->notes ?? ''),
             ],
             [
                 'path' => 'invoice.faktur',
-                'label' => 'No. Faktur Pajak',
+                'label' => __('No. Faktur Pajak'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->faktur ?? ''),
             ],
 
             // ── Client ───────────────────────────────────────────────────────
             [
                 'path' => 'client.name',
-                'label' => 'Nama Klien',
+                'label' => __('Nama Klien'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->name ?? ''),
             ],
             [
                 'path' => 'client.npwp',
-                'label' => 'NPWP Klien',
+                'label' => __('NPWP Klien'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->NPWP ?? ''),
             ],
             [
                 'path' => 'client.address',
-                'label' => 'Alamat Klien',
+                'label' => __('Alamat Klien'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->address ?? ''),
             ],
             [
                 'path' => 'client.email',
-                'label' => 'Email Klien',
+                'label' => __('Email Klien'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->email ?? ''),
             ],
             [
                 'path' => 'client.phone',
-                'label' => 'Telepon Klien',
+                'label' => __('Telepon Klien'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->ar_phone_number ?? ''),
             ],
             [
                 'path' => 'client.person_in_charge',
-                'label' => 'Penanggung Jawab',
+                'label' => __('Penanggung Jawab'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) ($inv->client?->person_in_charge ?? ''),
             ],
 
             // ── Company ──────────────────────────────────────────────────────
             [
                 'path' => 'company.name',
-                'label' => 'Nama Perusahaan',
+                'label' => __('Nama Perusahaan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->name ?? ''),
             ],
             [
                 'path' => 'company.npwp',
-                'label' => 'NPWP Perusahaan',
+                'label' => __('NPWP Perusahaan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->npwp ?? ''),
             ],
             [
                 'path' => 'company.address',
-                'label' => 'Alamat Perusahaan',
+                'label' => __('Alamat Perusahaan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->address ?? ''),
             ],
             [
                 'path' => 'company.phone',
-                'label' => 'Telepon Perusahaan',
+                'label' => __('Telepon Perusahaan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->phone ?? ''),
             ],
             [
                 'path' => 'company.email',
-                'label' => 'Email Perusahaan',
+                'label' => __('Email Perusahaan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->email ?? ''),
             ],
             [
                 'path' => 'company.finance_manager',
-                'label' => 'Manajer Keuangan',
+                'label' => __('Manajer Keuangan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => (string) (CompanyProfile::current()?->finance_manager_name ?? ''),
             ],
 
@@ -181,7 +181,7 @@ class TemplateTokens
             // when rendering in the editor (treated as "full" / no DP).
             [
                 'path' => 'payment.mode',
-                'label' => 'Tipe Cetak',
+                'label' => __('Tipe Cetak'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => match ($ctx['mode'] ?? 'full') {
                     'dp' => 'Uang Muka',
                     'pelunasan' => 'Pelunasan',
@@ -190,7 +190,7 @@ class TemplateTokens
             ],
             [
                 'path' => 'payment.display_amount',
-                'label' => 'Nominal Tagih (sesuai tipe cetak)',
+                'label' => __('Nominal Tagih (sesuai tipe cetak)'),
                 'resolve' => function (Invoice $inv, array $ctx = []): string {
                     $mode = $ctx['mode'] ?? 'full';
                     $amount = match ($mode) {
@@ -204,7 +204,7 @@ class TemplateTokens
             ],
             [
                 'path' => 'payment.display_amount_words',
-                'label' => 'Nominal Tagih (terbilang)',
+                'label' => __('Nominal Tagih (terbilang)'),
                 'resolve' => function (Invoice $inv, array $ctx = []): string {
                     $mode = $ctx['mode'] ?? 'full';
                     $amount = match ($mode) {
@@ -218,14 +218,14 @@ class TemplateTokens
             ],
             [
                 'path' => 'payment.dp_amount',
-                'label' => 'Nominal DP',
+                'label' => __('Nominal DP'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => isset($ctx['dp_amount']) && $ctx['dp_amount'] > 0
                     ? self::formatRupiah((int) $ctx['dp_amount'])
                     : '',
             ],
             [
                 'path' => 'payment.dp_percentage',
-                'label' => 'Persentase DP',
+                'label' => __('Persentase DP'),
                 'resolve' => function (Invoice $inv, array $ctx = []): string {
                     $dp = (int) ($ctx['dp_amount'] ?? 0);
                     $subtotal = (int) ($inv->subtotal ?? 0);
@@ -238,19 +238,19 @@ class TemplateTokens
             ],
             [
                 'path' => 'payment.pelunasan_amount',
-                'label' => 'Nominal Pelunasan',
+                'label' => __('Nominal Pelunasan'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => isset($ctx['pelunasan_amount']) && $ctx['pelunasan_amount'] > 0
                     ? self::formatRupiah((int) $ctx['pelunasan_amount'])
                     : '',
             ],
             [
                 'path' => 'payment.already_paid',
-                'label' => 'Sudah Dibayar (sebelum pelunasan)',
+                'label' => __('Sudah Dibayar (sebelum pelunasan)'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) $inv->amount_paid),
             ],
             [
                 'path' => 'payment.remaining_after',
-                'label' => 'Sisa setelah DP',
+                'label' => __('Sisa setelah DP'),
                 'resolve' => function (Invoice $inv, array $ctx = []): string {
                     $dp = (int) ($ctx['dp_amount'] ?? 0);
                     if ($dp <= 0) {

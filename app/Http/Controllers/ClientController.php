@@ -101,7 +101,7 @@ class ClientController extends Controller
         $nullable = array_map(fn ($v) => $v ?: null, $validated);
         Client::create(array_merge($nullable, ['name' => $validated['name'], 'type' => $validated['type'], 'status' => $validated['status']]));
 
-        return redirect()->back()->with('success', 'Klien berhasil ditambahkan.');
+        return redirect()->back()->with('success', __('Klien berhasil ditambahkan.'));
     }
 
     public function update(UpdateClientRequest $request, Client $client): RedirectResponse
@@ -110,7 +110,7 @@ class ClientController extends Controller
         $nullable = array_map(fn ($v) => $v ?: null, $validated);
         $client->update(array_merge($nullable, ['name' => $validated['name'], 'type' => $validated['type'], 'status' => $validated['status']]));
 
-        return redirect()->back()->with('success', 'Klien berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Klien berhasil diperbarui.'));
     }
 
     public function destroy(Client $client): RedirectResponse
@@ -125,7 +125,7 @@ class ClientController extends Controller
             ->orderByDesc('id')
             ->limit(5)
             ->pluck('invoice_number')
-            ->map(fn ($n) => $n ?: '(draft tanpa nomor)')
+            ->map(fn ($n) => $n ?: __('(draft tanpa nomor)'))
             ->all();
 
         $jumlahInvoice = $client->invoices()->count();
@@ -136,21 +136,24 @@ class ClientController extends Controller
         if ($jumlahInvoice > 0 || $jumlahItemDiInvoiceLain > 0) {
             $bagian = [];
             if ($jumlahInvoice > 0) {
-                $bagian[] = $jumlahInvoice.' invoice ('.implode(', ', $nomorInvoice).
-                    ($jumlahInvoice > count($nomorInvoice) ? ', …' : '').')';
+                $bagian[] = __(':count invoice (:nomor)', [
+                    'count' => $jumlahInvoice,
+                    'nomor' => implode(', ', $nomorInvoice).($jumlahInvoice > count($nomorInvoice) ? ', …' : ''),
+                ]);
             }
             if ($jumlahItemDiInvoiceLain > 0) {
-                $bagian[] = $jumlahItemDiInvoiceLain.' item pada invoice klien lain';
+                $bagian[] = __(':count item pada invoice klien lain', ['count' => $jumlahItemDiInvoiceLain]);
             }
 
             return redirect()->back()->withErrors([
-                'delete' => 'Klien tidak dapat dihapus karena masih terkait dengan '.
-                    implode(' dan ', $bagian).'. Hapus atau alihkan data tersebut terlebih dahulu.',
+                'delete' => __('Klien tidak dapat dihapus karena masih terkait dengan :bagian. Hapus atau alihkan data tersebut terlebih dahulu.', [
+                    'bagian' => implode(__(' dan '), $bagian),
+                ]),
             ]);
         }
 
         $client->delete();
 
-        return redirect()->back()->with('success', 'Klien berhasil dihapus.');
+        return redirect()->back()->with('success', __('Klien berhasil dihapus.'));
     }
 }

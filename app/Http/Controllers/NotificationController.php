@@ -21,8 +21,7 @@ class NotificationController extends Controller
         $items = $query->limit($perPage * $page)->get()->map(fn (AppNotification $n) => [
             'id' => $n->id,
             'type' => $n->type,
-            'title' => $n->title,
-            'message' => $n->message,
+            ...$n->teksTampil(),
             'data' => $n->data,
             'read_at' => $n->read_at?->toIso8601String(),
             'created_at' => $n->created_at?->toIso8601String(),

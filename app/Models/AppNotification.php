@@ -172,6 +172,63 @@ class AppNotification extends Model
         ]);
     }
 
+    /**
+     * Notifikasi yang teksnya diterjemahkan saat DIBACA (aturan emas: teks tersimpan tetap Bahasa
+     * Indonesia, D7). `title`/`message` disimpan dalam Bahasa Indonesia; kunci & parameternya ikut
+     * disimpan di `data.i18n` supaya pembaca melihat bahasanya sendiri. Nilai parameter berbentuk
+     * `['trans' => 'grup.kunci']` diterjemahkan saat dibaca (mis. label jenis Masukan).
+     *
+     * @param  string  $titleKey  teks Indonesia persis (kunci terjemahan), tanpa nilai
+     * @param  string  $messageKey  teks Indonesia persis dengan placeholder `:nama`
+     * @param  array<string, mixed>  $params
+     * @param  array<string, mixed>  $data
+     */
+    public static function notifyTerjemahan(int $userId, string $type, string $titleKey, string $messageKey, array $params, array $data = [], ?string $companyId = null): self
+    {
+        $data['i18n'] = ['title' => $titleKey, 'message' => $messageKey, 'params' => $params];
+
+        return self::notify(
+            $userId,
+            $type,
+            __($titleKey, [], 'id'),
+            __($messageKey, self::paramTerselesaikan($params, 'id'), 'id'),
+            $data,
+            $companyId,
+        );
+    }
+
+    /**
+     * Judul & pesan dalam bahasa pembaca; notifikasi tanpa `data.i18n` (lama, atau dari modul lain)
+     * memakai teks tersimpan apa adanya.
+     *
+     * @return array{title: string, message: string}
+     */
+    public function teksTampil(): array
+    {
+        $i18n = $this->data['i18n'] ?? null;
+
+        if (! is_array($i18n) || ! isset($i18n['title'], $i18n['message'])) {
+            return ['title' => $this->title, 'message' => $this->message];
+        }
+
+        return [
+            'title' => __($i18n['title']),
+            'message' => __($i18n['message'], self::paramTerselesaikan((array) ($i18n['params'] ?? []), app()->getLocale())),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     * @return array<string, mixed>
+     */
+    private static function paramTerselesaikan(array $params, string $locale): array
+    {
+        return array_map(
+            fn (mixed $nilai): mixed => is_array($nilai) && isset($nilai['trans']) ? __($nilai['trans'], [], $locale) : $nilai,
+            $params,
+        );
+    }
+
     public static function notifyMany(array $userIds, string $type, string $title, string $message, array $data = []): void
     {
         foreach ($userIds as $userId) {

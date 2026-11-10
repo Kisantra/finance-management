@@ -30,9 +30,9 @@ class StoreReimbursementRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'amount.min' => 'Nominal minimal Rp 1.',
-            'attachment.mimes' => 'Lampiran harus berupa JPG, PNG, atau PDF.',
-            'attachment.max' => 'Ukuran lampiran maksimal 5 MB.',
+            'amount.min' => __('Nominal minimal Rp 1.'),
+            'attachment.mimes' => __('Lampiran harus berupa JPG, PNG, atau PDF.'),
+            'attachment.max' => __('Ukuran lampiran maksimal 5 MB.'),
         ];
     }
 }

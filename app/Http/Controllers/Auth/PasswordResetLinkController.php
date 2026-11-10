@@ -26,6 +26,6 @@ class PasswordResetLinkController extends Controller
 
         Password::sendResetLink($request->only('email'));
 
-        return back()->with('status', __('A reset link will be sent if the account exists.'));
+        return back()->with('status', __('Tautan atur ulang kata sandi akan dikirim bila akunnya terdaftar.'));
     }
 }

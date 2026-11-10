@@ -219,11 +219,11 @@ class BankTransactionController extends Controller
 
         BankTransaction::create($data);
 
-        $messageKey = $validated['transaction_type'] === 'credit'
-            ? 'pages.income_recorded_successfully'
-            : 'pages.expense_recorded_successfully';
+        $pesan = $validated['transaction_type'] === 'credit'
+            ? __('Pemasukan berhasil dicatat.')
+            : __('Pengeluaran berhasil dicatat.');
 
-        return redirect()->back()->with('success', __($messageKey));
+        return redirect()->back()->with('success', $pesan);
     }
 
     /**
@@ -323,7 +323,7 @@ class BankTransactionController extends Controller
                 ]);
         }
 
-        return redirect()->back()->with('success', __('pages.transaction_updated_successfully'));
+        return redirect()->back()->with('success', __('Transaksi berhasil diperbarui'));
     }
 
     /**
@@ -349,7 +349,7 @@ class BankTransactionController extends Controller
             $bankTransaction->delete();
         }
 
-        return redirect()->back()->with('success', __('pages.transaction_deleted_successfully'));
+        return redirect()->back()->with('success', __('Transaksi berhasil dihapus.'));
     }
 
     /**
@@ -398,7 +398,7 @@ class BankTransactionController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', __('pages.bulk_delete_success', ['count' => count($validated['ids'])]));
+        return redirect()->back()->with('success', __(':count transaksi berhasil dihapus', ['count' => count($validated['ids'])]));
     }
 
     /**
@@ -450,6 +450,6 @@ class BankTransactionController extends Controller
             ]);
         });
 
-        return redirect()->back()->with('success', __('pages.transfer_completed_successfully'));
+        return redirect()->back()->with('success', __('Transfer berhasil dicatat.'));
     }
 }

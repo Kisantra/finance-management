@@ -323,7 +323,7 @@
                             <td style="padding: 2px 0 2px 5px; font-size: 8pt;">075/AGSA-GAM/INVOICE/X/2025</td>
                         </tr>
                         <tr>
-                            <td style="padding: 2px 5px 2px 0; font-size: 8pt; white-space: nowrap;">{{ strtoupper(__('common.date')) }}</td>
+                            <td style="padding: 2px 5px 2px 0; font-size: 8pt; white-space: nowrap;">{{ strtoupper('Tanggal') }}</td>
                             <td style="padding: 2px 5px; font-size: 8pt;">:</td>
                             <td style="padding: 2px 0 2px 5px; font-size: 8pt;">21 Oktober 2025</td>
                         </tr>

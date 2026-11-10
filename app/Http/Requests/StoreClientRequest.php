@@ -43,8 +43,8 @@ class StoreClientRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'alias.max' => 'Alias maksimal 10 karakter.',
-            'alias.regex' => 'Alias hanya boleh huruf dan angka, tanpa spasi atau tanda baca.',
+            'alias.max' => __('Alias maksimal 10 karakter.'),
+            'alias.regex' => __('Alias hanya boleh huruf dan angka, tanpa spasi atau tanda baca.'),
         ];
     }
 }

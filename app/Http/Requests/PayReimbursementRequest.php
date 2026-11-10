@@ -28,8 +28,10 @@ class PayReimbursementRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'payment_amount.max' => 'Jumlah pembayaran melebihi sisa reimbursement (Rp '.number_format($this->remaining(), 0, ',', '.').').',
-            'payment_date.before_or_equal' => 'Tanggal pembayaran tidak boleh setelah hari ini.',
+            'payment_amount.max' => __('Jumlah pembayaran melebihi sisa reimbursement (Rp :sisa).', [
+                'sisa' => number_format($this->remaining(), 0, ',', '.'),
+            ]),
+            'payment_date.before_or_equal' => __('Tanggal pembayaran tidak boleh setelah hari ini.'),
         ];
     }
 

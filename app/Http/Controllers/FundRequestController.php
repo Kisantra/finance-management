@@ -273,8 +273,8 @@ class FundRequestController extends Controller
         });
 
         $msg = $validated['action'] === 'submit'
-            ? 'Permintaan dana berhasil diajukan untuk persetujuan'
-            : 'Permintaan dana berhasil disimpan sebagai draft';
+            ? __('Pengajuan dana berhasil diajukan untuk persetujuan')
+            : __('Pengajuan dana berhasil disimpan sebagai draft');
 
         return redirect()->route('fund-requests.index')->with('success', $msg);
     }
@@ -287,7 +287,7 @@ class FundRequestController extends Controller
 
         if (! $fundRequest->canEdit()) {
             return redirect()->route('fund-requests.index')
-                ->with('error', 'Permintaan dana tidak dapat diedit');
+                ->with('error', __('Pengajuan dana tidak dapat diubah'));
         }
 
         $categories = TransactionCategory::selectOptions('expense');
@@ -326,7 +326,7 @@ class FundRequestController extends Controller
         }
 
         if (! $fundRequest->canEdit()) {
-            return back()->with('error', 'Permintaan dana tidak dapat diedit');
+            return back()->with('error', __('Pengajuan dana tidak dapat diubah'));
         }
 
         $validated = $request->validated();
@@ -395,12 +395,12 @@ class FundRequestController extends Controller
 
         if (($validated['action'] ?? null) === 'submit' && ! ($berhasil ?? false)) {
             return redirect()->route('fund-requests.index')
-                ->with('error', 'Perubahan tersimpan, tetapi pengajuan tidak dapat dikirim untuk persetujuan pada status saat ini.');
+                ->with('error', __('Perubahan tersimpan, tetapi pengajuan tidak dapat dikirim untuk persetujuan pada status saat ini.'));
         }
 
         $msg = $validated['action'] === 'submit'
-            ? 'Permintaan dana berhasil diajukan untuk persetujuan'
-            : 'Permintaan dana berhasil diperbarui';
+            ? __('Pengajuan dana berhasil diajukan untuk persetujuan')
+            : __('Pengajuan dana berhasil diperbarui');
 
         return redirect()->route('fund-requests.index')->with('success', $msg);
     }
@@ -413,17 +413,17 @@ class FundRequestController extends Controller
         // menyimpan transaksi PERTAMA, sehingga item ke-2 dst. tak terjangkau.
         if ($fundRequest->status === 'disbursed') {
             return redirect()->back()->withErrors([
-                'delete' => 'Pengajuan yang sudah dicairkan tidak dapat dihapus karena pencairannya sudah tercatat sebagai pengeluaran bank.',
+                'delete' => __('Pengajuan yang sudah dicairkan tidak dapat dihapus karena pencairannya sudah tercatat sebagai pengeluaran bank.'),
             ]);
         }
 
         if (! $fundRequest->canDelete()) {
-            return back()->with('error', 'Permintaan dana tidak dapat dihapus');
+            return back()->with('error', __('Pengajuan dana tidak dapat dihapus'));
         }
 
         $fundRequest->delete();
 
-        return back()->with('success', 'Permintaan dana berhasil dihapus');
+        return back()->with('success', __('Pengajuan dana berhasil dihapus'));
     }
 
     public function submit(FundRequest $fundRequest): RedirectResponse
@@ -433,12 +433,12 @@ class FundRequestController extends Controller
         }
 
         if (! $fundRequest->canSubmit()) {
-            return back()->with('error', 'Permintaan dana tidak dapat diajukan (pastikan ada item dengan jumlah valid)');
+            return back()->with('error', __('Pengajuan dana tidak dapat diajukan (pastikan ada item dengan jumlah valid)'));
         }
 
         $fundRequest->submit();
 
-        return back()->with('success', 'Permintaan dana berhasil diajukan untuk persetujuan');
+        return back()->with('success', __('Pengajuan dana berhasil diajukan untuk persetujuan'));
     }
 
     public function review(ReviewFundRequestRequest $request, FundRequest $fundRequest): RedirectResponse
@@ -446,7 +446,7 @@ class FundRequestController extends Controller
         abort_if(! auth()->user()->can('approve fund requests'), 403);
 
         if (! $fundRequest->canReview()) {
-            return back()->with('error', 'Permintaan dana tidak dapat ditinjau');
+            return back()->with('error', __('Pengajuan dana tidak dapat ditinjau'));
         }
 
         $validated = $request->validated();
@@ -454,12 +454,12 @@ class FundRequestController extends Controller
         if ($validated['action'] === 'approve') {
             $fundRequest->approve(auth()->id(), $validated['review_notes'] ?? null);
 
-            return back()->with('success', 'Permintaan dana berhasil disetujui');
+            return back()->with('success', __('Pengajuan dana berhasil disetujui'));
         }
 
         $fundRequest->reject(auth()->id(), $validated['review_notes'] ?? null);
 
-        return back()->with('success', 'Permintaan dana ditolak');
+        return back()->with('success', __('Pengajuan dana ditolak'));
     }
 
     public function disburse(DisburseFundRequestRequest $request, FundRequest $fundRequest): RedirectResponse
@@ -467,7 +467,7 @@ class FundRequestController extends Controller
         abort_if(! auth()->user()->can('disburse fund requests'), 403);
 
         if (! $fundRequest->canDisburse()) {
-            return back()->with('error', 'Permintaan dana tidak dapat dicairkan');
+            return back()->with('error', __('Pengajuan dana tidak dapat dicairkan'));
         }
 
         $validated = $request->validated();
@@ -509,6 +509,6 @@ class FundRequestController extends Controller
             );
         });
 
-        return back()->with('success', 'Dana berhasil dicairkan');
+        return back()->with('success', __('Dana berhasil dicairkan'));
     }
 }

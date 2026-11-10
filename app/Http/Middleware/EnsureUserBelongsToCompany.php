@@ -18,14 +18,14 @@ class EnsureUserBelongsToCompany
         $company = tenant();
 
         abort_if($company === null, 404);
-        abort_unless($company->isActive(), 403, 'Perusahaan ini sedang tidak aktif.');
+        abort_unless($company->isActive(), 403, __('Perusahaan ini sedang tidak aktif.'));
 
         $isMember = $request->user()
             ->companies()
             ->whereKey($company->getTenantKey())
             ->exists();
 
-        abort_unless($isMember, 403, 'Anda tidak memiliki akses ke perusahaan ini.');
+        abort_unless($isMember, 403, __('Anda tidak memiliki akses ke perusahaan ini.'));
 
         return $next($request);
     }

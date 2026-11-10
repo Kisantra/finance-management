@@ -159,22 +159,22 @@ class RecurringInvoiceController extends Controller
 
             if ($request->hasHeader('X-Inertia')) {
                 return redirect()->route('recurring-invoices.index')
-                    ->with('success', "Template '{$template->template_name}' berhasil dibuat.");
+                    ->with('success', __("Template ':nama' berhasil dibuat.", ['nama' => $template->template_name]));
             }
 
             return response()->json([
                 'template' => $this->formatTemplate($template->load('client', 'recurringInvoices')),
-                'message' => "Template '{$template->template_name}' berhasil dibuat.",
+                'message' => __("Template ':nama' berhasil dibuat.", ['nama' => $template->template_name]),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Failed to create recurring template: '.$e->getMessage());
 
             if ($request->hasHeader('X-Inertia')) {
-                return back()->withErrors(['general' => 'Gagal membuat template: '.$e->getMessage()]);
+                return back()->withErrors(['general' => __('Gagal membuat template: :pesan', ['pesan' => $e->getMessage()])]);
             }
 
-            return response()->json(['message' => 'Gagal membuat template: '.$e->getMessage()], 500);
+            return response()->json(['message' => __('Gagal membuat template: :pesan', ['pesan' => $e->getMessage()])], 500);
         }
     }
 
@@ -200,21 +200,21 @@ class RecurringInvoiceController extends Controller
 
             if ($request->hasHeader('X-Inertia')) {
                 return redirect()->route('recurring-invoices.index')
-                    ->with('success', "Template '{$template->template_name}' berhasil diperbarui.");
+                    ->with('success', __("Template ':nama' berhasil diperbarui.", ['nama' => $template->template_name]));
             }
 
             return response()->json([
                 'template' => $this->formatTemplate($template->fresh(['client', 'recurringInvoices'])),
-                'message' => "Template '{$template->template_name}' berhasil diperbarui.",
+                'message' => __("Template ':nama' berhasil diperbarui.", ['nama' => $template->template_name]),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
             if ($request->hasHeader('X-Inertia')) {
-                return back()->withErrors(['general' => 'Gagal memperbarui template: '.$e->getMessage()]);
+                return back()->withErrors(['general' => __('Gagal memperbarui template: :pesan', ['pesan' => $e->getMessage()])]);
             }
 
-            return response()->json(['message' => 'Gagal memperbarui template: '.$e->getMessage()], 500);
+            return response()->json(['message' => __('Gagal memperbarui template: :pesan', ['pesan' => $e->getMessage()])], 500);
         }
     }
 
@@ -224,11 +224,11 @@ class RecurringInvoiceController extends Controller
 
         if ($hasPublished) {
             $template->update(['status' => 'archived']);
-            $message = 'Template diarsipkan (memiliki invoice terpublish).';
+            $message = __('Template diarsipkan karena sudah menghasilkan invoice.');
         } else {
             $template->recurringInvoices()->delete();
             $template->delete();
-            $message = 'Template berhasil dihapus.';
+            $message = __('Template berhasil dihapus.');
         }
 
         return response()->json(['message' => $message, 'archived' => $hasPublished]);
@@ -240,7 +240,7 @@ class RecurringInvoiceController extends Controller
 
         return response()->json([
             'template' => $this->formatTemplate($template->fresh(['client', 'recurringInvoices'])),
-            'message' => "Template '{$template->template_name}' berhasil diaktifkan kembali.",
+            'message' => __("Template ':nama' berhasil diaktifkan kembali.", ['nama' => $template->template_name]),
         ]);
     }
 
@@ -292,8 +292,8 @@ class RecurringInvoiceController extends Controller
         return response()->json([
             'generated' => $generated,
             'message' => $generated > 0
-                ? "{$generated} invoice berhasil digenerate."
-                : 'Tidak ada invoice yang perlu digenerate untuk bulan ini.',
+                ? __(':count invoice berhasil digenerate.', ['count' => $generated])
+                : __('Tidak ada invoice yang perlu digenerate untuk bulan ini.'),
         ]);
     }
 
@@ -310,7 +310,7 @@ class RecurringInvoiceController extends Controller
 
         if ($exists) {
             return response()->json([
-                'message' => 'Invoice untuk template dan bulan ini sudah ada.',
+                'message' => __('Invoice untuk template dan bulan ini sudah ada.'),
             ], 422);
         }
 
@@ -328,8 +328,8 @@ class RecurringInvoiceController extends Controller
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'Bulan tersebut bukan periode penagihan yang sah untuk template ini.',
-                    'errors' => ['scheduled_date' => ['Bulan tersebut bukan periode penagihan yang sah untuk template ini.']],
+                    'message' => __('Bulan tersebut bukan periode penagihan yang sah untuk template ini.'),
+                    'errors' => ['scheduled_date' => [__('Bulan tersebut bukan periode penagihan yang sah untuk template ini.')]],
                 ], 422);
             }
 
@@ -349,19 +349,19 @@ class RecurringInvoiceController extends Controller
 
             return response()->json([
                 'invoice' => $this->formatMonthlyInvoice($invoice->load('client', 'template', 'publishedInvoice')),
-                'message' => 'Invoice berhasil dibuat.',
+                'message' => __('Invoice berhasil dibuat.'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => 'Gagal membuat invoice.'], 500);
+            return response()->json(['message' => __('Gagal membuat invoice.')], 500);
         }
     }
 
     public function updateMonthly(UpdateMonthlyRequest $request, RecurringInvoice $invoice): JsonResponse
     {
         if ($invoice->status === 'published') {
-            return response()->json(['message' => 'Invoice yang sudah dipublish tidak dapat diubah.'], 422);
+            return response()->json(['message' => __('Invoice yang sudah dijadikan invoice tidak dapat diubah.')], 422);
         }
 
         $data = $request->validated();
@@ -382,30 +382,30 @@ class RecurringInvoiceController extends Controller
 
             return response()->json([
                 'invoice' => $this->formatMonthlyInvoice($invoice->fresh(['client', 'template', 'publishedInvoice'])),
-                'message' => 'Invoice berhasil diperbarui.',
+                'message' => __('Invoice berhasil diperbarui.'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['message' => 'Gagal memperbarui invoice.'], 500);
+            return response()->json(['message' => __('Gagal memperbarui invoice.')], 500);
         }
     }
 
     public function destroyMonthly(RecurringInvoice $invoice): JsonResponse
     {
         if ($invoice->status === 'published') {
-            return response()->json(['message' => 'Invoice yang sudah dipublish tidak dapat dihapus.'], 422);
+            return response()->json(['message' => __('Invoice yang sudah dijadikan invoice tidak dapat dihapus.')], 422);
         }
 
         $invoice->delete();
 
-        return response()->json(['message' => 'Invoice berhasil dihapus.']);
+        return response()->json(['message' => __('Invoice berhasil dihapus.')]);
     }
 
     public function publishMonthly(Request $request, RecurringInvoice $invoice): JsonResponse
     {
         if ($invoice->status === 'published') {
-            return response()->json(['message' => 'Invoice sudah dipublish.'], 422);
+            return response()->json(['message' => __('Draft ini sudah dijadikan invoice.')], 422);
         }
 
         $data = $request->validate([
@@ -424,10 +424,10 @@ class RecurringInvoiceController extends Controller
             return response()->json([
                 'invoice' => $this->formatMonthlyInvoice($invoice->fresh(['client', 'template', 'publishedInvoice'])),
                 'invoice_id' => $published->id,
-                'message' => 'Invoice draft dibuat. Kirim invoice untuk mendapat nomor resmi.',
+                'message' => __('Invoice draft dibuat. Terbitkan invoice untuk mendapat nomor resmi.'),
             ]);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Gagal mempublish invoice: '.$e->getMessage()], 500);
+            return response()->json(['message' => __('Gagal mempublish invoice: :pesan', ['pesan' => $e->getMessage()])], 500);
         }
     }
 
@@ -441,7 +441,7 @@ class RecurringInvoiceController extends Controller
 
         return response()->json([
             'deleted' => $deleted,
-            'message' => "{$deleted} invoice berhasil dihapus.",
+            'message' => __(':count invoice berhasil dihapus.', ['count' => $deleted]),
         ]);
     }
 
@@ -474,7 +474,7 @@ class RecurringInvoiceController extends Controller
 
         return response()->json([
             'published' => $published,
-            'message' => "{$published} invoice berhasil dipublish.",
+            'message' => __(':count draft berhasil dijadikan invoice.', ['count' => $published]),
         ]);
     }
 

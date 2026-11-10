@@ -53,7 +53,7 @@ class PdfTemplateController extends Controller
         ]);
 
         return redirect()->route('settings.pdf-templates.edit', $template)
-            ->with('success', 'Template berhasil dibuat.');
+            ->with('success', __('Template berhasil dibuat.'));
     }
 
     public function update(Request $request, PdfTemplate $pdfTemplate): RedirectResponse
@@ -73,7 +73,7 @@ class PdfTemplateController extends Controller
             $pdfTemplate->setAsDefault();
         }
 
-        return redirect()->back()->with('success', 'Template berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Template berhasil diperbarui.'));
     }
 
     public function destroy(PdfTemplate $pdfTemplate): RedirectResponse
@@ -91,7 +91,7 @@ class PdfTemplateController extends Controller
         }
 
         return redirect()->route('settings.pdf-templates.index')
-            ->with('success', 'Template berhasil dihapus.');
+            ->with('success', __('Template berhasil dihapus.'));
     }
 
     public function duplicate(PdfTemplate $pdfTemplate): RedirectResponse
@@ -104,14 +104,14 @@ class PdfTemplateController extends Controller
         ]);
 
         return redirect()->route('settings.pdf-templates.edit', $copy)
-            ->with('success', 'Template berhasil diduplikat.');
+            ->with('success', __('Template berhasil diduplikat.'));
     }
 
     public function setDefault(PdfTemplate $pdfTemplate): RedirectResponse
     {
         $pdfTemplate->setAsDefault();
 
-        return redirect()->back()->with('success', 'Template default berhasil diubah.');
+        return redirect()->back()->with('success', __('Template bawaan berhasil diubah.'));
     }
 
     /**
@@ -187,7 +187,7 @@ class PdfTemplateController extends Controller
             'layout' => $layout,
         ]);
 
-        return back()->with('success', 'Layout tersimpan.');
+        return back()->with('success', __('Layout tersimpan.'));
     }
 
     /**

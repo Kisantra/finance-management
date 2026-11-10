@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
                     ])->values()->toArray()
                 : [],
             'locale' => app()->getLocale(),
+            'timezone' => config('app.timezone'),
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
@@ -125,8 +126,7 @@ class HandleInertiaRequests extends Middleware
             ->map(fn (AppNotification $n) => [
                 'id' => $n->id,
                 'type' => $n->type,
-                'title' => $n->title,
-                'message' => $n->message,
+                ...$n->teksTampil(),
                 'data' => $n->data,
                 'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at?->toIso8601String(),

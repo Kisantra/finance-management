@@ -26,8 +26,8 @@ class SendInvoiceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'invoice_number.required' => 'Nomor invoice wajib diisi.',
-            'invoice_number.unique' => 'Nomor ini sudah dipakai invoice lain.',
+            'invoice_number.required' => __('Nomor invoice wajib diisi.'),
+            'invoice_number.unique' => __('Nomor ini sudah dipakai invoice lain.'),
         ];
     }
 }

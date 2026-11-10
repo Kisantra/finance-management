@@ -33,10 +33,10 @@ class UpdateInvoiceSettingsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'format.required' => 'Pola nomor wajib diisi.',
-            'format.max' => 'Pola nomor maksimal 100 karakter.',
-            'padding.in' => 'Jumlah digit harus antara 1 dan 5.',
-            'reset.in' => 'Pilih kapan nomor kembali ke 1.',
+            'format.required' => __('Pola nomor wajib diisi.'),
+            'format.max' => __('Pola nomor maksimal 100 karakter.'),
+            'padding.in' => __('Jumlah digit harus antara 1 dan 5.'),
+            'reset.in' => __('Pilih kapan nomor kembali ke 1.'),
         ];
     }
 
@@ -52,7 +52,7 @@ class UpdateInvoiceSettingsRequest extends FormRequest
                 }
 
                 if (! CompanyProfile::current()) {
-                    $validator->errors()->add('format', 'Lengkapi Profil Perusahaan terlebih dahulu; pengaturan penomoran disimpan di sana.');
+                    $validator->errors()->add('format', __('Lengkapi Profil Perusahaan terlebih dahulu; pengaturan penomoran disimpan di sana.'));
 
                     return;
                 }
