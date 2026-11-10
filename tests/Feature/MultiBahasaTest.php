@@ -240,6 +240,17 @@ class MultiBahasaTest extends TestCase
         $this->assertSame([], $tanpa, 'Rute dokumen tanpa middleware locale.dokumen (PDF/Excel akan ikut bahasa pengguna).');
     }
 
+    /** Jawaban alat MCP untuk Claude adalah teks ke sistem lain (D12): selalu Bahasa Indonesia, apa pun bahasa pengguna. */
+    public function test_rute_mcp_selalu_bahasa_indonesia(): void
+    {
+        // Mcp::web mendaftarkan GET/DELETE/POST; panggilan alat (JSON-RPC) lewat POST, dan di situlah middleware tambahan menempel.
+        $rute = collect(Route::getRoutes()->getRoutes())
+            ->first(fn ($r): bool => $r->uri() === 'mcp/keuangan' && in_array('POST', $r->methods(), true));
+
+        $this->assertNotNull($rute, 'Rute POST mcp/keuangan tidak ditemukan');
+        $this->assertContains('locale.dokumen', $rute->gatherMiddleware(), 'Rute MCP tanpa locale.dokumen: label alat akan ikut bahasa pengguna.');
+    }
+
     public function test_with_document_locale_memakai_id_lalu_memulihkan_bahasa_walau_gagal(): void
     {
         App::setLocale('zh');

@@ -71,13 +71,11 @@ function fmtPeriod(start: string, end: string): string {
     return `${formatTanggal(start, 'panjang')} — ${formatTanggal(end, 'panjang')}`;
 }
 
-/** Zona waktu aplikasi (config/app.php 'timezone'). Label zona (WITA/GMT+8) diturunkan dari sini, bukan dipatok "WIB". */
-const ZONA_APLIKASI = 'Asia/Makassar';
 
 /** "10 November 2026 16.05 WITA" menurut bahasa aktif, dalam zona waktu aplikasi. */
-function stempelWaktu(nilai: Date): string {
-    const tanggal = formatTanggal(nilai, { day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_APLIKASI });
-    const jam = formatTanggal(nilai, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: ZONA_APLIKASI, timeZoneName: 'short' });
+function stempelWaktu(nilai: Date, zona: string): string {
+    const tanggal = formatTanggal(nilai, { day: 'numeric', month: 'long', year: 'numeric', timeZone: zona });
+    const jam = formatTanggal(nilai, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: zona, timeZoneName: 'short' });
     return `${tanggal} ${jam}`;
 }
 
@@ -156,6 +154,7 @@ function DocSectionTitle({ children }: { children: React.ReactNode }) {
 /* ────────────────────────────────────────────────────────── document view ── */
 
 function PdfDocument({ report, company }: { report: Report; company: Props['companyProfile'] }) {
+    const { timezone } = usePage<SharedProps>().props;
     return (
         <article
             className={cn(
@@ -264,7 +263,7 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
 
             {/* Document footer */}
             <footer className="mt-10 pt-3 border-t border-zinc-200 flex justify-between text-[10px] text-zinc-400">
-                <span>{t('Dicetak: {{time}}', { time: stempelWaktu(new Date()) })}</span>
+                <span>{t('Dicetak: {{time}}', { time: stempelWaktu(new Date(), timezone) })}</span>
                 <span>{t('Basis: kas · HPP pemulihan biaya')}</span>
             </footer>
         </article>

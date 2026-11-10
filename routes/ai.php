@@ -17,4 +17,4 @@ Route::middleware('throttle:20,1')->group(function () {
 
 // Tanpa token Passport yang sah: 401 + WWW-Authenticate (dipasang Mcp::web) agar
 // Claude memulai login OAuth. Izin per perusahaan dicek di setiap alat.
-Mcp::web('/mcp/keuangan', KeuanganServer::class)->middleware(['auth:api', 'throttle:120,1']);
+Mcp::web('/mcp/keuangan', KeuanganServer::class)->middleware(['auth:api', 'throttle:120,1', 'locale.dokumen']);

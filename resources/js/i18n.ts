@@ -216,7 +216,7 @@ export function formatTanggal(
     // diseragamkan ke "Agt" agar tampilan Indonesia tidak berubah.
     return f
         .formatToParts(tanggal)
-        .map((bagian) => (bagian.type === 'month' && bagian.value === 'Agu' ? 'Agt' : bagian.value))
+        .map((bagian) => (bagian.type === 'month' && bagian.value === 'Agu' ? 'Agt' : bagian.value)) // i18n-abaikan: singkatan bulan Indonesia, bagian format tanggal
         .join('');
 }
 

@@ -44,6 +44,8 @@ export interface CompanyOption {
 export type SharedProps = {
     auth: Auth;
     locale: string;
+    /** Zona waktu aplikasi (config app.timezone), mis. Asia/Makassar → label WITA. */
+    timezone: string;
     flash: Flash;
     company: CompanyOption | null;
     companies: CompanyOption[];

@@ -45,8 +45,8 @@ interface Props {
 
 const TAB_STATUS: { value: '' | LoanRow['status']; label: string; context?: string }[] = [
     { value: '', label: tk('Semua') },
-    { value: 'active', label: tk('Aktif', 'utang'), context: 'pinjaman' },
-    { value: 'paid_off', label: tk('Lunas', 'utang'), context: 'pinjaman' },
+    { value: 'active', label: tk('Aktif', 'pinjaman'), context: 'pinjaman' },
+    { value: 'paid_off', label: tk('Lunas', 'pinjaman'), context: 'pinjaman' },
 ];
 
 const PILL =

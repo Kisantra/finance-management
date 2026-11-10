@@ -63,7 +63,7 @@ import {
 } from 'lucide-react';
 import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
-import { t, tk } from '@/i18n';
+import { t, tk, Trans } from '@/i18n';
 
 // ponytail: koordinat px @96dpi. A4 = 794x1123.
 const A4 = { w: 794, h: 1123 };
@@ -2692,7 +2692,7 @@ function TextInspector({
                     )}
                 </div>
                 <p className="text-[11px] text-dark-400 dark:text-dark-500">
-                    {t('Token diganti data asli saat')} <strong>{t('Pratinjau')}</strong> {t('/ cetak.')}
+                    <Trans i18nKey="Token diganti data asli saat <b>Pratinjau</b> / cetak." components={{ b: <strong /> }} />
                 </p>
             </Section>
 
