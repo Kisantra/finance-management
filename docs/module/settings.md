@@ -215,7 +215,7 @@ public function setAsDefault(): void
 
 **Alur step-by-step:**
 1. `PdfTemplateController::edit()` memilih invoice preview via `resolvePreviewInvoice()` — invoice terbaru di DB, atau sample in-memory (`TemplateTokens::sampleInvoice()`) bila DB kosong.
-2. Controller membangun: `tokenCatalog` (daftar token `{{...}}` yang bisa dipakai), `sampleData` (token → nilai resolved), `itemColumnCatalog` + `sampleItems` (untuk elemen tabel), dan `customFonts` (id, name, browser URL untuk `@font-face` di editor).
+2. Controller membangun: `tokenCatalog` (daftar token `{{...}}` yang bisa dipakai), `sampleData` (token → nilai resolved), `itemColumnCatalog` + `sampleItems` (untuk elemen tabel), dan `customFonts` (id, name, browser URL untuk `@font-face` di editor). `sampleData` & `sampleItems` adalah **isi dokumen** sehingga dibangun di dalam `withDocumentLocale()` — selalu Bahasa Indonesia (tanggal, terbilang, label), apa pun bahasa tampilan pengguna; katalog palet/inspector tetap ikut bahasa pengguna. Rute PDF builder (`/pdf`, `/pdf/{invoice}`) bermiddleware `locale.dokumen`.
 3. Render halaman React `settings/pdf-templates/edit` — canvas drag-and-drop dengan band header/content/footer.
 4. User menyusun elemen (text dengan token, image, grid, table, rect, line) lalu klik Simpan.
 

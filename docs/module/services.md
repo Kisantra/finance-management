@@ -43,6 +43,16 @@ Stat card (total layanan, harga rata-rata, harga tertinggi) dihitung agregat di 
 ### Hapus Layanan (Destroy)
 **Alur:** DELETE `/services/{service}` (`can:delete services`) → `$service->delete()`, redirect back. Aman terhadap data historis: `invoice_items` menyimpan `service_name` string, bukan `service_id`, sehingga tidak ada FK yang putus.
 
+### Multi bahasa (pilot)
+Halaman ini adalah contoh rujukan konvensi multi bahasa (CLAUDE.md › "Multi Bahasa"): judul tab & `h1` memakai
+`t('Layanan', { context: 'menu' })`, semua label/toast/konfirmasi lewat `t()`, kalimat bernilai memakai
+placeholder (`t('Apakah Anda yakin ingin menghapus "{{name}}"?', { name })`). Kategori (`type`) adalah kode yang
+**disimpan** sekaligus teks Indonesianya: tampil lewat `t(type)` (kamus `resources/js/locales/{en,zh}.json`,
+ditandai `tk()` di `TYPE_COLORS`), sedangkan simpan, filter, dan `in:` validasi tetap memakai teks Indonesia asli
+— menambah tipe baru berarti menambah juga entri `tk()` + terjemahannya. Nama layanan adalah data (tidak
+diterjemahkan). Tanggal `created_at` tampil mentah (ISO). Pesan flash `ServiceController` dibungkus `__()` oleh
+pekerjaan teks server.
+
 ## Keterkaitan Antar Modul
 - **Invoices:** `InvoiceController::create/edit` (`formOptions()`) mengirim daftar services (id, name, price, type) sebagai opsi item. Di editor (`pages/invoices/create.tsx`) tombol kaca pembesar **Dari katalog** (`CatalogPicker`) menyalin `service_name` & `unit_price` ke baris (menimpa harga baris); mengetik nama yang persis sama dengan katalog (datalist) hanya mengisi harga bila harga baris masih 0. Kategori (`type`) tidak ikut disalin.
 - **Recurring Invoices:** `RecurringInvoiceController` mengirim daftar yang sama untuk editor template (`create-template.tsx`/`edit-template.tsx`, tombol `ServiceLookup`) dan form draft bulanan (datalist di `index.tsx`) → disimpan di `invoice_template`/`invoice_data` sebagai snapshot.
@@ -50,7 +60,7 @@ Stat card (total layanan, harga rata-rata, harga tertinggi) dihitung agregat di 
 
 ## Invarian & Jebakan
 - `price` integer rupiah penuh — jangan pernah kirim/parse desimal; helper `Service::parseAmount()` tersedia untuk membersihkan string berformat (`Rp 1.500.000` → `1500000`).
-- Daftar `type` di-hardcode di tiga tempat yang harus sinkron: `ServiceController::TYPES`, aturan `in:` di `StoreServiceRequest` (diwarisi `UpdateServiceRequest`), dan kolom `enum` di migrasi `create_services_table` — menambah tipe baru wajib mengubah ketiganya (termasuk migrasi baru untuk mengubah enum).
+- Daftar `type` di-hardcode di tiga tempat yang harus sinkron: `ServiceController::TYPES`, aturan `in:` di `StoreServiceRequest` (diwarisi `UpdateServiceRequest`), dan kolom `enum` di migrasi `create_services_table` — menambah tipe baru wajib mengubah ketiganya (termasuk migrasi baru untuk mengubah enum), plus label tampilannya: `tk()` di `TYPE_COLORS` (`pages/services/index.tsx`) dan entri `resources/js/locales/{en,zh}.json`.
 - Nama layanan tidak unik (tidak ada aturan `unique` maupun indeks) — duplikat diperbolehkan.
 - `sort`/`direction`/`per_page` dari query string langsung dipakai (`orderBy($sort, $direction)`, `paginate($perPage)`) tanpa whitelist — kolom yang tidak ada memicu error SQL 500.
 - Menghapus/mengubah service tidak mengubah invoice historis (snapshot by design) — jangan "memperbaiki" ini dengan FK tanpa keputusan produk.
