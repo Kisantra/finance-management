@@ -1889,7 +1889,7 @@ export default function PdfTemplateEdit() {
                                 title={t('Pratinjau PDF dengan N item')}
                             >
                                 <FileDown className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{t('Pratinjau')}</span>
+                                <span className="hidden sm:inline">{t('Pratinjau PDF')}</span>
                                 <ChevronDown className="w-3 h-3 opacity-60" />
                             </Button>
                         </DropdownMenuTrigger>

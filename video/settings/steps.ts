@@ -278,7 +278,7 @@ export const ADMIN_TEMPLATE_STEPS: Step[] = brisk([
         cursor: S['admin-editor-saved'].save,
         click: true,
         zoom: 1.8,
-        caption: 'Klik Simpan. PDF dan Pratinjau (menu) membuka layout yang tersimpan; tombol Pratinjau (ikon mata) menampilkan token terisi di kanvas.',
+        caption: 'Klik Simpan. PDF dan Pratinjau PDF (menu) membuka layout yang tersimpan; tombol Pratinjau (ikon mata) menampilkan token terisi di kanvas.',
         chime: true,
         duration: 130,
     },

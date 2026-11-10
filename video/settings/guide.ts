@@ -103,7 +103,7 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Pengaturan** › **Template PDF**, klik **Template Baru**, isi **Nama Template**, lalu **Buat Template**.',
                 'Editor terbuka: tambahkan teks, gambar, grid, kotak, garis, atau tabel item dari bilah alat bawah; teks bisa memuat token data invoice (**Sisipkan field**).',
-                'Klik **Simpan**. **PDF** membuka PDF uji dari layout yang sudah tersimpan dengan data invoice yang terakhir dibuat (**Pratinjau** di menu sesudahnya: sama, dengan 3–60 baris item contoh); tombol **Pratinjau** (ikon mata) menampilkan token terisi langsung di kanvas, lalu berganti menjadi **Ubah**. **Kembali** tanpa Simpan membuang perubahan.',
+                'Klik **Simpan**. **PDF** membuka PDF uji dari layout yang sudah tersimpan dengan data invoice yang terakhir dibuat (**Pratinjau PDF** di menu sesudahnya: sama, dengan 3–60 baris item contoh); tombol **Pratinjau** (ikon mata) menampilkan token terisi langsung di kanvas, lalu berganti menjadi **Ubah**. **Kembali** tanpa Simpan membuang perubahan.',
                 'Di daftar, menu **•••** berisi **Ubah Nama**, **Jadikan Bawaan**, **Duplikat**, dan **Hapus**.',
             ],
         },
