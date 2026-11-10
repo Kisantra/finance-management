@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { t, Trans } from '@/i18n';
 import { suggestAbbreviation, suggestSlug } from '@/lib/company-name';
 import type { SharedProps } from '@/types';
 
@@ -58,23 +59,26 @@ export default function Setup({ unlocked, appUrl }: Props) {
 
     return (
         <>
-            <Head title="Pemasangan" />
+            <Head title={t('Pemasangan')} />
             <div className="flex min-h-screen items-center justify-center bg-secondary-50 px-4 py-10 dark:bg-dark-950">
                 <div className="w-full max-w-xl space-y-6">
                     <div className="space-y-1 text-center">
-                        <h1 className="text-xl font-semibold text-secondary-900 dark:text-dark-200">Pemasangan aplikasi</h1>
+                        <h1 className="text-xl font-semibold text-secondary-900 dark:text-dark-200">{t('Pemasangan aplikasi')}</h1>
                         <p className="text-sm text-secondary-500 dark:text-dark-400">
-                            Dua langkah: akun admin pertama, lalu perusahaan pertama. Sesudahnya Anda melengkapi profil perusahaan.
+                            {t('Dua langkah: akun admin pertama, lalu perusahaan pertama. Sesudahnya Anda melengkapi profil perusahaan.')}
                         </p>
                     </div>
 
                     {!unlocked ? (
                         <Card>
                             <CardContent className="space-y-2 p-6 text-sm text-secondary-700 dark:text-dark-300">
-                                <p className="font-semibold text-secondary-900 dark:text-dark-200">Buka tautan pemasangan</p>
+                                <p className="font-semibold text-secondary-900 dark:text-dark-200">{t('Buka tautan pemasangan')}</p>
                                 <p>
-                                    Halaman ini hanya bisa dibuka lewat tautan sekali pakai yang dicetak <span className="font-mono">deploy.sh</span>{' '}
-                                    di akhir instalasi (bentuknya <span className="font-mono">{appUrl}/setup/…</span>).
+                                    <Trans
+                                        i18nKey="Halaman ini hanya bisa dibuka lewat tautan sekali pakai yang dicetak <kode>deploy.sh</kode> di akhir instalasi (bentuknya <kode>{{url}}/setup/…</kode>)."
+                                        values={{ url: appUrl }}
+                                        components={{ kode: <span className="font-mono" /> }}
+                                    />
                                 </p>
                             </CardContent>
                         </Card>
@@ -88,27 +92,27 @@ export default function Setup({ unlocked, appUrl }: Props) {
 
                             <Card>
                                 <CardContent className="space-y-4 p-6">
-                                    <h2 className="font-semibold text-secondary-900 dark:text-dark-200">1. Akun admin</h2>
-                                    <Input label="Nama lengkap *" value={data.admin_name} onChange={(e) => setData('admin_name', e.target.value)} error={errors.admin_name} />
+                                    <h2 className="font-semibold text-secondary-900 dark:text-dark-200">{t('1. Akun admin')}</h2>
+                                    <Input label={t('Nama lengkap *')} value={data.admin_name} onChange={(e) => setData('admin_name', e.target.value)} error={errors.admin_name} />
                                     <Input
-                                        label="Email *"
+                                        label={t('Email *')}
                                         type="email"
                                         value={data.admin_email}
                                         onChange={(e) => setData('admin_email', e.target.value)}
                                         error={errors.admin_email}
-                                        hint="Dipakai untuk masuk."
+                                        hint={t('Dipakai untuk masuk.')}
                                     />
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <Input
-                                            label="Kata sandi *"
+                                            label={t('Kata sandi *')}
                                             type="password"
                                             value={data.admin_password}
                                             onChange={(e) => setData('admin_password', e.target.value)}
                                             error={errors.admin_password}
-                                            hint="Minimal 8 karakter."
+                                            hint={t('Minimal 8 karakter.')}
                                         />
                                         <Input
-                                            label="Ulangi kata sandi *"
+                                            label={t('Ulangi kata sandi *')}
                                             type="password"
                                             value={data.admin_password_confirmation}
                                             onChange={(e) => setData('admin_password_confirmation', e.target.value)}
@@ -119,27 +123,27 @@ export default function Setup({ unlocked, appUrl }: Props) {
 
                             <Card>
                                 <CardContent className="space-y-4 p-6">
-                                    <h2 className="font-semibold text-secondary-900 dark:text-dark-200">2. Perusahaan pertama</h2>
+                                    <h2 className="font-semibold text-secondary-900 dark:text-dark-200">{t('2. Perusahaan pertama')}</h2>
                                     <Input
-                                        label="Nama perusahaan *"
+                                        label={t('Nama perusahaan *')}
                                         value={data.company_name}
                                         onChange={(e) => onCompanyName(e.target.value)}
                                         error={errors.company_name}
-                                        placeholder="PT Nama Perusahaan"
+                                        placeholder={t('PT Nama Perusahaan')}
                                     />
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_10rem]">
                                         <Input
-                                            label="Kode URL *"
+                                            label={t('Kode URL *')}
                                             value={data.slug}
                                             onChange={(e) => {
                                                 setSlugTouched(true);
                                                 setData('slug', e.target.value.toLowerCase());
                                             }}
                                             error={errors.slug}
-                                            hint={`Alamat: ${appUrl}/c/${data.slug || 'kode'}/dashboard. PERMANEN, tidak bisa diganti.`}
+                                            hint={t('Alamat: {{url}}/c/{{slug}}/dashboard. PERMANEN, tidak bisa diganti.', { url: appUrl, slug: data.slug || t('kode') })}
                                         />
                                         <Input
-                                            label="Singkatan *"
+                                            label={t('Singkatan *')}
                                             value={data.abbreviation}
                                             onChange={(e) => {
                                                 setAbbrTouched(true);
@@ -147,14 +151,14 @@ export default function Setup({ unlocked, appUrl }: Props) {
                                             }}
                                             error={errors.abbreviation}
                                             maxLength={10}
-                                            hint="Kode di nomor invoice."
+                                            hint={t('Kode di nomor invoice.')}
                                         />
                                     </div>
                                 </CardContent>
                             </Card>
 
                             <Button type="submit" variant="primary" className="w-full" loading={form.processing}>
-                                Pasang & masuk
+                                {t('Pasang & masuk')}
                             </Button>
                         </form>
                     )}

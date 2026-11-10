@@ -32,6 +32,7 @@ import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
+import { t, tk, Trans } from '@/i18n';
 
 interface Company {
     id: number;
@@ -82,20 +83,20 @@ interface CompanyFormData {
 type AssetKey = 'logo' | 'letter_head' | 'signature' | 'stamp';
 
 const ASSET_META: Record<AssetKey, { label: string; description: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
-    logo: { label: 'Logo Perusahaan', description: 'Tampil di header invoice dan navigasi', icon: ImageIcon, color: 'blue' },
-    letter_head: { label: 'Kop Surat', description: 'Tampil di header dokumen formal', icon: FileImage, color: 'purple' },
-    signature: { label: 'Tanda Tangan', description: 'Tampil di area tanda tangan PDF invoice', icon: UserCog, color: 'green' },
-    stamp: { label: 'Stempel', description: 'Tampil di samping tanda tangan PDF invoice', icon: Stamp, color: 'orange' },
+    logo: { label: tk('Logo Perusahaan'), description: tk('Tampil di header invoice dan navigasi'), icon: ImageIcon, color: 'blue' },
+    letter_head: { label: tk('Kop Surat'), description: tk('Tampil di header dokumen formal'), icon: FileImage, color: 'purple' },
+    signature: { label: tk('Tanda Tangan'), description: tk('Tampil di area tanda tangan PDF invoice'), icon: UserCog, color: 'green' },
+    stamp: { label: tk('Stempel'), description: tk('Tampil di samping tanda tangan PDF invoice'), icon: Stamp, color: 'orange' },
 };
 
 const FIELD_LABEL: Record<string, string> = {
-    name: 'nama perusahaan',
-    abbreviation: 'singkatan',
-    address: 'alamat',
-    email: 'email',
-    phone: 'telepon',
-    finance_manager_name: 'nama finance manager',
-    finance_manager_position: 'jabatan',
+    name: tk('nama perusahaan'),
+    abbreviation: tk('singkatan'),
+    address: tk('alamat'),
+    email: tk('email'),
+    phone: tk('telepon'),
+    finance_manager_name: tk('nama finance manager'),
+    finance_manager_position: tk('jabatan'),
 };
 
 const COLOR_MAP: Record<string, { bg: string; text: string }> = {
@@ -135,7 +136,7 @@ export default function CompanySettings() {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
-                toast.success('Profil perusahaan berhasil diperbarui.');
+                toast.success(t('Profil perusahaan berhasil diperbarui.'));
                 setData({
                     ...data,
                     logo: null,
@@ -144,7 +145,7 @@ export default function CompanySettings() {
                     stamp: null,
                 });
             },
-            onError: () => toast.error('Periksa kembali isian form.'),
+            onError: () => toast.error(t('Periksa kembali isian form.')),
         });
     };
 
@@ -154,21 +155,21 @@ export default function CompanySettings() {
         router.delete(companyUrl(`/settings/company/assets/${deletingAsset}`), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('File berhasil dihapus.');
+                toast.success(t('File berhasil dihapus.'));
                 setDeletingAsset(null);
             },
-            onError: () => toast.error('Gagal menghapus file.'),
+            onError: () => toast.error(t('Gagal menghapus file.')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
 
     return (
         <>
-            <Head title="Profil Perusahaan" />
+            <Head title={t('Profil Perusahaan')} />
 
             <SettingsLayout
-                title="Profil Perusahaan"
-                description="Atur identitas perusahaan yang tampil di invoice, dokumen, dan komunikasi formal"
+                title={t('Profil Perusahaan')}
+                description={t('Atur identitas perusahaan yang tampil di invoice, dokumen, dan komunikasi formal')}
             >
                 <form onSubmit={submit} className="space-y-6">
                     {missingFields.length > 0 && (
@@ -178,55 +179,60 @@ export default function CompanySettings() {
                         >
                             <Info className="w-4 h-4 text-yellow-700 dark:text-yellow-400 shrink-0 mt-0.5" />
                             <div className="text-sm text-yellow-900 dark:text-yellow-200">
-                                <p className="font-semibold">Lengkapi profil perusahaan sebelum melanjutkan</p>
+                                <p className="font-semibold">{t('Lengkapi profil perusahaan sebelum melanjutkan')}</p>
                                 <p className="mt-1">
-                                    Perusahaan ini belum bisa dipakai siapa pun sampai profilnya disimpan. Yang masih kosong:{' '}
-                                    {missingFields.map((field) => FIELD_LABEL[field] ?? field).join(', ')}.
+                                    {t('Perusahaan ini belum bisa dipakai siapa pun sampai profilnya disimpan. Yang masih kosong: {{fields}}.', {
+                                        fields: missingFields.map((field) => (FIELD_LABEL[field] ? t(FIELD_LABEL[field]) : field)).join(', '),
+                                    })}
                                 </p>
                             </div>
                         </div>
                     )}
 
                     {/* Section: Identitas */}
-                    <FormSection title="Identitas Perusahaan" description="Nama, alamat, dan informasi kontak utama">
+                    <FormSection title={t('Identitas Perusahaan')} description={t('Nama, alamat, dan informasi kontak utama')}>
                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-4">
                             <Input
-                                label="Nama Perusahaan *"
+                                label={t('Nama Perusahaan *')}
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 icon={<Building2 className="w-4 h-4" />}
-                                placeholder="PT. Nama Perusahaan"
+                                placeholder={t('PT. Nama Perusahaan')}
                             />
                             <Input
-                                label="Singkatan *"
+                                label={t('Singkatan *')}
                                 value={data.abbreviation}
                                 onChange={(e) => setData('abbreviation', e.target.value.toUpperCase())}
                                 error={errors.abbreviation}
                                 maxLength={10}
-                                placeholder="mis. KSN"
+                                placeholder={t('mis. KSN')}
                             />
                         </div>
                         <p className="text-xs text-dark-500 dark:text-dark-400 -mt-2">
-                            Singkatan menjadi kode perusahaan di nomor invoice ({'{PT}'}) dan nomor pengajuan dana, 2-10 huruf.
+                            {t('Singkatan menjadi kode perusahaan di nomor invoice ({{token}}) dan nomor pengajuan dana, 2-10 huruf.', { token: '{PT}' })}
                             {lastInvoiceNumber && (
                                 <>
-                                    {' '}Nomor invoice terakhir: <span className="font-mono text-dark-700 dark:text-dark-200">{lastInvoiceNumber}</span>.
-                                    Samakan kodenya supaya nomor berikutnya tetap bersambung.
+                                    {' '}
+                                    <Trans
+                                        i18nKey="Nomor invoice terakhir: <kode>{{number}}</kode>. Samakan kodenya supaya nomor berikutnya tetap bersambung."
+                                        values={{ number: lastInvoiceNumber }}
+                                        components={{ kode: <span className="font-mono text-dark-700 dark:text-dark-200" /> }}
+                                    />
                                 </>
                             )}
                         </p>
                         <Textarea
-                            label="Alamat *"
+                            label={t('Alamat *')}
                             value={data.address}
                             onChange={(e) => setData('address', e.target.value)}
                             error={errors.address}
                             rows={3}
-                            placeholder="Alamat lengkap perusahaan"
+                            placeholder={t('Alamat lengkap perusahaan')}
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Input
-                                label="Email *"
+                                label={t('Email *')}
                                 type="email"
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
@@ -235,7 +241,7 @@ export default function CompanySettings() {
                                 placeholder="info@perusahaan.com"
                             />
                             <Input
-                                label="Telepon *"
+                                label={t('Telepon *')}
                                 value={data.phone}
                                 onChange={(e) => setData('phone', e.target.value)}
                                 error={errors.phone}
@@ -246,29 +252,29 @@ export default function CompanySettings() {
                     </FormSection>
 
                     {/* Section: Finance Manager */}
-                    <FormSection title="Penanggung Jawab Keuangan" description="Nama yang tertera pada tanda tangan invoice">
+                    <FormSection title={t('Penanggung Jawab Keuangan')} description={t('Nama yang tertera pada tanda tangan invoice')}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Input
-                                label="Nama Finance Manager *"
+                                label={t('Nama Finance Manager *')}
                                 value={data.finance_manager_name}
                                 onChange={(e) => setData('finance_manager_name', e.target.value)}
                                 error={errors.finance_manager_name}
-                                placeholder="Nama lengkap"
+                                placeholder={t('Nama lengkap')}
                             />
                             <Input
-                                label="Jabatan *"
+                                label={t('Jabatan *')}
                                 value={data.finance_manager_position}
                                 onChange={(e) => setData('finance_manager_position', e.target.value)}
                                 error={errors.finance_manager_position}
-                                placeholder="Misal: Finance Manager"
+                                placeholder={t('Misal: Finance Manager')}
                             />
                         </div>
                     </FormSection>
 
                     {/* Section: PKP & Pajak */}
                     <FormSection
-                        title="Status PKP & Pajak"
-                        description="Selama PKP aktif, invoice baru bisa ditagih PPN (sakelar di editor invoice). Mematikan PKP tidak mengubah invoice yang sudah ber-PPN; tarif tersimpan di tiap invoice."
+                        title={t('Status PKP & Pajak')}
+                        description={t('Selama PKP aktif, invoice baru bisa ditagih PPN (sakelar di editor invoice). Mematikan PKP tidak mengubah invoice yang sudah ber-PPN; tarif tersimpan di tiap invoice.')}
                     >
                         <label className="flex items-center gap-3 cursor-pointer">
                             <Checkbox
@@ -276,14 +282,14 @@ export default function CompanySettings() {
                                 onCheckedChange={(c) => setData('is_pkp', Boolean(c))}
                             />
                             <span className="text-sm text-dark-900 dark:text-dark-50">
-                                Perusahaan adalah <strong>Pengusaha Kena Pajak (PKP)</strong>
+                                <Trans i18nKey="Perusahaan adalah <b>Pengusaha Kena Pajak (PKP)</b>" components={{ b: <strong /> }} />
                             </span>
                         </label>
 
                         {data.is_pkp && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
-                                    label="NPWP"
+                                    label={t('NPWP')}
                                     value={data.npwp}
                                     onChange={(e) => setData('npwp', e.target.value)}
                                     error={errors.npwp}
@@ -291,7 +297,7 @@ export default function CompanySettings() {
                                     placeholder="XX.XXX.XXX.X-XXX.XXX"
                                 />
                                 <Input
-                                    label="Tarif PPN (%) *"
+                                    label={t('Tarif PPN (%) *')}
                                     type="number"
                                     step="0.01"
                                     value={data.ppn_rate}
@@ -304,7 +310,7 @@ export default function CompanySettings() {
                     </FormSection>
 
                     {/* Section: Visual Assets */}
-                    <FormSection title="Aset Visual" description="Logo, kop surat, tanda tangan, dan stempel untuk dokumen">
+                    <FormSection title={t('Aset Visual')} description={t('Logo, kop surat, tanda tangan, dan stempel untuk dokumen')}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {(Object.keys(ASSET_META) as AssetKey[]).map((key) => {
                                 const meta = ASSET_META[key];
@@ -323,8 +329,8 @@ export default function CompanySettings() {
                                                 <Icon className={cn('w-5 h-5', colors.text)} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{meta.label}</h4>
-                                                <p className="text-xs text-dark-500 dark:text-dark-400 truncate">{meta.description}</p>
+                                                <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t(meta.label)}</h4>
+                                                <p className="text-xs text-dark-500 dark:text-dark-400 truncate">{t(meta.description)}</p>
                                             </div>
                                         </div>
 
@@ -336,13 +342,13 @@ export default function CompanySettings() {
                                                     className="flex items-center gap-2 text-xs text-primary-600 dark:text-primary-400 hover:underline truncate"
                                                 >
                                                     <ImageIcon className="w-3.5 h-3.5 shrink-0" />
-                                                    <span className="truncate">Lihat file saat ini</span>
+                                                    <span className="truncate">{t('Lihat file saat ini')}</span>
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => setDeletingAsset(key)}
                                                     className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1"
-                                                    title="Hapus file"
+                                                    title={t('Hapus file')}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
@@ -366,8 +372,8 @@ export default function CompanySettings() {
                         <div className="rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50/70 dark:bg-primary-950/20 p-4 flex items-start gap-3">
                             <Info className="w-4 h-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
                             <div className="flex-1 text-xs text-primary-900 dark:text-primary-200">
-                                <p className="font-semibold mb-1">Regenerasi Favicon</p>
-                                <p className="mb-2">Setelah mengganti logo, jalankan perintah berikut untuk regenerate favicon:</p>
+                                <p className="font-semibold mb-1">{t('Buat Ulang Favicon')}</p>
+                                <p className="mb-2">{t('Setelah mengganti logo, jalankan perintah berikut untuk membuat ulang favicon:')}</p>
                                 <code className="block px-3 py-2 bg-white dark:bg-dark-900 rounded-lg text-xs font-mono text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
                                     php artisan favicon:generate
                                 </code>
@@ -377,10 +383,10 @@ export default function CompanySettings() {
 
                     <div className="flex items-center gap-3 pt-4 border-t border-secondary-200 dark:border-dark-600">
                         <Button type="submit" variant="primary" loading={processing}>
-                            Simpan Perubahan
+                            {t('Simpan Perubahan')}
                         </Button>
                         {recentlySuccessful && (
-                            <span className="text-sm text-green-600 dark:text-green-400">Tersimpan</span>
+                            <span className="text-sm text-green-600 dark:text-green-400">{t('Tersimpan')}</span>
                         )}
                     </div>
                 </form>
@@ -391,14 +397,14 @@ export default function CompanySettings() {
                 <DialogContent size="lg">
                     <DialogHeader>
                         <DialogTitle>
-                            {previewAsset ? ASSET_META[previewAsset].label : ''}
+                            {previewAsset ? t(ASSET_META[previewAsset].label) : ''}
                         </DialogTitle>
                     </DialogHeader>
                     {previewAsset && company && (
                         <div className="p-4 bg-secondary-50 dark:bg-dark-800 rounded-xl">
                             <img
                                 src={company[`${previewAsset}_url` as keyof Company] as string}
-                                alt={ASSET_META[previewAsset].label}
+                                alt={t(ASSET_META[previewAsset].label)}
                                 className="w-full max-h-[60vh] object-contain"
                             />
                         </div>
@@ -411,10 +417,10 @@ export default function CompanySettings() {
                 open={deletingAsset !== null}
                 onOpenChange={(o) => !o && setDeletingAsset(null)}
                 onConfirm={confirmDeleteAsset}
-                title={deletingAsset ? `Hapus ${ASSET_META[deletingAsset].label}?` : 'Hapus File'}
-                description="File akan dihapus permanen dari sistem dan tidak dapat dikembalikan."
+                title={deletingAsset ? t('Hapus {{name}}?', { name: t(ASSET_META[deletingAsset].label) }) : t('Hapus File')}
+                description={t('File akan dihapus permanen dari sistem dan tidak dapat dikembalikan.')}
                 variant="danger"
-                confirmLabel="Hapus File"
+                confirmLabel={t('Hapus File')}
                 loading={deleteProcessing}
             />
         </>

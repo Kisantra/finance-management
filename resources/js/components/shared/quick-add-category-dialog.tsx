@@ -127,7 +127,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
                             ].join(' ')}
                         >
                             <Tag className="w-3 h-3 shrink-0" />
-                            {t('Sub Kategori')}
+                            {t('Subkategori')}
                         </button>
                         <button
                             type="button"
@@ -156,7 +156,7 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
 
                     {mode === 'group' && (
                         <p className="text-xs text-ob-ink-3">
-                            {t('Kelompok digunakan untuk mengelompokkan sub kategori — tidak bisa dipilih langsung saat mencatat transaksi.')}
+                            {t('Kelompok digunakan untuk mengelompokkan subkategori — tidak bisa dipilih langsung saat mencatat transaksi.')}
                         </p>
                     )}
 

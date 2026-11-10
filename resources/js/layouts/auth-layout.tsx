@@ -256,7 +256,7 @@ function InvoicesCard() {
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-1">
                             <span className="text-[13px] font-semibold">{invoice.amount}</span>
-                            {invoice.late ? <StatusPill tone="late">{t('Lewat tempo')}</StatusPill> : <StatusPill tone="act">{t('Terkirim')}</StatusPill>}
+                            {invoice.late ? <StatusPill tone="late">{t('Lewat jatuh tempo')}</StatusPill> : <StatusPill tone="act">{t('Terbit')}</StatusPill>}
                         </span>
                     </li>
                 ))}

@@ -25,7 +25,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -37,7 +37,7 @@ async (page) => {
     await p.waitForLoadState('networkidle');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill(password);
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/, { waitUntil: 'domcontentloaded', timeout: 60000 });
     return p;
   };
@@ -179,8 +179,8 @@ async (page) => {
     previewNumber: m.locator('[aria-live=polite]'),
     recent: parentOf(m.getByRole('heading', { name: 'Nomor terakhir yang terbit' })),
     save: m.getByRole('button', { name: 'Simpan', exact: true }),
-    restore: m.getByRole('button', { name: 'Kembalikan default' }),
-    note: m.getByText('Berlaku untuk invoice yang dikirim setelah disimpan'),
+    restore: m.getByRole('button', { name: 'Kembalikan bawaan' }),
+    note: m.getByText('Berlaku untuk invoice yang diterbitkan setelah disimpan'),
     error: m.locator('#invoice-number-format').locator('xpath=ancestor::div[2]').locator('p').last(),
   });
   await snap(m, 'fm-numbering', numTargets());
@@ -264,7 +264,7 @@ async (page) => {
     back: a.getByRole('button', { name: /Kembali/ }).or(a.getByRole('link', { name: /Kembali/ })),
     tools: parentOf(a.getByTitle(/^Teks/)),
     text: a.getByTitle(/^Teks/),
-    layers: a.getByText('Layers', { exact: true }).locator('xpath=ancestor::div[2]'),
+    layers: a.getByText('Lapisan', { exact: true }).locator('xpath=ancestor::div[2]'),
     preview: a.getByTitle('Pratinjau PDF dengan N item'),
     pdf: a.getByTitle('Cetak PDF (data contoh)'),
     save: a.getByRole('button', { name: 'Simpan' }),
@@ -283,21 +283,21 @@ async (page) => {
   const trow = () => a.getByRole('row', { name: new RegExp(TEMPLATE) });
   await trow().waitFor();
   await trow().getByRole('button').last().click();
-  await a.getByRole('menuitem', { name: 'Jadikan Default' }).waitFor();
+  await a.getByRole('menuitem', { name: 'Jadikan Bawaan' }).waitFor();
   await snap(a, 'admin-template-menu', {
     row: trow(),
-    edit: trow().getByRole('button', { name: 'Edit' }),
+    edit: trow().getByRole('button', { name: 'Ubah' }),
     more: trow().getByRole('button').last(),
     menu: a.getByRole('menu'),
-    setDefault: a.getByRole('menuitem', { name: 'Jadikan Default' }),
+    setDefault: a.getByRole('menuitem', { name: 'Jadikan Bawaan' }),
     duplicate: a.getByRole('menuitem', { name: 'Duplikat' }),
     remove: a.getByRole('menuitem', { name: 'Hapus' }),
   });
-  await a.getByRole('menuitem', { name: 'Jadikan Default' }).click();
-  await trow().getByText('Default', { exact: true }).waitFor();
+  await a.getByRole('menuitem', { name: 'Jadikan Bawaan' }).click();
+  await trow().getByText('Bawaan', { exact: true }).waitFor();
   await snap(a, 'admin-template-default', {
     row: trow(),
-    badge: trow().getByText('Default', { exact: true }),
+    badge: trow().getByText('Bawaan', { exact: true }),
     toast: a.locator('[data-sonner-toast]'),
   });
   await waitToastsGone(a);

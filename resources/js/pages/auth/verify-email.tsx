@@ -4,6 +4,7 @@ import * as React from 'react';
 import { AuthIcon, AuthStatus } from '@/components/auth/auth-form';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface Props {
@@ -26,7 +27,7 @@ export default function VerifyEmail({ status }: Props) {
 
     return (
         <>
-            <Head title="Verifikasi Email" />
+            <Head title={t('Verifikasi Email')} />
 
             <AuthIcon>
                 <MailCheck className="h-5 w-5" />
@@ -34,24 +35,24 @@ export default function VerifyEmail({ status }: Props) {
 
             {/* Akun dibuat oleh admin, jadi tanpa "terima kasih telah mendaftar". */}
             <PageHeader
-                title="Verifikasi email Anda"
-                description="Sebelum memulai, verifikasi alamat email Anda lewat tautan yang baru saja kami kirimkan. Belum menerima email? Kirim ulang di bawah."
+                title={t('Verifikasi email Anda')}
+                description={t('Sebelum memulai, verifikasi alamat email Anda lewat tautan yang baru saja kami kirimkan. Belum menerima email? Kirim ulang di bawah.')}
             />
 
             {status === 'verification-link-sent' && (
-                <AuthStatus className="mt-6">Tautan verifikasi baru telah dikirimkan ke alamat email Anda.</AuthStatus>
+                <AuthStatus className="mt-6">{t('Tautan verifikasi baru telah dikirimkan ke alamat email Anda.')}</AuthStatus>
             )}
 
             <div className="mt-8 flex flex-col gap-3">
                 <form onSubmit={handleResend}>
                     <Button type="submit" variant="primary" size="lg" loading={resending} className="w-full">
-                        Kirim Ulang Email Verifikasi
+                        {t('Kirim Ulang Email Verifikasi')}
                     </Button>
                 </form>
 
                 <form onSubmit={handleLogout}>
                     <Button type="submit" variant="outline" size="lg" loading={loggingOut} className="w-full">
-                        Keluar
+                        {t('Keluar')}
                     </Button>
                 </form>
             </div>

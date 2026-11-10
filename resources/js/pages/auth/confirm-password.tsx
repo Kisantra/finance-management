@@ -4,6 +4,7 @@ import * as React from 'react';
 import { AuthIcon, PasswordInput } from '@/components/auth/auth-form';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import AuthLayout from '@/layouts/auth-layout';
 
 export default function ConfirmPassword() {
@@ -16,20 +17,20 @@ export default function ConfirmPassword() {
 
     return (
         <>
-            <Head title="Konfirmasi Kata Sandi" />
+            <Head title={t('Konfirmasi Kata Sandi')} />
 
             <AuthIcon>
                 <ShieldCheck className="h-5 w-5" />
             </AuthIcon>
 
             <PageHeader
-                title="Konfirmasi kata sandi"
-                description="Ini adalah area aman dari aplikasi. Harap konfirmasi kata sandi Anda sebelum melanjutkan."
+                title={t('Konfirmasi kata sandi')}
+                description={t('Ini adalah area aman dari aplikasi. Harap konfirmasi kata sandi Anda sebelum melanjutkan.')}
             />
 
             <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
                 <PasswordInput
-                    label="Kata sandi"
+                    label={t('Kata sandi')}
                     placeholder="••••••••"
                     value={data.password}
                     onChange={(e) => setData('password', e.target.value)}
@@ -40,7 +41,7 @@ export default function ConfirmPassword() {
                 />
 
                 <Button type="submit" variant="primary" size="lg" loading={processing} className="mt-1 w-full">
-                    Konfirmasi
+                    {t('Konfirmasi')}
                 </Button>
             </form>
         </>

@@ -22,7 +22,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -34,7 +34,7 @@ async (page) => {
     await p.waitForLoadState('networkidle');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill(password);
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/, { waitUntil: 'domcontentloaded', timeout: 60000 });
     return p;
   };
@@ -82,10 +82,10 @@ async (page) => {
     search: a.getByPlaceholder('Cari nama, email, atau telepon...'),
     table: a.locator('table'),
     yogaRow: row('Yoga Saputra'),
-    yogaEdit: row('Yoga Saputra').getByRole('button', { name: 'Edit pengguna' }),
+    yogaEdit: row('Yoga Saputra').getByRole('button', { name: 'Ubah pengguna' }),
     yogaDelete: row('Yoga Saputra').getByRole('button', { name: 'Hapus pengguna' }),
     dimasRow: row('Dimas Prasetyo'),
-    dimasEdit: row('Dimas Prasetyo').getByRole('button', { name: 'Edit pengguna' }),
+    dimasEdit: row('Dimas Prasetyo').getByRole('button', { name: 'Ubah pengguna' }),
     dimasStatus: row('Dimas Prasetyo').getByText('Tidak Aktif'),
     adminRow: row('admin@gmail.com'),
     budiRow: row('Budi Santoso'),
@@ -143,8 +143,8 @@ async (page) => {
   await snap(a, 'admin-users-created', { ...listTargets(), toast: a.locator('[data-sonner-toast]') });
   await waitToastsGone(a);
 
-  /* Edit pengguna nonaktif (tidak disimpan). */
-  await row('Dimas Prasetyo').getByRole('button', { name: 'Edit pengguna' }).click();
+  /* Ubah pengguna nonaktif (tidak disimpan). */
+  await row('Dimas Prasetyo').getByRole('button', { name: 'Ubah pengguna' }).click();
   await f().getByRole('textbox', { name: 'Nama Lengkap *' }).waitFor();
   await snap(a, 'admin-edit', {
     dialog: f(),
@@ -177,12 +177,12 @@ async (page) => {
     adminRole: roleItem('admin'),
     fmRole: roleItem('finance manager'),
     staffRole: roleItem('staff'),
-    search: a.getByPlaceholder('Cari permission...'),
+    search: a.getByPlaceholder('Cari izin…'),
     revokeAll: a.getByRole('button', { name: 'Cabut Semua' }),
     grantAll: a.getByRole('button', { name: 'Beri Semua' }),
     firstGroup: a.getByRole('heading', { name: 'Bank-accounts' }).locator('xpath=../..'),
     moduleButtons: parentOf(a.getByRole('button', { name: 'Semua', exact: true }).first()),
-    deleteBadge: a.getByTitle('Hapus permission').first(),
+    deleteBadge: a.getByTitle('Hapus izin').first(),
     firstPerm: a.locator('label').filter({ hasText: 'create bank-accounts' }),
   });
   await a.getByRole('heading', { name: 'Daftar Peran' }).waitFor();
@@ -218,11 +218,11 @@ async (page) => {
     header: a.getByRole('heading', { name: 'auditor', level: 3 }).locator('xpath=../../..'),
   });
 
-  await a.getByPlaceholder('Cari permission...').fill('invoices');
+  await a.getByPlaceholder('Cari izin…').fill('invoices');
   const invGroup = () => a.getByRole('heading', { name: 'Invoices', exact: true }).locator('xpath=../..');
   await invGroup().waitFor();
   const searchTargets = () => ({
-    search: a.getByPlaceholder('Cari permission...'),
+    search: a.getByPlaceholder('Cari izin…'),
     auditorRole: roleItem('auditor'),
     header: a.getByRole('heading', { name: 'auditor', level: 3 }).locator('xpath=../../..'),
     invHeader: invGroup(),
@@ -245,7 +245,7 @@ async (page) => {
   await waitToastsGone(a);
 
   /* Konfirmasi hapus peran (dijalankan di akhir untuk membersihkan peran sementara). */
-  await a.getByPlaceholder('Cari permission...').fill('');
+  await a.getByPlaceholder('Cari izin…').fill('');
   await roleItem('auditor').getByTitle('Hapus peran').click();
   await top(a).getByRole('button', { name: 'Hapus Peran' }).waitFor();
   await snap(a, 'admin-role-delete', { dialog: top(a), confirm: top(a).getByRole('button', { name: 'Hapus Peran' }) });
@@ -262,7 +262,7 @@ async (page) => {
     roles: parentOf(parentOf(m.getByRole('heading', { name: 'Daftar Peran' }))),
     firstGroup: m.getByRole('heading', { name: 'Bank-accounts' }).locator('xpath=../..'),
     firstPerm: m.locator('label').filter({ hasText: 'create bank-accounts' }),
-    pageHeader: m.getByRole('heading', { name: 'Manajemen Peran & Permission' }),
+    pageHeader: m.getByRole('heading', { name: 'Izin & Peran' }),
     adminMenu: m.getByRole('button', { name: 'Administrasi' }),
     nav: m.locator('nav').first(),
   });

@@ -11,6 +11,7 @@ import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, toastErrors } from '@/lib/utils';
 import { BTN, FIELD, longDate } from '@/pages/invoices/components/ob';
+import { t, tk, Trans } from '@/i18n';
 
 /*
  * Penomoran invoice (referensi "Custom Invoice Number Settings"): pola token + jumlah digit +
@@ -53,15 +54,15 @@ interface Props {
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 const RESET_OPTIONS: { value: Reset; label: string }[] = [
-    { value: 'monthly', label: 'Tiap bulan' },
-    { value: 'yearly', label: 'Tiap tahun' },
-    { value: 'never', label: 'Tidak pernah' },
+    { value: 'monthly', label: tk('Tiap bulan') },
+    { value: 'yearly', label: tk('Tiap tahun') },
+    { value: 'never', label: tk('Tidak pernah') },
 ];
 
 const RESET_HINT: Record<Reset, string> = {
-    monthly: 'Invoice pertama tiap bulan kembali ke nomor 1.',
-    yearly: 'Invoice pertama tiap tahun kembali ke nomor 1.',
-    never: 'Nomor terus bertambah tanpa kembali ke 1.',
+    monthly: tk('Invoice pertama tiap bulan kembali ke nomor 1.'),
+    yearly: tk('Invoice pertama tiap tahun kembali ke nomor 1.'),
+    never: tk('Nomor terus bertambah tanpa kembali ke 1.'),
 };
 
 type Segment = { text: string; token?: string };
@@ -83,19 +84,19 @@ function renderSegments(format: string, values: Record<string, string>): Segment
 
 /** Cermin InvoiceNumberService::formatError() — pesan sama dengan server. */
 function formatError(format: string, reset: Reset, known: string[]): string | null {
-    if (!format.trim()) return 'Pola nomor wajib diisi.';
+    if (!format.trim()) return t('Pola nomor wajib diisi.');
     const used = [...format.matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]);
     const unknown = used.filter((token) => !known.includes(token));
-    if (unknown.length) return `Token tidak dikenal: {${unknown.join('}, {')}}.`;
-    if (/[{}]/.test(format.replace(/\{[A-Z0-9_]+\}/g, ''))) return 'Kurung kurawal hanya dipakai untuk token, mis. {NO}.';
-    if (format.split('{NO}').length !== 2) return 'Pola wajib berisi {NO} tepat satu kali.';
+    if (unknown.length) return t('Token tidak dikenal: {{tokens}}.', { tokens: `{${unknown.join('}, {')}}` });
+    if (/[{}]/.test(format.replace(/\{[A-Z0-9_]+\}/g, ''))) return t('Kurung kurawal hanya dipakai untuk token, mis. {NO}.');
+    if (format.split('{NO}').length !== 2) return t('Pola wajib berisi {NO} tepat satu kali.');
     const hasYear = format.includes('{THN}') || format.includes('{THN2}');
     const hasMonth = format.includes('{BLN}') || format.includes('{BLN_ROMAWI}');
     if (reset === 'monthly' && !(hasMonth && hasYear)) {
-        return 'Nomor kembali ke 1 tiap bulan, jadi pola wajib memuat bulan ({BLN_ROMAWI} atau {BLN}) dan tahun ({THN} atau {THN2}) agar tidak sama dengan nomor bulan lain.';
+        return t('Nomor kembali ke 1 tiap bulan, jadi pola wajib memuat bulan ({BLN_ROMAWI} atau {BLN}) dan tahun ({THN} atau {THN2}) agar tidak sama dengan nomor bulan lain.');
     }
     if (reset === 'yearly' && !hasYear) {
-        return 'Nomor kembali ke 1 tiap tahun, jadi pola wajib memuat tahun ({THN} atau {THN2}) agar tidak sama dengan nomor tahun lain.';
+        return t('Nomor kembali ke 1 tiap tahun, jadi pola wajib memuat tahun ({THN} atau {THN2}) agar tidak sama dengan nomor tahun lain.');
     }
     return null;
 }
@@ -111,8 +112,8 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
     const { data, setData } = form;
     const inputRef = React.useRef<HTMLInputElement>(null);
 
-    const knownTokens = tokens.map((t) => t.token);
-    const tokenLabel = Object.fromEntries(tokens.map((t) => [t.token, t.label]));
+    const knownTokens = tokens.map((item) => item.token);
+    const tokenLabel = Object.fromEntries(tokens.map((item) => [item.token, item.label]));
     const clientError = formatError(data.format, data.reset, knownTokens);
     const error = form.errors.format ?? clientError ?? undefined;
 
@@ -150,20 +151,20 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
             preserveScroll: true,
             onSuccess: () => {
                 form.setDefaults();
-                toast.success('Format penomoran disimpan. Berlaku untuk invoice yang dikirim setelah ini.');
+                toast.success(t('Format penomoran disimpan. Berlaku untuk invoice yang diterbitkan setelah ini.'));
             },
-            onError: (errors) => toastErrors(errors, 'Penomoran invoice'),
+            onError: (errors) => toastErrors(errors, t('Penomoran invoice')),
         });
     };
 
     return (
         <>
-            <Head title="Penomoran Invoice" />
+            <Head title={t('Penomoran Invoice')} />
 
             <SettingsLayout
                 bare
-                title="Penomoran invoice"
-                description="Atur bentuk nomor yang diberikan saat invoice dikirim. Nomor yang sudah terbit tidak ikut berubah."
+                title={t('Penomoran invoice')}
+                description={t('Atur bentuk nomor yang diberikan saat invoice diterbitkan. Nomor yang sudah terbit tidak ikut berubah.')}
             >
                 {legacyReview && (
                     <section
@@ -171,34 +172,41 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                         className="mb-5 flex flex-col gap-4 rounded-3xl border border-ob-wait/40 bg-ob-wait/10 p-6 text-ob-ink sm:p-8"
                     >
                         <div className="flex flex-col gap-1.5">
-                            <h2 className="text-base font-semibold">Tinjau nomor invoice lama sebelum melanjutkan</h2>
+                            <h2 className="text-base font-semibold">{t('Tinjau nomor invoice lama sebelum melanjutkan')}</h2>
                             <p className="text-[13px] text-ob-ink-2">
-                                Invoice lama belum punya urutan nomor. Tanpa urutan, invoice berikutnya bisa mengulang nomor yang sudah
-                                terkirim ke klien. Dengan pola di bawah: <strong>{legacyReview.fillable}</strong> nomor cocok dan akan diisi
-                                urutannya, <strong>{legacyReview.unmatchedCount}</strong> tidak cocok dan dibiarkan kosong.
+                                <Trans
+                                    i18nKey="Invoice lama belum punya urutan nomor. Tanpa urutan, invoice berikutnya bisa mengulang nomor yang sudah terbit. Dengan pola di bawah: <b>{{fillable}}</b> nomor cocok dan akan diisi urutannya, <b>{{unmatched}}</b> tidak cocok dan dibiarkan kosong."
+                                    values={{ fillable: legacyReview.fillable, unmatched: legacyReview.unmatchedCount }}
+                                    components={{ b: <strong /> }}
+                                />
                             </p>
                         </div>
                         {legacyReview.samples.length > 0 && (
                             <ul className="flex flex-col gap-1 text-[13px]">
                                 {legacyReview.samples.map((s) => (
                                     <li key={s.number}>
-                                        <span className="font-mono">{s.number}</span> → urutan {s.sequence}
+                                        <Trans
+                                            i18nKey="<kode>{{number}}</kode> → urutan {{sequence}}"
+                                            values={{ number: s.number, sequence: s.sequence }}
+                                            components={{ kode: <span className="font-mono" /> }}
+                                        />
                                     </li>
                                 ))}
                             </ul>
                         )}
                         {legacyReview.unmatchedCount > 0 && (
                             <div className="text-[13px]">
-                                <p className="font-semibold">Tidak cocok dengan pola:</p>
+                                <p className="font-semibold">{t('Tidak cocok dengan pola:')}</p>
                                 <p className="mt-1 font-mono text-ob-ink-2">
                                     {legacyReview.unmatched.join(', ')}
                                     {legacyReview.unmatchedCount > legacyReview.unmatched.length &&
-                                        ` dan ${legacyReview.unmatchedCount - legacyReview.unmatched.length} lainnya`}
+                                        ` ${t('dan {{count}} lainnya', { count: legacyReview.unmatchedCount - legacyReview.unmatched.length })}`}
                                 </p>
                                 <p className="mt-2 text-ob-ink-2">
-                                    Pola di bawah menentukan nomor invoice <strong>berikutnya</strong>. Ubah hanya bila nomor di atas memakai
-                                    format yang memang ingin dilanjutkan, lalu Simpan; daftar ini ikut diperbarui. Nomor berformat lama yang
-                                    sudah tidak dipakai, atau yang diketik manual, biarkan saja: nomornya tetap sah dan tidak akan terulang.
+                                    <Trans
+                                        i18nKey="Pola di bawah menentukan nomor invoice <b>berikutnya</b>. Ubah hanya bila nomor di atas memakai format yang memang ingin dilanjutkan, lalu Simpan; daftar ini ikut diperbarui. Nomor berformat lama yang sudah tidak dipakai, atau yang diketik manual, biarkan saja: nomornya tetap sah dan tidak akan terulang."
+                                        components={{ b: <strong /> }}
+                                    />
                                 </p>
                             </div>
                         )}
@@ -211,9 +219,9 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                 onClick={finishReview}
                                 disabled={form.isDirty}
                             >
-                                Isi urutan & selesai meninjau
+                                {t('Isi urutan & selesai meninjau')}
                             </Button>
-                            {form.isDirty && <p className="mt-2 text-xs text-ob-ink-2">Simpan pola dulu sebelum menyelesaikan peninjauan.</p>}
+                            {form.isDirty && <p className="mt-2 text-xs text-ob-ink-2">{t('Simpan pola dulu sebelum menyelesaikan peninjauan.')}</p>}
                         </div>
                     </section>
                 )}
@@ -222,11 +230,10 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                     <form onSubmit={submit} className="flex flex-col gap-7 rounded-3xl border border-ob-line bg-ob-card p-6 sm:p-8">
                         {!hasCompany && (
                             <p className="rounded-2xl border border-ob-wait/40 bg-ob-wait/10 px-4 py-3 text-[13px] text-ob-ink">
-                                Profil perusahaan belum diisi. Pengaturan penomoran disimpan di profil perusahaan,{' '}
-                                <AppLink href="/settings/company" className="font-semibold text-ob-act hover:underline">
-                                    isi profil perusahaan
-                                </AppLink>{' '}
-                                dulu.
+                                <Trans
+                                    i18nKey="Profil perusahaan belum diisi. Pengaturan penomoran disimpan di profil perusahaan, <tautan>isi profil perusahaan</tautan> dulu."
+                                    components={{ tautan: <AppLink href="/settings/company" className="font-semibold text-ob-act hover:underline" /> }}
+                                />
                             </p>
                         )}
 
@@ -235,7 +242,7 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                 <Input
                                     ref={inputRef}
                                     id="invoice-number-format"
-                                    label="Pola nomor"
+                                    label={t('Pola nomor')}
                                     value={data.format}
                                     onChange={(e) => {
                                         setData('format', e.target.value);
@@ -246,10 +253,10 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                     autoComplete="off"
                                     maxLength={100}
                                     error={error}
-                                    hint="Ketik teks dan pemisah bebas, lalu sisipkan token di bawah di posisi kursor."
+                                    hint={t('Ketik teks dan pemisah bebas, lalu sisipkan token di bawah di posisi kursor.')}
                                 />
                             </div>
-                            <div className="flex flex-wrap gap-2" role="group" aria-label="Sisipkan token">
+                            <div className="flex flex-wrap gap-2" role="group" aria-label={t('Sisipkan token')}>
                                 {tokens.map(({ token, label }) => {
                                     const used = usedTokens.includes(token);
                                     return (
@@ -257,7 +264,7 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                             key={token}
                                             type="button"
                                             onClick={() => insertToken(token)}
-                                            aria-label={`Sisipkan {${token}}: ${label}`}
+                                            aria-label={t('Sisipkan {{token}}: {{label}}', { token: `{${token}}`, label })}
                                             className={cn(
                                                 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
                                                 used ? 'border-ob-act-fill/40 bg-ob-act-fill/10' : 'border-ob-line bg-ob-inner hover:bg-ob-hover',
@@ -272,32 +279,32 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                         </div>
 
                         <SegmentedControl
-                            label="Jumlah digit nomor urut"
+                            label={t('Jumlah digit nomor urut')}
                             value={String(data.padding)}
                             onChange={(value) => setData('padding', Number(value))}
                             columns={Math.min(paddings.length, 6) as 2 | 3 | 4 | 5 | 6}
-                            options={paddings.map((n) => ({ value: String(n), label: n === 1 ? 'Tanpa nol · 1' : `${n} digit · ${'1'.padStart(n, '0')}` }))}
-                            hint={`Batas minimum — nomor tetap bertambah melewatinya, mis. ${'9'.repeat(Math.max(data.padding, 1))} → 1${'0'.repeat(Math.max(data.padding, 1))}.`}
+                            options={paddings.map((n) => ({ value: String(n), label: n === 1 ? t('Tanpa nol · 1') : t('{{count}} digit · {{example}}', { count: n, example: '1'.padStart(n, '0') }) }))}
+                            hint={t('Batas minimum — nomor tetap bertambah melewatinya, mis. {{from}} → {{to}}.', { from: '9'.repeat(Math.max(data.padding, 1)), to: `1${'0'.repeat(Math.max(data.padding, 1))}` })}
                             error={form.errors.padding}
                         />
 
                         <SegmentedControl<Reset>
-                            label="Nomor kembali ke 1"
+                            label={t('Nomor kembali ke 1')}
                             value={data.reset}
                             onChange={(value) => {
                                 setData('reset', value);
                                 form.clearErrors('format');
                             }}
                             columns={3}
-                            options={RESET_OPTIONS}
-                            hint={RESET_HINT[data.reset]}
+                            options={RESET_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
+                            hint={t(RESET_HINT[data.reset])}
                             error={form.errors.reset}
                         />
 
                         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-ob-line-soft pt-6">
                             <p className="flex max-w-[46ch] items-start gap-2 text-[13px] text-ob-ink-2">
                                 <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                                Berlaku untuk invoice yang dikirim setelah disimpan. Nomor tetap bisa diubah manual di dialog Kirim.
+                                {t('Berlaku untuk invoice yang diterbitkan setelah disimpan. Nomor tetap bisa diubah manual di dialog Terbitkan.')}
                             </p>
                             <div className="flex gap-2">
                                 <Button
@@ -311,7 +318,7 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                     }}
                                     icon={<RotateCcw className="h-4 w-4" />}
                                 >
-                                    Kembalikan default
+                                    {t('Kembalikan bawaan')}
                                 </Button>
                                 <Button
                                     type="submit"
@@ -320,17 +327,17 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                     loading={form.processing}
                                     disabled={!form.isDirty || !!clientError || !hasCompany}
                                 >
-                                    Simpan
+                                    {t('Simpan')}
                                 </Button>
                             </div>
                         </div>
                     </form>
 
-                    <aside aria-label="Pratinjau nomor" className="order-first flex flex-col gap-5 rounded-3xl border border-ob-line bg-ob-card p-6 lg:sticky lg:top-6 lg:order-none">
+                    <aside aria-label={t('Pratinjau nomor')} className="order-first flex flex-col gap-5 rounded-3xl border border-ob-line bg-ob-card p-6 lg:sticky lg:top-6 lg:order-none">
                         <div className="flex flex-col gap-3">
-                            <h2 className="text-base font-semibold text-ob-ink">Pratinjau</h2>
+                            <h2 className="text-base font-semibold text-ob-ink">{t('Pratinjau')}</h2>
                             <div className="rounded-2xl border border-ob-line bg-ob-inner p-5">
-                                <p className="text-xs text-ob-ink-2">Nomor invoice</p>
+                                <p className="text-xs text-ob-ink-2">{t('Nomor invoice')}</p>
                                 <p aria-live="polite" className="mt-1 break-all font-mono text-[22px] font-semibold leading-snug text-ob-ink">
                                     {segments.length === 0
                                         ? '—'
@@ -359,13 +366,13 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
                                 </dl>
                             )}
                             <p className="text-xs text-ob-ink-2">
-                                Contoh untuk {sample.client_name}, terbit {longDate(sample.date)}, nomor urut berikutnya di periode ini.
+                                {t('Contoh untuk {{client}}, terbit {{date}}, nomor urut berikutnya di periode ini.', { client: sample.client_name, date: longDate(sample.date) })}
                             </p>
                         </div>
 
                         {recent.length > 0 && (
                             <div className="flex flex-col gap-2 border-t border-ob-line-soft pt-5">
-                                <h3 className="text-[13px] font-semibold text-ob-ink-2">Nomor terakhir yang terbit</h3>
+                                <h3 className="text-[13px] font-semibold text-ob-ink-2">{t('Nomor terakhir yang terbit')}</h3>
                                 <ul className="flex flex-col gap-1.5">
                                     {recent.map((invoice) => (
                                         <li key={invoice.id} className="flex items-baseline justify-between gap-3">

@@ -217,7 +217,7 @@ export function FileUpload({
                                 t('Lepaskan file di sini...')
                             ) : (
                                 <Trans
-                                    i18nKey="<b>Klik untuk memilih</b> atau drag & drop"
+                                    i18nKey="<b>Klik untuk memilih</b> atau seret & lepas"
                                     components={{ b: <span className="font-medium text-ob-act" /> }}
                                 />
                             )}
@@ -231,7 +231,7 @@ export function FileUpload({
                     {supportsImagePaste && pasteHint && !isDragActive && (
                         <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full border border-ob-line bg-ob-card px-2.5 py-1 text-xs text-ob-ink-2">
                             <ClipboardPaste className="h-3 w-3" />
-                            {t('Ctrl+V untuk paste gambar')}
+                            {t('Ctrl+V untuk menempel gambar')}
                         </div>
                     )}
                 </div>

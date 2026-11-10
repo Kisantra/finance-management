@@ -5,6 +5,7 @@ import { AuthLink, AuthStatus } from '@/components/auth/auth-form';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface Props {
@@ -21,20 +22,20 @@ export default function ForgotPassword({ status }: Props) {
 
     return (
         <>
-            <Head title="Lupa Kata Sandi" />
+            <Head title={t('Lupa Kata Sandi')} />
 
             <PageHeader
-                title="Lupa kata sandi?"
-                description="Masukkan email Anda dan kami akan mengirimkan tautan untuk mengatur ulang kata sandi."
+                title={t('Lupa kata sandi?')}
+                description={t('Masukkan email Anda dan kami akan mengirimkan tautan untuk mengatur ulang kata sandi.')}
             />
 
             {status && <AuthStatus className="mt-6">{status}</AuthStatus>}
 
             <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
                 <Input
-                    label="Alamat email"
+                    label={t('Alamat email')}
                     type="email"
-                    placeholder="nama@perusahaan.com"
+                    placeholder={t('nama@perusahaan.com')}
                     value={data.email}
                     onChange={(e) => setData('email', e.target.value)}
                     error={errors.email}
@@ -44,14 +45,14 @@ export default function ForgotPassword({ status }: Props) {
                 />
 
                 <Button type="submit" variant="primary" size="lg" loading={processing} className="mt-1 w-full">
-                    Kirim Tautan Reset
+                    {t('Kirim Tautan Atur Ulang')}
                 </Button>
             </form>
 
             <div className="mt-6 flex justify-center">
                 <AuthLink href="/login" className="inline-flex items-center gap-1.5 text-[13px] text-ob-ink-2 hover:text-ob-ink">
                     <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
-                    Kembali ke halaman masuk
+                    {t('Kembali ke halaman masuk')}
                 </AuthLink>
             </div>
         </>

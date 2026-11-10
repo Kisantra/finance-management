@@ -120,7 +120,7 @@ function ImageViewer({ url }: { url: string }) {
                     </button>
                 </div>
                 <p className="text-xs text-ob-ink-3">
-                    {t('Scroll untuk zoom · Klik untuk toggle')}
+                    {t('Gulir untuk memperbesar · Klik untuk beralih')}
                 </p>
             </div>
         </div>
@@ -179,7 +179,7 @@ export function FilePreviewDialog({ open, onOpenChange, fileName, fileUrl }: Fil
                             <span aria-hidden="true" className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-ob-chip text-ob-ink-2">
                                 <Paperclip className="w-5 h-5" />
                             </span>
-                            <p className="text-[13px] text-ob-ink-2">{t('Preview tidak tersedia untuk jenis file ini.')}</p>
+                            <p className="text-[13px] text-ob-ink-2">{t('Pratinjau tidak tersedia untuk jenis file ini.')}</p>
                             <a
                                 href={fileUrl}
                                 target="_blank"

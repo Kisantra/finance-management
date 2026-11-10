@@ -16,6 +16,7 @@ import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
+import { t } from '@/i18n';
 
 interface ProfileUser {
     id: number;
@@ -42,8 +43,8 @@ export default function ProfileSettings() {
         e.preventDefault();
         patch(companyUrl('/settings/profile'), {
             preserveScroll: true,
-            onSuccess: () => toast.success('Profil berhasil diperbarui.'),
-            onError: () => toast.error('Periksa kembali isian form.'),
+            onSuccess: () => toast.success(t('Profil berhasil diperbarui.')),
+            onError: () => toast.error(t('Periksa kembali isian form.')),
         });
     };
 
@@ -64,12 +65,12 @@ export default function ProfileSettings() {
 
     return (
         <>
-            <Head title="Pengaturan Profil" />
+            <Head title={t('Pengaturan Profil')} />
 
-            <SettingsLayout title="Profil" description="Perbarui informasi profil dan alamat email akun Anda">
+            <SettingsLayout title={t('Profil')} description={t('Perbarui informasi profil dan alamat email akun Anda')}>
                 <form onSubmit={submit} className="space-y-5 max-w-xl">
                     <Input
-                        label="Nama Lengkap *"
+                        label={t('Nama Lengkap *')}
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
                         error={errors.name}
@@ -79,7 +80,7 @@ export default function ProfileSettings() {
                     />
 
                     <Input
-                        label="Email *"
+                        label={t('Email *')}
                         type="email"
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
@@ -93,17 +94,17 @@ export default function ProfileSettings() {
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
                                 <div className="flex-1 text-sm text-yellow-900 dark:text-yellow-100">
-                                    <p>Alamat email Anda belum diverifikasi.</p>
+                                    <p>{t('Alamat email Anda belum diverifikasi.')}</p>
                                     <button
                                         type="button"
                                         onClick={resendVerification}
                                         className="mt-2 font-medium underline hover:no-underline text-yellow-700 dark:text-yellow-200"
                                     >
-                                        Kirim ulang email verifikasi
+                                        {t('Kirim ulang email verifikasi')}
                                     </button>
                                     {status === 'verification-link-sent' && (
                                         <p className="mt-2 text-green-700 dark:text-green-400 font-medium">
-                                            Email verifikasi baru telah dikirim.
+                                            {t('Email verifikasi baru telah dikirim.')}
                                         </p>
                                     )}
                                 </div>
@@ -113,10 +114,10 @@ export default function ProfileSettings() {
 
                     <div className="flex items-center gap-3 pt-2">
                         <Button type="submit" variant="primary" loading={processing}>
-                            Simpan Perubahan
+                            {t('Simpan Perubahan')}
                         </Button>
                         {recentlySuccessful && (
-                            <span className="text-sm text-green-600 dark:text-green-400">Tersimpan</span>
+                            <span className="text-sm text-green-600 dark:text-green-400">{t('Tersimpan')}</span>
                         )}
                     </div>
                 </form>
@@ -142,12 +143,12 @@ function DeleteAccountSection() {
         destroy(companyUrl('/settings/profile'), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Akun berhasil dihapus.');
+                toast.success(t('Akun berhasil dihapus.'));
                 setOpen(false);
                 reset();
             },
             onError: () => {
-                toast.error('Kata sandi salah.');
+                toast.error(t('Kata sandi salah.'));
             },
         });
     };
@@ -162,14 +163,14 @@ function DeleteAccountSection() {
                                 <ShieldOff className="w-5 h-5 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <h3 className="text-sm font-bold text-red-900 dark:text-red-100">Hapus Akun</h3>
+                                <h3 className="text-sm font-bold text-red-900 dark:text-red-100">{t('Hapus Akun')}</h3>
                                 <p className="text-xs text-red-700 dark:text-red-300 mt-1 max-w-md">
-                                    Setelah akun dihapus, seluruh data Anda akan hilang permanen. Pastikan Anda telah mengunduh data yang ingin disimpan.
+                                    {t('Setelah akun dihapus, seluruh data Anda akan hilang permanen. Pastikan Anda telah mengunduh data yang ingin disimpan.')}
                                 </p>
                             </div>
                         </div>
                         <Button variant="red" onClick={() => setOpen(true)}>
-                            Hapus Akun
+                            {t('Hapus Akun')}
                         </Button>
                     </div>
                 </div>
@@ -194,24 +195,24 @@ function DeleteAccountSection() {
                                 </div>
                                 <div>
                                     <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                        Konfirmasi Hapus Akun
+                                        {t('Konfirmasi Hapus Akun')}
                                     </DialogTitle>
-                                    <p className="text-sm text-dark-500 dark:text-dark-400">Tindakan ini tidak dapat dibatalkan</p>
+                                    <p className="text-sm text-dark-500 dark:text-dark-400">{t('Tindakan ini tidak dapat dibatalkan')}</p>
                                 </div>
                             </div>
                         </DialogHeader>
 
                         <div className="px-6 py-4 space-y-4">
                             <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 p-3 text-sm text-red-700 dark:text-red-300">
-                                Masukkan kata sandi Anda untuk mengonfirmasi penghapusan akun permanen.
+                                {t('Masukkan kata sandi Anda untuk mengonfirmasi penghapusan akun permanen.')}
                             </div>
                             <Input
-                                label="Kata Sandi *"
+                                label={t('Kata Sandi *')}
                                 type="password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
                                 error={errors.password}
-                                placeholder="Kata sandi saat ini"
+                                placeholder={t('Kata sandi saat ini')}
                                 autoFocus
                                 autoComplete="current-password"
                             />
@@ -219,10 +220,10 @@ function DeleteAccountSection() {
 
                         <DialogFooter className="px-6 py-4">
                             <Button type="button" variant="zinc" onClick={() => setOpen(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button type="submit" variant="red" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
-                                Hapus Akun Saya
+                                {t('Hapus Akun Saya')}
                             </Button>
                         </DialogFooter>
                     </form>

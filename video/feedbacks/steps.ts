@@ -14,12 +14,12 @@ export const STAFF_SEND_STEPS: Step[] = [
         cursor: S['staff-floating'].floating,
         click: true,
         zoom: 1.8,
-        caption: 'Tombol Feedback ada di kanan bawah setiap halaman. Klik saat menemukan masalah atau punya usulan.',
+        caption: 'Tombol Masukan ada di kanan bawah setiap halaman. Klik saat menemukan masalah atau punya usulan.',
     },
     {
         src: img('staff-float-empty'),
         focus: S['staff-float-empty'].dialog,
-        caption: 'Form Kirim Feedback terbuka. Alamat halaman tempat Anda berada ikut tercatat otomatis.',
+        caption: 'Form Kirim Masukan terbuka. Alamat halaman tempat Anda berada ikut tercatat otomatis.',
         duration: 110,
     },
     {
@@ -55,7 +55,7 @@ export const STAFF_SEND_STEPS: Step[] = [
         cursor: S['staff-float-filled'].submit,
         click: true,
         zoom: 1.9,
-        caption: 'Prioritas bawaannya Sedang; gulir form untuk mengubahnya. Lalu klik Kirim Feedback.',
+        caption: 'Prioritas bawaannya Sedang; gulir form untuk mengubahnya. Lalu klik Kirim Masukan.',
     },
     {
         src: img('staff-float-sent'),
@@ -67,7 +67,7 @@ export const STAFF_SEND_STEPS: Step[] = [
     },
 ];
 
-/** Staff: kirim dari halaman Feedback + kelola miliknya. */
+/** Staff: kirim dari halaman Masukan + kelola miliknya. */
 export const STAFF_PAGE_STEPS: Step[] = [
     {
         src: img('staff-list-one'),
@@ -75,7 +75,7 @@ export const STAFF_PAGE_STEPS: Step[] = [
         cursor: S['staff-list-one'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Semua feedback Anda ada di Administrasi › Feedback. Dari sini juga bisa klik Kirim Feedback.',
+        caption: 'Semua masukan Anda ada di Administrasi › Masukan. Dari sini juga bisa klik Kirim Masukan.',
     },
     {
         src: img('staff-form-priority'),
@@ -87,21 +87,21 @@ export const STAFF_PAGE_STEPS: Step[] = [
         focus: S['staff-form-filled'].upload,
         cursor: S['staff-form-filled'].upload,
         zoom: 1.6,
-        caption: 'Lampirkan screenshot (JPG, PNG, atau PDF, maksimal 5 MB) agar tim langsung melihat masalahnya.',
+        caption: 'Lampirkan tangkapan layar (JPG, PNG, atau PDF, maksimal 5 MB) agar tim langsung melihat masalahnya.',
         duration: 130,
     },
     {
         src: img('staff-list'),
         focus: around(S['staff-list'].cardBug, S['staff-list'].cardFeature),
         zoom: 1.4,
-        caption: 'Kedua feedback berstatus Terbuka: menunggu ditinjau Admin atau Finance manager.',
+        caption: 'Kedua masukan berstatus Terbuka: menunggu ditinjau Admin atau Finance manager.',
         chime: true,
     },
     {
         src: img('staff-show-open'),
         focus: S['staff-show-open'].editRemove,
         zoom: 1.9,
-        caption: 'Klik kartu untuk melihat detail. Edit dan Hapus hanya tersedia selama status masih Terbuka.',
+        caption: 'Klik kartu untuk melihat detail. Ubah dan Hapus hanya tersedia selama status masih Terbuka.',
         duration: 130,
     },
 ];
@@ -112,7 +112,7 @@ export const STAFF_REPLY_STEPS: Step[] = [
         src: img('staff-list-after'),
         focus: S['staff-list-after'].bell,
         zoom: 2.2,
-        caption: 'Saat feedback Anda ditanggapi, lonceng notifikasi menampilkan Tanggapan Feedback.',
+        caption: 'Saat masukan Anda ditanggapi, lonceng notifikasi menampilkan Tanggapan Masukan.',
         duration: 110,
     },
     {
@@ -136,7 +136,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-list'),
         focus: S['fm-list'].tabs,
         zoom: 1.9,
-        caption: 'Semua Feedback berisi laporan dari semua pengguna. Feedback Saya hanya yang Anda kirim sendiri.',
+        caption: 'Semua Masukan berisi laporan dari semua pengguna. Masukan Saya hanya yang Anda kirim sendiri.',
     },
     {
         src: img('fm-list'),
@@ -164,7 +164,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-show'),
         focus: S['fm-show'].pageUrl,
         zoom: 1.8,
-        caption: 'URL halaman menunjukkan dari mana feedback dikirim. Lampiran, bila ada, tampil di bawahnya.',
+        caption: 'URL halaman menunjukkan dari mana masukan dikirim. Lampiran, bila ada, tampil di bawahnya.',
     },
     {
         src: img('fm-show'),
@@ -178,7 +178,7 @@ export const FM_STEPS: Step[] = [
     {
         src: img('fm-respond-empty'),
         focus: S['fm-respond-empty'].dialog,
-        caption: 'Dialog Tanggapi Feedback terbuka, dengan judul feedback di bagian atas.',
+        caption: 'Dialog Tanggapi Masukan terbuka, dengan judul masukan di bagian atas.',
         duration: 90,
     },
     {
@@ -197,7 +197,7 @@ export const FM_STEPS: Step[] = [
         cursor: S['fm-respond-status'].option,
         click: true,
         zoom: 1.5,
-        caption: 'Pilih Status Baru: Sedang Diproses, Selesai, atau Ditutup.',
+        caption: 'Pilih Status Baru: Diproses, Selesai, atau Ditutup.',
     },
     {
         src: img('fm-respond-text'),
@@ -212,7 +212,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-show-responded'),
         focus: around(S['fm-show-responded'].badges, S['fm-show-responded'].response),
         zoom: 1.3,
-        caption: 'Status kini Diproses dan tanggapan tersimpan. Tombolnya menjadi Edit Tanggapan, yang menimpa tanggapan lama.',
+        caption: 'Status kini Diproses dan tanggapan tersimpan. Tombolnya menjadi Ubah Tanggapan, yang menimpa tanggapan lama.',
         chime: true,
         duration: 150,
     },
@@ -237,13 +237,13 @@ export const FM_STATUS_STEPS: Step[] = [
     },
 ];
 
-/** Admin: jejak feedback di modul Notifikasi. */
+/** Admin: jejak masukan di modul Notifikasi. */
 export const ADMIN_IMPACT_STEPS: Step[] = [
     {
         src: img('admin-list'),
         focus: S['admin-list'].bell,
         zoom: 2.2,
-        caption: 'Setiap feedback baru menambah angka di lonceng semua Admin dan Finance manager.',
+        caption: 'Setiap masukan baru menambah angka di lonceng semua Admin dan Finance manager.',
         duration: 120,
     },
     {
@@ -251,7 +251,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         focus: S['admin-bell'].popover,
         cursor: S['admin-bell'].first,
         zoom: 1.6,
-        caption: 'Notifikasi Feedback Baru menyebut pengirim, tipe, dan judulnya. Klik untuk membuka halaman Feedback.',
+        caption: 'Notifikasi Masukan Baru menyebut pengirim, tipe, dan judulnya. Klik untuk membuka halaman Masukan.',
         duration: 150,
     },
     {
@@ -259,14 +259,14 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         focus: S['staff-list-after'].bell,
         zoom: 2.2,
         role: ROLES.staff,
-        caption: 'Saat ditanggapi lewat Tanggapi, pengirim mendapat notifikasi Tanggapan Feedback. Ubah Status tidak mengirim apa pun.',
+        caption: 'Saat ditanggapi lewat Tanggapi, pengirim mendapat notifikasi Tanggapan Masukan. Ubah Status tidak mengirim apa pun.',
         duration: 160,
     },
     {
         src: img('admin-list'),
         focus: S['admin-list'].stats,
         zoom: 1.3,
-        caption: 'Feedback tidak mengubah data keuangan apa pun. Jejaknya hanya di halaman ini dan di notifikasi.',
+        caption: 'Masukan tidak mengubah data keuangan apa pun. Jejaknya hanya di halaman ini dan di notifikasi.',
         duration: 120,
     },
 ];

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { t } from '@/i18n';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface Props {
@@ -26,17 +27,17 @@ export default function Login({ status }: Props) {
 
     return (
         <>
-            <Head title="Masuk" />
+            <Head title={t('Masuk')} />
 
-            <PageHeader title="Selamat datang kembali" description="Masuk ke akun Anda untuk melanjutkan" />
+            <PageHeader title={t('Selamat datang kembali')} description={t('Masuk ke akun Anda untuk melanjutkan')} />
 
             {status && <AuthStatus className="mt-6">{status}</AuthStatus>}
 
             <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
                 <Input
-                    label="Alamat email"
+                    label={t('Alamat email')}
                     type="email"
-                    placeholder="nama@perusahaan.com"
+                    placeholder={t('nama@perusahaan.com')}
                     value={data.email}
                     onChange={(e) => setData('email', e.target.value)}
                     error={errors.email}
@@ -46,7 +47,7 @@ export default function Login({ status }: Props) {
                 />
 
                 <PasswordInput
-                    label="Kata sandi"
+                    label={t('Kata sandi')}
                     placeholder="••••••••"
                     value={data.password}
                     onChange={(e) => setData('password', e.target.value)}
@@ -63,16 +64,16 @@ export default function Login({ status }: Props) {
                             onCheckedChange={(checked) => setData('remember', !!checked)}
                         />
                         <Label htmlFor="remember" className="cursor-pointer select-none">
-                            Ingat saya selama 30 hari
+                            {t('Ingat saya selama 30 hari')}
                         </Label>
                     </div>
                     <AuthLink href="/forgot-password" className="text-[13px]">
-                        Lupa kata sandi?
+                        {t('Lupa kata sandi?')}
                     </AuthLink>
                 </div>
 
                 <Button type="submit" variant="primary" size="lg" loading={processing} className="mt-1 w-full">
-                    Masuk ke Dasbor
+                    {t('Masuk')}
                 </Button>
             </form>
         </>

@@ -324,7 +324,7 @@ export default function ServicesIndex() {
                                         </td>
                                         <td className="px-3 py-3 align-middle">
                                             <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="icon-sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => openEdit(s)} aria-label={t('Edit Layanan')} />
+                                                <Button variant="ghost" size="icon-sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => openEdit(s)} aria-label={t('Ubah Layanan')} />
                                                 <Button variant="ghost" size="icon-sm" icon={<Trash2 className="h-3.5 w-3.5 text-red-500" />} onClick={() => setDeleteTarget(s)} aria-label={t('Hapus Layanan')} />
                                             </div>
                                         </td>
@@ -367,7 +367,7 @@ export default function ServicesIndex() {
             <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
                 <DialogContent size="md">
                     <form onSubmit={submitEdit}>
-                        <ServiceForm form={editForm} types={types} onCancel={() => setEditTarget(null)} title={t('Edit Layanan')} submitLabel={t('Perbarui Layanan')} />
+                        <ServiceForm form={editForm} types={types} onCancel={() => setEditTarget(null)} title={t('Ubah Layanan')} submitLabel={t('Perbarui Layanan')} />
                     </form>
                 </DialogContent>
             </Dialog>

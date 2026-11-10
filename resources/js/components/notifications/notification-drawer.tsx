@@ -180,7 +180,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                             </div>
                             <h3 className="text-[15px] font-semibold text-ob-ink">{t('Tidak ada notifikasi')}</h3>
                             <p className="text-[13px] text-ob-ink-2 mt-1 max-w-xs">
-                                {t('Notifikasi tentang invoice, pembayaran, dan feedback akan muncul di sini.')}
+                                {t('Notifikasi tentang invoice, pembayaran, dan masukan akan muncul di sini.')}
                             </p>
                         </div>
                     ) : (

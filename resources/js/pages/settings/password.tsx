@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
+import { t } from '@/i18n';
 
 export default function PasswordSettings() {
     const { data, setData, put, processing, errors, reset, recentlySuccessful } = useForm({
@@ -24,11 +25,11 @@ export default function PasswordSettings() {
         put(companyUrl('/settings/password'), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Kata sandi berhasil diperbarui.');
+                toast.success(t('Kata sandi berhasil diperbarui.'));
                 reset();
             },
             onError: () => {
-                toast.error('Periksa kembali isian form.');
+                toast.error(t('Periksa kembali isian form.'));
                 reset('current_password', 'password', 'password_confirmation');
             },
         });
@@ -66,35 +67,35 @@ export default function PasswordSettings() {
 
     return (
         <>
-            <Head title="Pengaturan Kata Sandi" />
+            <Head title={t('Pengaturan Kata Sandi')} />
 
             <SettingsLayout
-                title="Kata Sandi"
-                description="Pastikan akun menggunakan kata sandi yang kuat dan tidak digunakan di tempat lain"
+                title={t('Kata Sandi')}
+                description={t('Pastikan akun menggunakan kata sandi yang kuat dan tidak digunakan di tempat lain')}
             >
                 <form onSubmit={submit} className="space-y-5 max-w-xl">
                     {passwordField(
-                        'Kata Sandi Saat Ini *',
+                        t('Kata Sandi Saat Ini *'),
                         'current_password',
                         showCurrent,
                         () => setShowCurrent(!showCurrent),
-                        'Kata sandi saat ini',
+                        t('Kata sandi saat ini'),
                         'current-password',
                     )}
                     {passwordField(
-                        'Kata Sandi Baru *',
+                        t('Kata Sandi Baru *'),
                         'password',
                         showNew,
                         () => setShowNew(!showNew),
-                        'Minimal 8 karakter',
+                        t('Minimal 8 karakter'),
                         'new-password',
                     )}
                     {passwordField(
-                        'Konfirmasi Kata Sandi Baru *',
+                        t('Konfirmasi Kata Sandi Baru *'),
                         'password_confirmation',
                         showConfirm,
                         () => setShowConfirm(!showConfirm),
-                        'Ulangi kata sandi baru',
+                        t('Ulangi kata sandi baru'),
                         'new-password',
                     )}
 
@@ -102,17 +103,17 @@ export default function PasswordSettings() {
                         <div className="flex items-start gap-2">
                             <ShieldCheck className="w-4 h-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
                             <p className="text-xs text-dark-600 dark:text-dark-400">
-                                Gunakan kombinasi huruf besar, huruf kecil, angka, dan simbol untuk keamanan maksimal.
+                                {t('Gunakan kombinasi huruf besar, huruf kecil, angka, dan simbol untuk keamanan maksimal.')}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3 pt-2">
                         <Button type="submit" variant="primary" loading={processing}>
-                            Perbarui Kata Sandi
+                            {t('Perbarui Kata Sandi')}
                         </Button>
                         {recentlySuccessful && (
-                            <span className="text-sm text-green-600 dark:text-green-400">Tersimpan</span>
+                            <span className="text-sm text-green-600 dark:text-green-400">{t('Tersimpan')}</span>
                         )}
                     </div>
                 </form>

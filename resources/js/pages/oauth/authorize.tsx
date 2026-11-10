@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Building2, Check, Info } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
+import { t, tk, Trans } from '@/i18n';
 import { getCsrfToken } from '@/pages/invoices/components/ob';
 
 interface Props {
@@ -15,14 +16,14 @@ interface Props {
 }
 
 const BISA = [
-    'Hanya membaca: invoice, rekening & mutasi, laba rugi, klien, layanan, reimbursement, pengajuan dana, utang, dan piutang.',
-    'Tidak bisa menambah, mengubah, atau menghapus data apa pun.',
-    'Mengikuti izin peran Anda di tiap perusahaan.',
+    tk('Hanya membaca: invoice, rekening & mutasi, laba rugi, klien, layanan, reimbursement, pengajuan dana, utang, dan piutang.'),
+    tk('Tidak bisa menambah, mengubah, atau menghapus data apa pun.'),
+    tk('Mengikuti izin peran Anda di tiap perusahaan.'),
 ];
 
 const PERHATIKAN = [
-    'Data yang dibaca Claude ikut masuk ke percakapan dan diproses oleh Anthropic.',
-    'Akses bisa dicabut kapan saja di Pengaturan › Koneksi Claude.',
+    tk('Data yang dibaca Claude ikut masuk ke percakapan dan diproses oleh Anthropic.'),
+    tk('Akses bisa dicabut kapan saja di Pengaturan › Koneksi Claude.'),
 ];
 
 /**
@@ -44,26 +45,35 @@ export default function OAuthAuthorize({ clientName, redirectHost, userName, rea
 
     return (
         <>
-            <Head title="Hubungkan Claude" />
+            <Head title={t('Hubungkan Claude')} />
             <main className="flex min-h-dvh items-center justify-center bg-ob-page px-4 py-10">
                 <div className="ob-motion ob-fade-in w-full max-w-lg rounded-3xl border border-ob-line bg-ob-card p-6 text-ob-ink sm:p-8">
+                    {/* i18n-abaikan: nama produk */}
                     <p className="text-[13px] font-medium text-ob-ink-2">Kisantra Finance</p>
                     <h1 className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.01em]">
-                        Izinkan {clientName} membaca data keuangan?
+                        {t('Izinkan {{client}} membaca data keuangan?', { client: clientName })}
                     </h1>
                     <p className="mt-2 text-sm text-ob-ink-2">
-                        Masuk sebagai <span className="font-semibold text-ob-ink">{userName}</span>.
+                        <Trans
+                            i18nKey="Masuk sebagai <b>{{name}}</b>."
+                            values={{ name: userName }}
+                            components={{ b: <span className="font-semibold text-ob-ink" /> }}
+                        />
                         {redirectHost && (
                             <>
                                 {' '}
-                                Setelah ini Anda kembali ke <span className="font-mono text-ob-ink">{redirectHost}</span>.
+                                <Trans
+                                    i18nKey="Setelah ini Anda kembali ke <kode>{{host}}</kode>."
+                                    values={{ host: redirectHost }}
+                                    components={{ kode: <span className="font-mono text-ob-ink" /> }}
+                                />
                             </>
                         )}
                     </p>
 
                     <section aria-labelledby="perusahaan-judul" className="mt-6 rounded-2xl bg-ob-inner p-4">
                         <h2 id="perusahaan-judul" className="text-[13px] font-semibold">
-                            {allowed ? 'Perusahaan yang bisa dibaca' : 'Belum ada perusahaan yang bisa dibaca'}
+                            {allowed ? t('Perusahaan yang bisa dibaca') : t('Belum ada perusahaan yang bisa dibaca')}
                         </h2>
                         {allowed ? (
                             <ul className="mt-3 flex flex-col gap-2">
@@ -76,8 +86,10 @@ export default function OAuthAuthorize({ clientName, redirectHost, userName, rea
                             </ul>
                         ) : (
                             <p className="mt-2 text-[13px] text-ob-ink-2">
-                                Peran Anda belum punya izin <span className="font-mono">use claude</span> di perusahaan mana pun. Minta admin
-                                mengaktifkannya di Administrasi › Izin & Peran, lalu hubungkan ulang.
+                                <Trans
+                                    i18nKey="Peran Anda belum punya izin <kode>use claude</kode> di perusahaan mana pun. Minta admin mengaktifkannya di Administrasi › Izin & Peran, lalu hubungkan ulang."
+                                    components={{ kode: <span className="font-mono" /> }}
+                                />
                             </p>
                         )}
                     </section>
@@ -86,13 +98,13 @@ export default function OAuthAuthorize({ clientName, redirectHost, userName, rea
                         {BISA.map((teks) => (
                             <li key={teks} className="flex gap-2.5">
                                 <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-pos" />
-                                <span>{teks}</span>
+                                <span>{t(teks)}</span>
                             </li>
                         ))}
                         {PERHATIKAN.map((teks) => (
                             <li key={teks} className="flex gap-2.5">
                                 <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-ink-3" />
-                                <span>{teks}</span>
+                                <span>{t(teks)}</span>
                             </li>
                         ))}
                     </ul>
@@ -102,14 +114,14 @@ export default function OAuthAuthorize({ clientName, redirectHost, userName, rea
                             {hidden}
                             <input type="hidden" name="_method" value="DELETE" />
                             <Button type="submit" variant="outline" className="w-full sm:w-auto">
-                                Tolak
+                                {t('Tolak')}
                             </Button>
                         </form>
                         {allowed && (
                             <form method="POST" action={approveUrl}>
                                 {hidden}
                                 <Button type="submit" className="w-full sm:w-auto">
-                                    Izinkan
+                                    {t('Izinkan')}
                                 </Button>
                             </form>
                         )}

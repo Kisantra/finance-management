@@ -88,7 +88,7 @@ export function FloatingFeedbackButton() {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
-                toast.success(t('Feedback berhasil dikirim. Terima kasih atas masukannya!'));
+                toast.success(t('Masukan berhasil dikirim. Terima kasih!'));
                 setOpen(false);
                 reset();
             },
@@ -104,8 +104,8 @@ export function FloatingFeedbackButton() {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 className="fixed bottom-6 right-6 z-40 h-12 rounded-full bg-ob-act-fill text-white shadow-xl shadow-black/20 hover:bg-ob-act-fill/90 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page flex items-center justify-center pl-3.5 pr-4 gap-2 group"
-                title={t('Kirim Feedback')}
-                aria-label={t('Kirim Feedback')}
+                title={t('Kirim Masukan')}
+                aria-label={t('Kirim Masukan')}
             >
                 <MessageSquare className="w-5 h-5 shrink-0" />
                 <span
@@ -114,7 +114,7 @@ export function FloatingFeedbackButton() {
                         hovered ? 'max-w-32 opacity-100' : 'max-w-0 opacity-0',
                     )}
                 >
-                    {t('Feedback')}
+                    {t('Masukan')}
                 </span>
             </button>
 
@@ -128,7 +128,7 @@ export function FloatingFeedbackButton() {
                                 </div>
                                 <div>
                                     <DialogTitle>
-                                        {t('Kirim Feedback')}
+                                        {t('Kirim Masukan')}
                                     </DialogTitle>
                                     <p className="text-sm text-ob-ink-2">
                                         {t('Laporkan bug, ajukan fitur, atau berikan saran')}
@@ -178,7 +178,7 @@ export function FloatingFeedbackButton() {
                                 />
                             </FormSection>
 
-                            <FormSection title={t('Lampiran (opsional)')} description={t('Screenshot atau dokumen pendukung')}>
+                            <FormSection title={t('Lampiran (opsional)')} description={t('Tangkapan layar atau dokumen pendukung')}>
                                 <FileUpload
                                     value={data.attachment}
                                     onChange={(file) => setData('attachment', file)}
@@ -195,7 +195,7 @@ export function FloatingFeedbackButton() {
                             </Button>
                             <Button type="submit" variant="primary" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
                                 <Send className="w-4 h-4" />
-                                {t('Kirim Feedback')}
+                                {t('Kirim Masukan')}
                             </Button>
                         </DialogFooter>
                     </form>

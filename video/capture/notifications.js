@@ -1,8 +1,8 @@
 /*
  * Ambil ulang screenshot tutorial Notifikasi (video/notifications/screens/*.webp, lewat to-webp.py) bila UI berubah.
  * 1. Jalankan server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8017
- * 2. Jalankan video/capture/feedbacks.js dulu: skrip itu membuat notifikasi Feedback Baru (Admin & Finance manager)
- *    dan Tanggapan Feedback (staff) yang masih belum dibaca.
+ * 2. Jalankan video/capture/feedbacks.js dulu: skrip itu membuat notifikasi Masukan Baru (Admin & Finance manager)
+ *    dan Tanggapan Masukan (staff) yang masih belum dibaca.
  * 3. Jalankan file ini lewat Playwright MCP (browser_run_code_unsafe, filename: video/capture/notifications.js).
  * 4. python video/capture/to-webp.py notifications, lalu salin koordinat ke video/notifications/shots.ts.
  * Skrip ini menandai notifikasi ketiga akun uji sebagai sudah dibaca. Jangan jalankan di DB utama.
@@ -24,7 +24,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -32,7 +32,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -92,8 +92,8 @@ async (page) => {
     await snap(s, 'staff-popover', popTargets(s));
     await popover(s).locator('li button').first().click();
     await s.waitForURL(/feedbacks/);
-    await s.getByRole('heading', { name: 'Feedback & Saran' }).waitFor();
-    await snap(s, 'staff-after-click', { bell: bell(s), heading: s.getByRole('heading', { name: 'Feedback & Saran' }) });
+    await s.getByRole('heading', { name: 'Masukan' }).waitFor();
+    await snap(s, 'staff-after-click', { bell: bell(s), heading: s.getByRole('heading', { name: 'Masukan' }) });
     await openPopover(s);
     await s.getByRole('button', { name: /Lihat semua notifikasi/ }).click();
     await drawer(s).locator('li button').first().waitFor();
@@ -111,8 +111,8 @@ async (page) => {
     await snap(m, 'fm-popover', popTargets(m));
     await popover(m).locator('li button').first().click();
     await m.waitForURL(/feedbacks/);
-    await m.getByRole('heading', { name: 'Feedback & Saran' }).waitFor();
-    await snap(m, 'fm-after-click', { bell: bell(m), heading: m.getByRole('heading', { name: 'Feedback & Saran' }) });
+    await m.getByRole('heading', { name: 'Masukan' }).waitFor();
+    await snap(m, 'fm-after-click', { bell: bell(m), heading: m.getByRole('heading', { name: 'Masukan' }) });
 
     /* ── Admin ── */
     const a = await open('admin@gmail.com');

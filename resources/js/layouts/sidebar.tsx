@@ -114,7 +114,7 @@ const NAV: NavGroup[] = [
         icon: <ClipboardList className={ICON} />,
         items: [
             { label: tk('Reimbursement', 'menu'), href: '/reimbursements', permission: 'view reimbursements', matchPrefix: '/reimbursements', badgeKey: 'reimbursements' },
-            { label: tk('Permintaan Dana', 'menu'), href: '/fund-requests', permission: 'view fund requests', matchPrefix: '/fund-requests', badgeKey: 'fund_requests' },
+            { label: tk('Pengajuan Dana', 'menu'), href: '/fund-requests', permission: 'view fund requests', matchPrefix: '/fund-requests', badgeKey: 'fund_requests' },
             { label: tk('Kategori Transaksi', 'menu'), href: '/transaction-categories', permission: 'view categories', matchPrefix: '/transaction-categories' },
         ],
     },
@@ -152,7 +152,7 @@ const NAV: NavGroup[] = [
             { label: tk('Pengguna', 'menu'), href: '/admin/users', permission: 'manage users', matchPrefix: '/admin/users' },
             { label: tk('Perusahaan', 'menu'), href: '/admin/companies', permission: 'manage companies', matchPrefix: '/admin/companies' },
             { label: tk('Izin & Peran', 'menu'), href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
-            { label: tk('Feedback', 'menu'), href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
+            { label: tk('Masukan', 'menu'), href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
         ],
     },
     {
