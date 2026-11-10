@@ -92,11 +92,23 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'id'),
+    /*
+    | Sengaja dipatok 'id', TIDAK dari .env (APP_LOCALE/APP_FALLBACK_LOCALE diabaikan):
+    | - locale: bahasa bawaan tamu/sesi baru, konsol, antrean, dan alat MCP (teks untuk Claude tetap
+    |   Indonesia). Bahasa per request ditentukan App\Http\Middleware\SetLocale.
+    | - fallback_locale: kunci terjemahan = teks Indonesia (K1), jadi terjemahan zh/en yang belum ada
+    |   harus jatuh ke Indonesia — fallback 'en' membuat layar Mandarin menampilkan teks Inggris.
+    */
+    'locale' => 'id',
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'id'),
+    'fallback_locale' => 'id',
 
-    'available_locales' => ['id', 'zh'],
+    /*
+    | Bahasa tampilan yang bisa dipilih pengguna (pemilih bahasa, POST /language). Penentunya
+    | hanya App\Http\Middleware\SetLocale. Dokumen (PDF/Excel) selalu 'id' (middleware
+    | locale.dokumen / withDocumentLocale()). Konvensi: CLAUDE.md › "Multi Bahasa".
+    */
+    'available_locales' => ['id', 'en', 'zh'],
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 

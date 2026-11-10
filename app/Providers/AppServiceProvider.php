@@ -4,12 +4,10 @@ namespace App\Providers;
 
 use App\Mcp\PersetujuanClaude;
 use App\Services\ErrorReportService;
-use Carbon\Carbon;
 use Carbon\CarbonInterval;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationsStarted;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
@@ -76,37 +74,8 @@ class AppServiceProvider extends ServiceProvider
             ]));
         });
 
-        // Set locale from session or user preference with fallback
-        $availableLocales = config('app.available_locales', ['id', 'zh']);
-        $locale = session('locale');
-
-        // If locale is not available, fallback to 'id'
-        if (! $locale || ! in_array($locale, $availableLocales)) {
-            $locale = 'id';
-        }
-
-        // If user is authenticated, use their preference
-        if (auth()->check() && auth()->user()->locale) {
-            $userLocale = auth()->user()->locale;
-            // Only use user locale if it's available
-            if (in_array($userLocale, $availableLocales)) {
-                $locale = $userLocale;
-            } else {
-                // Update user's locale to fallback
-                auth()->user()->update(['locale' => 'id']);
-            }
-        }
-
-        App::setLocale($locale);
-
-        // Set Carbon locale for date translations
-        // Map locale to Carbon locale codes
-        $carbonLocale = match ($locale) {
-            'zh' => 'zh_CN', // Chinese Simplified
-            'id' => 'id',    // Indonesian
-            default => 'id',
-        };
-        Carbon::setLocale($carbonLocale);
+        // Bahasa tampilan TIDAK ditentukan di sini: saat boot sesi belum berjalan. Satu-satunya
+        // penentu adalah middleware App\Http\Middleware\SetLocale (Carbon ikut lewat LocaleUpdated).
     }
 
     /**

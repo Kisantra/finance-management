@@ -13,6 +13,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\FundRequestController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
@@ -203,7 +204,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     Route::get('/template-builder-test', fn () => redirect()->route('settings.pdf-templates.index'))->name('template-builder-test');
     Route::middleware('can:manage pdf templates')->group(function () {
         Route::post('/template-builder-test', [TemplateBuilderController::class, 'save'])->name('template-builder-test.save');
-        Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->name('template-builder-test.pdf');
+        Route::get('/template-builder-test/pdf', [TemplateBuilderController::class, 'pdf'])->middleware('locale.dokumen')->name('template-builder-test.pdf');
     });
 
     // ------------------------------------------------------------------------
@@ -229,10 +230,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     Route::prefix('invoices')->name('invoices.')->middleware('can:view invoices')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');
         Route::get('/create', [InvoiceController::class, 'create'])->middleware('can:create invoices')->name('create');
-        Route::get('/export/excel', [InvoiceController::class, 'exportExcel'])->name('export.excel');
-        Route::get('/export/pdf', [InvoiceController::class, 'exportPdf'])->name('export.pdf');
+        // Dokumen (rekap Excel/PDF, pratinjau PDF editor) selalu Bahasa Indonesia: middleware locale.dokumen.
+        Route::get('/export/excel', [InvoiceController::class, 'exportExcel'])->middleware('locale.dokumen')->name('export.excel');
+        Route::get('/export/pdf', [InvoiceController::class, 'exportPdf'])->middleware('locale.dokumen')->name('export.pdf');
         Route::post('/', [InvoiceController::class, 'store'])->middleware('can:create invoices')->name('store');
-        Route::post('/preview', [InvoiceController::class, 'preview'])->name('preview');
+        Route::post('/preview', [InvoiceController::class, 'preview'])->middleware('locale.dokumen')->name('preview');
         Route::get('/next-number', [InvoiceController::class, 'nextNumber'])->name('next-number');
         Route::get('/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('show');
         Route::get('/{invoice}/data', [InvoiceController::class, 'data'])->name('data');
@@ -253,8 +255,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::delete('/{payment}', [PaymentController::class, 'destroy'])->name('destroy');
     });
 
-    // Invoice PDF Operations
-    Route::prefix('invoice')->name('invoice.')->group(function () {
+    // Invoice PDF Operations — dokumen, selalu Bahasa Indonesia (locale.dokumen).
+    Route::prefix('invoice')->name('invoice.')->middleware('locale.dokumen')->group(function () {
         Route::get('/{invoice}/download', function (Invoice $invoice, Request $request) {
             $dpAmount = $request->query('dp_amount') ? (int) $request->query('dp_amount') : null;
             $pelunasanAmount = $request->query('pelunasan_amount') ? (int) $request->query('pelunasan_amount') : null;
@@ -268,7 +270,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
                 $filename = $printer->filename($invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
@@ -295,7 +297,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $printer = new BuilderInvoicePrinter;
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, 'Template PDF tidak dikenal.');
+                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
             }
@@ -398,11 +400,11 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         ->name('bank-transactions.transfer');
 
     Route::get('/bank-account/export/pdf', [CashFlowExportController::class, 'exportPdf'])
-        ->middleware('can:view bank-accounts')
+        ->middleware(['can:view bank-accounts', 'locale.dokumen'])
         ->name('bank-account.export.pdf');
 
     Route::get('/bank-account/export/pdf/preview', [CashFlowExportController::class, 'previewPdf'])
-        ->middleware('can:view bank-accounts')
+        ->middleware(['can:view bank-accounts', 'locale.dokumen'])
         ->name('bank-account.export.pdf.preview');
 
     Route::prefix('cash-flow')->name('cash-flow.')->group(function () {
@@ -425,7 +427,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             abort(403);
         })->name('index');
         Route::get('/all', [CashFlowController::class, 'all'])->middleware(['can:view income', 'can:view expense'])->name('all');
-        Route::get('/all/export/excel', [CashFlowController::class, 'exportAll'])->middleware(['can:view income', 'can:view expense'])->name('all.export');
+        Route::get('/all/export/excel', [CashFlowController::class, 'exportAll'])->middleware(['can:view income', 'can:view expense', 'locale.dokumen'])->name('all.export');
         Route::get('/income', [CashFlowController::class, 'income'])->middleware('can:view income')->name('income');
         Route::get('/expenses', [CashFlowController::class, 'expenses'])->middleware('can:view expense')->name('expenses');
         Route::get('/transfers', [CashFlowController::class, 'transfers'])->middleware('can:view transfer')->name('transfers');
@@ -435,9 +437,9 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         // Cash-flow statement export is an account-level report (same controller as the
         // bank-account export above), so it stays gated by bank-account access.
         Route::get('/export/pdf', [CashFlowExportController::class, 'exportPdf'])
-            ->middleware('can:view bank-accounts')->name('export.pdf');
+            ->middleware(['can:view bank-accounts', 'locale.dokumen'])->name('export.pdf');
         Route::get('/export/pdf/preview', [CashFlowExportController::class, 'previewPdf'])
-            ->middleware('can:view bank-accounts')->name('export.pdf.preview');
+            ->middleware(['can:view bank-accounts', 'locale.dokumen'])->name('export.pdf.preview');
     });
 
     // ------------------------------------------------------------------------
@@ -509,7 +511,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
-    })->middleware('can:view fund requests')->name('fund-requests.export.pdf');
+    })->middleware(['can:view fund requests', 'locale.dokumen'])->name('fund-requests.export.pdf');
 
     Route::get('/fund-requests/export/pdf/preview', function (Request $request) {
         $filters = [
@@ -531,7 +533,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline',
         ]);
-    })->middleware('can:view fund requests')->name('fund-requests.export.pdf.preview');
+    })->middleware(['can:view fund requests', 'locale.dokumen'])->name('fund-requests.export.pdf.preview');
 
     // ------------------------------------------------------------------------
     // FEEDBACKS
@@ -560,7 +562,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     // ------------------------------------------------------------------------
     Route::middleware('can:view profit-loss')->group(function () {
         Route::get('/reports/profit-loss', [ProfitLossReportController::class, 'index'])->name('reports.profit-loss');
-        Route::get('/reports/profit-loss/pdf', [ProfitLossReportController::class, 'downloadPdf'])->name('reports.profit-loss.pdf');
+        Route::get('/reports/profit-loss/pdf', [ProfitLossReportController::class, 'downloadPdf'])->middleware('locale.dokumen')->name('reports.profit-loss.pdf');
     });
 
     // ------------------------------------------------------------------------
@@ -698,8 +700,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             Route::post('/{pdfTemplate}/set-default', [PdfTemplateController::class, 'setDefault'])->name('set-default');
             Route::get('/{pdfTemplate}/edit', [PdfTemplateController::class, 'edit'])->name('edit');
             Route::post('/{pdfTemplate}/save', [PdfTemplateController::class, 'save'])->name('save');
-            Route::get('/{pdfTemplate}/pdf', [PdfTemplateController::class, 'pdf'])->name('pdf');
-            Route::get('/{pdfTemplate}/pdf/{invoice}', [PdfTemplateController::class, 'pdf'])->name('pdf.invoice');
+            Route::get('/{pdfTemplate}/pdf', [PdfTemplateController::class, 'pdf'])->middleware('locale.dokumen')->name('pdf');
+            Route::get('/{pdfTemplate}/pdf/{invoice}', [PdfTemplateController::class, 'pdf'])->middleware('locale.dokumen')->name('pdf.invoice');
 
             // Custom font library (global — shared across all templates)
             Route::get('/custom-fonts', [CustomFontController::class, 'index'])->name('custom-fonts.index');
@@ -714,19 +716,9 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
 
 });
 
-// Language switching (used by React AppLayout)
-Route::post('/language', function (Request $request) {
-    $locale = $request->input('locale');
-    $available = config('app.available_locales', ['id', 'en', 'zh']);
-    if (in_array($locale, $available)) {
-        session(['locale' => $locale]);
-        if (auth()->check()) {
-            auth()->user()->update(['locale' => $locale]);
-        }
-    }
-
-    return redirect()->back();
-})->middleware('web')->name('language.switch');
+// Pemilih bahasa (header aplikasi + halaman tamu). Central: berlaku untuk tamu maupun pengguna login,
+// dibalas muat ulang penuh. Penentu bahasa per request: App\Http\Middleware\SetLocale.
+Route::post('/language', LanguageController::class)->name('language.switch');
 
 require __DIR__.'/auth.php';
 

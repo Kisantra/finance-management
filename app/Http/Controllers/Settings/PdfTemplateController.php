@@ -119,12 +119,17 @@ class PdfTemplateController extends Controller
      */
     public function edit(PdfTemplate $pdfTemplate): InertiaResponse
     {
-        $invoice = $this->resolvePreviewInvoice();
-        $sampleData = TemplateTokens::buildMap($invoice);
+        // Isi kanvas (nilai token, baris item, terbilang, tanggal) adalah ISI DOKUMEN → selalu Bahasa
+        // Indonesia (K2). Katalog palet/inspector di bawah adalah UI → ikut bahasa pengguna.
+        [$sampleData, $sampleItems] = withDocumentLocale(function (): array {
+            $invoice = $this->resolvePreviewInvoice();
 
-        // Build resolved sample rows for the table element Preview mode.
-        $defaultColumns = ItemColumns::defaultColumns();
-        $sampleItems = ItemColumns::resolveItems($defaultColumns, $invoice->items);
+            return [
+                TemplateTokens::buildMap($invoice),
+                // Build resolved sample rows for the table element Preview mode.
+                ItemColumns::resolveItems(ItemColumns::defaultColumns(), $invoice->items),
+            ];
+        });
 
         // Sprint 5b: global custom font library for the editor font picker.
         $customFonts = CustomFont::query()
