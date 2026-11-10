@@ -1,11 +1,14 @@
 # Glosarium terjemahan ID → EN → 中文 (zh-CN)
 
-> **Status:** v1.2, 10 Nov 2026. Disusun T1 (penerjemah Mandarin) untuk fitur multi bahasa (`fitur/multi-bahasa`).
+> **Status:** v1.3, 10 Nov 2026. Disusun T1 (penerjemah Mandarin) untuk fitur multi bahasa (`fitur/multi-bahasa`).
 > **v1.1:** kolom Indonesia mengikuti [`perapian-id.md`](perapian-id.md) (teks Indonesia dirapikan sebelum kamus dibuat).
 > **v1.2:** pilihan yang berubah atau bertambah saat kamus `resources/js/locales/zh.json` diisi bertanda **[zh v1.2]**.
 > Sebabnya hampir selalu **kunci bersama**: satu teks Indonesia dipakai beberapa layar dengan makna berbeda, padahal kamus
 > hanya memberi satu terjemahan per kunci. Istilah baru (penyusun template PDF, penomoran, utang/piutang, Claude) ada di §2.8;
 > pilihan untuk teks server (`lang/zh.json`, `validation.php`, `feedback.php`) di §2.9.
+> **v1.3:** tindak lanjut [`pemeriksaan-silang-zh.md`](pemeriksaan-silang-zh.md), bertanda **[zh v1.3]**. Aksi & catatan pembayaran
+> invoice → 收款 (kunci bersama diberi konteks `invoice` di `pages/invoices/**`), status invoice tetap 已付款/未付款/部分付款
+> (§3 *Bayar*); AR → 税务客户经理; label "Buat …" diseragamkan ke 新建.
 > Entri yang istilah Indonesianya berubah bertanda **[baku baru]** beserta ID perapiannya.
 > **Belum ditinjau penutur asli Mandarin.** Setiap pilihan istilah pajak/akuntansi diberi alasan dan rujukan,
 > supaya pemeriksa terjemah-balik (T2) dan peninjau kelak bisa menilai, bukan menebak.
@@ -55,7 +58,7 @@
 | # | Aturan | Contoh |
 |---|---|---|
 | Z1 | Aksara sederhana, kosakata daratan Tiongkok. Bukan bentuk Taiwan/HK: 账户 (bukan 帳戶/户口), 默认 (bukan 預設), 文件 (bukan 檔案), 链接 (bukan 連結). | — |
-| Z2 | Register sopan-ringkas: 您, bukan 你. Tanpa tanda seru di UI biasa. Tombol 2–4 aksara berawal kata kerja. | 保存、提交、登记收款 |
+| Z2 | Register sopan-ringkas: 您, bukan 你. Tanpa tanda seru di UI biasa. Tombol 2–4 aksara berawal kata kerja. | 保存、提交、登记收款（账单, **[zh v1.3]**） |
 | Z3 | **Tanda baca lebar penuh** di kalimat Mandarin: `，` `。` `：` `；` `！` `？` `（）`. Pencacahan memakai `、`. Kutip `“ ”` (dalam kutip `‘ ’`). **Jangan** `「」` (gaya Taiwan/HK/Jepang). | 文件格式：PDF、JPG、PNG |
 | Z4 | Kurung selalu lebar penuh `（）`, termasuk yang berisi akronim Latin atau `%`. | 增值税（PPN）、税率（%） |
 | Z5 | Titik `。` hanya bila sumber berakhir titik. Label, judul, dan tombol tanpa titik. | 类别已删除。 |
@@ -206,7 +209,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Wajib pajak | Taxpayer | 纳税人 | |
 | Titipan pajak (item invoice) | Tax deposit | 代收税款 | Uang pajak klien yang ditagihkan untuk disetorkan atas nama klien: pass-through, bukan pendapatan. PRC mencatat dana semacam ini di 其他应付款—代收款项. Ganti lama 税金寄存 (寄存 = menitipkan barang/bagasi, janggal di akuntansi). **Bukan** 代扣代缴, yang bermakna pemotongan oleh pemungut. Risiko #5. |
 | Titipan Pajak Klien (akun) | Client tax deposits | 代收客户税款 | Akun jurnal sistem (`TAX_DEPOSIT`), sama persis dengan akun lawan "Setor Titipan Pajak Klien". |
-| Titipan Pajak (PPh) | Tax deposit (PPh) | 代收税款（PPh） | Label di tampilan invoice. |
+| Titipan Pajak (PPh) | Tax deposit (PPh) | 代收所得税（PPh） | Label pembuka di tampilan invoice (U7: akronim tidak berdiri tanpa istilah Mandarin). **[zh v1.3]** Kunci lepas `Pajak` dan `PPh` kini hanya dipakai sebagai judul kolom/isian penanda titipan pajak (`recurring-invoices`, `item.is_tax_deposit` di penyusun template), jadi bernilai 代收税款, bukan 税费 / 所得税（PPh）. Bila kelak dipakai di layar lain dengan arti umum, beri konteks (mis. `Pajak_titipan`). |
 | titipan negara | held for the state | 代国家收取 | "PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)" → 已收增值税销项税额（代国家收取，不计入收入）. |
 | Setor PPN | Remit VAT | 缴纳增值税 | Untuk teks UI. Nama kategori template "Setor PPN" = data (U6). |
 | Setor titipan pajak klien | Remit client taxes | 代客户缴纳税款 | Idem. |
@@ -273,10 +276,10 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Belum diajukan | Not submitted | 未提交 | |
 | Terbit (status invoice `sent`) | Issued | 已开具 | **[baku baru]** dulu "Terkirim" (INV02, keputusan T-3). Status sesudah nomor resmi diberikan; aplikasi **tidak** mengirim email. Ganti lama 已发送. Risiko #2. |
 | Diterbitkan (dalam kalimat) | Issued | 已开具 | "Invoice diterbitkan: {nomor}" → 账单已开具：{nomor}. |
-| Sebagian / dibayar sebagian | Partially paid | 部分付款 | **[zh v1.2]** netral arah: kunci `Sebagian` dipakai bersama oleh invoice, jadwal angsuran, tab pembayaran Kas & Bank, dan Ringkasan (v1.1: invoice 部分收款). Risiko #14. |
+| Sebagian / dibayar sebagian | Partially paid | 部分付款 | **[zh v1.2]** netral arah: kunci `Sebagian` dipakai bersama oleh invoice, jadwal angsuran, tab pembayaran Kas & Bank, dan Ringkasan (v1.1: invoice 部分收款). **[zh v1.3]** tetap, lihat keputusan status di §3 *Bayar*. Risiko #14. |
 | Lunas | Paid (invoice, reimbursement) / Paid off (utang, piutang) | 已结清 | Satu istilah Mandarin untuk semua modul; EN beda per modul. |
-| Sudah dibayar | Paid | 已付款 | **[zh v1.2]** kunci bersama invoice & reimbursement (v1.1: invoice 已收款). §3 *Bayar*. |
-| Belum dibayar | Unpaid | 未付款 | **[zh v1.2]** netral, sejalan dengan *Sudah dibayar*. "Invoice belum dibayar" → 未付款账单. |
+| Sudah dibayar | Paid | 已付款 | **[zh v1.2]** kunci bersama invoice & reimbursement (v1.1: invoice 已收款). **[zh v1.3]** tetap (status tagihan). §3 *Bayar*. |
+| Belum dibayar | Unpaid | 未付款 | **[zh v1.2]** netral, sejalan dengan *Sudah dibayar*. "Invoice belum dibayar" → 未付款账单. **[zh v1.3]** tetap (status tagihan). |
 | Belum kembali (piutang) | Not yet repaid | 未收回 | |
 | Jatuh tempo | Due date (invoice) / Maturity date (utang) | 到期日 | "jatuh tempo terdekat" → 最近到期日. |
 | Lewat jatuh tempo | Overdue | 逾期 | **[baku baru]** dulu juga "Lewat tempo" (U09). Dipakai ulang. "lewat {n} hari" → 逾期 {n} 天. |
@@ -318,6 +321,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Debitur | Borrower | 借款人 | |
 | Pemberi pinjaman | Lender | 出借方 | Netral untuk bank maupun perorangan. |
 | Anggota (perusahaan) | Member | 成员 | |
+| Account Representative (AR, pegawai KPP) | Account Representative (AR) | 税务客户经理（AR） | **[zh v1.3]** pemeriksaan silang T3: lama 税务专管员 adalah jabatan administrasi pajak RRT yang sudah dihapus. "Nama AR" → 客户经理姓名; "No. HP AR" → 客户经理手机号. |
 | Penanggung jawab keuangan | Finance officer | 财务负责人 | Bagian Profil perusahaan. |
 | Tim IT | IT team | IT 团队 | |
 
@@ -333,9 +337,9 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Ubah (tombol, judul) | Edit | 编辑 | **[baku baru]** "Edit" diganti "Ubah" (U01–U03, keputusan T-4). Di kalimat, "mengubah/diubah" → 修改/已修改. |
 | Perbarui | Update | 更新 | "diperbarui" → 已更新. |
 | Tambah | Add | 新增 | "+ Tambah" → + 新增. Gaya ERP Tiongkok. |
-| Buat | Create / New | 新建 | Tombol/judul pembuka formulir ("Buat Invoice" → 新建账单). Di kalimat "dibuat" → 已创建. |
+| Buat | Create / New | 新建 | Tombol/judul pembuka formulir ("Buat Invoice" → 新建账单). Di kalimat "dibuat" → 已创建. **[zh v1.3]** semua label "Buat …" diseragamkan ke 新建, termasuk label izin ("Buat klien" → 新建客户, "Buat utang" → 新建应付借款), "Buat perusahaan" → 新建公司, "Buat kategori" → 新建类别, "Buat Manual" → 手动新建. Pengecualian bermakna *menghasilkan*: "Buat Draft", "Buat Sekarang", "Buat Ulang Favicon" → 生成. Kalimat deskripsi ("Buat template PDF pertama Anda untuk…") boleh 创建. |
 | Catat | Record | 登记 | **[baku baru]** "Input Pemasukan/Pengeluaran/Transfer" diganti "Catat …" (KB01). "Catat Pemasukan" → 登记收入; "dicatat" → 已登记. 登记 adalah kata baku pembukuan (收款登记、费用登记). |
-| Catat pembayaran | Record payment | 登记付款 | **[zh v1.2]** satu kunci dipakai invoice, utang, piutang, dan label izin `create payments` (v1.1: 登记收款 / 登记还款). Lihat §3 *Bayar*. |
+| Catat pembayaran | Record payment | 登记付款 / 登记收款 (invoice) | **[zh v1.2]** satu kunci dipakai invoice, utang, piutang, dan label izin `create payments` (v1.1: 登记收款 / 登记还款). **[zh v1.3]** di `pages/invoices/**` dipanggil dengan konteks `invoice` → kunci `Catat pembayaran_invoice` → 登记收款; kunci dasar tetap 登记付款 untuk utang, piutang, dan label izin. Lihat §3 *Bayar*. |
 | Ajukan | Submit | 提交 | "Ajukan untuk persetujuan" → 提交审批. |
 | Perbaiki & ajukan ulang | Fix & resubmit | 修改并重新提交 | |
 | Setujui | Approve | 批准 | |
@@ -401,7 +405,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Total | Total | 合计 | Lihat §3 *Total*. |
 | Subtotal | Subtotal | 小计 | Dipakai ulang. "Subtotal layanan" → 服务小计. |
 | Sisa | Remaining | 剩余 / 余额 | Lihat §3 *Sisa*. |
-| Sisa tagihan | Balance due | 未付余额 | **[zh v1.2]** netral, sejalan dengan 已付款 / 未付款 (v1.1: 未收余额). Lama 应付余额 tetap ditolak: 应付 = utang kita. |
+| Sisa tagihan | Balance due | 未付余额 | **[zh v1.2]** netral, sejalan dengan 已付款 / 未付款 (v1.1: 未收余额). **[zh v1.3]** tetap: sisa adalah bagian dari status tagihan (§3 *Bayar*). Lama 应付余额 tetap ditolak: 应付 = utang kita. |
 | Total ditagih | Total billed | 账单总额 | Bukan 开票总额: 开票 di Tiongkok daratan identik dengan menerbitkan fapiao. |
 | Jumlah (uang) / Nominal | Amount | 金额 | Lihat §3 *Jumlah*. |
 | Satuan / Harga satuan / Harga / Qty | Unit / Unit price / Price / Qty | 单位 / 单价 / 价格 / 数量 | Dipakai ulang. |
@@ -415,7 +419,7 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Tautan | Link | 链接 | |
 | Metode pembayaran: Transfer bank / Tunai / Potong gaji | Payment method: Bank transfer / Cash / Payroll deduction | 付款方式：银行转账 / 现金 / 工资扣款 | |
 | Singkatan (perusahaan) | Abbreviation | 简称 | Sumber token `{PT}`. |
-| Kode URL (permanen) | URL code (permanent) | 网址代码（永久） | |
+| Kode URL (permanen) | URL code (permanent) | 网址代码（永久） | **[zh v1.3]** "Kode URL *" → 网址代码 * (dulu URL 代码 *), sama dengan `kode-url` → 网址代码. |
 | Kuota / Grup (organisasi) | Quota / Group | 配额 / 集团 | "Kuota grup" → 集团配额. |
 | Izin | Permission | 权限 | **[baku baru]** "Permission" diganti (IZ01). |
 | Akun (pengguna) | Account | 账户 | **[zh v1.2]** kunci `Akun` dipakai bersama oleh daftar Kas & Bank dan grup pengaturan akun, jadi semua → 账户 (v1.1: 账号). "Hapus Akun" → 删除账户. 账号 hanya tersisa di 银行账号 (Nomor rekening). |
@@ -471,6 +475,7 @@ Ditambahkan saat kamus `zh.json` frontend diisi. Istilah struktur penyusun templ
 | Dibuat (kolom tabel & langkah lini masa) | Created | 创建 | Kunci bersama; lama 创建日期 hanya cocok untuk kolom. |
 | jt (juta, satuan ringkas grafik) | M | 百万 | Kode membagi 1.000.000, jadi 万 tidak bisa dipakai. Desimal tetap koma (risiko #18): "+Rp 18,5 jt" → +Rp 18,5 百万. |
 | Kategori induk / Induk / Tanpa induk | Parent category / Parent / No parent | 上级类别 / 上级类别 / 无上级类别 | Sesuai §2.7. |
+| Ditransfer (dialog Detail Transfer) | Transferred | 已转出金额 | **[zh v1.3]** pemeriksaan silang T8 (dulu 转账金额, terlalu dekat dengan "Jumlah Transfer"). |
 
 ### 2.9 Teks server (`lang/zh.json`, `lang/zh/*.php`) **[zh v1.2]**
 
@@ -501,7 +506,8 @@ Ditambahkan saat kamus `zh.json` frontend diisi. Istilah struktur penyusun templ
 | | Utang (pokok) | Remaining principal | 剩余本金 | |
 | | Piutang ("belum kembali") | Not yet repaid | 未收回 | |
 | | "Sisa setelah DP" | Remaining after down payment | 扣除预付款后余额 | |
-| **Bayar / Pembayaran / dibayar** | Invoice (klien membayar kita) | Payment / paid | 付款 / 已付款 | **[zh v1.2]** netral arah (v1.1: 收款 / 已收款). Kunci pembayaran dipakai bersama lintas modul (*Sudah dibayar*, *Sebagian*, *Catat pembayaran*, "Pembayaran dicatat"), jadi sudut pandang ERP per modul tidak bisa dipertahankan. "Pembayaran invoice" → 账单付款; "Hapus pembayaran" → 删除付款; "{n}% terbayar" → 已付 {n}%. "Rekening tujuan" pembayaran invoice tetap 收款账户. Risiko #14. |
+| **Bayar / Pembayaran / dibayar** | Invoice: aksi & catatan pembayaran (klien membayar kita) | Payment | 收款 | **[zh v1.3]** (v1.2: 付款 netral; pemeriksaan silang T1: 付款 terbaca "kita yang membayar"). Kunci khusus invoice cukup diganti nilainya: "Pembayaran {{amount}} dicatat · tunai/transfer" → 已登记收款 {{amount}} · 现金/转账; "Pembayaran {{amount}} dicatat." → 收款 {{amount}} 已登记; "Belum ada pembayaran tercatat." → 暂无收款记录; "Hapus pembayaran {{amount}}" → 删除收款 {{amount}}; "Pembayaran dihapus." → 收款已删除。 Kunci bersama diberi konteks `invoice` di `pages/invoices/**`: `Catat pembayaran_invoice` 登记收款, `Hapus pembayaran_invoice` 删除收款, `Ubah pembayaran_invoice` 编辑收款, `Simpan pembayaran_invoice` 保存收款, `Pembayaran_invoice` (judul riwayat "… {n} 次") 收款. Teks lain yang memang khusus pembayaran invoice (Kas & Bank, Arus Kas, Ringkasan, server): "Pembayaran invoice" → 账单收款, "Detail Pembayaran Invoice" → 账单收款详情, tab Kas & Bank "Pembayaran" → 收款. "Rekening tujuan" → 收款账户. Risiko #14. |
+| | Invoice: status & sisa tagihan | Paid / Unpaid / Partially paid | 已付款 / 未付款 / 部分付款 / 已付 {n}% / 未付余额 | **[zh v1.3]** Keputusan v1.3: **status & sisa invoice tetap sudut pandang tagihan** (已付款 / 未付款 / 部分付款 / 已结清, 已付 {n}%, 未付余额), seperti status 账单/订单 umumnya ("账单已付款"). Alasannya: kunci status `Sudah dibayar`, `Sebagian`, `Lunas` juga tampil di Ringkasan, tab Pembayaran Kas & Bank, reimbursement, dan jadwal angsuran; bila hanya halaman invoice yang diubah ke 已收款/部分收款, status yang sama tampil dengan dua kata berbeda. **Aksi & catatan pembayaran invoice** memakai sudut pandang perusahaan → 收款. |
 | | Reimbursement (kita membayar karyawan) | Pay / paid | 付款 / 已付款 | |
 | | Utang & piutang (cicilan pokok/bunga) | Payment | 还款 | "Pembayaran pokok" → 本金还款; "Pembayaran bunga" → 利息还款; "Tanggal pembayaran" → 还款日期; "Bayar utang" (izin) → 偿还应付借款. **[zh v1.2]** toast bersama "Pembayaran dicatat" (utang, piutang, reimbursement) → 付款已登记. |
 | | Pengajuan Dana | Disbursement | 拨付 | Tidak memakai "bayar". |
@@ -591,7 +597,9 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 | 定期账单 | tagihan berkala | Invoice Berulang |
 | 开具 / 开具账单 / 已开具 | menerbitkan / menerbitkan tagihan / sudah diterbitkan | Terbitkan / Terbitkan invoice / Terbit (**[baku baru]**, kini harfiah) |
 | 转为账单 / 已转为账单 | jadikan tagihan / sudah dijadikan tagihan | Jadikan Invoice / Dijadikan invoice (**[baku baru]**) |
-| 付款 / 登记付款 / 已付款 / 未付款 / 部分付款 | pembayaran / catat pembayaran / … | Pembayaran / Catat pembayaran / Sudah dibayar / Belum dibayar / Sebagian (**[zh v1.2]**, kini harfiah, termasuk invoice) |
+| 付款 / 登记付款 / 已付款 / 未付款 / 部分付款 | pembayaran / catat pembayaran / … | Pembayaran / Catat pembayaran / Sudah dibayar / Belum dibayar / Sebagian (**[zh v1.2]**, kini harfiah; untuk invoice hanya status) |
+| 收款 / 登记收款 / 账单收款 / 收款记录 | penerimaan / catat penerimaan / penerimaan invoice | Pembayaran / Catat pembayaran / Pembayaran invoice (**[zh v1.3]**, aksi & catatan pembayaran invoice) |
+| 税务客户经理（AR） | manajer klien pajak | Account Representative (**[zh v1.3]**) |
 | 未付余额 | sisa belum dibayar | Sisa tagihan (**[zh v1.2]**) |
 | 应付借款 / 应收借款 / 应付与应收 | pinjaman terutang / pinjaman tertagih / utang & tagihan | Utang / Piutang / Utang & Piutang |
 | 筹资 | penghimpunan dana | Pendanaan |
@@ -644,7 +652,7 @@ Saat menerjemah-balik zh → id, pasangan di bawah ini **bukan** selisih makna. 
 | 11 | Modal Pemilik → **业主资本**, Prive → **业主提款** | Pasangan istilah buku teks untuk usaha milik pemilik. | 实收资本, 利润分配 | Apakah 业主提款 dikenali pengguna non-akuntan. |
 | 12 | Beban Operasional → **运营费用**; Pendapatan/Beban Lain → **其他收入/其他费用** | Kategori aplikasi tidak memetakan 1:1 ke pos PRC (销售/管理/财务费用, 营业外收支). | 营业费用, 营业外收入/支出 | Apakah label ini terasa "tidak baku". |
 | 13 | Ditolak → **已拒绝**, Tolak → **拒绝** (**[zh v1.2]**; v1.1: 已驳回 / 驳回) | Kunci `Tolak` juga tombol penolakan akses OAuth Claude; satu pasangan untuk semua layar. | 已驳回 / 驳回 | Apakah 已拒绝 cukup menyiratkan bahwa pengajuan masih bisa diperbaiki & diajukan ulang. |
-| 14 | Lunas → **已结清** di semua modul; pembayaran → **付款** netral, termasuk invoice (**[zh v1.2]**; v1.1: invoice 收款) | Kunci pembayaran dipakai bersama lintas modul; satu kunci hanya bisa satu terjemahan. | 收款 / 已收款 / 未收余额 per modul | Apakah 未付款 / 已付款 pada invoice (uang klien masuk) terasa janggal bagi akuntan. |
+| 14 | Lunas → **已结清** di semua modul; aksi & catatan pembayaran invoice → **收款** (konteks `invoice`), status & sisa invoice tetap **已付款 / 未付款 / 部分付款 / 未付余额** (**[zh v1.3]**; v1.2: semua 付款; v1.1: invoice 收款) | Arah uang invoice terbaca benar pada tombol dan riwayat; status memakai konvensi status tagihan dan kuncinya dipakai bersama di layar non-invoice. | 收款 juga untuk status (已收款 / 部分收款 / 未收余额) | Apakah campuran 登记收款 (tombol) + 已付款 (status) di satu panel terasa janggal bagi akuntan. |
 | 15 | Deskripsi → **描述** di semua konteks (**[zh v1.2]**; v1.1: 摘要 untuk catatan uang) | Kunci bersama; 描述 jelas bagi pengguna non-akuntan. | 摘要, 说明 | Apakah kolom 描述 di daftar transaksi terasa kurang baku dibanding 摘要. |
 | 16 | Uang muka → **预付款**, Pelunasan → **尾款**, Perlu ditagih → **待催收**, Terbilang → **金额大写** | Kolokasi tagihan B2B Tiongkok. | 首付款, 结算, 逾期, 大写 | Apakah 催收 terasa terlalu keras (konotasi penagihan utang macet). |
 | 17 | Gaya: **spasi** antara Han dan Latin/angka; akronim berkurung hanya di label (U7, Z8) | Konsisten dengan UI zh-CN Apple/Microsoft. Aturan "pertama di layar" tidak bisa dijamin per kunci. | Tanpa spasi (gaya penerbitan PRC) | Apakah tampilan berspasi terasa wajar. |
@@ -702,7 +710,7 @@ Untuk orkestrator dan pemilik modul. Glosarium sudah menetapkan cara menerjemahk
 | `common.php` › `debt_receivables` | 债务与应收账款 | → 应付与应收 | |
 | `common.php` › `master_data` | 主数据 | → 基础资料 | Istilah ERP Tiongkok. |
 | `common.php` › `active` | 活跃 | → 启用 / 还款中 (per konteks) | 活跃 = ramai/aktif terlibat. |
-| `common.php` › `rejected` | 已拒绝 | → 已驳回 | Alur perbaiki & ajukan ulang. |
+| `common.php` › `rejected` | 已拒绝 | Dipakai ulang → 已拒绝 | **[zh v1.3]** v1.1 sempat menggantinya dengan 已驳回; sejak v1.2 kembali 已拒绝 (lihat §2.4 *Ditolak*). |
 | `common.php` › `logout`/`log_out` | 登出 | → 退出登录 | Bentuk lazim zh-CN. |
 | `common.php` › `light`/`dark` | 亮色 / 暗色 | → 浅色 / 深色 | Istilah tema zh-CN. |
 | `feedback.php` › `priority_critical` | 紧急 | → 严重 | Hindari tabrakan dengan Urgent (紧急). |

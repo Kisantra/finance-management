@@ -242,7 +242,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                                     )}
                                     {canPay && (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => { setEditPayment(null); setDialog('pay'); }} icon={<Wallet className="h-4 w-4" />}>
-                                            {t('Catat pembayaran')}
+                                            {t('Catat pembayaran', { context: 'invoice' })}
                                         </Button>
                                     )}
                                     <DropdownMenu>
@@ -334,9 +334,9 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
             <ConfirmDialog
                 open={!!deletePayment}
                 onOpenChange={(o) => !o && setDeletePayment(null)}
-                title={t('Hapus pembayaran')}
+                title={t('Hapus pembayaran', { context: 'invoice' })}
                 description={deletePayment ? t('Pembayaran {{amount}} tanggal {{date}} akan dihapus dan saldo rekening ikut berkurang.', { amount: rp(deletePayment.amount), date: longDate(deletePayment.payment_date) }) : ''}
-                confirmLabel={t('Hapus pembayaran')}
+                confirmLabel={t('Hapus pembayaran', { context: 'invoice' })}
                 loading={busy}
                 onConfirm={removePayment}
             />
@@ -495,7 +495,7 @@ function DrawerBody({
 
                         <section className="flex flex-col gap-2 rounded-2xl border border-ob-line bg-ob-inner p-4 text-[13px]">
                             <h3 className="flex items-center justify-between text-xs font-semibold text-ob-ink-2">
-                                {t('Pembayaran')} <span className="font-medium">{t('{{count}} kali', { count: detail.payments.length })}</span>
+                                {t('Pembayaran', { context: 'invoice' })} <span className="font-medium">{t('{{count}} kali', { count: detail.payments.length })}</span>
                             </h3>
                             {detail.payments.length === 0 ? (
                                 <p className="py-2 text-ob-ink-2">{detail.status === 'draft' ? t('Terbitkan invoice untuk mulai mencatat pembayaran.') : t('Belum ada pembayaran tercatat.')}</p>
@@ -758,7 +758,7 @@ function PaymentDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent size="lg" hideClose className={DIALOG}>
                 <DialogHead
-                    title={payment ? t('Ubah pembayaran') : t('Catat pembayaran')}
+                    title={payment ? t('Ubah pembayaran', { context: 'invoice' }) : t('Catat pembayaran', { context: 'invoice' })}
                     sub={t('{{number}} · sisa {{amount}}', { number: detail.invoice_number ?? t('Draft'), amount: rp(remaining) })}
                     onClose={() => onOpenChange(false)}
                 />
@@ -842,7 +842,7 @@ function PaymentDialog({
                             {t('Batal')}
                         </Button>
                         <Button type="submit" className={BTN.primary} loading={saving} disabled={!form.amount || !!overMessage} icon={<Check className="h-4 w-4" />}>
-                            {payment ? t('Simpan perubahan') : t('Simpan pembayaran')}
+                            {payment ? t('Simpan perubahan') : t('Simpan pembayaran', { context: 'invoice' })}
                         </Button>
                     </div>
                 </form>
