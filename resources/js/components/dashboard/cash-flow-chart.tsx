@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn, formatCurrency } from '@/lib/utils';
 
 /*
@@ -22,13 +23,16 @@ interface CashFlowChartProps extends CashFlowSeries {
 
 const Y_TICKS = 3;
 
-/** Angka ringkas untuk sumbu: 1,2 jt · 800 rb · 2 M. */
+/**
+ * Angka ringkas untuk sumbu: 1,2 jt · 800 rb · 2 M. Angkanya tetap format id-ID (D6); hanya satuan
+ * ringkasnya yang diterjemahkan (en: 1,2M · 800K · 2B).
+ */
 export function compactRupiah(value: number): string {
     const abs = Math.abs(value);
     const f = (n: number) => n.toLocaleString('id-ID', { maximumFractionDigits: 1 });
-    if (abs >= 1_000_000_000) return `${f(value / 1_000_000_000)} M`;
-    if (abs >= 1_000_000) return `${f(value / 1_000_000)} jt`;
-    if (abs >= 1_000) return `${f(value / 1_000)} rb`;
+    if (abs >= 1_000_000_000) return t('{{value}} M', { value: f(value / 1_000_000_000) });
+    if (abs >= 1_000_000) return t('{{value}} jt', { value: f(value / 1_000_000) });
+    if (abs >= 1_000) return t('{{value}} rb', { value: f(value / 1_000) });
     return f(value);
 }
 
@@ -65,8 +69,8 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
                 className="flex flex-col justify-between text-right text-xs leading-none text-ob-ink-3"
                 style={{ height }}
             >
-                {ticks.map((t, i) => (
-                    <span key={i}>{i === ticks.length - 1 ? '0' : compactRupiah(t)}</span>
+                {ticks.map((tick, i) => (
+                    <span key={i}>{i === ticks.length - 1 ? '0' : compactRupiah(tick)}</span>
                 ))}
             </div>
 
@@ -94,7 +98,11 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
                             <div
                                 key={i}
                                 tabIndex={0}
-                                aria-label={`${label}: pemasukan ${formatCurrency(income[i])}, pengeluaran ${formatCurrency(expenses[i])}`}
+                                aria-label={t('{{period}}: pemasukan {{income}}, pengeluaran {{expense}}', {
+                                    period: label,
+                                    income: formatCurrency(income[i]),
+                                    expense: formatCurrency(expenses[i]),
+                                })}
                                 onMouseEnter={() => setActive(i)}
                                 onFocus={() => setActive(i)}
                                 onBlur={() => setActive(null)}
@@ -155,12 +163,12 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
                 halaman di ponsel), jadi dibungkus div.sr-only. */}
             <div className="sr-only">
             <table>
-                <caption>Pemasukan dan pengeluaran per periode, dalam rupiah</caption>
+                <caption>{t('Pemasukan dan pengeluaran per periode, dalam rupiah')}</caption>
                 <thead>
                     <tr>
-                        <th>Periode</th>
-                        <th>Pemasukan</th>
-                        <th>Pengeluaran</th>
+                        <th>{t('Periode')}</th>
+                        <th>{t('Pemasukan')}</th>
+                        <th>{t('Pengeluaran')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -181,7 +189,7 @@ export function CashFlowChart({ labels, income, expenses, height = 200, classNam
 export function CashFlowChartSkeleton({ height = 200, className }: { height?: number; className?: string }) {
     const bars = [0.35, 0.5, 0.3, 0.6, 0.4, 0.7];
     return (
-        <div aria-busy="true" aria-label="Memuat grafik" className={cn('grid grid-cols-[48px_minmax(0,1fr)] gap-x-3', className)}>
+        <div aria-busy="true" aria-label={t('Memuat grafik')} className={cn('grid grid-cols-[48px_minmax(0,1fr)] gap-x-3', className)}>
             <div style={{ height }} />
             <div className="grid items-end gap-x-[22px] px-1.5" style={{ height, gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
                 {bars.map((b, i) => (

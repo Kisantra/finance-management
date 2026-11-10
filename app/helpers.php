@@ -1,40 +1,20 @@
 <?php
 
-use App\Services\TranslationService;
+use App\Http\Middleware\SetDocumentLocale;
 
-if (!function_exists('translate_text')) {
+if (! function_exists('withDocumentLocale')) {
     /**
-     * Auto-translate text to current locale
+     * Jalankan $callback dalam Bahasa Indonesia (bahasa dokumen, K2), lalu pulihkan bahasa tampilan —
+     * juga bila $callback melempar. Untuk isi dokumen yang dibangun di dalam request tampilan, mis.
+     * contoh kanvas template builder. Rute dokumen utuh cukup diberi middleware `locale.dokumen`.
      *
-     * @param string $text
-     * @param string $sourceLang
-     * @return string
-     */
-    function translate_text(string $text, string $sourceLang = 'id'): string
-    {
-        $currentLocale = app()->getLocale();
-
-        // If locale is Indonesian, no translation needed
-        if ($currentLocale === 'id') {
-            return $text;
-        }
-
-        $translationService = app(TranslationService::class);
-
-        return $translationService->translate($text, $currentLocale, $sourceLang);
-    }
-}
-
-if (!function_exists('translate_category')) {
-    /**
-     * Translate category name to current locale
+     * @template T
      *
-     * @param string $categoryName
-     * @return string
+     * @param  callable(): T  $callback
+     * @return T
      */
-    function translate_category(string $categoryName): string
+    function withDocumentLocale(callable $callback): mixed
     {
-        $translationService = app(TranslationService::class);
-        return $translationService->translateCategory($categoryName);
+        return SetDocumentLocale::run($callback);
     }
 }

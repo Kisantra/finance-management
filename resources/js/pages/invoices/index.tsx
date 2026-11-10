@@ -12,12 +12,13 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Pagination } from '@/components/shared/pagination';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLink } from '@/components/app-link';
+import { t, tk } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import { Avatar, BTN, CARD, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, STATUS_LABEL, type InvoiceStatus } from './components/ob';
+import { Avatar, BTN, CARD, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus } from './components/ob';
 import { PrintInvoiceDialog, type CustomTemplate } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
@@ -90,27 +91,36 @@ interface Props extends SharedProps {
 const DEFAULT_MONTH = toLocalIso(new Date()).slice(0, 7);
 
 const STATUS_TABS: { value: string; label: string; countKey?: keyof Stats }[] = [
-    { value: '', label: 'Semua' },
-    { value: 'draft', label: 'Draft', countKey: 'draft_count' },
-    { value: 'sent', label: 'Terkirim', countKey: 'sent_count' },
-    { value: 'partially_paid', label: 'Sebagian', countKey: 'partially_paid_count' },
-    { value: 'paid', label: 'Lunas', countKey: 'paid_count' },
+    { value: '', label: tk('Semua') },
+    { value: 'draft', label: tk('Draft'), countKey: 'draft_count' },
+    { value: 'sent', label: tk('Terbit'), countKey: 'sent_count' },
+    { value: 'partially_paid', label: tk('Sebagian'), countKey: 'partially_paid_count' },
+    { value: 'paid', label: tk('Lunas'), countKey: 'paid_count' },
 ];
 
-/* Satu makna per hue: abu = draft, biru = terkirim, amber = sebagian, hijau = lunas. */
+/* Satu makna per hue: abu = draft, biru = terbit, amber = sebagian, hijau = lunas. */
 const SEGMENTS = [
-    { key: 'draft', label: 'Draft', countKey: 'draft_count', bar: 'bg-ob-ink-3/50', dot: 'bg-ob-ink-3' },
-    { key: 'sent', label: 'Terkirim', countKey: 'sent_count', bar: 'bg-ob-act', dot: 'bg-ob-act' },
-    { key: 'partially_paid', label: 'Sebagian', countKey: 'partially_paid_count', bar: 'bg-ob-wait', dot: 'bg-ob-wait' },
-    { key: 'paid', label: 'Lunas', countKey: 'paid_count', bar: 'bg-ob-pos', dot: 'bg-ob-pos' },
+    { key: 'draft', label: tk('Draft'), countKey: 'draft_count', bar: 'bg-ob-ink-3/50', dot: 'bg-ob-ink-3' },
+    { key: 'sent', label: tk('Terbit'), countKey: 'sent_count', bar: 'bg-ob-act', dot: 'bg-ob-act' },
+    { key: 'partially_paid', label: tk('Sebagian'), countKey: 'partially_paid_count', bar: 'bg-ob-wait', dot: 'bg-ob-wait' },
+    { key: 'paid', label: tk('Lunas'), countKey: 'paid_count', bar: 'bg-ob-pos', dot: 'bg-ob-pos' },
 ] as const;
 
-/** Label footer per kolom urut: [nama, arah turun, arah naik]. */
-const SORT_LABEL: Record<string, [string, string, string]> = {
-    issue_date: ['tanggal invoice', 'terbaru', 'terlama'],
-    due_date: ['jatuh tempo', 'terjauh', 'terdekat'],
-    total_amount: ['jumlah', 'terbesar', 'terkecil'],
-    client_name: ['nama klien', 'Z–A', 'A–Z'],
+/** Kalimat footer per kolom urut: [arah turun, arah naik]. */
+const SORT_LABEL: Record<string, [string, string]> = {
+    issue_date: [tk('{{count}} invoice · urut tanggal invoice terbaru'), tk('{{count}} invoice · urut tanggal invoice terlama')],
+    due_date: [tk('{{count}} invoice · urut jatuh tempo terjauh'), tk('{{count}} invoice · urut jatuh tempo terdekat')],
+    total_amount: [tk('{{count}} invoice · urut jumlah terbesar'), tk('{{count}} invoice · urut jumlah terkecil')],
+    client_name: [tk('{{count}} invoice · urut nama klien Z–A'), tk('{{count}} invoice · urut nama klien A–Z')],
+};
+
+/** Kalimat daftar kosong per saringan status (kode dari server). */
+const KOSONG_STATUS: Record<string, string> = {
+    overdue: tk('Tidak ada invoice yang perlu ditagih'),
+    draft: tk('Tidak ada invoice draft'),
+    sent: tk('Tidak ada invoice terbit'),
+    partially_paid: tk('Tidak ada invoice sebagian'),
+    paid: tk('Tidak ada invoice lunas'),
 };
 
 const PILL =
@@ -189,7 +199,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
-                if (!(page.props.flash as { error?: string } | undefined)?.error) toast.success('Invoice dihapus.');
+                if (!(page.props.flash as { error?: string } | undefined)?.error) toast.success(t('Invoice dihapus.'));
                 setDeleteRow(null);
             },
             onError: (errs) => toastErrors(errs, 'DeleteInvoice'),
@@ -204,12 +214,12 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
     };
 
     const periodLabel = overdueTab
-        ? 'Perlu ditagih · semua bulan'
+        ? t('Perlu ditagih · semua bulan')
         : hasRange
           ? `${f.date_from ? longDate(f.date_from) : '…'} – ${f.date_to ? longDate(f.date_to) : '…'}`
           : f.month
             ? monthLabel(f.month)
-            : 'Semua periode';
+            : t('Semua periode');
 
     const segmentTotal = SEGMENTS.reduce((s, seg) => s + (stats[seg.countKey] as number), 0);
     // Invoice ber-PPN tetap terlihat walau PKP sudah dimatikan.
@@ -218,68 +228,68 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
 
     return (
         <>
-            <Head title="Invoice" />
+            <Head title={t('Invoice', { context: 'menu' })} />
             <div className="flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Invoice</h1>
+                    <div className="min-w-0">
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Invoice', { context: 'menu' })}</h1>
                         <p className="text-[13px] text-ob-ink-2">
-                            {periodLabel} · {invoices.total} invoice
+                            {t('{{period}} · {{count}} invoice', { period: periodLabel, count: invoices.total })}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex max-w-full flex-wrap items-center gap-2">
                         <TutorialButton slug="invoices" />
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className={BTN.secondary} icon={<Upload className="h-4 w-4" />}>
-                                    Ekspor
+                                    {t('Ekspor')}
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuItem asChild>
                                     <a href={exportUrl('excel')}>
-                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel · Default
+                                        <FileSpreadsheet className="h-4 w-4" /> {t('Rekap Excel · Bawaan')}
                                     </a>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <a href={exportUrl('excel', 'jsm')}>
-                                        <FileSpreadsheet className="h-4 w-4" /> Rekap Excel · JSM
+                                        <FileSpreadsheet className="h-4 w-4" /> {t('Rekap Excel · JSM')}
                                     </a>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <a href={exportUrl('pdf')}>
-                                        <FileText className="h-4 w-4" /> Rekap PDF
+                                        <FileText className="h-4 w-4" /> {t('Rekap PDF')}
                                     </a>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Button asChild className={BTN.primary}>
                             <AppLink href="/invoices/create">
-                                <Plus className="h-4 w-4" /> Buat Invoice
+                                <Plus className="h-4 w-4" /> {t('Buat Invoice')}
                             </AppLink>
                         </Button>
                     </div>
                 </div>
 
                 {/* ── ringkasan ── */}
-                <section aria-label="Ringkasan invoice" className={cn(CARD, 'flex flex-col gap-5')}>
+                <section aria-label={t('Ringkasan invoice')} className={cn(CARD, 'flex flex-col gap-5')}>
                     <div className={cn('@container grid grid-cols-2 gap-y-5 [--stat-cols:2] [--stat-pad:0px] lg:divide-x lg:[--stat-pad:40px] xl:[--stat-pad:48px] lg:divide-ob-line', showPpn ? 'lg:grid-cols-5 lg:[--stat-cols:5]' : 'lg:grid-cols-4 lg:[--stat-cols:4]')}>
-                        <StatBlock label="Total ditagih" value={rp(stats.total_revenue)} sub={`${stats.invoice_count} invoice terbit · tanpa draft`} />
+                        <StatBlock label={t('Total ditagih')} value={rp(stats.total_revenue)} sub={t('{{count}} invoice terbit · tanpa draft', { count: stats.invoice_count })} />
                         {showPpn && (
                             <StatBlock
-                                label="PPN"
+                                label={t('PPN')}
                                 value={rp(stats.total_ppn)}
-                                sub={stats.ppn_invoice_count > 0 ? `${stats.ppn_invoice_count} invoice ber-PPN · bagian dari total ditagih` : 'Belum ada invoice ber-PPN'}
+                                sub={stats.ppn_invoice_count > 0 ? t('{{count}} invoice ber-PPN · bagian dari total ditagih', { count: stats.ppn_invoice_count }) : t('Belum ada invoice ber-PPN')}
                             />
                         )}
-                        <StatBlock label="Sudah dibayar" value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={`${paidPct}% dari total`} />
-                        <StatBlock label="Belum dibayar" value={rp(stats.total_outstanding)} sub={`${stats.outstanding_count} invoice`} />
+                        <StatBlock label={t('Sudah dibayar')} value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={t('{{percent}}% dari total', { percent: paidPct })} />
+                        <StatBlock label={t('Belum dibayar')} value={rp(stats.total_outstanding)} sub={t('{{count}} invoice', { count: stats.outstanding_count })} />
                         <StatBlock
-                            label="Perlu ditagih"
+                            label={t('Perlu ditagih')}
                             value={rp(stats.overdue_amount)}
                             valueClass={stats.overdue_count > 0 ? 'text-ob-late' : undefined}
-                            sub={stats.overdue_count > 0 ? `${stats.overdue_count} invoice lewat jatuh tempo` : 'Tidak ada yang lewat jatuh tempo'}
+                            sub={stats.overdue_count > 0 ? t('{{count}} invoice lewat jatuh tempo', { count: stats.overdue_count }) : t('Tidak ada yang lewat jatuh tempo')}
                             onClick={stats.overdue_count > 0 ? () => navigate({ status: 'overdue' }) : undefined}
                             className={showPpn ? 'col-span-2 lg:col-span-1' : undefined}
                         />
@@ -302,33 +312,33 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                                             className="inline-flex items-center gap-1.5 rounded-full text-[13px] text-ob-ink-2 hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                                         >
                                             <span className={cn('h-2 w-2 rounded-full', seg.dot)} />
-                                            {seg.label} <b className="font-semibold text-ob-ink">{stats[seg.countKey] as number}</b>
+                                            {t(seg.label)} <b className="font-semibold text-ob-ink">{stats[seg.countKey] as number}</b>
                                         </button>
                                     ))}
                                 </div>
-                                <span className="text-xs text-ob-ink-3">berdasarkan jumlah invoice</span>
+                                <span className="text-xs text-ob-ink-3">{t('berdasarkan jumlah invoice')}</span>
                             </div>
                         </div>
                     )}
                 </section>
 
                 {/* ── daftar ── */}
-                <section aria-label="Daftar invoice" className={cn(CARD, 'flex flex-col gap-4')}>
+                <section aria-label={t('Daftar invoice')} className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-                            <div role="group" aria-label="Filter status" className="ob-no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
-                                {STATUS_TABS.map((t) => {
-                                    const on = f.status === t.value;
-                                    const count = t.countKey ? (stats[t.countKey] as number) : segmentTotal;
+                            <div role="group" aria-label={t('Filter status')} className="flex max-w-full flex-wrap items-center gap-0.5 rounded-2xl border border-ob-line bg-ob-rail p-[3px] sm:rounded-full">
+                                {STATUS_TABS.map((tab) => {
+                                    const on = f.status === tab.value;
+                                    const count = tab.countKey ? (stats[tab.countKey] as number) : segmentTotal;
                                     return (
                                         <button
-                                            key={t.value}
+                                            key={tab.value}
                                             type="button"
                                             aria-pressed={on}
-                                            onClick={() => !on && navigate({ status: t.value })}
+                                            onClick={() => !on && navigate({ status: tab.value })}
                                             className={cn(PILL, 'h-8 px-3', on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
                                         >
-                                            {t.label}
+                                            {t(tab.label)}
                                             <span className={cn('text-xs', on ? 'opacity-70' : 'text-ob-ink-3')}>{count}</span>
                                         </button>
                                     );
@@ -344,7 +354,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                                     overdueTab ? 'border-transparent bg-ob-late text-white' : 'border-ob-late/35 bg-ob-late/10 text-ob-late hover:bg-ob-late/15',
                                 )}
                             >
-                                <Clock className="h-4 w-4" /> Perlu ditagih <span className="text-xs opacity-80">{stats.overdue_count}</span>
+                                <Clock className="h-4 w-4" /> {t('Perlu ditagih')} <span className="text-xs opacity-80">{stats.overdue_count}</span>
                             </button>
                         </div>
                         <div className={cn(FIELD, 'flex flex-wrap items-center gap-2 [&_input]:h-10 [&_button]:h-10')}>
@@ -355,20 +365,20 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                                 }}
                                 className="w-full sm:w-56"
                             >
-                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nomor atau klien…" icon={<Search className="h-4 w-4" />} aria-label="Cari invoice" />
+                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Cari nomor atau klien…')} icon={<Search className="h-4 w-4" />} aria-label={t('Cari invoice')} />
                             </form>
                             <div className="w-full sm:w-48">
-                                <Combobox multiple options={clients} value={f.client_ids} onChange={(v) => navigate({ client_ids: v })} placeholder="Semua klien" searchPlaceholder="Cari klien..." />
+                                <Combobox multiple options={clients} value={f.client_ids} onChange={(v) => navigate({ client_ids: v })} placeholder={t('Semua klien')} searchPlaceholder={t('Cari klien...')} />
                             </div>
-                            <div className={cn('w-44', overdueTab && 'pointer-events-none opacity-50')} title={overdueTab ? 'Perlu ditagih mencakup semua bulan' : undefined}>
-                                <DatePicker mode="month" value={hasRange ? null : f.month || null} onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })} placeholder={hasRange ? 'Rentang aktif' : 'Semua bulan'} clearable />
+                            <div className={cn('w-44', overdueTab && 'pointer-events-none opacity-50')} title={overdueTab ? t('Perlu ditagih mencakup semua bulan') : undefined}>
+                                <DatePicker mode="month" value={hasRange ? null : f.month || null} onChange={(v) => navigate({ month: v ?? '', date_from: '', date_to: '' })} placeholder={hasRange ? t('Rentang aktif') : t('Semua bulan')} clearable />
                             </div>
                             <div className={cn('w-56', overdueTab && 'pointer-events-none opacity-50')}>
                                 <DatePicker
                                     mode="range"
                                     value={{ from: f.date_from ? new Date(f.date_from + 'T00:00:00') : null, to: f.date_to ? new Date(f.date_to + 'T00:00:00') : null }}
                                     onChange={(r) => navigate({ month: r.from || r.to ? '' : DEFAULT_MONTH, date_from: r.from ? toLocalIso(r.from) : '', date_to: r.to ? toLocalIso(r.to) : '' })}
-                                    placeholder="Rentang tanggal"
+                                    placeholder={t('Rentang tanggal')}
                                     placeholderTo="…"
                                     clearable
                                 />
@@ -381,14 +391,14 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                         <table className="w-full min-w-[980px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <SortTh label="Klien" sortKey="client_name" f={f} onSort={sortBy} className="pl-3" />
-                                    <th className="py-2.5 font-medium">No. invoice</th>
-                                    <SortTh label="Tgl invoice" sortKey="issue_date" f={f} onSort={sortBy} />
-                                    <SortTh label="Jatuh tempo" sortKey="due_date" f={f} onSort={sortBy} />
-                                    <SortTh label="Jumlah" sortKey="total_amount" f={f} onSort={sortBy} align="right" />
-                                    <th className="py-2.5 pl-6 font-medium">Status</th>
+                                    <SortTh label={t('Klien')} sortKey="client_name" f={f} onSort={sortBy} className="pl-3" />
+                                    <th className="py-2.5 font-medium">{t('No. invoice')}</th>
+                                    <SortTh label={t('Tgl invoice')} sortKey="issue_date" f={f} onSort={sortBy} />
+                                    <SortTh label={t('Jatuh tempo')} sortKey="due_date" f={f} onSort={sortBy} />
+                                    <SortTh label={t('Jumlah')} sortKey="total_amount" f={f} onSort={sortBy} align="right" />
+                                    <th className="py-2.5 pl-6 font-medium">{t('Status')}</th>
                                     <th className="w-12 py-2.5">
-                                        <span className="sr-only">Aksi</span>
+                                        <span className="sr-only">{t('Aksi')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -415,7 +425,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                         </table>
                         {!loading && invoices.data.length === 0 && (
                             <EmptyList
-                                statusLabel={overdueTab ? 'yang perlu ditagih' : f.status ? STATUS_LABEL[f.status as InvoiceStatus]?.toLowerCase() : null}
+                                emptyText={KOSONG_STATUS[f.status] ? t(KOSONG_STATUS[f.status]) : null}
                                 hasFilters={hasFilters}
                                 onReset={resetFilters}
                             />
@@ -424,8 +434,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
                         <span>
-                            {invoices.total} invoice · urut {(SORT_LABEL[f.sort] ?? SORT_LABEL.issue_date)[0]}{' '}
-                            {(SORT_LABEL[f.sort] ?? SORT_LABEL.issue_date)[f.direction === 'desc' ? 1 : 2]}
+                            {t((SORT_LABEL[f.sort] ?? SORT_LABEL.issue_date)[f.direction === 'desc' ? 0 : 1], { count: invoices.total })}
                         </span>
                         {invoices.last_page > 1 ? (
                             <Pagination
@@ -433,7 +442,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                                 onPageChange={(page) => router.get(companyUrl('/invoices'), { ...f, page }, { preserveState: true, preserveScroll: true })}
                             />
                         ) : (
-                            <span>{f.per_page} per halaman</span>
+                            <span>{t('{{n}} per halaman', { n: f.per_page })}</span>
                         )}
                     </div>
                 </section>
@@ -454,9 +463,9 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
             <ConfirmDialog
                 open={!!deleteRow}
                 onOpenChange={(o) => !o && setDeleteRow(null)}
-                title="Hapus invoice"
-                description={deleteRow ? `Invoice ${deleteRow.invoice_number ?? 'draft'} untuk ${deleteRow.client_name} akan dihapus permanen beserta semua itemnya.` : ''}
-                confirmLabel="Hapus invoice"
+                title={t('Hapus invoice')}
+                description={deleteRow ? t('Invoice {{number}} untuk {{client}} akan dihapus permanen beserta semua itemnya.', { number: deleteRow.invoice_number ?? t('draft'), client: deleteRow.client_name }) : ''}
+                confirmLabel={t('Hapus invoice')}
                 loading={deleting}
                 onConfirm={deleteInvoice}
             />
@@ -538,11 +547,11 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
                         >
                             {inv.client_name}
                         </a>
-                        <span className="text-xs text-ob-ink-2">{inv.client_type === 'individual' ? 'Perorangan' : 'Perusahaan'}</span>
+                        <span className="text-xs text-ob-ink-2">{inv.client_type === 'individual' ? t('Perorangan') : t('Perusahaan')}</span>
                     </div>
                 </div>
             </td>
-            <td className="py-3 font-mono text-xs text-ob-ink-2">{inv.invoice_number ?? <span className="text-ob-ink-3">belum bernomor</span>}</td>
+            <td className="py-3 font-mono text-xs text-ob-ink-2">{inv.invoice_number ?? <span className="text-ob-ink-3">{t('belum bernomor')}</span>}</td>
             <td className="py-3">
                 <span className="block text-ob-ink">{shortDate(inv.issue_date)}</span>
                 <span className="text-xs text-ob-ink-2">{issuedAgo(inv.issue_date)}</span>
@@ -559,7 +568,7 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
                 <span className="block font-semibold text-ob-ink">{rp(inv.total_amount)}</span>
                 {inv.status === 'partially_paid' && (
                     <>
-                        <span className="text-xs text-ob-ink-2">sisa {rp(inv.amount_remaining)}</span>
+                        <span className="text-xs text-ob-ink-2">{t('sisa {{amount}}', { amount: rp(inv.amount_remaining) })}</span>
                         <span className="ml-auto mt-1 block h-1 w-40 overflow-hidden rounded-full bg-ob-chip" aria-hidden="true">
                             <span className="block h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
                         </span>
@@ -572,25 +581,25 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
             <td className="py-3 pr-2 text-right" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-chip hover:text-ob-ink dark:hover:bg-ob-chip" aria-label={`Aksi untuk invoice ${inv.client_name}`}>
+                        <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-chip hover:text-ob-ink dark:hover:bg-ob-chip" aria-label={t('Aksi untuk invoice {{name}}', { name: inv.client_name })}>
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem onClick={onOpen}>
-                            <Eye className="h-4 w-4" /> Lihat detail
+                            <Eye className="h-4 w-4" /> {t('Lihat detail')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.visit(companyUrl(`/invoices/${inv.id}/edit`))}>
-                            <Pencil className="h-4 w-4" /> Edit
+                            <Pencil className="h-4 w-4" /> {t('Ubah')}
                         </DropdownMenuItem>
                         {inv.invoice_number && (
                             <DropdownMenuItem onClick={onPrint}>
-                                <Printer className="h-4 w-4" /> Cetak PDF
+                                <Printer className="h-4 w-4" /> {t('Cetak PDF')}
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-ob-late focus:text-ob-late" onClick={onDelete}>
-                            <Trash2 className="h-4 w-4" /> Hapus
+                            <Trash2 className="h-4 w-4" /> {t('Hapus')}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -599,21 +608,21 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
     );
 }
 
-function EmptyList({ statusLabel, hasFilters, onReset }: { statusLabel: string | null; hasFilters: boolean; onReset: () => void }) {
+function EmptyList({ emptyText, hasFilters, onReset }: { emptyText: string | null; hasFilters: boolean; onReset: () => void }) {
     return (
         <div className="my-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-4 py-10 text-center">
-            <span className="text-sm font-semibold text-ob-ink">{statusLabel ? `Tidak ada invoice ${statusLabel}` : hasFilters ? 'Tidak ada invoice yang cocok' : 'Belum ada invoice'}</span>
+            <span className="text-sm font-semibold text-ob-ink">{emptyText ?? (hasFilters ? t('Tidak ada invoice yang cocok') : t('Belum ada invoice'))}</span>
             <span className="max-w-[320px] text-[13px] text-ob-ink-2">
-                {hasFilters ? 'Coba bulan lain atau hapus filter.' : 'Invoice pertama bisa disimpan sebagai draft dulu, lalu diterbitkan saat siap.'}
+                {hasFilters ? t('Coba bulan lain atau hapus filter.') : t('Invoice pertama bisa disimpan sebagai draft dulu, lalu diterbitkan saat siap.')}
             </span>
             {hasFilters ? (
                 <Button variant="outline" className={BTN.small} onClick={onReset}>
-                    Hapus filter
+                    {t('Hapus filter')}
                 </Button>
             ) : (
                 <Button asChild className={cn(BTN.primary, 'h-9 px-4 text-[13px]')}>
                     <AppLink href="/invoices/create">
-                        <Plus className="h-4 w-4" /> Buat Invoice
+                        <Plus className="h-4 w-4" /> {t('Buat Invoice')}
                     </AppLink>
                 </Button>
             )}

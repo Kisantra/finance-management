@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { router, usePage } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
@@ -63,17 +63,22 @@ import {
 } from 'lucide-react';
 import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
+import { t, tk, Trans } from '@/i18n';
 
 // ponytail: koordinat px @96dpi. A4 = 794x1123.
 const A4 = { w: 794, h: 1123 };
 
 const DEFAULT_MARGINS = { top: 40, right: 40, bottom: 40, left: 40 };
 
-// â”€â”€ Font map (ONE source of truth â€” editor CSS stack + DomPDF family name) â”€â”€â”€â”€â”€â”€
+// ── Font map (ONE source of truth — editor CSS stack + DomPDF family name) ──────
 export const FONT_MAP = [
+    // i18n-abaikan: nama font = nilai tersimpan di template & family DomPDF
     { label: 'Helvetica / Arial',  cssFontStack: 'Helvetica, Arial, sans-serif',     dompdfFamily: 'Helvetica' },
+    // i18n-abaikan: nama font = nilai tersimpan di template & family DomPDF
     { label: 'Times New Roman',    cssFontStack: '"Times New Roman", Times, serif',   dompdfFamily: 'Times New Roman' },
+    // i18n-abaikan: nama font = nilai tersimpan di template & family DomPDF
     { label: 'Courier',            cssFontStack: '"Courier New", Courier, monospace', dompdfFamily: 'Courier' },
+    // i18n-abaikan: nama font = nilai tersimpan di template & family DomPDF
     { label: 'DejaVu Sans',        cssFontStack: '"DejaVu Sans", sans-serif',         dompdfFamily: 'DejaVu Sans' },
 ] as const;
 
@@ -92,7 +97,7 @@ export function fontCssStack(label: FontLabel | string | undefined, customFonts:
     return 'Helvetica, Arial, sans-serif';
 }
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type Text = {
     id: number; type: 'text';
@@ -133,7 +138,7 @@ type TableColumn = {
     format: 'text' | 'number' | 'rupiah';
 };
 
-// â”€â”€ TRB (Tabel Terpadu Row-Band) types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── TRB (Tabel Terpadu Row-Band) types ────────────────────────────────────────
 
 type TableCell = {
     content: string;
@@ -212,7 +217,7 @@ type LineEl = {
 type El = Text | Img | TableEl | GridEl | RectEl | LineEl;
 type BandEl = Text | Img | GridEl | RectEl | LineEl;
 
-// â”€â”€ Banded layout types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Banded layout types ──────────────────────────────────────────────────────
 
 type BandName = 'header' | 'content' | 'footerFlow' | 'footerFixed';
 
@@ -242,7 +247,7 @@ type BandedLayout = {
     };
 };
 
-// â”€â”€ Catalog types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Catalog types ─────────────────────────────────────────────────────────────
 
 interface TokenEntry { path: string; label: string; }
 
@@ -265,7 +270,7 @@ interface Props extends SharedProps {
     customFonts: CustomFontEntry[];
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeDefaultTable(id: number, catalog: ItemColumnEntry[], x: number, y: number): TableEl {
     const defaults = catalog.filter((c) => c.default);
@@ -350,7 +355,7 @@ function makeDefaultLine(id: number, x: number, y: number): LineEl {
 function lineElWidth(el: LineEl): number { return el.orientation === 'h' ? el.length : el.thickness; }
 function lineElHeight(el: LineEl): number { return el.orientation === 'h' ? el.thickness : el.length; }
 
-// â”€â”€ Legacy migration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Legacy migration ──────────────────────────────────────────────────────────
 
 function migrateToLegacyBanded(oldEls: El[]): BandedLayout['bands'] {
     const tableEl = oldEls.find((e): e is TableEl => e.type === 'table') ?? null;
@@ -363,17 +368,17 @@ function migrateToLegacyBanded(oldEls: El[]): BandedLayout['bands'] {
     };
 }
 
-// â”€â”€ TRB migration helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── TRB migration helpers ─────────────────────────────────────────────────────
 
 /** Detect if a stored table element uses the OLD column-based model. */
 function isLegacyTableEl(el: unknown): boolean {
     if (!el || typeof el !== 'object') { return false; }
-    const t = el as Record<string, unknown>;
-    return Array.isArray(t.columns) && !Array.isArray(t.rows);
+    const rec = el as Record<string, unknown>;
+    return Array.isArray(rec.columns) && !Array.isArray(rec.rows);
 }
 
 /**
- * Migrate OLD column-based TableEl â†’ new row-band TableEl.
+ * Migrate OLD column-based TableEl → new row-band TableEl.
  * Detection: old shape has `columns` array but no `rows` array.
  */
 function migrateTableElToRowBand(old: Record<string, unknown>): TableEl {
@@ -407,7 +412,7 @@ function migrateTableElToRowBand(old: Record<string, unknown>): TableEl {
         })),
     });
 
-    // Detail row (repeat:items) â€” one cell per column with item.* token
+    // Detail row (repeat:items) — one cell per column with item.* token
     rows.push({
         kind: 'body',
         repeat: 'items',
@@ -456,13 +461,13 @@ const DEFAULT_BANDS: BandedLayout['bands'] = {
 };
 
 function bandLabel(band: BandName): string {
-    if (band === 'header') return 'Header';
-    if (band === 'content') return 'Konten';
-    if (band === 'footerFlow') return 'Footer Flow';
-    return 'Footer Tetap';
+    if (band === 'header') return t('Header');
+    if (band === 'content') return t('Konten');
+    if (band === 'footerFlow') return t('Footer Flow');
+    return t('Footer Tetap');
 }
 
-// â”€â”€ Margin Settings Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Margin Settings Panel ─────────────────────────────────────────────────────
 
 type Margins = { top: number; right: number; bottom: number; left: number };
 
@@ -479,7 +484,7 @@ function MarginSettingsPanel({
     return (
         <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 overflow-hidden shadow-sm">
             <div className="px-3 py-2 bg-zinc-50 dark:bg-dark-800 border-b border-secondary-200 dark:border-dark-600">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-400 dark:text-dark-500">Margin Halaman</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-400 dark:text-dark-500">{t('Margin Halaman')}</span>
             </div>
             <div className="p-3 space-y-2">
                 {/* Visual margin diagram */}
@@ -494,19 +499,19 @@ function MarginSettingsPanel({
                                 left: Math.round((margins.left / 40) * 8),
                             }}
                         />
-                        <span className="absolute inset-0 flex items-center justify-center text-[8px] text-dark-300 dark:text-dark-600 font-medium">A4</span>
+                        <span className="absolute inset-0 flex items-center justify-center text-[8px] text-dark-300 dark:text-dark-600 font-medium">{t('A4')}</span>
                     </div>
                 </div>
-                <Row label="Atas">
+                <Row label={t('Atas')}>
                     <NumField value={margins.top} onChange={(v) => set('top', v)} unit="px" />
                 </Row>
-                <Row label="Kanan">
+                <Row label={t('Kanan')}>
                     <NumField value={margins.right} onChange={(v) => set('right', v)} unit="px" />
                 </Row>
-                <Row label="Bawah">
+                <Row label={t('Bawah')}>
                     <NumField value={margins.bottom} onChange={(v) => set('bottom', v)} unit="px" />
                 </Row>
-                <Row label="Kiri">
+                <Row label={t('Kiri')}>
                     <NumField value={margins.left} onChange={(v) => set('left', v)} unit="px" />
                 </Row>
             </div>
@@ -514,7 +519,7 @@ function MarginSettingsPanel({
     );
 }
 
-// â”€â”€ Band Settings Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Band Settings Panel ───────────────────────────────────────────────────────
 
 function BandSettingsPanel({
     bands,
@@ -527,34 +532,34 @@ function BandSettingsPanel({
         <div className="space-y-2">
             {/* Section title */}
             <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-400 dark:text-dark-500 px-0.5">
-                Ukuran Band
+                {t('Ukuran Band')}
             </span>
 
             {/* Header band card */}
             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50/60 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/20">
                     <span className="inline-block w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">Header</span>
-                    <Badge variant="blue" size="sm">Tetap</Badge>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">{t('Header')}</span>
+                    <Badge variant="blue" size="sm">{t('Tetap')}</Badge>
                 </div>
                 <div className="p-3 space-y-2">
-                    <Row label="Tinggi">
+                    <Row label={t('Tinggi')}>
                         <NumField
                             value={bands.header.height}
                             onChange={(v) => onChangeBands({ header: { ...bands.header, height: Math.max(20, v) } })}
                             unit="px"
                         />
                     </Row>
-                    {/* Header repeat toggle â€” catalog Switch */}
+                    {/* Header repeat toggle — catalog Switch */}
                     <div className="flex items-center gap-2">
-                        <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">Ulangi</span>
+                        <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">{t('Ulangi')}</span>
                         <Switch
                             checked={bands.header.repeat}
                             onCheckedChange={(checked) => onChangeBands({ header: { ...bands.header, repeat: checked } })}
                         />
                         <span className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-1">
                             <Repeat2 className="w-3 h-3" />
-                            {bands.header.repeat ? 'Tiap halaman' : 'Hal. pertama saja'}
+                            {bands.header.repeat ? t('Tiap halaman') : t('Hal. pertama saja')}
                         </span>
                     </div>
                 </div>
@@ -564,11 +569,11 @@ function BandSettingsPanel({
             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50/60 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-900/20">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">Konten</span>
-                    <Badge variant="emerald" size="sm">Dinamis â‡•</Badge>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">{t('Konten')}</span>
+                    <Badge variant="emerald" size="sm">{t('Dinamis ⇕')}</Badge>
                 </div>
                 <div className="px-3 py-2.5">
-                    <p className="text-[11px] text-dark-400 dark:text-dark-500 leading-relaxed">Tinggi otomatis â€” mengikuti jumlah baris item invoice.</p>
+                    <p className="text-[11px] text-dark-400 dark:text-dark-500 leading-relaxed">{t('Tinggi otomatis — mengikuti jumlah baris item invoice.')}</p>
                 </div>
             </div>
 
@@ -576,11 +581,11 @@ function BandSettingsPanel({
             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-3 py-2 bg-amber-50/60 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-900/20">
                     <span className="inline-block w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">Footer Flow</span>
-                    <Badge variant="orange" size="sm">Setelah konten</Badge>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">{t('Footer Flow')}</span>
+                    <Badge variant="orange" size="sm">{t('Setelah konten')}</Badge>
                 </div>
                 <div className="p-3">
-                    <Row label="Tinggi">
+                    <Row label={t('Tinggi')}>
                         <NumField
                             value={bands.footerFlow.height}
                             onChange={(v) => onChangeBands({ footerFlow: { ...bands.footerFlow, height: Math.max(20, v) } })}
@@ -594,25 +599,25 @@ function BandSettingsPanel({
             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 px-3 py-2 bg-purple-50/60 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-900/20">
                     <span className="inline-block w-2 h-2 rounded-full bg-purple-400 shrink-0" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">Footer Tetap</span>
-                    <Badge variant="purple" size="sm">Tiap halaman</Badge>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-dark-600 dark:text-dark-300 flex-1">{t('Footer Tetap')}</span>
+                    <Badge variant="purple" size="sm">{t('Tiap halaman')}</Badge>
                 </div>
                 <div className="p-3 space-y-2">
-                    <Row label="Tinggi">
+                    <Row label={t('Tinggi')}>
                         <NumField
                             value={bands.footerFixed.height}
                             onChange={(v) => onChangeBands({ footerFixed: { ...bands.footerFixed, height: Math.max(20, v) } })}
                             unit="px"
                         />
                     </Row>
-                    <p className="text-[11px] text-dark-400 dark:text-dark-500 leading-relaxed">Dipaku di bagian bawah setiap halaman, di atas margin bawah.</p>
+                    <p className="text-[11px] text-dark-400 dark:text-dark-500 leading-relaxed">{t('Dipaku di bagian bawah setiap halaman, di atas margin bawah.')}</p>
                 </div>
             </div>
         </div>
     );
 }
 
-// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function PdfTemplateEdit() {
     const { template, tokenCatalog, sampleData, itemColumnCatalog, sampleItems, customFonts } = usePage<Props>().props;
@@ -646,7 +651,7 @@ export default function PdfTemplateEdit() {
         if (layout && typeof layout === 'object' && !Array.isArray(layout) && 'bands' in (layout as object)) {
             const bl = layout as BandedLayout;
             let loadedBands = bl.bands;
-            // TRB migration: old column-based table â†’ new row-band TableEl
+            // TRB migration: old column-based table → new row-band TableEl
             const rawTable = loadedBands.content.table;
             if (isLegacyTableEl(rawTable)) {
                 loadedBands = {
@@ -704,7 +709,7 @@ export default function PdfTemplateEdit() {
     ];
     const nextId = React.useRef(Math.max(0, ...allInitialEls.map((e) => e.id)) + 1);
 
-    // â”€â”€ Band element helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Band element helpers ──────────────────────────────────────────────────
 
     const getBandEls = React.useCallback((band: BandName): BandEl[] => {
         if (band === 'header') return bands.header.elements;
@@ -761,7 +766,7 @@ export default function PdfTemplateEdit() {
               ? { r1: anchorCell.row, c1: anchorCell.col, r2: anchorCell.row, c2: anchorCell.col }
               : null;
 
-    // â”€â”€ Undo/redo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Undo/redo ─────────────────────────────────────────────────────────────
 
     const snapshot = () =>
         setBands((prev) => {
@@ -788,7 +793,7 @@ export default function PdfTemplateEdit() {
             return h.future.pop()!;
         });
 
-    // â”€â”€ Update helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Update helpers ────────────────────────────────────────────────────────
 
     const update = React.useCallback((id: number, patch: Partial<El>) => {
         const band = findElBand(id);
@@ -820,7 +825,7 @@ export default function PdfTemplateEdit() {
         }));
     };
 
-    // â”€â”€ Drag in band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Drag in band ──────────────────────────────────────────────────────────
 
     const startDragInBand = (e: React.PointerEvent, el: BandEl | TableEl, bandRef: React.RefObject<HTMLDivElement | null>) => {
         e.stopPropagation();
@@ -831,7 +836,7 @@ export default function PdfTemplateEdit() {
         const dx = (e.clientX - rect.left) / zoom - el.x - margins.left;
         const dy = (e.clientY - rect.top) / zoom - el.y;
 
-        // T3.5: snap X points â€” margin edges + other elements' left/right/center
+        // T3.5: snap X points — margin edges + other elements' left/right/center
         const SNAP = 6;
         const snapXs: number[] = [margins.left, A4.w - margins.right];
         if (band && band !== 'content') {
@@ -935,7 +940,7 @@ export default function PdfTemplateEdit() {
         window.addEventListener('pointerup', onUp);
     };
 
-    // T4 â€” drag to resize band height
+    // T4 — drag to resize band height
     const startBandResize = (e: React.PointerEvent, bandName: 'header' | 'footerFlow' | 'footerFixed') => {
         e.stopPropagation();
         const y0 = e.clientY;
@@ -1010,7 +1015,7 @@ export default function PdfTemplateEdit() {
         window.addEventListener('pointerup', up);
     };
 
-    // â”€â”€ Add element helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Add element helpers ────────────────────────────────────────────────────
 
     const addText = (x = 80, y = 40, content = 'Teks baru') => {
         if (activeBand === 'content') return;
@@ -1107,7 +1112,7 @@ export default function PdfTemplateEdit() {
         probe.src = el.src;
     };
 
-    // â”€â”€ TRB helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── TRB helpers ──────────────────────────────────────────────────────────────
     const updateTrb = (fn: (el: TableEl) => TableEl) => {
         setBands((prev) => {
             if (!prev.content.table) return prev;
@@ -1323,7 +1328,7 @@ export default function PdfTemplateEdit() {
         }));
     };
 
-    // â”€â”€ Remove / duplicate / move layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Remove / duplicate / move layer ───────────────────────────────────────
 
     const remove = (id: number) => {
         snapshot();
@@ -1379,7 +1384,7 @@ export default function PdfTemplateEdit() {
         }
     };
 
-    // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Save ──────────────────────────────────────────────────────────────────
 
     const save = () => {
         setSaving(true);
@@ -1399,8 +1404,8 @@ export default function PdfTemplateEdit() {
             {
                 preserveScroll: true,
                 preserveState: true,
-                onSuccess: () => toast.success('Template tersimpan'),
-                onError: () => toast.error('Gagal menyimpan'),
+                onSuccess: () => toast.success(t('Template tersimpan')),
+                onError: () => toast.error(t('Gagal menyimpan')),
                 onFinish: () => setSaving(false),
             },
         );
@@ -1412,7 +1417,7 @@ export default function PdfTemplateEdit() {
     const openPdfWithItems = (n: number) =>
         window.open(companyUrl(`/settings/pdf-templates/${template.id}/pdf?items=${n}`), '_blank');
 
-    // â”€â”€ Drop on band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Drop on band ──────────────────────────────────────────────────────────
 
     const dropOnBand = (e: React.DragEvent, band: BandName, bandRef: React.RefObject<HTMLDivElement | null>) => {
         e.preventDefault();
@@ -1435,7 +1440,7 @@ export default function PdfTemplateEdit() {
         else setActiveBand(prevActive);
     };
 
-    // â”€â”€ Clipboard helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Clipboard helpers ─────────────────────────────────────────────────────
 
     const imgToPngBlob = (src: string) =>
         new Promise<Blob>((res, rej) => {
@@ -1459,11 +1464,11 @@ export default function PdfTemplateEdit() {
         } catch { /* clipboard may fail */ }
     };
 
-    // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
     React.useEffect(() => {
-        const inField = (t: EventTarget | null) =>
-            t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+        const inField = (node: EventTarget | null) =>
+            node instanceof HTMLElement && (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA' || node.isContentEditable);
         const onKey = (e: KeyboardEvent) => {
             if (inField(e.target)) return;
             const mod = e.ctrlKey || e.metaKey;
@@ -1505,7 +1510,7 @@ export default function PdfTemplateEdit() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selected, activeBand, bands]);
 
-    // â”€â”€ Zoom wheel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Zoom wheel ────────────────────────────────────────────────────────────
 
     React.useEffect(() => {
         const node = canvasRef.current;
@@ -1523,7 +1528,7 @@ export default function PdfTemplateEdit() {
         return () => node.removeEventListener('wheel', onWheel);
     }, [zoom]);
 
-    // â”€â”€ Fit-to-width on mount â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Fit-to-width on mount ─────────────────────────────────────────────────
     // Fire once: wait until the canvas container has a real width (rAF loop),
     // then set zoom so the A4 page fits with 24px padding on each side.
     const fitDoneRef = React.useRef(false);
@@ -1564,7 +1569,7 @@ export default function PdfTemplateEdit() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [bands]);
 
-    // â”€â”€ Band canvas render helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Band canvas render helper ──────────────────────────────────────────────
 
     const renderBandElements = (bandName: BandName, bandRef: React.RefObject<HTMLDivElement | null>, elements: BandEl[]) => {
         return elements.map((el) => {
@@ -1789,16 +1794,16 @@ export default function PdfTemplateEdit() {
         });
     };
 
-    // â”€â”€ Band subtitles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Band subtitles ────────────────────────────────────────────────────────
 
     const bandSubtitle: Record<BandName, string> = {
-        header: bands.header.repeat ? 'Tiap halaman' : 'Halaman pertama',
-        content: 'Dinamis â‡•',
-        footerFlow: 'Setelah konten',
-        footerFixed: 'Tiap halaman',
+        header: bands.header.repeat ? t('Tiap halaman') : t('Halaman pertama'),
+        content: t('Dinamis ⇕'),
+        footerFlow: t('Setelah konten'),
+        footerFixed: t('Tiap halaman'),
     };
 
-    // â”€â”€ Layer groups for left panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Layer groups for left panel ───────────────────────────────────────────
 
     const layerGroups: { band: BandName; els: (BandEl | TableEl)[] }[] = [
         { band: 'header', els: [...bands.header.elements].reverse() },
@@ -1816,31 +1821,31 @@ export default function PdfTemplateEdit() {
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
-            {/* â”€â”€ Top header bar â”€â”€ */}
+            {/* ── Top header bar ── */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-900 shrink-0">
                 {/* Left: back + title */}
                 <Button variant="ghost" size="sm" onClick={() => router.visit(companyUrl('/settings/pdf-templates'))} className="gap-1.5 text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-dark-50 shrink-0">
                     <ArrowLeft className="w-4 h-4" />
-                    Kembali
+                    {t('Kembali')}
                 </Button>
                 <div className="w-px h-5 bg-secondary-200 dark:bg-dark-600 shrink-0" />
                 <span className="text-sm font-semibold text-dark-900 dark:text-dark-100 truncate min-w-0 flex-1">{template.name}</span>
-                <span className="text-[11px] font-medium text-dark-400 dark:text-dark-500 shrink-0 hidden md:inline">Banded</span>
+                <span className="text-[11px] font-medium text-dark-400 dark:text-dark-500 shrink-0 hidden md:inline">{t('Banded')}</span>
 
                 {/* Right: document actions */}
                 <div className="flex items-center gap-0.5 shrink-0 ml-2">
                     {/* Undo / Redo */}
-                    <Button variant="ghost" size="icon" onClick={() => undo()} title="Undo (Ctrl+Z)" className="w-7 h-7">
+                    <Button variant="ghost" size="icon" onClick={() => undo()} title={t('Urungkan (Ctrl+Z)')} className="w-7 h-7">
                         <Undo2 className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => redo()} title="Redo (Ctrl+Shift+Z)" className="w-7 h-7">
+                    <Button variant="ghost" size="icon" onClick={() => redo()} title={t('Ulangi (Ctrl+Shift+Z)')} className="w-7 h-7">
                         <Redo2 className="w-3.5 h-3.5" />
                     </Button>
 
                     <div className="w-px h-5 bg-secondary-200 dark:bg-dark-600 mx-1 shrink-0" />
 
                     {/* Zoom controls */}
-                    <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.max(0.2, +(z - 0.1).toFixed(2)))} className="w-7 h-7" title="Perkecil">
+                    <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.max(0.2, +(z - 0.1).toFixed(2)))} className="w-7 h-7" title={t('Perkecil')}>
                         <ZoomOut className="w-3.5 h-3.5" />
                     </Button>
                     <button
@@ -1851,11 +1856,11 @@ export default function PdfTemplateEdit() {
                             if (w > 0) setZoom(+Math.min(Math.max((w - 48) / A4.w, 0.25), 1).toFixed(3));
                         }}
                         className="text-[11px] tabular-nums font-medium text-dark-500 dark:text-dark-400 w-10 text-center select-none hover:text-dark-900 dark:hover:text-dark-50 transition-colors duration-150"
-                        title="Klik untuk fit lebar"
+                        title={t('Klik untuk fit lebar')}
                     >
                         {Math.round(zoom * 100)}%
                     </button>
-                    <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))} className="w-7 h-7" title="Perbesar">
+                    <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))} className="w-7 h-7" title={t('Perbesar')}>
                         <ZoomIn className="w-3.5 h-3.5" />
                     </Button>
 
@@ -1869,27 +1874,27 @@ export default function PdfTemplateEdit() {
                         onClick={() => { setPreview((p) => !p); setEditingId(null); }}
                     >
                         {preview ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline">{preview ? 'Edit' : 'Preview'}</span>
+                        <span className="hidden sm:inline">{preview ? t('Ubah') : t('Pratinjau')}</span>
                     </Button>
 
                     <div className="w-px h-5 bg-secondary-200 dark:bg-dark-600 mx-1 shrink-0" />
 
-                    {/* Pratinjau N-item dropdown â€” catalog DropdownMenu */}
+                    {/* Pratinjau N-item dropdown — catalog DropdownMenu */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 className="gap-1 text-xs text-dark-600 dark:text-dark-300"
-                                title="Pratinjau PDF dengan N item"
+                                title={t('Pratinjau PDF dengan N item')}
                             >
                                 <FileDown className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Pratinjau</span>
+                                <span className="hidden sm:inline">{t('Pratinjau PDF')}</span>
                                 <ChevronDown className="w-3 h-3 opacity-60" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-[148px]">
-                            <DropdownMenuLabel>Jumlah item</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t('Jumlah item')}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {([3, 10, 25, 60] as const).map((n) => (
                                 <DropdownMenuItem
@@ -1897,27 +1902,27 @@ export default function PdfTemplateEdit() {
                                     onClick={() => openPdfWithItems(n)}
                                     className="flex items-center justify-between gap-3"
                                 >
-                                    <span className="font-medium">{n} item</span>
+                                    <span className="font-medium">{n} {t('item')}</span>
                                     <span className="text-[10px] text-dark-400 dark:text-dark-500 tabular-nums">
-                                        {n <= 5 ? '1 hal.' : n <= 20 ? '~2 hal.' : n <= 40 ? '~3 hal.' : '~5 hal.'}
+                                        {n <= 5 ? t('1 hal.') : n <= 20 ? t('~2 hal.') : n <= 40 ? t('~3 hal.') : t('~5 hal.')}
                                     </span>
                                 </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* PDF â€” quick export */}
-                    <Button variant="ghost" size="sm" onClick={openPdf} className="gap-1 text-xs text-dark-600 dark:text-dark-300" title="Cetak PDF (data contoh)">
+                    {/* PDF — quick export */}
+                    <Button variant="ghost" size="sm" onClick={openPdf} className="gap-1 text-xs text-dark-600 dark:text-dark-300" title={t('Cetak PDF (data contoh)')}>
                         <Eye className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">PDF</span>
                     </Button>
 
                     <div className="w-px h-5 bg-secondary-200 dark:bg-dark-600 mx-1 shrink-0" />
 
-                    {/* Save â€” primary CTA */}
+                    {/* Save — primary CTA */}
                     <Button variant="primary" size="sm" onClick={save} disabled={saving} className="gap-1.5 text-xs font-semibold">
                         <Save className="w-3.5 h-3.5" />
-                        {saving ? 'Menyimpanâ€¦' : 'Simpan'}
+                        {saving ? t('Menyimpan…') : t('Simpan')}
                     </Button>
                 </div>
             </div>
@@ -1925,14 +1930,14 @@ export default function PdfTemplateEdit() {
             {/* 3-column editor */}
             <div className="flex flex-1 overflow-hidden">
 
-                {/* â”€â”€ KIRI: Layers â”€â”€ */}
+                {/* ── KIRI: Layers ── */}
                 <aside className="w-52 shrink-0 border-r border-secondary-200 dark:border-dark-600 flex flex-col bg-white dark:bg-dark-900">
-                    <PanelHeader title="Layers" meta={totalElCount ? String(totalElCount) : undefined} />
+                    <PanelHeader title={t('Lapisan')} meta={totalElCount ? String(totalElCount) : undefined} />
                     <div className="flex-1 overflow-auto p-2 space-y-0.5">
                         {totalElCount === 0 && (
                             <div className="px-3 py-6 text-center">
                                 <Layers className="w-6 h-6 mx-auto mb-2 text-dark-300 dark:text-dark-600" />
-                                <p className="text-xs text-dark-400 dark:text-dark-500 leading-relaxed">Belum ada elemen.<br />Seret dari toolbar.</p>
+                                <p className="text-xs text-dark-400 dark:text-dark-500 leading-relaxed">{t('Belum ada elemen.')}<br />{t('Seret dari bilah alat.')}</p>
                             </div>
                         )}
                         {layerGroups.map(({ band, els }) => (
@@ -1994,12 +1999,12 @@ export default function PdfTemplateEdit() {
                                                             : <Table2 className="w-3 h-3" />}
                                                     </span>
                                                     <span className={`flex-1 truncate text-xs font-medium ${active ? 'text-primary-700 dark:text-primary-200' : 'text-dark-700 dark:text-dark-300'}`}>
-                                                        {el.type === 'text' ? (el.content.length > 18 ? el.content.slice(0, 18) + 'â€¦' : el.content || '(kosong)')
-                                                            : el.type === 'image' ? 'Gambar'
-                                                            : el.type === 'grid' ? `Grid ${(el as GridEl).rows}Ã—${(el as GridEl).cols}`
-                                                            : el.type === 'rect' ? 'Kotak'
-                                                            : el.type === 'line' ? 'Garis'
-                                                            : 'Tabel Item'}
+                                                        {el.type === 'text' ? (el.content.length > 18 ? el.content.slice(0, 18) + '…' : el.content || t('(kosong)'))
+                                                            : el.type === 'image' ? t('Gambar')
+                                                            : el.type === 'grid' ? t('Grid {{rows}}×{{cols}}', { rows: (el as GridEl).rows, cols: (el as GridEl).cols })
+                                                            : el.type === 'rect' ? t('Kotak')
+                                                            : el.type === 'line' ? t('Garis')
+                                                            : t('Tabel Item')}
                                                     </span>
                                                     <button
                                                         onClick={(ev) => { ev.stopPropagation(); remove(el.id); }}
@@ -2017,13 +2022,13 @@ export default function PdfTemplateEdit() {
                     </div>
                 </aside>
 
-                {/* â”€â”€ TENGAH: Kanvas â”€â”€ */}
+                {/* ── TENGAH: Kanvas ── */}
                 <div className="relative flex-1 overflow-hidden">
                     <div ref={canvasRef} className="absolute inset-0 overflow-auto" style={{ backgroundColor: '#1a1a1d' }}>
                         <div className="min-h-full flex items-start justify-center py-10 px-10">
-                            {/* Outer sizing wrapper â€” exact A4 footprint at current zoom */}
+                            {/* Outer sizing wrapper — exact A4 footprint at current zoom */}
                             <div style={{ width: A4.w * zoom, height: A4.h * zoom, flexShrink: 0 }}>
-                                {/* â”€â”€ A4 PAPER SHEET â€” true portrait 793Ã—1123px â”€â”€ */}
+                                {/* ── A4 PAPER SHEET — true portrait 793×1123px ── */}
                                 <div
                                     className={`relative bg-white shadow-xl ${dragOver ? 'ring-2 ring-primary-400' : ''}`}
                                     style={{
@@ -2034,7 +2039,7 @@ export default function PdfTemplateEdit() {
                                         overflow: 'hidden',
                                     }}
                                 >
-                                    {/* â”€â”€ MARGIN GUIDE â€” dashed rect showing printable area â”€â”€ */}
+                                    {/* ── MARGIN GUIDE — dashed rect showing printable area ── */}
                                     <div
                                         aria-hidden
                                         className="absolute pointer-events-none z-[100]"
@@ -2047,10 +2052,10 @@ export default function PdfTemplateEdit() {
                                         }}
                                     />
 
-                                    {/* â”€â”€ FLOWING BANDS: Header â†’ Content â†’ FooterFlow â”€â”€ */}
+                                    {/* ── FLOWING BANDS: Header → Content → FooterFlow ── */}
                                     {/* These stack top-to-bottom inside the top margin area */}
 
-                                    {/* â”€â”€ HEADER BAND â”€â”€ */}
+                                    {/* ── HEADER BAND ── */}
                                     <div
                                         ref={headerRef}
                                         className={`relative transition-shadow duration-150 ${
@@ -2071,9 +2076,9 @@ export default function PdfTemplateEdit() {
                                         onDragLeave={() => setDragOver(false)}
                                         onDrop={(e) => dropOnBand(e, 'header', headerRef)}
                                     >
-                                        {/* Band label â€” top-left corner tab */}
+                                        {/* Band label — top-left corner tab */}
                                         <div className="absolute top-1 left-1 flex items-center gap-1 pointer-events-none z-10">
-                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">HEADER</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">{t('HEADER')}</span>
                                             <Badge variant="blue" size="sm" className="text-[9px] leading-none py-0.5 px-1.5">{bandSubtitle.header}</Badge>
                                         </div>
                                         {renderBandElements('header', headerRef, bands.header.elements)}
@@ -2093,11 +2098,11 @@ export default function PdfTemplateEdit() {
                                     {/* Band separator */}
                                     <div className="flex items-center w-full" style={{ height: 16 }}>
                                         <div className="flex-1 border-t border-dashed border-slate-200/70 dark:border-dark-700/70" />
-                                        <span className="mx-2 shrink-0 text-[8px] font-medium tracking-widest uppercase text-slate-300 dark:text-dark-600 select-none">Konten</span>
+                                        <span className="mx-2 shrink-0 text-[8px] font-medium tracking-widest uppercase text-slate-300 dark:text-dark-600 select-none">{t('Konten')}</span>
                                         <div className="flex-1 border-t border-dashed border-slate-200/70 dark:border-dark-700/70" />
                                     </div>
 
-                                    {/* â”€â”€ CONTENT BAND â”€â”€ */}
+                                    {/* ── CONTENT BAND ── */}
                                     <div
                                         ref={contentRef}
                                         className={`relative transition-shadow duration-150 ${
@@ -2117,7 +2122,7 @@ export default function PdfTemplateEdit() {
                                     >
                                         {/* Band label */}
                                         <div className="absolute top-1 left-1 flex items-center gap-1 pointer-events-none z-10">
-                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">KONTEN</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">{t('KONTEN')}</span>
                                             <Badge variant="emerald" size="sm" className="text-[9px] leading-none py-0.5 px-1.5">{bandSubtitle.content}</Badge>
                                         </div>
                                         {tableEl ? (() => {
@@ -2213,7 +2218,7 @@ export default function PdfTemplateEdit() {
                                                     className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-slate-200 dark:border-dark-600 text-sm text-slate-400 dark:text-dark-500 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-150"
                                                 >
                                                     <Table2 className="w-4 h-4" />
-                                                    + Tabel Item
+                                                    {t('+ Tabel Item')}
                                                 </button>
                                             </div>
                                         )}
@@ -2224,11 +2229,11 @@ export default function PdfTemplateEdit() {
                                     {/* Band separator */}
                                     <div className="flex items-center w-full" style={{ height: 16 }}>
                                         <div className="flex-1 border-t border-dashed border-slate-200/70 dark:border-dark-700/70" />
-                                        <span className="mx-2 shrink-0 text-[8px] font-medium tracking-widest uppercase text-slate-300 dark:text-dark-600 select-none">Footer Flow</span>
+                                        <span className="mx-2 shrink-0 text-[8px] font-medium tracking-widest uppercase text-slate-300 dark:text-dark-600 select-none">{t('Footer Flow')}</span>
                                         <div className="flex-1 border-t border-dashed border-slate-200/70 dark:border-dark-700/70" />
                                     </div>
 
-                                    {/* â”€â”€ FOOTER FLOW BAND â”€â”€ */}
+                                    {/* ── FOOTER FLOW BAND ── */}
                                     <div
                                         ref={footerFlowRef}
                                         className={`relative transition-shadow duration-150 ${
@@ -2251,7 +2256,7 @@ export default function PdfTemplateEdit() {
                                     >
                                         {/* Band label */}
                                         <div className="absolute top-1 left-1 flex items-center gap-1 pointer-events-none z-10">
-                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">FOOTER FLOW</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">{t('FOOTER FLOW')}</span>
                                             <Badge variant="orange" size="sm" className="text-[9px] leading-none py-0.5 px-1.5">{bandSubtitle.footerFlow}</Badge>
                                         </div>
                                         {renderBandElements('footerFlow', footerFlowRef, bands.footerFlow.elements)}
@@ -2266,7 +2271,7 @@ export default function PdfTemplateEdit() {
                                         )}
                                     </div>
 
-                                    {/* â”€â”€ FOOTER FIXED BAND â€” pinned to bottom of A4 page â”€â”€ */}
+                                    {/* ── FOOTER FIXED BAND — pinned to bottom of A4 page ── */}
                                     {/* position: absolute so it always sits just above the bottom margin, */}
                                     {/* regardless of how tall the flowing bands above are.             */}
                                     <div
@@ -2295,9 +2300,9 @@ export default function PdfTemplateEdit() {
                                         onDragLeave={() => setDragOver(false)}
                                         onDrop={(e) => dropOnBand(e, 'footerFixed', footerFixedRef)}
                                     >
-                                        {/* Band label â€” shown at top-left of the fixed footer */}
+                                        {/* Band label — shown at top-left of the fixed footer */}
                                         <div className="absolute top-1 left-1 flex items-center gap-1 pointer-events-none z-10">
-                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">FOOTER TETAP</span>
+                                            <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-300 dark:text-dark-600">{t('FOOTER TETAP')}</span>
                                             <Badge variant="purple" size="sm" className="text-[9px] leading-none py-0.5 px-1.5">{bandSubtitle.footerFixed}</Badge>
                                         </div>
                                         {renderBandElements('footerFixed', footerFixedRef, bands.footerFixed.elements)}
@@ -2316,7 +2321,7 @@ export default function PdfTemplateEdit() {
                         </div>
                     </div>
 
-                        {/* â”€â”€ Active-band indicator â€” canvas overlay (top-left) â”€â”€ */}
+                        {/* ── Active-band indicator — canvas overlay (top-left) ── */}
                     <div className="absolute top-3 left-3 z-20 pointer-events-none">
                         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-dark-900/80 dark:bg-dark-800/90 backdrop-blur-sm border border-white/10 shadow-lg">
                             <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${
@@ -2328,36 +2333,36 @@ export default function PdfTemplateEdit() {
                         </div>
                     </div>
 
-                    {/* â”€â”€ FLOATING ELEMENT-INSERT TOOLBAR â”€â”€ */}
+                    {/* ── FLOATING ELEMENT-INSERT TOOLBAR ── */}
                     <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 p-1.5 rounded-xl bg-white dark:bg-dark-700 border border-secondary-200 dark:border-dark-600 shadow-lg">
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'text'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addText()} disabled={activeBand === 'content'} title="Teks â€” klik tambah / seret ke band">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addText()} disabled={activeBand === 'content'} title={t('Teks — klik tambah / seret ke band')}>
                                 <Type className="w-4 h-4" />
                             </Button>
                         </div>
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'image'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => fileRef.current?.click()} disabled={activeBand === 'content'} title="Gambar">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => fileRef.current?.click()} disabled={activeBand === 'content'} title={t('Gambar')}>
                                 <ImageIcon className="w-4 h-4" />
                             </Button>
                         </div>
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'grid'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addGrid()} disabled={activeBand === 'content'} title="Grid statis">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addGrid()} disabled={activeBand === 'content'} title={t('Grid statis')}>
                                 <LayoutGrid className="w-4 h-4" />
                             </Button>
                         </div>
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'rect'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addRect()} disabled={activeBand === 'content'} title="Kotak">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addRect()} disabled={activeBand === 'content'} title={t('Kotak')}>
                                 <RectIcon className="w-4 h-4" />
                             </Button>
                         </div>
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'line'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addLine()} disabled={activeBand === 'content'} title="Garis">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addLine()} disabled={activeBand === 'content'} title={t('Garis')}>
                                 <LineIcon className="w-4 h-4" />
                             </Button>
                         </div>
                         <div className="w-px h-6 bg-secondary-200 dark:bg-dark-600 mx-1" />
                         <div draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('kind', 'table'); }}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addTable()} disabled={!!bands.content.table} title={bands.content.table ? 'Tabel sudah ada' : 'Tabel item (band Konten)'}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-dark-600 dark:text-dark-300 hover:text-dark-900 dark:hover:text-dark-50" onClick={() => addTable()} disabled={!!bands.content.table} title={bands.content.table ? t('Tabel sudah ada') : t('Tabel item (band Konten)')}>
                                 <Table2 className="w-4 h-4" />
                             </Button>
                         </div>
@@ -2380,26 +2385,26 @@ export default function PdfTemplateEdit() {
                     />
                 </div>
 
-                {/* â”€â”€ KANAN: Inspector â”€â”€ */}
+                {/* ── KANAN: Inspector ── */}
                 <aside className="w-72 shrink-0 border-l border-secondary-200 dark:border-dark-600 flex flex-col bg-white dark:bg-dark-900">
                     <PanelHeader
                         title={
                             selected
-                                ? selected.type === 'text' ? 'Teks'
-                                    : selected.type === 'image' ? 'Gambar'
-                                    : selected.type === 'grid' ? 'Grid'
-                                    : selected.type === 'rect' ? 'Kotak'
-                                    : selected.type === 'line' ? 'Garis'
-                                    : 'Tabel Item'
-                                : 'Properti'
+                                ? selected.type === 'text' ? t('Teks')
+                                    : selected.type === 'image' ? t('Gambar')
+                                    : selected.type === 'grid' ? t('Grid')
+                                    : selected.type === 'rect' ? t('Kotak')
+                                    : selected.type === 'line' ? t('Garis')
+                                    : t('Tabel Item')
+                                : t('Properti')
                         }
-                        meta={selected ? undefined : 'Halaman'}
+                        meta={selected ? undefined : t('Halaman')}
                     />
 
                     {!selected ? (
                         <div className="flex-1 overflow-auto px-3 py-3 space-y-3">
                             <p className="text-[11px] text-dark-400 dark:text-dark-500 leading-relaxed">
-                                Klik elemen di kanvas untuk memilihnya. Atur margin halaman dan tinggi band di bawah.
+                                {t('Klik elemen di kanvas untuk memilihnya. Atur margin halaman dan tinggi band di bawah.')}
                             </p>
                             <MarginSettingsPanel
                                 margins={margins}
@@ -2414,8 +2419,8 @@ export default function PdfTemplateEdit() {
                         <div
                             className="flex-1 overflow-auto px-3"
                             onFocusCapture={(e) => {
-                                const t = e.target as HTMLElement;
-                                if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') snapshot();
+                                const target = e.target as HTMLElement;
+                                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') snapshot();
                             }}
                         >
                             {selected.type === 'text' && (
@@ -2435,14 +2440,14 @@ export default function PdfTemplateEdit() {
 
                             {selected.type === 'image' && (
                                 <>
-                                    <Section title="Ukuran">
-                                        <Row label="Lebar">
+                                    <Section title={t('Ukuran')}>
+                                        <Row label={t('Lebar')}>
                                             <NumField value={selected.width} onChange={(v) => setImgSize(selected as Img, 'width', v)} />
                                         </Row>
-                                        <Row label="Tinggi">
+                                        <Row label={t('Tinggi')}>
                                             <NumField value={Math.round((selected as Img).height ?? 0)} onChange={(v) => setImgSize(selected as Img, 'height', v)} />
                                         </Row>
-                                        <Row label="Rasio">
+                                        <Row label={t('Rasio')}>
                                             <button
                                                 onClick={() => { snapshot(); update(selected.id, { lockAspect: !(selected as Img).lockAspect }); }}
                                                 className={`flex items-center gap-2 h-8 w-full rounded-lg border px-2.5 text-sm transition-colors ${
@@ -2452,18 +2457,18 @@ export default function PdfTemplateEdit() {
                                                 }`}
                                             >
                                                 {(selected as Img).lockAspect ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                                {(selected as Img).lockAspect ? 'Terkunci' : 'Bebas'}
+                                                {(selected as Img).lockAspect ? t('Terkunci') : t('Bebas')}
                                             </button>
                                         </Row>
                                         <Button variant="zinc" size="sm" className="w-full" onClick={() => resetImage(selected as Img)}>
-                                            <RotateCcw className="w-4 h-4" /> Reset ke ukuran asli
+                                            <RotateCcw className="w-4 h-4" /> {t('Kembalikan ke ukuran asli')}
                                         </Button>
                                         <Button variant="zinc" size="sm" className="w-full" onClick={() => fileRef.current?.click()}>
-                                            <ImageIcon className="w-4 h-4" /> Ganti gambar
+                                            <ImageIcon className="w-4 h-4" /> {t('Ganti gambar')}
                                         </Button>
                                     </Section>
-                                    <Section title="Tampilan">
-                                        <Row label="Opasitas">
+                                    <Section title={t('Tampilan')}>
+                                        <Row label={t('Opasitas')}>
                                             <Slider
                                                 value={(selected as Img).opacity ?? 100}
                                                 onChange={(v) => update(selected.id, { opacity: v })}
@@ -2473,14 +2478,14 @@ export default function PdfTemplateEdit() {
                                                 suffix="%"
                                             />
                                         </Row>
-                                        <Row label="Radius">
+                                        <Row label={t('Radius')}>
                                             <NumField value={(selected as Img).borderRadius ?? 0} onChange={(v) => update(selected.id, { borderRadius: Math.max(0, v) })} unit="px" />
                                         </Row>
-                                        <Row label="Border">
+                                        <Row label={t('Garis tepi')}>
                                             <NumField value={(selected as Img).borderWidth ?? 0} onChange={(v) => update(selected.id, { borderWidth: Math.max(0, v) })} unit="px" />
                                         </Row>
                                         {((selected as Img).borderWidth ?? 0) > 0 && (
-                                            <Row label="Warna border">
+                                            <Row label={t('Warna garis tepi')}>
                                                 <ColorInput value={(selected as Img).borderColor ?? '#000000'} onChange={(v) => update(selected.id, { borderColor: v })} />
                                             </Row>
                                         )}
@@ -2537,37 +2542,37 @@ export default function PdfTemplateEdit() {
                             )}
 
                             {/* Posisi (shared) */}
-                            <Section title="Posisi">
-                                <Row label="X">
+                            <Section title={t('Posisi')}>
+                                <Row label={t('X')}>
                                     <NumField value={Math.round(selected.x)} onChange={(v) => update(selected.id, { x: v })} />
                                 </Row>
-                                <Row label="Y">
+                                <Row label={t('Y')}>
                                     <NumField value={Math.round(selected.y)} onChange={(v) => update(selected.id, { y: v })} />
                                 </Row>
                                 {(selected.type === 'table' || selected.type === 'grid') && (
-                                    <Row label="Lebar">
+                                    <Row label={t('Lebar')}>
                                         <NumField value={(selected as TableEl | GridEl).width} onChange={(v) => update(selected.id, { width: Math.max(100, v) })} />
                                     </Row>
                                 )}
                                 {selected.type === 'rect' && (
                                     <>
-                                        <Row label="Lebar"><NumField value={(selected as RectEl).width} onChange={(v) => update(selected.id, { width: Math.max(4, v) })} /></Row>
-                                        <Row label="Tinggi"><NumField value={(selected as RectEl).height} onChange={(v) => update(selected.id, { height: Math.max(4, v) })} /></Row>
+                                        <Row label={t('Lebar')}><NumField value={(selected as RectEl).width} onChange={(v) => update(selected.id, { width: Math.max(4, v) })} /></Row>
+                                        <Row label={t('Tinggi')}><NumField value={(selected as RectEl).height} onChange={(v) => update(selected.id, { height: Math.max(4, v) })} /></Row>
                                     </>
                                 )}
                                 {selected.type === 'line' && (
-                                    <Row label="Panjang"><NumField value={(selected as LineEl).length} onChange={(v) => update(selected.id, { length: Math.max(4, v) })} /></Row>
+                                    <Row label={t('Panjang')}><NumField value={(selected as LineEl).length} onChange={(v) => update(selected.id, { length: Math.max(4, v) })} /></Row>
                                 )}
                             </Section>
 
                             <Section title="">
                                 {selected.type !== 'table' && (
                                     <Button variant="zinc" size="sm" className="w-full" onClick={() => duplicate(selected as BandEl)}>
-                                        <Copy className="w-4 h-4" /> Gandakan <span className="text-xs opacity-60">Ctrl+D</span>
+                                        <Copy className="w-4 h-4" /> {t('Gandakan')} <span className="text-xs opacity-60">{t('Ctrl+D')}</span>
                                     </Button>
                                 )}
                                 <Button variant="red" size="sm" className="w-full" onClick={() => remove(selected.id)}>
-                                    <Trash2 className="w-4 h-4" /> Hapus elemen
+                                    <Trash2 className="w-4 h-4" /> {t('Hapus elemen')}
                                 </Button>
                             </Section>
                         </div>
@@ -2578,7 +2583,7 @@ export default function PdfTemplateEdit() {
     );
 }
 
-// â”€â”€ Text Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Text Inspector ────────────────────────────────────────────────────────────
 
 function TextInspector({
     el,
@@ -2605,7 +2610,7 @@ function TextInspector({
 }) {
     const hasBox = el.width !== undefined;
 
-    // â”€â”€ Upload font state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Upload font state ──────────────────────────────────────────────────────
     const [uploadOpen, setUploadOpen] = React.useState(false);
     const [uploadName, setUploadName] = React.useState('');
     const [uploadFile, setUploadFile] = React.useState<File | null>(null);
@@ -2624,7 +2629,7 @@ function TextInspector({
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(`Font "${uploadName}" berhasil diunggah.`);
+                toast.success(t('Font "{{name}}" berhasil diunggah.', { name: uploadName }));
                 setUploadOpen(false);
                 setUploadName('');
                 setUploadFile(null);
@@ -2633,7 +2638,7 @@ function TextInspector({
                 }
             },
             onError: (errors) => {
-                const msg = Object.values(errors)[0] ?? 'Gagal mengunggah font.';
+                const msg = Object.values(errors)[0] ?? t('Gagal mengunggah font.');
                 toast.error(String(msg));
             },
             onFinish: () => setUploading(false),
@@ -2656,8 +2661,8 @@ function TextInspector({
 
     return (
         <>
-            {/* â”€â”€ Konten â”€â”€ */}
-            <Section title="Konten">
+            {/* ── Konten ── */}
+            <Section title={t('Konten')}>
                 <Textarea
                     ref={contentRef}
                     value={el.content}
@@ -2667,19 +2672,19 @@ function TextInspector({
                 />
                 <div className="relative">
                     <Button variant="zinc" size="sm" className="w-full" onClick={() => setFieldMenu((o) => !o)}>
-                        <Plus className="w-4 h-4" /> Sisipkan field
+                        <Plus className="w-4 h-4" /> {t('Sisipkan field')}
                     </Button>
                     {fieldMenu && (
                         <div className="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-lg border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 shadow-lg p-1">
-                            {tokenCatalog.map((t) => (
+                            {tokenCatalog.map((tok) => (
                                 <button
-                                    key={t.path}
-                                    onClick={() => { onInsertToken(t.path); setFieldMenu(false); }}
+                                    key={tok.path}
+                                    onClick={() => { onInsertToken(tok.path); setFieldMenu(false); }}
                                     className="w-full text-left px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-dark-600"
                                 >
-                                    <div className="text-xs font-mono text-primary-600 dark:text-primary-400">{`{{${t.path}}}`}</div>
+                                    <div className="text-xs font-mono text-primary-600 dark:text-primary-400">{`{{${tok.path}}}`}</div>
                                     <div className="text-[11px] text-dark-400 dark:text-dark-500 truncate">
-                                        {sampleData[t.path] ?? t.label}
+                                        {sampleData[tok.path] ?? tok.label}
                                     </div>
                                 </button>
                             ))}
@@ -2687,29 +2692,29 @@ function TextInspector({
                     )}
                 </div>
                 <p className="text-[11px] text-dark-400 dark:text-dark-500">
-                    Token diganti data asli saat <strong>Preview</strong> / cetak.
+                    <Trans i18nKey="Token diganti data asli saat <b>Pratinjau</b> / cetak." components={{ b: <strong /> }} />
                 </p>
             </Section>
 
-            {/* â”€â”€ Font â”€â”€ */}
-            <Section title="Font">
-                {/* Font family â€” curated + custom fonts via catalog Combobox */}
-                <Row label="Jenis">
+            {/* ── Font ── */}
+            <Section title={t('Font')}>
+                {/* Font family — curated + custom fonts via catalog Combobox */}
+                <Row label={t('Jenis')}>
                     <Combobox
                         value={el.fontFamily ?? 'Helvetica / Arial'}
                         onChange={(v) => { if (v) onUpdate({ fontFamily: v as FontLabel }); }}
                         options={[
-                            { value: '__builtin__', label: 'Bawaan', disabled: true },
+                            { value: '__builtin__', label: t('Bawaan'), disabled: true },
                             ...FONT_MAP.map((f) => ({ value: f.label, label: f.label })),
                             ...(customFonts.length > 0
                                 ? [
-                                    { value: '__custom__', label: 'Font kustom', disabled: true },
+                                    { value: '__custom__', label: t('Font kustom'), disabled: true },
                                     ...customFonts.map((f) => ({ value: f.name, label: f.name })),
                                 ]
                                 : []),
                         ]}
-                        placeholder="Pilih fontâ€¦"
-                        searchPlaceholder="Cari fontâ€¦"
+                        placeholder={t('Pilih font…')}
+                        searchPlaceholder={t('Cari font…')}
                         clearable={false}
                     />
                 </Row>
@@ -2721,22 +2726,22 @@ function TextInspector({
                         className="flex items-center gap-1.5 text-[11px] text-primary-600 dark:text-primary-400 hover:underline"
                     >
                         <Upload className="w-3 h-3" />
-                        {uploadOpen ? 'Batal unggah' : '+ Unggah font (.ttf)'}
+                        {uploadOpen ? t('Batal unggah') : t('+ Unggah font (.ttf)')}
                     </button>
 
                     {uploadOpen && (
                         <div className="space-y-2 rounded-lg border border-secondary-200 dark:border-dark-600 bg-zinc-50 dark:bg-dark-700 p-2.5">
                             <div>
                                 <Input
-                                    label="Nama font *"
-                                    placeholder="mis. Poppins"
+                                    label={t('Nama font *')}
+                                    placeholder={t('mis. Poppins')}
                                     value={uploadName}
                                     onChange={(e) => setUploadName(e.target.value)}
                                     className="h-7 text-xs"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] text-dark-500 dark:text-dark-400 mb-1">File .ttf *</label>
+                                <label className="block text-[11px] text-dark-500 dark:text-dark-400 mb-1">{t('File .ttf *')}</label>
                                 <input
                                     ref={uploadFileRef}
                                     type="file"
@@ -2753,7 +2758,7 @@ function TextInspector({
                                 onClick={handleFontUpload}
                             >
                                 <Upload className="w-3.5 h-3.5" />
-                                {uploading ? 'Mengunggahâ€¦' : 'Unggah font'}
+                                {uploading ? t('Mengunggah…') : t('Unggah font')}
                             </Button>
                         </div>
                     )}
@@ -2776,11 +2781,11 @@ function TextInspector({
                                         onClick={() =>
                                             router.delete(companyUrl(`/settings/pdf-templates/custom-fonts/${f.id}`), {
                                                 preserveScroll: true,
-                                                onSuccess: () => toast.success(`Font "${f.name}" dihapus.`),
+                                                onSuccess: () => toast.success(t('Font "{{name}}" dihapus.', { name: f.name })),
                                             })
                                         }
                                         className="grid place-items-center h-5 w-5 rounded text-dark-400 hover:text-red-500 dark:hover:text-red-400 transition"
-                                        title="Hapus font"
+                                        title={t('Hapus font')}
                                     >
                                         <Trash2 className="w-3 h-3" />
                                     </button>
@@ -2790,23 +2795,23 @@ function TextInspector({
                     )}
                 </div>
                 {/* Size + color */}
-                <Row label="Ukuran">
+                <Row label={t('Ukuran')}>
                     <NumField value={el.fontSize} onChange={(v) => onUpdate({ fontSize: Math.max(4, v) })} unit="px" />
                 </Row>
-                <Row label="Warna teks">
+                <Row label={t('Warna teks')}>
                     <ColorInput value={el.color} onChange={(v) => onUpdate({ color: v })} />
                 </Row>
                 {/* Style toggles: B I U S */}
-                <Row label="Gaya">
+                <Row label={t('Gaya')}>
                     <div className="flex gap-1">
-                        {toggleBtn(el.bold, () => onUpdate({ bold: !el.bold }), 'Tebal (Bold)', <BoldIcon className="w-4 h-4" />)}
-                        {toggleBtn(el.italic ?? false, () => onUpdate({ italic: !el.italic }), 'Miring (Italic)', <Italic className="w-4 h-4" />)}
+                        {toggleBtn(el.bold, () => onUpdate({ bold: !el.bold }), 'Tebal', <BoldIcon className="w-4 h-4" />)}
+                        {toggleBtn(el.italic ?? false, () => onUpdate({ italic: !el.italic }), 'Miring', <Italic className="w-4 h-4" />)}
                         {toggleBtn(el.underline ?? false, () => onUpdate({ underline: !el.underline }), 'Garis bawah', <Underline className="w-4 h-4" />)}
                         {toggleBtn(el.strikethrough ?? false, () => onUpdate({ strikethrough: !el.strikethrough }), 'Garis tengah', <Strikethrough className="w-4 h-4" />)}
                     </div>
                 </Row>
                 {/* Highlight */}
-                <Row label="Sorot">
+                <Row label={t('Sorot')}>
                     <div className="flex items-center gap-2">
                         <input
                             type="checkbox"
@@ -2818,22 +2823,22 @@ function TextInspector({
                             <ColorInput value={el.highlight} onChange={(v) => onUpdate({ highlight: v })} />
                         )}
                         {!el.highlight && (
-                            <span className="text-xs text-dark-400 dark:text-dark-500">Tidak aktif</span>
+                            <span className="text-xs text-dark-400 dark:text-dark-500">{t('Tidak aktif')}</span>
                         )}
                     </div>
                 </Row>
             </Section>
 
-            {/* â”€â”€ Paragraf â”€â”€ */}
-            <Section title="Paragraf">
+            {/* ── Paragraf ── */}
+            <Section title={t('Paragraf')}>
                 {/* H-align */}
-                <Row label="Rata H">
+                <Row label={t('Rata H')}>
                     <div className="flex gap-1">
                         {([
-                            { value: 'left',    icon: <AlignLeft className="w-3.5 h-3.5" />,    title: 'Kiri' },
-                            { value: 'center',  icon: <AlignCenter className="w-3.5 h-3.5" />,  title: 'Tengah' },
-                            { value: 'right',   icon: <AlignRight className="w-3.5 h-3.5" />,   title: 'Kanan' },
-                            { value: 'justify', icon: <AlignJustify className="w-3.5 h-3.5" />, title: 'Rata penuh' },
+                            { value: 'left',    icon: <AlignLeft className="w-3.5 h-3.5" />,    title: t('Kiri') },
+                            { value: 'center',  icon: <AlignCenter className="w-3.5 h-3.5" />,  title: t('Tengah') },
+                            { value: 'right',   icon: <AlignRight className="w-3.5 h-3.5" />,   title: t('Kanan') },
+                            { value: 'justify', icon: <AlignJustify className="w-3.5 h-3.5" />, title: t('Rata penuh') },
                         ] as const).map(({ value, icon, title }) => (
                             <button
                                 key={value}
@@ -2851,12 +2856,12 @@ function TextInspector({
                     </div>
                 </Row>
                 {/* V-align (only meaningful when height is set) */}
-                <Row label="Rata V">
+                <Row label={t('Rata V')}>
                     <div className="flex gap-1">
                         {([
-                            { value: 'top',    icon: <AlignStartVertical className="w-3.5 h-3.5" />,  title: 'Atas' },
-                            { value: 'middle', icon: <AlignCenterVertical className="w-3.5 h-3.5" />, title: 'Tengah' },
-                            { value: 'bottom', icon: <AlignEndVertical className="w-3.5 h-3.5" />,   title: 'Bawah' },
+                            { value: 'top',    icon: <AlignStartVertical className="w-3.5 h-3.5" />,  title: t('Atas') },
+                            { value: 'middle', icon: <AlignCenterVertical className="w-3.5 h-3.5" />, title: t('Tengah') },
+                            { value: 'bottom', icon: <AlignEndVertical className="w-3.5 h-3.5" />,   title: t('Bawah') },
                         ] as const).map(({ value, icon, title }) => (
                             <button
                                 key={value}
@@ -2873,17 +2878,17 @@ function TextInspector({
                         ))}
                     </div>
                 </Row>
-                <Row label="Line-height">
-                    <NumField value={el.lineHeight ?? 1.2} onChange={(v) => onUpdate({ lineHeight: Math.max(0.5, v) })} unit="Ã—" />
+                <Row label={t('Line-height')}>
+                    <NumField value={el.lineHeight ?? 1.2} onChange={(v) => onUpdate({ lineHeight: Math.max(0.5, v) })} unit="×" />
                 </Row>
-                <Row label="Spasi huruf">
+                <Row label={t('Spasi huruf')}>
                     <NumField value={el.letterSpacing ?? 0} onChange={(v) => onUpdate({ letterSpacing: v })} unit="px" />
                 </Row>
             </Section>
 
-            {/* â”€â”€ Kotak â”€â”€ */}
-            <Section title="Kotak">
-                <Row label="Lebar">
+            {/* ── Kotak ── */}
+            <Section title={t('Kotak')}>
+                <Row label={t('Lebar')}>
                     <div className="flex items-center gap-2">
                         <input
                             type="checkbox"
@@ -2893,18 +2898,18 @@ function TextInspector({
                                 onUpdate(e.target.checked ? { width: 200 } : { width: undefined, height: undefined });
                             }}
                             className="accent-primary-600 shrink-0"
-                            title="Aktifkan mode kotak teks"
+                            title={t('Aktifkan mode kotak teks')}
                         />
                         {hasBox ? (
                             <NumField value={el.width!} onChange={(v) => onUpdate({ width: Math.max(20, v) })} unit="px" />
                         ) : (
-                            <span className="text-xs text-dark-400 dark:text-dark-500">Otomatis (lebar mengikuti teks)</span>
+                            <span className="text-xs text-dark-400 dark:text-dark-500">{t('Otomatis (lebar mengikuti teks)')}</span>
                         )}
                     </div>
                 </Row>
                 {hasBox && (
                     <>
-                        <Row label="Tinggi">
+                        <Row label={t('Tinggi')}>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -2918,14 +2923,14 @@ function TextInspector({
                                 {el.height !== undefined ? (
                                     <NumField value={el.height} onChange={(v) => onUpdate({ height: Math.max(10, v) })} unit="px" />
                                 ) : (
-                                    <span className="text-xs text-dark-400 dark:text-dark-500">Otomatis</span>
+                                    <span className="text-xs text-dark-400 dark:text-dark-500">{t('Otomatis')}</span>
                                 )}
                             </div>
                         </Row>
-                        <Row label="Padding">
+                        <Row label={t('Padding')}>
                             <NumField value={el.padding ?? 0} onChange={(v) => onUpdate({ padding: Math.max(0, v) })} unit="px" />
                         </Row>
-                        <Row label="Border">
+                        <Row label={t('Garis tepi')}>
                             <NumField
                                 value={el.borderWidth ?? 0}
                                 onChange={(v) => onUpdate({ borderWidth: Math.max(0, v) })}
@@ -2933,11 +2938,11 @@ function TextInspector({
                             />
                         </Row>
                         {(el.borderWidth ?? 0) > 0 && (
-                            <Row label="Warna border">
+                            <Row label={t('Warna garis tepi')}>
                                 <ColorInput value={el.borderColor ?? '#000000'} onChange={(v) => onUpdate({ borderColor: v })} />
                             </Row>
                         )}
-                        <Row label="Isi kotak">
+                        <Row label={t('Isi kotak')}>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -2949,7 +2954,7 @@ function TextInspector({
                                     <ColorInput value={el.fill} onChange={(v) => onUpdate({ fill: v })} />
                                 )}
                                 {!el.fill && (
-                                    <span className="text-xs text-dark-400 dark:text-dark-500">Transparan</span>
+                                    <span className="text-xs text-dark-400 dark:text-dark-500">{t('Transparan')}</span>
                                 )}
                             </div>
                         </Row>
@@ -2960,7 +2965,7 @@ function TextInspector({
     );
 }
 
-// â”€â”€ Grid canvas render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Grid canvas render ────────────────────────────────────────────────────────
 
 interface GridCanvasProps {
     el: GridEl;
@@ -3063,7 +3068,7 @@ function GridCanvas({
     );
 }
 
-/** Inline editor for a single grid cell â€” contentEditable span. */
+/** Inline editor for a single grid cell — contentEditable span. */
 function GridCellEditor({
     initial, onCommit, onEscape, style,
 }: {
@@ -3114,7 +3119,7 @@ function GridCellEditor({
     );
 }
 
-// â”€â”€ Grid Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Grid Inspector ─────────────────────────────────────────────────────────────
 
 function GridInspector({
     el,
@@ -3140,17 +3145,17 @@ function GridInspector({
 
     return (
         <>
-            {/* â”€â”€ Grid structure â”€â”€ */}
-            <Section title="Struktur Grid">
+            {/* ── Grid structure ── */}
+            <Section title={t('Struktur Grid')}>
                 {/* Rows */}
                 <div className="flex items-center gap-2">
-                    <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">Baris</span>
+                    <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">{t('Baris')}</span>
                     <div className="flex items-center gap-1 flex-1">
                         <button
                             onClick={onRemoveRow}
                             disabled={el.rows <= 1}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700 disabled:opacity-30 transition"
-                            title="Hapus baris terakhir"
+                            title={t('Hapus baris terakhir')}
                         >
                             <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -3158,7 +3163,7 @@ function GridInspector({
                         <button
                             onClick={onAddRow}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700 transition"
-                            title="Tambah baris"
+                            title={t('Tambah baris')}
                         >
                             <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -3166,13 +3171,13 @@ function GridInspector({
                 </div>
                 {/* Cols */}
                 <div className="flex items-center gap-2">
-                    <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">Kolom</span>
+                    <span className="w-12 shrink-0 text-xs text-dark-500 dark:text-dark-400">{t('Kolom')}</span>
                     <div className="flex items-center gap-1 flex-1">
                         <button
                             onClick={onRemoveCol}
                             disabled={el.cols <= 1}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700 disabled:opacity-30 transition"
-                            title="Hapus kolom terakhir"
+                            title={t('Hapus kolom terakhir')}
                         >
                             <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -3180,7 +3185,7 @@ function GridInspector({
                         <button
                             onClick={onAddCol}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700 transition"
-                            title="Tambah kolom"
+                            title={t('Tambah kolom')}
                         >
                             <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -3188,16 +3193,16 @@ function GridInspector({
                 </div>
             </Section>
 
-            {/* â”€â”€ Border â”€â”€ */}
-            <Section title="Garis Border">
-                <Row label="Tebal">
+            {/* ── Border ── */}
+            <Section title={t('Garis tepi')}>
+                <Row label={t('Tebal', { context: 'garis' })}>
                     <NumField
                         value={el.border.width}
                         onChange={(v) => onUpdateGrid({ border: { ...el.border, width: Math.max(0, v) } })}
                         unit="px"
                     />
                 </Row>
-                <Row label="Warna">
+                <Row label={t('Warna')}>
                     <ColorInput
                         value={el.border.color}
                         onChange={(v) => onUpdateGrid({ border: { ...el.border, color: v } })}
@@ -3205,16 +3210,16 @@ function GridInspector({
                 </Row>
             </Section>
 
-            {/* â”€â”€ Cell properties (shown when cell is selected) â”€â”€ */}
+            {/* ── Cell properties (shown when cell is selected) ── */}
             {cell != null && selectedCell != null && !(selectedRange && (selectedRange.r1 !== selectedRange.r2 || selectedRange.c1 !== selectedRange.c2)) ? (
-                <Section title={`Sel [${selectedCell.row + 1}, ${selectedCell.col + 1}]`}>
+                <Section title={t('Sel [{{row}}, {{col}}]', { row: selectedCell.row + 1, col: selectedCell.col + 1 })}>
                     {/* Alignment */}
-                    <Row label="Rata">
+                    <Row label={t('Rata')}>
                         <div className="flex gap-1">
                             {([
-                                { value: 'left', icon: <AlignLeft className="w-3.5 h-3.5" />, title: 'Kiri' },
-                                { value: 'center', icon: <AlignCenter className="w-3.5 h-3.5" />, title: 'Tengah' },
-                                { value: 'right', icon: <AlignRight className="w-3.5 h-3.5" />, title: 'Kanan' },
+                                { value: 'left', icon: <AlignLeft className="w-3.5 h-3.5" />, title: t('Kiri') },
+                                { value: 'center', icon: <AlignCenter className="w-3.5 h-3.5" />, title: t('Tengah') },
+                                { value: 'right', icon: <AlignRight className="w-3.5 h-3.5" />, title: t('Kanan') },
                             ] as const).map(({ value, icon, title }) => (
                                 <button
                                     key={value}
@@ -3232,7 +3237,7 @@ function GridInspector({
                         </div>
                     </Row>
                     {/* Bold */}
-                    <Row label="Tebal">
+                    <Row label={t('Tebal')}>
                         <button
                             onClick={() => onUpdateCell(selectedCell.row, selectedCell.col, { bold: !cell.bold })}
                             className={`grid place-items-center h-8 w-8 rounded-lg border transition-colors ${
@@ -3240,20 +3245,20 @@ function GridInspector({
                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300'
                                     : 'border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700'
                             }`}
-                            title="Bold"
+                            title={t('Tebal')}
                         >
                             <BoldIcon className="w-4 h-4" />
                         </button>
                     </Row>
                     {/* Text color */}
-                    <Row label="Warna">
+                    <Row label={t('Warna')}>
                         <ColorInput
                             value={cell.color}
                             onChange={(v) => onUpdateCell(selectedCell.row, selectedCell.col, { color: v })}
                         />
                     </Row>
                     {/* Fill color */}
-                    <Row label="Isi">
+                    <Row label={t('Isi')}>
                         <ColorInput
                             value={cell.fill ?? '#ffffff'}
                             onChange={(v) => onUpdateCell(selectedCell.row, selectedCell.col, { fill: v })}
@@ -3263,25 +3268,25 @@ function GridInspector({
                     {((cell.colSpan ?? 1) > 1 || (cell.rowSpan ?? 1) > 1) && (
                         <Button variant="zinc" size="sm" className="w-full mt-1"
                             onClick={() => onUnmerge(selectedCell.row, selectedCell.col)}>
-                            Pisahkan sel
+                            {t('Pisahkan sel')}
                         </Button>
                     )}
                 </Section>
             ) : (
-                <Section title="Sel">
+                <Section title={t('Sel')}>
                     {selectedRange && (selectedRange.r1 !== selectedRange.r2 || selectedRange.c1 !== selectedRange.c2) ? (
                         <>
                             <p className="text-[11px] text-dark-400 dark:text-dark-500 text-center py-1">
-                                {`${selectedRange.r2 - selectedRange.r1 + 1} baris Ã— ${selectedRange.c2 - selectedRange.c1 + 1} kolom dipilih`}
+                                {t('{{rows}} baris × {{cols}} kolom dipilih', { rows: selectedRange.r2 - selectedRange.r1 + 1, cols: selectedRange.c2 - selectedRange.c1 + 1 })}
                             </p>
                             <Button variant="primary" size="sm" className="w-full"
                                 onClick={() => onMerge(selectedRange.r1, selectedRange.c1, selectedRange.r2, selectedRange.c2)}>
-                                Gabungkan sel
+                                {t('Gabungkan sel')}
                             </Button>
                         </>
                     ) : (
                         <p className="text-[11px] text-dark-400 dark:text-dark-500 text-center py-1">
-                            Klik sel di kanvas untuk mengatur propertinya.
+                            {t('Klik sel di kanvas untuk mengatur propertinya.')}
                         </p>
                     )}
                 </Section>
@@ -3290,7 +3295,7 @@ function GridInspector({
     );
 }
 
-// â”€â”€ Table canvas render (TRB row-band model) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Table canvas render (TRB row-band model) ──────────────────────────────────
 
 function TablePreview({
     el, rows, selectedCell, tableSelRange, onCellPointerDown,
@@ -3368,7 +3373,7 @@ function TablePreview({
         );
     };
 
-    // Auto-detect sections â€” mirrors blade renderer: pre-repeatâ†’thead, repeatâ†’tbody, post-repeatâ†’tfoot.
+    // Auto-detect sections — mirrors blade renderer: pre-repeat→thead, repeat→tbody, post-repeat→tfoot.
     const firstRepeatIdx = el.rows.findIndex((r) => r.repeat === 'items');
     const headRowsWithIdx = el.rows.map((r, i) => ({ r, i })).filter(({ i }) => firstRepeatIdx !== -1 && i < firstRepeatIdx);
     const bodyRowsWithIdx = el.rows.map((r, i) => ({ r, i })).filter(({ r }) => r.repeat === 'items');
@@ -3429,7 +3434,7 @@ function TablePreview({
     );
 }
 
-// â”€â”€ Table Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Table Inspector ───────────────────────────────────────────────────────────
 
 function TableInspector({
     el, selectedCell, selectedRange,
@@ -3458,26 +3463,26 @@ function TableInspector({
     // Position-based section label (mirrors blade auto-detect)
     const firstRepeatRowIdx = el.rows.findIndex((r) => r.repeat === 'items');
     const rowSection = (ri: number): { label: string; variant: 'blue' | 'zinc' | 'purple' } => {
-        if (firstRepeatRowIdx === -1 || ri < firstRepeatRowIdx) return { label: 'Header', variant: 'blue' };
-        if (el.rows[ri]?.repeat === 'items') return { label: 'Isi', variant: 'zinc' };
-        return { label: 'Footer', variant: 'purple' };
+        if (firstRepeatRowIdx === -1 || ri < firstRepeatRowIdx) return { label: t('Header'), variant: 'blue' };
+        if (el.rows[ri]?.repeat === 'items') return { label: t('Isi'), variant: 'zinc' };
+        return { label: t('Footer'), variant: 'purple' };
     };
 
     const itemTokens = [
-        { key: 'item.no', label: 'No.' },
-        { key: 'item.description', label: 'Deskripsi' },
-        { key: 'item.quantity', label: 'Qty' },
-        { key: 'item.unit', label: 'Satuan' },
-        { key: 'item.unit_price', label: 'Harga' },
-        { key: 'item.amount', label: 'Jumlah' },
-        { key: 'item.cogs_amount', label: 'COGS' },
-        { key: 'item.is_tax_deposit', label: 'Pajak' },
+        { key: 'item.no', label: t('No.') },
+        { key: 'item.description', label: t('Deskripsi') },
+        { key: 'item.quantity', label: t('Qty') },
+        { key: 'item.unit', label: t('Satuan') },
+        { key: 'item.unit_price', label: t('Harga') },
+        { key: 'item.amount', label: t('Jumlah') },
+        { key: 'item.cogs_amount', label: t('COGS') },
+        { key: 'item.is_tax_deposit', label: t('Pajak') },
     ];
 
     return (
         <>
-            {/* â”€â”€ Rows list â”€â”€ */}
-            <Section title="Baris">
+            {/* ── Rows list ── */}
+            <Section title={t('Baris')}>
                 <div className="space-y-1">
                     {el.rows.map((row, ri) => (
                         <div
@@ -3494,7 +3499,7 @@ function TableInspector({
                             </Badge>
                             {row.repeat === 'items' && (
                                 <Badge variant="emerald" size="sm" className="shrink-0 text-[9px] py-0.5 px-1.5">
-                                    <Repeat2 className="w-2.5 h-2.5 mr-0.5 inline-block" />repeat
+                                    <Repeat2 className="w-2.5 h-2.5 mr-0.5 inline-block" />{t('repeat')}
                                 </Badge>
                             )}
                             <span className="flex-1" />
@@ -3517,7 +3522,7 @@ function TableInspector({
                 {/* Repeat toggle for selected row */}
                 {selectedRow != null && selectedCell != null && (
                     <div className="pt-2 border-t border-secondary-200 dark:border-dark-600 mt-2">
-                        <Row label="Repeat items">
+                        <Row label={t('Repeat items')}>
                             <Switch
                                 checked={selectedRow.repeat === 'items'}
                                 onCheckedChange={(v) => onUpdateRow(selectedCell.row, { repeat: v ? 'items' : undefined })}
@@ -3530,24 +3535,24 @@ function TableInspector({
                 <div className="pt-1">
                     <button onClick={onAddRow}
                         className="w-full flex items-center justify-center gap-1 h-6 rounded-lg border border-dashed border-secondary-200 dark:border-dark-600 text-[10px] text-dark-400 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                        <Plus className="w-2.5 h-2.5" />Tambah Baris
+                        <Plus className="w-2.5 h-2.5" />{t('Tambah Baris')}
                     </button>
                 </div>
             </Section>
 
-            {/* â”€â”€ Columns â”€â”€ */}
-            <Section title="Kolom">
+            {/* ── Columns ── */}
+            <Section title={t('Kolom')}>
                 <div className="flex items-center gap-2">
-                    <span className="flex-1 text-[11px] text-dark-500 dark:text-dark-400">{el.colWidths.length} kolom</span>
+                    <span className="flex-1 text-[11px] text-dark-500 dark:text-dark-400">{el.colWidths.length} {t('kolom')}</span>
                     <div className="flex gap-1">
                         <button
                             onClick={() => selectedCell != null && onRemoveCol(selectedCell.col)}
                             disabled={el.colWidths.length <= 1 || selectedCell == null}
-                            title="Hapus kolom dipilih"
+                            title={t('Hapus kolom dipilih')}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 disabled:opacity-30 hover:bg-zinc-50 dark:hover:bg-dark-700 transition">
                             <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={onAddCol} title="Tambah kolom"
+                        <button onClick={onAddCol} title={t('Tambah kolom')}
                             className="grid place-items-center h-7 w-7 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-500 hover:bg-zinc-50 dark:hover:bg-dark-700 transition">
                             <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -3555,9 +3560,9 @@ function TableInspector({
                 </div>
             </Section>
 
-            {/* â”€â”€ Cell properties â”€â”€ */}
+            {/* ── Cell properties ── */}
             {cell != null && selectedCell != null && !(selectedRange && (selectedRange.r1 !== selectedRange.r2 || selectedRange.c1 !== selectedRange.c2)) ? (
-                <Section title={`Sel B${selectedCell.row + 1}Â·K${selectedCell.col + 1}`}>
+                <Section title={t('Sel B{{row}}·K{{col}}', { row: selectedCell.row + 1, col: selectedCell.col + 1 })}>
                     {/* Content + field insert */}
                     <div className="flex gap-1 items-start">
                         <div className="flex-1">
@@ -3569,13 +3574,13 @@ function TableInspector({
                         </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button title="Sisipkan field item"
+                                <button title={t('Sisipkan field item')}
                                     className="h-7 px-1.5 rounded-lg border border-secondary-200 dark:border-dark-600 text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700 transition shrink-0">
                                     <Table2 className="w-3.5 h-3.5" />
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuLabel className="text-[10px]">Field Item</DropdownMenuLabel>
+                                <DropdownMenuLabel className="text-[10px]">{t('Field Item')}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 {itemTokens.map(({ key, label }) => (
                                     <DropdownMenuItem key={key} className="text-[11px]"
@@ -3588,12 +3593,12 @@ function TableInspector({
                         </DropdownMenu>
                     </div>
                     {/* Align */}
-                    <Row label="Rata">
+                    <Row label={t('Rata')}>
                         <div className="flex gap-1">
                             {([
-                                { value: 'left', icon: <AlignLeft className="w-3.5 h-3.5" />, title: 'Kiri' },
-                                { value: 'center', icon: <AlignCenter className="w-3.5 h-3.5" />, title: 'Tengah' },
-                                { value: 'right', icon: <AlignRight className="w-3.5 h-3.5" />, title: 'Kanan' },
+                                { value: 'left', icon: <AlignLeft className="w-3.5 h-3.5" />, title: t('Kiri') },
+                                { value: 'center', icon: <AlignCenter className="w-3.5 h-3.5" />, title: t('Tengah') },
+                                { value: 'right', icon: <AlignRight className="w-3.5 h-3.5" />, title: t('Kanan') },
                             ] as const).map(({ value, icon, title }) => (
                                 <button key={value} onClick={() => onUpdateCell(selectedCell.row, selectedCell.col, { align: value })} title={title}
                                     className={`flex-1 grid place-items-center h-7 rounded-lg border transition-colors ${
@@ -3605,10 +3610,10 @@ function TableInspector({
                         </div>
                     </Row>
                     {/* Bold */}
-                    <Row label="Tebal">
+                    <Row label={t('Tebal')}>
                         <button
                             onClick={() => onUpdateCell(selectedCell.row, selectedCell.col, { bold: !cell.bold })}
-                            title="Bold"
+                            title={t('Tebal')}
                             className={`grid place-items-center h-8 w-8 rounded-lg border transition-colors ${
                                 cell.bold
                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300'
@@ -3617,51 +3622,51 @@ function TableInspector({
                         ><BoldIcon className="w-4 h-4" /></button>
                     </Row>
                     {/* Font size */}
-                    <Row label="Ukuran">
+                    <Row label={t('Ukuran')}>
                         <NumField value={cell.fontSize ?? 11} onChange={(v) => onUpdateCell(selectedCell.row, selectedCell.col, { fontSize: v })} unit="px" />
                     </Row>
                     {/* Text color */}
-                    <Row label="Warna">
+                    <Row label={t('Warna')}>
                         <ColorInput value={cell.color ?? '#000000'} onChange={(v) => onUpdateCell(selectedCell.row, selectedCell.col, { color: v })} />
                     </Row>
                     {/* Fill */}
-                    <Row label="Isi bg">
+                    <Row label={t('Isi bg')}>
                         <ColorInput value={cell.fill ?? '#ffffff'} onChange={(v) => onUpdateCell(selectedCell.row, selectedCell.col, { fill: v })} />
                     </Row>
                     {/* Unmerge */}
                     {((cell.colSpan ?? 1) > 1 || (cell.rowSpan ?? 1) > 1) && (
                         <Button variant="zinc" size="sm" className="w-full mt-1"
                             onClick={() => onUnmerge(selectedCell.row, selectedCell.col)}>
-                            Pisahkan sel
+                            {t('Pisahkan sel')}
                         </Button>
                     )}
                 </Section>
             ) : (
-                <Section title="Sel">
+                <Section title={t('Sel')}>
                     {selectedRange && (selectedRange.r1 !== selectedRange.r2 || selectedRange.c1 !== selectedRange.c2) ? (
                         <>
                             <p className="text-[11px] text-dark-400 dark:text-dark-500 text-center py-1">
-                                {`${selectedRange.r2 - selectedRange.r1 + 1} baris Ã— ${selectedRange.c2 - selectedRange.c1 + 1} kolom`}
+                                {t('{{rows}} baris × {{cols}} kolom', { rows: selectedRange.r2 - selectedRange.r1 + 1, cols: selectedRange.c2 - selectedRange.c1 + 1 })}
                             </p>
                             <Button variant="primary" size="sm" className="w-full"
                                 onClick={() => onMerge(selectedRange.r1, selectedRange.c1, selectedRange.r2, selectedRange.c2)}>
-                                Gabungkan sel
+                                {t('Gabungkan sel')}
                             </Button>
                         </>
                     ) : (
                         <p className="text-[11px] text-dark-400 dark:text-dark-500 text-center py-1">
-                            Klik sel di kanvas untuk mengaturnya.
+                            {t('Klik sel di kanvas untuk mengaturnya.')}
                         </p>
                     )}
                 </Section>
             )}
 
-            {/* â”€â”€ Border â”€â”€ */}
-            <Section title="Garis Border">
-                <Row label="Tebal">
+            {/* ── Border ── */}
+            <Section title={t('Garis tepi')}>
+                <Row label={t('Tebal', { context: 'garis' })}>
                     <NumField value={el.border.width} onChange={(v) => onUpdateTrb({ border: { ...el.border, width: v } })} unit="px" />
                 </Row>
-                <Row label="Warna">
+                <Row label={t('Warna')}>
                     <ColorInput value={el.border.color} onChange={(v) => onUpdateTrb({ border: { ...el.border, color: v } })} />
                 </Row>
             </Section>
@@ -3669,7 +3674,7 @@ function TableInspector({
     );
 }
 
-// â”€â”€ Rect Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Rect Inspector ────────────────────────────────────────────────────────────
 
 function RectInspector({
     el,
@@ -3680,16 +3685,16 @@ function RectInspector({
 }) {
     return (
         <>
-            <Section title="Ukuran">
-                <Row label="Lebar">
+            <Section title={t('Ukuran')}>
+                <Row label={t('Lebar')}>
                     <NumField value={el.width} onChange={(v) => onUpdate({ width: Math.max(4, v) })} />
                 </Row>
-                <Row label="Tinggi">
+                <Row label={t('Tinggi')}>
                     <NumField value={el.height} onChange={(v) => onUpdate({ height: Math.max(4, v) })} />
                 </Row>
             </Section>
-            <Section title="Tampilan">
-                <Row label="Isi">
+            <Section title={t('Tampilan')}>
+                <Row label={t('Isi')}>
                     <div className="flex items-center gap-2">
                         <input
                             type="checkbox"
@@ -3700,19 +3705,19 @@ function RectInspector({
                         {el.fill ? (
                             <ColorInput value={el.fill} onChange={(v) => onUpdate({ fill: v })} />
                         ) : (
-                            <span className="text-xs text-dark-400 dark:text-dark-500">Transparan</span>
+                            <span className="text-xs text-dark-400 dark:text-dark-500">{t('Transparan')}</span>
                         )}
                     </div>
                 </Row>
-                <Row label="Border">
+                <Row label={t('Garis tepi')}>
                     <NumField value={el.borderWidth} onChange={(v) => onUpdate({ borderWidth: Math.max(0, v) })} unit="px" />
                 </Row>
                 {el.borderWidth > 0 && (
-                    <Row label="Warna border">
+                    <Row label={t('Warna garis tepi')}>
                         <ColorInput value={el.borderColor} onChange={(v) => onUpdate({ borderColor: v })} />
                     </Row>
                 )}
-                <Row label="Radius">
+                <Row label={t('Radius')}>
                     <NumField value={el.borderRadius} onChange={(v) => onUpdate({ borderRadius: Math.max(0, v) })} unit="px" />
                 </Row>
             </Section>
@@ -3720,7 +3725,7 @@ function RectInspector({
     );
 }
 
-// â”€â”€ Line Inspector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Line Inspector ────────────────────────────────────────────────────────────
 
 function LineInspector({
     el,
@@ -3731,11 +3736,11 @@ function LineInspector({
 }) {
     return (
         <>
-            <Section title="Orientasi">
+            <Section title={t('Orientasi')}>
                 <div className="flex gap-1">
                     {([
-                        { value: 'h' as const, label: 'Horizontal' },
-                        { value: 'v' as const, label: 'Vertikal' },
+                        { value: 'h' as const, label: t('Horizontal') },
+                        { value: 'v' as const, label: t('Vertikal') },
                     ]).map(({ value, label }) => (
                         <button
                             key={value}
@@ -3751,14 +3756,14 @@ function LineInspector({
                     ))}
                 </div>
             </Section>
-            <Section title="Tampilan">
-                <Row label="Panjang">
+            <Section title={t('Tampilan')}>
+                <Row label={t('Panjang')}>
                     <NumField value={el.length} onChange={(v) => onUpdate({ length: Math.max(4, v) })} unit="px" />
                 </Row>
-                <Row label="Tebal">
+                <Row label={t('Tebal', { context: 'garis' })}>
                     <NumField value={el.thickness} onChange={(v) => onUpdate({ thickness: Math.max(1, v) })} unit="px" />
                 </Row>
-                <Row label="Warna">
+                <Row label={t('Warna')}>
                     <ColorInput value={el.color} onChange={(v) => onUpdate({ color: v })} />
                 </Row>
             </Section>
@@ -3766,7 +3771,7 @@ function LineInspector({
     );
 }
 
-// â”€â”€ Shared primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared primitives ──────────────────────────────────────────────────────────
 
 function PanelHeader({ title, meta }: { title: string; meta?: string }) {
     return (

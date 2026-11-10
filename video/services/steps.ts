@@ -169,7 +169,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-edit-open'),
         focus: S['fm-edit-open'].dialog,
         zoom: 1.3,
-        caption: 'Form Edit Layanan terbuka dengan data saat ini.',
+        caption: 'Form Ubah Layanan terbuka dengan data saat ini.',
         duration: 80,
     },
     {

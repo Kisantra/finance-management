@@ -5,6 +5,7 @@ import { AppLink } from '@/components/app-link';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
+import { t, tk } from '@/i18n';
 
 /*
  * Hub pengaturan (referensi "General & Security Settings"): pengaturan dikelompokkan dalam
@@ -21,44 +22,44 @@ interface SettingRow {
 
 const GROUPS: { title: string; rows: SettingRow[] }[] = [
     {
-        title: 'Akun',
+        title: tk('Akun'),
         rows: [
-            { href: '/settings/profile', title: 'Profil', description: 'Nama dan email yang Anda pakai untuk masuk', icon: User },
-            { href: '/settings/password', title: 'Kata sandi', description: 'Ganti kata sandi akun Anda', icon: KeyRound },
+            { href: '/settings/profile', title: tk('Profil'), description: tk('Nama dan email yang Anda pakai untuk masuk'), icon: User },
+            { href: '/settings/password', title: tk('Kata sandi'), description: tk('Ganti kata sandi akun Anda'), icon: KeyRound },
             {
                 href: '/settings/claude',
-                title: 'Koneksi Claude',
-                description: 'Hubungkan Claude untuk membaca data keuangan, atau cabut sambungannya',
+                title: tk('Koneksi Claude'),
+                description: tk('Hubungkan Claude untuk membaca data keuangan, atau cabut sambungannya'),
                 icon: Plug,
                 permission: 'use claude',
             },
         ],
     },
     {
-        title: 'Perusahaan',
+        title: tk('Perusahaan'),
         rows: [
             {
                 href: '/settings/company',
-                title: 'Profil perusahaan',
-                description: 'Identitas, NPWP/PKP, rekening, logo, tanda tangan, dan stempel untuk PDF',
+                title: tk('Profil perusahaan'),
+                description: tk('Identitas, NPWP/PKP, rekening, logo, tanda tangan, dan stempel untuk PDF'),
                 icon: Building2,
             },
         ],
     },
     {
-        title: 'Invoice',
+        title: tk('Invoice'),
         rows: [
             {
                 href: '/settings/invoice-numbering',
-                title: 'Penomoran invoice',
-                description: 'Format nomor, jumlah digit, dan kapan nomor kembali ke 1',
+                title: tk('Penomoran invoice'),
+                description: tk('Format nomor, jumlah digit, dan kapan nomor kembali ke 1'),
                 icon: Hash,
                 permission: 'manage invoice settings',
             },
             {
                 href: '/settings/pdf-templates',
-                title: 'Template PDF',
-                description: 'Susun tata letak PDF invoice dan kelola font',
+                title: tk('Template PDF'),
+                description: tk('Susun tata letak PDF invoice dan kelola font'),
                 icon: FileText,
                 permission: 'manage pdf templates',
             },
@@ -77,13 +78,13 @@ export default function SettingsIndex() {
 
     return (
         <>
-            <Head title="Pengaturan" />
+            <Head title={t('Pengaturan', { context: 'menu' })} />
 
             <div className="mx-auto flex w-full max-w-180 flex-col gap-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Pengaturan</h1>
-                        <p className="mt-1 text-sm text-ob-ink-2">Akun Anda, identitas perusahaan, dan aturan dokumen invoice.</p>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Pengaturan', { context: 'menu' })}</h1>
+                        <p className="mt-1 text-sm text-ob-ink-2">{t('Akun Anda, identitas perusahaan, dan aturan dokumen invoice.')}</p>
                     </div>
                     <TutorialButton slug="settings" className="self-start" />
                 </div>
@@ -91,7 +92,7 @@ export default function SettingsIndex() {
                 {groups.map((group) => (
                     <section key={group.title} aria-labelledby={`settings-${group.title}`} className="flex flex-col gap-2">
                         <h2 id={`settings-${group.title}`} className="px-1 text-[13px] font-semibold text-ob-ink-2">
-                            {group.title}
+                            {t(group.title)}
                         </h2>
                         <ul className="overflow-hidden rounded-3xl border border-ob-line bg-ob-card">
                             {group.rows.map((row) => {
@@ -109,8 +110,8 @@ export default function SettingsIndex() {
                                                 <Icon className="h-[18px] w-[18px]" />
                                             </span>
                                             <span className="flex min-w-0 flex-1 flex-col">
-                                                <span className="text-[15px] font-semibold text-ob-ink">{row.title}</span>
-                                                <span className="text-[13px] text-ob-ink-2">{row.description}</span>
+                                                <span className="text-[15px] font-semibold text-ob-ink">{t(row.title)}</span>
+                                                <span className="text-[13px] text-ob-ink-2">{t(row.description)}</span>
                                             </span>
                                             <ChevronRight
                                                 aria-hidden="true"

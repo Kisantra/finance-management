@@ -50,7 +50,7 @@ export const guide: ModuleGuide = {
             title: 'Mengubah peran, status, atau kata sandi pengguna',
             role: ROLES.admin,
             steps: [
-                'Di baris pengguna, klik ikon pensil (**Edit pengguna**).',
+                'Di baris pengguna, klik ikon pensil (**Ubah pengguna**).',
                 'Ganti **Peran** atau **Status** (**Aktif** / **Tidak Aktif**).',
                 'Isi **Kata Sandi** + **Konfirmasi Kata Sandi** hanya bila ingin menggantinya; kosongkan bila tidak.',
                 'Klik **Simpan Perubahan**. Peran lama diganti; satu pengguna hanya punya satu peran.',
@@ -72,7 +72,7 @@ export const guide: ModuleGuide = {
                 'Buka **Administrasi › Izin & Peran**, lalu klik peran di **Daftar Peran**.',
                 'Centang atau hapus centang satu izin. Perubahan langsung tersimpan.',
                 'Klik **Semua** / **None** di judul modul untuk seluruh izin modul itu, atau **Beri Semua** / **Cabut Semua** (dengan konfirmasi) untuk semua izin.',
-                'Pakai **Cari permission...** untuk menyaring, mis. ketik "invoices".',
+                'Pakai **Cari izin…** untuk menyaring, mis. ketik "invoices".',
                 'Peran **admin** terkunci: selalu memiliki semua izin, termasuk izin fitur baru yang datang di tiap pembaruan.',
             ],
         },
@@ -120,7 +120,7 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 'Menu dan tombol di seluruh aplikasi langsung mengikuti izin perannya.',
-                'Peran **admin** dan **finance manager** ikut menerima notifikasi feedback baru dan invoice jatuh tempo.',
+                'Peran **admin** dan **finance manager** ikut menerima notifikasi masukan baru dan invoice jatuh tempo.',
                 'Peran bernama **admin** juga membuka aturan khusus: menghapus reimbursement orang lain yang belum dibayar, mengedit pengajuan dana orang lain, dan menghapus pengajuan dana di status apa pun.',
                 'Status **Tidak Aktif** menyembunyikannya dari pilihan karyawan di **Piutang**, tetapi **tidak memblokir login**.',
             ],
@@ -130,9 +130,9 @@ export const guide: ModuleGuide = {
             tone: 'neg',
             items: [
                 'Akun hilang permanen; tidak ada tempat sampah.',
-                'Ikut terhapus: **reimbursement**, **pengajuan dana**, **feedback**, dan **notifikasi** miliknya.',
+                'Ikut terhapus: **reimbursement**, **pengajuan dana**, **masukan**, dan **notifikasi** miliknya.',
                 'Transaksi bank dari pembayaran/pencairannya **tetap ada**, jadi saldo & laporan tidak berubah.',
-                'Namanya sebagai peninjau, pencair dana, penyetuju piutang, atau penanggap feedback di data orang lain menjadi kosong.',
+                'Namanya sebagai peninjau, pencair dana, penyetuju piutang, atau penanggap masukan di data orang lain menjadi kosong.',
             ],
         },
         {
@@ -152,7 +152,7 @@ export const guide: ModuleGuide = {
                 'Berlaku untuk **semua pengguna** berperan itu pada halaman berikutnya yang mereka buka.',
                 'Menghapus peran memindahkan penggunanya ke peran dengan **izin paling sedikit**.',
                 'Menghapus sebuah izin (tanda **×** merah) mencabutnya dari **semua peran**, termasuk admin.',
-                'Angka tugas di menu **Reimbursement** dan **Permintaan Dana** ikut izin menyetujui, membayar, dan mencairkan peran itu.',
+                'Angka tugas di menu **Reimbursement** dan **Pengajuan Dana** ikut izin menyetujui, membayar, dan mencairkan peran itu.',
             ],
         },
     ],
@@ -163,7 +163,7 @@ export const guide: ModuleGuide = {
             rows: [
                 { label: 'Reimbursement', value: 'Semua pengajuannya + riwayat pembayarannya', source: 'Ikut terhapus', tone: 'neg' },
                 { label: 'Pengajuan dana', value: 'Semua pengajuan + rinciannya', source: 'Ikut terhapus', tone: 'neg' },
-                { label: 'Feedback & notifikasi', value: 'Semua miliknya', source: 'Ikut terhapus', tone: 'neg' },
+                { label: 'Masukan & notifikasi', value: 'Semua miliknya', source: 'Ikut terhapus', tone: 'neg' },
                 { label: 'Pembayaran yang ia catat', value: 'Riwayat bayar reimbursement orang lain yang ia bayar', source: 'Ikut terhapus', tone: 'neg' },
                 { label: 'Transaksi bank', value: 'Pembayaran & pencairan yang sudah keluar', source: 'Tetap', tone: 'pos' },
                 { label: 'Piutang karyawan', value: 'Tetap ada, nama peminjam menjadi kosong', source: 'Tetap', tone: 'wait' },
@@ -175,7 +175,7 @@ export const guide: ModuleGuide = {
     warnings: [
         {
             title: 'Menghapus pengguna ikut menghapus datanya',
-            body: 'Reimbursement, pengajuan dana, feedback, dan notifikasinya hilang permanen. Untuk karyawan yang keluar, nonaktifkan dan ganti kata sandinya.',
+            body: 'Reimbursement, pengajuan dana, masukan, dan notifikasinya hilang permanen. Untuk karyawan yang keluar, nonaktifkan dan ganti kata sandinya.',
         },
         {
             title: 'Tidak Aktif tidak mengunci akun',

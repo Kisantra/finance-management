@@ -24,18 +24,16 @@ trait MemeriksaKategoriTransaksi
     protected function pesanKategoriTidakSah(TransactionCategory $kategori, string $tipe): ?string
     {
         if ($kategori->isSystem()) {
-            return "Kategori \"{$kategori->label}\" dipakai otomatis oleh modul Utang/Piutang dan tidak bisa dipilih di sini. "
-                .'Catat lewat menu Utang atau Piutang.';
+            return __('Kategori ":nama" dipakai otomatis oleh modul Utang/Piutang dan tidak bisa dipilih di sini. Catat lewat menu Utang atau Piutang.', ['nama' => $kategori->label]);
         }
 
         if ($kategori->children()->exists()) {
-            return 'Kategori "'.$kategori->label.'" adalah kategori induk. Pilih salah satu sub-kategorinya.';
+            return __('Kategori ":nama" adalah kategori induk. Pilih salah satu subkategorinya.', ['nama' => $kategori->label]);
         }
 
         if ($kategori->type === 'financing') {
             return $kategori->parent_id === null
-                ? "Kategori \"{$kategori->label}\" adalah kategori induk pendanaan. Pilih sub-kategorinya; bila belum ada, "
-                    .'tambahkan lewat Pakai Template atau halaman Kategori Transaksi.'
+                ? __('Kategori ":nama" adalah kategori induk pendanaan. Pilih subkategorinya; bila belum ada, tambahkan lewat Pakai Template atau halaman Kategori Transaksi.', ['nama' => $kategori->label])
                 : null;
         }
 
@@ -43,8 +41,8 @@ trait MemeriksaKategoriTransaksi
 
         if ($kategori->type && $kategori->type !== $diharapkan && $kategori->type !== 'transfer') {
             return $tipe === 'credit'
-                ? 'Kategori pemasukan atau pendanaan diperlukan untuk transaksi masuk.'
-                : 'Kategori pengeluaran atau pendanaan diperlukan untuk transaksi keluar.';
+                ? __('Kategori pemasukan atau pendanaan diperlukan untuk transaksi masuk.')
+                : __('Kategori pengeluaran atau pendanaan diperlukan untuk transaksi keluar.');
         }
 
         return null;

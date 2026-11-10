@@ -232,7 +232,7 @@ class CategoryTemplateService
                     $group['status'] === self::STATUS_SKIPPED => [
                         'label' => $childLabel,
                         'status' => self::STATUS_SKIPPED,
-                        'reason' => 'Grup induknya dilewati.',
+                        'reason' => __('Grup induknya dilewati.'),
                         'existing_parent_id' => null,
                         'existing_parent_label' => null,
                         'existing_pl_group' => null,
@@ -254,7 +254,7 @@ class CategoryTemplateService
 
             if ($group['status'] === self::STATUS_NEW && ! $adaSubBaru) {
                 $group['status'] = self::STATUS_SKIPPED;
-                $group['reason'] = 'Semua sub-kategorinya sudah ada di grup lain.';
+                $group['reason'] = __('Semua subkategorinya sudah ada di grup lain.');
             }
 
             $groups[] = $group;
@@ -383,13 +383,13 @@ class CategoryTemplateService
     private function blockReason(TransactionCategory $category): ?string
     {
         if ($category->isSystem()) {
-            return "\"{$category->label}\" adalah kategori sistem modul Utang/Piutang, jadi tidak bisa dijadikan grup.";
+            return __('":nama" adalah kategori sistem modul Utang/Piutang, jadi tidak bisa dijadikan grup.', ['nama' => $category->label]);
         }
 
         $usage = array_values(array_filter([
-            $category->transactions_count > 0 ? "{$category->transactions_count} transaksi" : null,
-            $category->fund_request_items_count > 0 ? "{$category->fund_request_items_count} item permintaan dana" : null,
-            $category->reimbursements_count > 0 ? "{$category->reimbursements_count} reimbursement" : null,
+            $category->transactions_count > 0 ? __(':count transaksi', ['count' => $category->transactions_count]) : null,
+            $category->fund_request_items_count > 0 ? __(':count item pengajuan dana', ['count' => $category->fund_request_items_count]) : null,
+            $category->reimbursements_count > 0 ? __(':count reimbursement', ['count' => $category->reimbursements_count]) : null,
         ]));
 
         if ($usage === []) {
@@ -397,10 +397,12 @@ class CategoryTemplateService
         }
 
         $last = array_pop($usage);
-        $usageText = $usage === [] ? $last : implode(', ', $usage).' dan '.$last;
+        $usageText = $usage === [] ? $last : implode(', ', $usage).__(' dan ').$last;
 
-        return "\"{$category->label}\" sudah dipakai langsung oleh {$usageText}. Sub-kategori akan "
-            .'menjadikannya judul grup yang tidak bisa dipilih, padahal data lama itu memakainya.';
+        return __('":nama" sudah dipakai langsung oleh :pemakaian. Subkategori akan menjadikannya judul grup yang tidak bisa dipilih, padahal data lama itu memakainya.', [
+            'nama' => $category->label,
+            'pemakaian' => $usageText,
+        ]);
     }
 
     private static function key(string $type, string $label): string

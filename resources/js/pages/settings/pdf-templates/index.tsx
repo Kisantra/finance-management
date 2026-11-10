@@ -37,6 +37,7 @@ import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
 import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
+import { t } from '@/i18n';
 
 interface PdfTemplate {
     id: number;
@@ -86,21 +87,21 @@ export default function PdfTemplatesIndex() {
             { name: createName.trim(), description: createDescription.trim() || null },
             {
                 onSuccess: () => {
-                    toast.success('Template berhasil dibuat.');
+                    toast.success(t('Template berhasil dibuat.'));
                     setCreateOpen(false);
                     setCreateName('');
                     setCreateDescription('');
                 },
-                onError: () => toast.error('Gagal membuat template.'),
+                onError: () => toast.error(t('Gagal membuat template.')),
                 onFinish: () => setCreating(false),
             },
         );
     };
 
-    const handleRenameOpen = (t: PdfTemplate) => {
-        setRenameTemplate(t);
-        setRenameName(t.name);
-        setRenameDescription(t.description ?? '');
+    const handleRenameOpen = (tpl: PdfTemplate) => {
+        setRenameTemplate(tpl);
+        setRenameName(tpl.name);
+        setRenameDescription(tpl.description ?? '');
     };
 
     const handleRename = () => {
@@ -112,34 +113,34 @@ export default function PdfTemplatesIndex() {
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Template berhasil diperbarui.');
+                    toast.success(t('Template berhasil diperbarui.'));
                     setRenameTemplate(null);
                 },
-                onError: () => toast.error('Gagal memperbarui template.'),
+                onError: () => toast.error(t('Gagal memperbarui template.')),
                 onFinish: () => setRenaming(false),
             },
         );
     };
 
-    const handleSetDefault = (t: PdfTemplate) => {
+    const handleSetDefault = (tpl: PdfTemplate) => {
         router.post(
-            companyUrl(`/settings/pdf-templates/${t.id}/set-default`),
+            companyUrl(`/settings/pdf-templates/${tpl.id}/set-default`),
             {},
             {
                 preserveScroll: true,
-                onSuccess: () => toast.success(`"${t.name}" dijadikan template default.`),
-                onError: () => toast.error('Gagal mengubah template default.'),
+                onSuccess: () => toast.success(t('"{{name}}" dijadikan template bawaan.', { name: tpl.name })),
+                onError: () => toast.error(t('Gagal mengubah template bawaan.')),
             },
         );
     };
 
-    const handleDuplicate = (t: PdfTemplate) => {
+    const handleDuplicate = (tpl: PdfTemplate) => {
         router.post(
-            companyUrl(`/settings/pdf-templates/${t.id}/duplicate`),
+            companyUrl(`/settings/pdf-templates/${tpl.id}/duplicate`),
             {},
             {
-                onSuccess: () => toast.success(`Template "${t.name}" berhasil diduplikat.`),
-                onError: () => toast.error('Gagal menduplikat template.'),
+                onSuccess: () => toast.success(t('Template "{{name}}" berhasil diduplikat.', { name: tpl.name })),
+                onError: () => toast.error(t('Gagal menduplikat template.')),
             },
         );
     };
@@ -149,10 +150,10 @@ export default function PdfTemplatesIndex() {
         setDeleting(true);
         router.delete(companyUrl(`/settings/pdf-templates/${deleteTemplate.id}`), {
             onSuccess: () => {
-                toast.success('Template berhasil dihapus.');
+                toast.success(t('Template berhasil dihapus.'));
                 setDeleteTemplate(null);
             },
-            onError: () => toast.error('Gagal menghapus template.'),
+            onError: () => toast.error(t('Gagal menghapus template.')),
             onFinish: () => setDeleting(false),
         });
     };
@@ -160,7 +161,7 @@ export default function PdfTemplatesIndex() {
     const columns: ColumnDef<PdfTemplate, unknown>[] = [
         {
             id: 'name',
-            header: 'Nama',
+            header: t('Nama'),
             accessorKey: 'name',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2.5">
@@ -178,12 +179,12 @@ export default function PdfTemplatesIndex() {
         },
         {
             id: 'status',
-            header: 'Status',
+            header: t('Status'),
             cell: ({ row }) =>
                 row.original.is_default ? (
                     <Badge variant="green" className="gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        Default
+                        {t('Bawaan')}
                     </Badge>
                 ) : (
                     <span className="text-xs text-dark-400 dark:text-dark-500">—</span>
@@ -191,7 +192,7 @@ export default function PdfTemplatesIndex() {
         },
         {
             id: 'updated_at',
-            header: 'Diperbarui',
+            header: t('Diperbarui'),
             cell: ({ row }) => (
                 <span className="text-sm text-dark-500 dark:text-dark-400">{formatDate(row.original.updated_at)}</span>
             ),
@@ -200,16 +201,16 @@ export default function PdfTemplatesIndex() {
             id: 'actions',
             header: '',
             cell: ({ row }) => {
-                const t = row.original;
+                const tpl = row.original;
                 return (
                     <div className="flex items-center justify-end gap-2">
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.visit(companyUrl(`/settings/pdf-templates/${t.id}/edit`))}
+                            onClick={() => router.visit(companyUrl(`/settings/pdf-templates/${tpl.id}/edit`))}
                         >
                             <Edit2 className="w-3.5 h-3.5" />
-                            Edit
+                            {t('Ubah')}
                         </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -218,33 +219,33 @@ export default function PdfTemplatesIndex() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleRenameOpen(t)}>
+                                <DropdownMenuItem onClick={() => handleRenameOpen(tpl)}>
                                     <Edit2 className="w-4 h-4" />
-                                    Ubah Nama
+                                    {t('Ubah Nama')}
                                 </DropdownMenuItem>
-                                {!t.is_default && (
-                                    <DropdownMenuItem onClick={() => handleSetDefault(t)}>
+                                {!tpl.is_default && (
+                                    <DropdownMenuItem onClick={() => handleSetDefault(tpl)}>
                                         <Star className="w-4 h-4" />
-                                        Jadikan Default
+                                        {t('Jadikan Bawaan')}
                                     </DropdownMenuItem>
                                 )}
-                                {t.is_default && (
+                                {tpl.is_default && (
                                     <DropdownMenuItem disabled>
                                         <StarOff className="w-4 h-4" />
-                                        Sudah Default
+                                        {t('Sudah Bawaan')}
                                     </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onClick={() => handleDuplicate(t)}>
+                                <DropdownMenuItem onClick={() => handleDuplicate(tpl)}>
                                     <Copy className="w-4 h-4" />
-                                    Duplikat
+                                    {t('Duplikat')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                                    onClick={() => setDeleteTemplate(t)}
+                                    onClick={() => setDeleteTemplate(tpl)}
                                 >
                                     <Trash2 className="w-4 h-4" />
-                                    Hapus
+                                    {t('Hapus')}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -256,27 +257,27 @@ export default function PdfTemplatesIndex() {
 
     return (
         <>
-            <Head title="Template PDF" />
+            <Head title={t('Template PDF', { context: 'menu' })} />
 
             <SettingsLayout
-                title="Template PDF"
-                description="Buat dan kelola template invoice visual untuk cetak PDF"
+                title={t('Template PDF', { context: 'menu' })}
+                description={t('Buat dan kelola template invoice visual untuk cetak PDF')}
                 action={
                     <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
                         <Plus className="w-4 h-4" />
-                        Template Baru
+                        {t('Template Baru')}
                     </Button>
                 }
             >
                 {templates.length === 0 ? (
                     <EmptyState
                         icon={<FileText className="w-8 h-8" />}
-                        title="Belum ada template"
-                        description="Buat template PDF pertama Anda untuk mulai merancang tampilan invoice secara visual."
+                        title={t('Belum ada template')}
+                        description={t('Buat template PDF pertama Anda untuk mulai merancang tampilan invoice secara visual.')}
                         action={
                             <Button variant="primary" onClick={() => setCreateOpen(true)}>
                                 <Plus className="w-4 h-4" />
-                                Buat Template Pertama
+                                {t('Buat Template Pertama')}
                             </Button>
                         }
                     />
@@ -289,22 +290,22 @@ export default function PdfTemplatesIndex() {
             <Dialog open={createOpen} onOpenChange={(o) => !o && setCreateOpen(false)}>
                 <DialogContent size="md">
                     <DialogHeader>
-                        <DialogTitle>Template Baru</DialogTitle>
+                        <DialogTitle>{t('Template Baru')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 px-6 py-2">
                         <Input
-                            label="Nama Template *"
+                            label={t('Nama Template *')}
                             value={createName}
                             onChange={(e) => setCreateName(e.target.value)}
-                            placeholder="Mis: Template Utama"
+                            placeholder={t('Mis: Template Utama')}
                             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                             autoFocus
                         />
                         <Input
-                            label="Deskripsi"
+                            label={t('Deskripsi')}
                             value={createDescription}
                             onChange={(e) => setCreateDescription(e.target.value)}
-                            placeholder="Opsional — keterangan singkat"
+                            placeholder={t('Opsional — keterangan singkat')}
                         />
                     </div>
                     <DialogFooter>
@@ -314,7 +315,7 @@ export default function PdfTemplatesIndex() {
                                 className="w-full sm:w-auto order-2 sm:order-1"
                                 onClick={() => setCreateOpen(false)}
                             >
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button
                                 variant="primary"
@@ -323,7 +324,7 @@ export default function PdfTemplatesIndex() {
                                 loading={creating}
                                 disabled={!createName.trim()}
                             >
-                                Buat Template
+                                {t('Buat Template')}
                             </Button>
                         </div>
                     </DialogFooter>
@@ -334,21 +335,21 @@ export default function PdfTemplatesIndex() {
             <Dialog open={renameTemplate !== null} onOpenChange={(o) => !o && setRenameTemplate(null)}>
                 <DialogContent size="md">
                     <DialogHeader>
-                        <DialogTitle>Ubah Nama Template</DialogTitle>
+                        <DialogTitle>{t('Ubah Nama Template')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 px-6 py-2">
                         <Input
-                            label="Nama Template *"
+                            label={t('Nama Template *')}
                             value={renameName}
                             onChange={(e) => setRenameName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleRename()}
                             autoFocus
                         />
                         <Input
-                            label="Deskripsi"
+                            label={t('Deskripsi')}
                             value={renameDescription}
                             onChange={(e) => setRenameDescription(e.target.value)}
-                            placeholder="Opsional — keterangan singkat"
+                            placeholder={t('Opsional — keterangan singkat')}
                         />
                     </div>
                     <DialogFooter>
@@ -358,7 +359,7 @@ export default function PdfTemplatesIndex() {
                                 className="w-full sm:w-auto order-2 sm:order-1"
                                 onClick={() => setRenameTemplate(null)}
                             >
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button
                                 variant="primary"
@@ -367,7 +368,7 @@ export default function PdfTemplatesIndex() {
                                 loading={renaming}
                                 disabled={!renameName.trim()}
                             >
-                                Simpan
+                                {t('Simpan')}
                             </Button>
                         </div>
                     </DialogFooter>
@@ -379,10 +380,10 @@ export default function PdfTemplatesIndex() {
                 open={deleteTemplate !== null}
                 onOpenChange={(o) => !o && setDeleteTemplate(null)}
                 onConfirm={handleDelete}
-                title={deleteTemplate ? `Hapus "${deleteTemplate.name}"?` : 'Hapus Template'}
-                description="Template ini akan dihapus permanen beserta seluruh layout yang tersimpan. Tindakan ini tidak dapat dibatalkan."
+                title={deleteTemplate ? t('Hapus "{{name}}"?', { name: deleteTemplate.name }) : t('Hapus Template')}
+                description={t('Template ini akan dihapus permanen beserta seluruh layout yang tersimpan. Tindakan ini tidak dapat dibatalkan.')}
                 variant="danger"
-                confirmLabel="Hapus Template"
+                confirmLabel={t('Hapus Template')}
                 loading={deleting}
             />
         </>

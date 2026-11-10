@@ -1,15 +1,16 @@
 import { Check, X } from 'lucide-react';
 import { StatusPill } from '@/components/dashboard/widget';
+import { t, tk } from '@/i18n';
 import type { ReceivableRow, ReceivableStatus } from '../types';
 
 /* Bahan bersama modul Piutang (gaya Obsidian): status, tipe, dan total bunga. */
 
 export const STATUS_LABEL: Record<ReceivableStatus, string> = {
-    draft: 'Draft',
-    pending_approval: 'Menunggu',
-    active: 'Aktif',
-    paid_off: 'Lunas',
-    rejected: 'Ditolak',
+    draft: tk('Draft'),
+    pending_approval: tk('Menunggu persetujuan'),
+    active: tk('Aktif'),
+    paid_off: tk('Lunas'),
+    rejected: tk('Ditolak'),
 };
 
 /**
@@ -20,29 +21,29 @@ export function ReceivableStatusPill({ status }: { status: ReceivableStatus }) {
     if (status === 'paid_off') {
         return (
             <StatusPill tone="pos" icon={<Check className="h-3 w-3" strokeWidth={3} />}>
-                Lunas
+                {t('Lunas', { context: 'pinjaman' })}
             </StatusPill>
         );
     }
     if (status === 'rejected') {
         return (
             <StatusPill tone="late" icon={<X className="h-3 w-3" strokeWidth={3} />}>
-                Ditolak
+                {t('Ditolak')}
             </StatusPill>
         );
     }
     if (status === 'pending_approval') {
-        return <StatusPill tone="wait">Menunggu</StatusPill>;
+        return <StatusPill tone="wait">{t('Menunggu persetujuan')}</StatusPill>;
     }
     if (status === 'active') {
-        return <StatusPill tone="act">Aktif</StatusPill>;
+        return <StatusPill tone="act">{t('Aktif', { context: 'pinjaman' })}</StatusPill>;
     }
-    return <StatusPill tone="neutral">Draft</StatusPill>;
+    return <StatusPill tone="neutral">{t('Draft')}</StatusPill>;
 }
 
 export const TYPE_LABEL: Record<ReceivableRow['type'], string> = {
-    employee_loan: 'Karyawan',
-    company_loan: 'Perusahaan',
+    employee_loan: tk('Karyawan'),
+    company_loan: tk('Perusahaan'),
 };
 
 /**
@@ -70,7 +71,7 @@ export function totalInterest(row: ReceivableRow): number {
 export function interestLabel(row: ReceivableRow): string {
     const rate = Number(row.interest_rate ?? 0);
     if (rate === 0) {
-        return 'tanpa bunga';
+        return t('tanpa bunga');
     }
     return `${String(rate).replace('.', ',')}%`;
 }

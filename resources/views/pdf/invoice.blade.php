@@ -325,7 +325,7 @@
                             <strong>{{ __('invoice.faktur') }}:</strong> {{ $invoice->faktur }}<br>
                         @endif
                         @if ($invoice->status)
-                            <strong>{{ __('common.status') }}:</strong> {{ ucfirst($invoice->status) }}
+                            <strong>Status:</strong> {{ ucfirst($invoice->status) }}
                         @endif
                     </div>
                 </div>

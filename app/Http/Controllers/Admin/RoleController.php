@@ -40,7 +40,7 @@ class RoleController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return redirect()->back()->with('success', 'Peran berhasil ditambahkan.');
+        return redirect()->back()->with('success', __('Peran berhasil ditambahkan.'));
     }
 
     public function update(Request $request, Role $role): RedirectResponse
@@ -55,7 +55,7 @@ class RoleController extends Controller
         // Kode mencari role bernama "admin" (akses pembuat perusahaan, sinkron izin tiap
         // deploy, impor user): mengganti namanya memutus semua itu diam-diam.
         if ($role->name === 'admin' && strtolower($validated['name']) !== 'admin') {
-            return redirect()->back()->with('error', 'Nama role admin tidak bisa diganti.');
+            return redirect()->back()->with('error', __('Nama role admin tidak bisa diganti.'));
         }
 
         $role->update([
@@ -65,7 +65,7 @@ class RoleController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return redirect()->back()->with('success', 'Peran berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Peran berhasil diperbarui.'));
     }
 
     public function destroy(Role $role): RedirectResponse
@@ -73,12 +73,12 @@ class RoleController extends Controller
         abort_unless(auth()->user()->can('manage permissions'), 403);
 
         if (in_array($role->name, ['admin', 'staff'], true)) {
-            return redirect()->back()->with('error', "Peran default '{$role->name}' tidak dapat dihapus.");
+            return redirect()->back()->with('error', __("Peran bawaan ':nama' tidak dapat dihapus.", ['nama' => $role->name]));
         }
 
         $currentUserRole = auth()->user()->roles->first();
         if ($currentUserRole && $currentUserRole->id === $role->id) {
-            return redirect()->back()->with('error', 'Anda tidak dapat menghapus peran Anda sendiri.');
+            return redirect()->back()->with('error', __('Anda tidak dapat menghapus peran Anda sendiri.'));
         }
 
         try {
@@ -108,9 +108,9 @@ class RoleController extends Controller
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-            return redirect()->back()->with('success', 'Peran berhasil dihapus.');
+            return redirect()->back()->with('success', __('Peran berhasil dihapus.'));
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menghapus peran: '.$e->getMessage());
+            return redirect()->back()->with('error', __('Gagal menghapus peran: :pesan', ['pesan' => $e->getMessage()]));
         }
     }
 }

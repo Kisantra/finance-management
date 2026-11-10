@@ -1,3 +1,5 @@
+import { t, tk } from '@/i18n';
+
 /*
  * Jurnal tampilan ("Cara A") — CERMIN klien dari app/Services/JournalService.php untuk PRATINJAU di
  * formulir (Catat Pemasukan/Pengeluaran, Transfer, Catat pembayaran invoice). Jurnal transaksi &
@@ -16,12 +18,16 @@ export interface JournalLine {
     amount: number | null;
 }
 
-/** Nama akun di JournalService (PHP) — harus sama persis. */
+/**
+ * Nama akun sistem di JournalService (PHP) — teks Indonesianya harus sama persis. Sekaligus kunci
+ * terjemahan: baris pratinjau memakai t(...) saat dibentuk, sama dengan server yang menerjemahkan nama
+ * akun sistem di batas keluaran. Nama rekening & kategori adalah data dan tidak diterjemahkan.
+ */
 export const JOURNAL_ACCOUNTS = {
-    ppnOutput: 'PPN Keluaran',
-    taxDeposit: 'Titipan Pajak Klien',
-    invoiceRevenue: 'Pendapatan dari Invoice',
-    transferFee: 'Biaya Admin Transfer',
+    ppnOutput: tk('PPN Keluaran'),
+    taxDeposit: tk('Titipan Pajak Klien'),
+    invoiceRevenue: tk('Pendapatan dari Invoice'),
+    transferFee: tk('Biaya Admin Transfer'),
 } as const;
 
 function amountOrNull(amount: number): number | null {
@@ -50,7 +56,7 @@ export function transferJournal(from: string, to: string, amount: number, adminF
     // Tanpa jumlah transfer semua nominal "—" (biaya admin saja tidak membentuk jurnal yang seimbang).
     const known = amount > 0;
     const lines: JournalLine[] = [{ account: to, side: 'debit', amount: known ? amount : null }];
-    if (adminFee > 0) lines.push({ account: JOURNAL_ACCOUNTS.transferFee, side: 'debit', amount: known ? adminFee : null });
+    if (adminFee > 0) lines.push({ account: t(JOURNAL_ACCOUNTS.transferFee), side: 'debit', amount: known ? adminFee : null });
     lines.push({ account: from, side: 'credit', amount: known ? amount + Math.max(0, adminFee) : null });
     return lines;
 }
@@ -87,16 +93,16 @@ export function paymentJournal(account: string, amount: number, before: number, 
         const next = before < taxDeposit ? JOURNAL_ACCOUNTS.taxDeposit : before < taxDeposit + ppn ? JOURNAL_ACCOUNTS.ppnOutput : JOURNAL_ACCOUNTS.invoiceRevenue;
         return [
             { account, side: 'debit', amount: null },
-            { account: next, side: 'credit', amount: null },
+            { account: t(next), side: 'credit', amount: null },
         ];
     }
 
     const a = allocatePayments(before, taxDeposit, ppn);
     const b = allocatePayments(before + amount, taxDeposit, ppn);
     const credits: JournalLine[] = [
-        { account: JOURNAL_ACCOUNTS.taxDeposit, side: 'credit', amount: b.taxDeposit - a.taxDeposit },
-        { account: JOURNAL_ACCOUNTS.ppnOutput, side: 'credit', amount: b.ppn - a.ppn },
-        { account: JOURNAL_ACCOUNTS.invoiceRevenue, side: 'credit', amount: b.revenue - a.revenue },
+        { account: t(JOURNAL_ACCOUNTS.taxDeposit), side: 'credit', amount: b.taxDeposit - a.taxDeposit },
+        { account: t(JOURNAL_ACCOUNTS.ppnOutput), side: 'credit', amount: b.ppn - a.ppn },
+        { account: t(JOURNAL_ACCOUNTS.invoiceRevenue), side: 'credit', amount: b.revenue - a.revenue },
     ];
     return [{ account, side: 'debit', amount }, ...credits.filter((l) => (l.amount ?? 0) > 0)];
 }

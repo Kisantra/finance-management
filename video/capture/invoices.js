@@ -28,7 +28,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"],[data-sonner-toaster]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"],[data-sonner-toaster]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -36,7 +36,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -147,12 +147,12 @@ async (page) => {
   const drawerTargets = (p) => ({
     drawer: drawer(p),
     number: drawer(p).getByText(/belum bernomor|\/INV\//).first(),
-    status: drawer(p).locator('.rounded-full', { hasText: /^(Draft|Terkirim|Sebagian|Lunas)$/ }).first(),
+    status: drawer(p).locator('.rounded-full', { hasText: /^(Draft|Terbit|Sebagian|Lunas)$/ }).first(),
     metrics: parentOf(parentOf(drawer(p).getByText('Sisa tagihan', { exact: true }).first())),
     items: drawer(p).locator('table').first(),
     history: parentOf(drawer(p).getByRole('heading', { name: 'Riwayat' })),
     payments: parentOf(drawer(p).getByRole('heading', { name: /^Pembayaran/ })),
-    send: drawer(p).getByRole('button', { name: 'Kirim invoice' }),
+    send: drawer(p).getByRole('button', { name: 'Terbitkan invoice' }),
     pay: drawer(p).getByRole('button', { name: 'Catat pembayaran' }),
     print: drawer(p).getByRole('button', { name: 'Cetak' }),
     more: drawer(p).getByRole('button', { name: 'Aksi lain' }),
@@ -172,17 +172,17 @@ async (page) => {
   await openDrawer(m, id);
   await snap(m, 'fm-drawer-draft', drawerTargets(m));
 
-  await drawer(m).getByRole('button', { name: 'Kirim invoice' }).click();
+  await drawer(m).getByRole('button', { name: 'Terbitkan invoice' }).click();
   await top(m).getByLabel('Nomor invoice').waitFor();
   await snap(m, 'fm-send', {
     dialog: top(m),
     number: top(m).getByLabel('Nomor invoice'),
     hint: top(m).getByText(/Nomor berikutnya sesuai format/),
-    confirm: top(m).getByRole('button', { name: 'Kirim invoice' }),
+    confirm: top(m).getByRole('button', { name: 'Terbitkan invoice' }),
     sub: top(m).getByText(/Klien tidak menerima email otomatis/),
   });
   const number = await top(m).getByLabel('Nomor invoice').inputValue();
-  await top(m).getByRole('button', { name: 'Kirim invoice' }).click();
+  await top(m).getByRole('button', { name: 'Terbitkan invoice' }).click();
   await drawer(m).getByRole('button', { name: 'Catat pembayaran' }).waitFor();
   await m.waitForTimeout(500);
   await snap(m, 'fm-drawer-sent', drawerTargets(m));
@@ -192,7 +192,7 @@ async (page) => {
   await snap(m, 'fm-menu', {
     more: drawer(m).getByRole('button', { name: 'Aksi lain' }),
     menu: m.getByRole('menu'),
-    edit: m.getByRole('menuitem', { name: /Edit invoice/ }),
+    edit: m.getByRole('menuitem', { name: /Ubah invoice/ }),
     rollback: m.getByRole('menuitem', { name: /Kembalikan ke draft/ }),
     remove: m.getByRole('menuitem', { name: /Hapus invoice/ }),
   });

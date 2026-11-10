@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
-import { FinancingBadge, ManagedByNote, withFinancingGroup } from '@/components/shared/financing';
+import { FinancingBadge, ManagedByNote, managedByLabel, withFinancingGroup } from '@/components/shared/financing';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
@@ -40,8 +40,9 @@ import {
     type CashFlowDialogData,
 } from './components/transaction-detail-dialog';
 import { TransactionFormDialog } from '../bank-accounts/components/transaction-form-dialog';
-import type { AccountPickerItem } from '../bank-accounts/types';
+import { bankNameLabel, type AccountPickerItem } from '../bank-accounts/types';
 import type { FilterOption, IncomeFilters, IncomeRow, PaginationMeta, CashFlowStats } from './types';
+import { t, Trans } from '@/i18n';
 
 interface Props {
     rows: IncomeRow[];
@@ -111,12 +112,12 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
     // Local filter state — debounced search
     const [search, setSearch] = React.useState(filters.search ?? '');
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) {
                 apply({ search, page: 1 });
             }
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -170,11 +171,11 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success(`${selected.length} catatan berhasil dihapus`);
+                    toast.success(t('{{count}} catatan berhasil dihapus', { count: selected.length }));
                     setSelected([]);
                     setBulkDeleteOpen(false);
                 },
-                onError: () => toast.error('Gagal menghapus'),
+                onError: () => toast.error(t('Gagal menghapus')),
                 onFinish: () => setDeleteProcessing(false),
             },
         );
@@ -199,23 +200,23 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
 
     return (
         <AppLayout>
-            <Head title="Pemasukan" />
+            <Head title={t('Pemasukan & Pengeluaran', { context: 'menu' })} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Pemasukan & Pengeluaran"
-                    description="Daftar semua pemasukan dari pembayaran invoice & transaksi langsung."
+                    title={t('Pemasukan & Pengeluaran', { context: 'menu' })}
+                    description={t('Daftar semua pemasukan dari pembayaran invoice & transaksi langsung.')}
                     action={
                         <div className="flex flex-wrap items-center gap-2">
                             <TutorialButton slug="cash-flow" />
                             <Button variant="outline" size="md" onClick={exportPdf}>
                                 <Download className="h-4 w-4" />
-                                Export PDF
+                                {t('Ekspor PDF')}
                             </Button>
                             {canCreate && accounts.length > 0 && (
                                 <Button variant="green" size="md" onClick={() => setCreateOpen(true)}>
                                     <Plus className="h-4 w-4" />
-                                    Input Pemasukan
+                                    {t('Catat Pemasukan')}
                                 </Button>
                             )}
                         </div>
@@ -226,17 +227,17 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
 
                 {/* Uang yang tidak masuk Laba Rugi dipisah agar tidak bercampur tanpa label. */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <StatsCard label="Pemasukan (masuk Laba Rugi)" value={formatCurrency(stats.pl_amount ?? 0)} icon={<ArrowDownLeft />} color="green" />
-                    <StatsCard label="Pendanaan (tidak masuk Laba Rugi)" value={formatCurrency(stats.financing_amount ?? 0)} icon={<Landmark />} color="purple" />
-                    <StatsCard label="Total masuk" value={formatCurrency(stats.total_amount)} icon={<ArrowDownLeft />} color="green" hint="Pemasukan + Pendanaan" />
+                    <StatsCard label={t('Pemasukan (masuk Laba Rugi)')} value={formatCurrency(stats.pl_amount ?? 0)} icon={<ArrowDownLeft />} color="green" />
+                    <StatsCard label={t('Pendanaan (tidak masuk Laba Rugi)')} value={formatCurrency(stats.financing_amount ?? 0)} icon={<Landmark />} color="purple" />
+                    <StatsCard label={t('Total masuk')} value={formatCurrency(stats.total_amount)} icon={<ArrowDownLeft />} color="green" hint={t('Pemasukan + Pendanaan')} />
                 </div>
 
-                <section aria-label="Daftar pemasukan" className={LIST_CARD}>
+                <section aria-label={t('Daftar pemasukan')} className={LIST_CARD}>
                     {/* Filter bar */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         <DatePicker
                             mode="range"
-                            label="Rentang Tanggal"
+                            label={t('Rentang Tanggal')}
                             value={{ from: parseIso(filters.date_from), to: parseIso(filters.date_to) }}
                             onChange={(r) =>
                                 apply({
@@ -245,40 +246,40 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                     page: 1,
                                 })
                             }
-                            placeholder="Pilih rentang"
+                            placeholder={t('Pilih rentang')}
                             clearable
                         />
                         <Combobox
-                            label="Klien"
+                            label={t('Klien')}
                             options={clientOptions}
                             value={filters.clients[0] ?? null}
                             onChange={(v) => apply({ clients: v ? [Number(v)] : [], page: 1 })}
-                            placeholder="Semua klien"
+                            placeholder={t('Semua klien')}
                             clearable
                         />
                         <Combobox
-                            label="Kategori"
+                            label={t('Kategori')}
                             options={withFinancingGroup(filterCategoryOptions)}
                             value={filters.categories[0] ?? null}
                             onChange={(v) => apply({ categories: v ? [Number(v)] : [], page: 1 })}
-                            placeholder="Semua kategori"
+                            placeholder={t('Semua kategori')}
                             clearable
                         />
                         <Combobox
-                            label="Diinput oleh"
+                            label={t('Diinput oleh')}
                             options={inputByOptions}
                             value={filters.input_by}
                             onChange={(v) => apply({ input_by: v ? Number(v) : null, page: 1 })}
-                            placeholder="Semua pengguna"
-                            emptyText="Belum ada pencatat."
+                            placeholder={t('Semua pengguna')}
+                            emptyText={t('Belum ada pencatat.')}
                             clearable
                         />
                         <Input
-                            label="Cari"
+                            label={t('Cari')}
                             icon={<Search className="h-4 w-4" />}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Invoice, klien, deskripsi..."
+                            placeholder={t('Invoice, klien, deskripsi...')}
                         />
                     </div>
 
@@ -287,18 +288,22 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="h-3 w-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <span className="text-[13px] text-ob-ink-2">
-                                Menampilkan <span className="tabular-nums">{rows.length}</span> dari{' '}
-                                <span className="tabular-nums">{pagination.total}</span> hasil
+                                <Trans
+                                    i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil"
+                                    count={pagination.total}
+                                    values={{ shown: rows.length }}
+                                    components={{ b: <span className="tabular-nums" /> }}
+                                />
                             </span>
                         </div>
                         {activeFilterCount > 0 && (
                             <Button variant="ghost" size="sm" onClick={reset}>
                                 <X className="h-3.5 w-3.5" />
-                                Reset
+                                {t('Hapus filter')}
                             </Button>
                         )}
                     </div>
@@ -307,8 +312,8 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                     {rows.length === 0 ? (
                         <EmptyState
                             icon={<ArrowDownLeft className="h-7 w-7" />}
-                            title="Tidak ada pemasukan"
-                            description="Coba sesuaikan filter atau periode pencarian."
+                            title={t('Tidak ada pemasukan')}
+                            description={t('Coba sesuaikan filter atau periode pencarian.')}
                         />
                     ) : (
                         <div className={TABLE_SCROLL}>
@@ -317,16 +322,16 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                     <tr className={HEAD_ROW}>
                                         <th scope="col" className="w-10 px-3 py-2.5">
                                             {canDelete && (
-                                                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Pilih semua baris" />
+                                                <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t('Pilih semua baris')} />
                                             )}
                                         </th>
-                                        <SortableTh label="Tanggal" column="date" current={filters.sort} direction={filters.direction} onSort={onSort} />
-                                        <th scope="col" className={TH}>Sumber</th>
-                                        <th scope="col" className={cn(TH, 'hidden md:table-cell')}>Klien / Deskripsi</th>
-                                        <th scope="col" className={cn(TH, 'hidden lg:table-cell')}>Kategori</th>
-                                        <th scope="col" className={cn(TH, 'hidden xl:table-cell')}>Diinput oleh</th>
+                                        <SortableTh label={t('Tanggal')} column="date" current={filters.sort} direction={filters.direction} onSort={onSort} />
+                                        <th scope="col" className={TH}>{t('Sumber')}</th>
+                                        <th scope="col" className={cn(TH, 'hidden md:table-cell')}>{t('Klien / Deskripsi')}</th>
+                                        <th scope="col" className={cn(TH, 'hidden lg:table-cell')}>{t('Kategori')}</th>
+                                        <th scope="col" className={cn(TH, 'hidden xl:table-cell')}>{t('Diinput oleh')}</th>
                                         <SortableTh
-                                            label="Jumlah"
+                                            label={t('Jumlah')}
                                             column="amount"
                                             current={filters.sort}
                                             direction={filters.direction}
@@ -347,13 +352,13 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                         >
                                             <td className="px-3 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
                                                 {row.managed_by ? (
-                                                    <Lock className="h-4 w-4 text-ob-ink-3" aria-label={`Hanya-lihat, dikelola di ${row.managed_by.label}`} />
+                                                    <Lock className="h-4 w-4 text-ob-ink-3" aria-label={managedByLabel(row.managed_by)} />
                                                 ) : (
                                                     canDelete && (
                                                         <Checkbox
                                                             checked={selected.includes(row.uid)}
                                                             onCheckedChange={() => toggleOne(row.uid)}
-                                                            aria-label="Pilih baris"
+                                                            aria-label={t('Pilih baris')}
                                                         />
                                                     )
                                                 )}
@@ -384,7 +389,7 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                                                             {row.description || '—'}
                                                         </div>
                                                         <div className="truncate text-xs text-ob-ink-3">
-                                                            {row.bank_name}
+                                                            {bankNameLabel(row.bank_name, row.account_type)}
                                                         </div>
                                                         {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-1" />}
                                                     </>
@@ -437,15 +442,15 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
                     <div className="flex min-w-80 items-center gap-4 rounded-2xl border border-ob-line bg-ob-card px-4 py-3 shadow-xl shadow-black/20">
                         <div className="flex items-center gap-2">
                             <Badge variant="default">{selected.length}</Badge>
-                            <span className="text-sm font-medium text-ob-ink">catatan dipilih</span>
+                            <span className="text-sm font-medium text-ob-ink">{t('catatan dipilih', { count: selected.length })}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="zinc" size="sm" onClick={() => setSelected([])}>
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button variant="red" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                                 <Trash2 className="h-3.5 w-3.5" />
-                                Hapus
+                                {t('Hapus')}
                             </Button>
                         </div>
                     </div>
@@ -455,9 +460,9 @@ export default function CashFlowIncome({ rows, pagination, stats, filters, clien
             <ConfirmDialog
                 open={bulkDeleteOpen}
                 onOpenChange={setBulkDeleteOpen}
-                title={`Hapus ${selected.length} catatan?`}
-                description="Tindakan ini tidak dapat dibatalkan. Pembayaran terkait invoice dan transaksi akan ikut terhapus."
-                confirmLabel={`Hapus ${selected.length}`}
+                title={t('Hapus {{count}} catatan?', { count: selected.length })}
+                description={t('Tindakan ini tidak dapat dibatalkan. Pembayaran terkait invoice dan transaksi akan ikut terhapus.')}
+                confirmLabel={t('Hapus {{n}}', { n: selected.length })}
                 loading={deleteProcessing}
                 onConfirm={handleBulkDelete}
             />
@@ -492,14 +497,14 @@ function SourceBadge({ type }: { type: string }) {
         return (
             <Badge variant="blue" className="gap-1.5">
                 <FileText className="h-3 w-3" />
-                Invoice
+                {t('Invoice')}
             </Badge>
         );
     }
     return (
         <Badge variant="green" className="gap-1.5">
             <Wallet className="h-3 w-3" />
-            Langsung
+            {t('Langsung')}
         </Badge>
     );
 }

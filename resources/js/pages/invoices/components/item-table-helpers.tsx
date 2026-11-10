@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { t } from '@/i18n';
 import { cn, formatCurrency } from '@/lib/utils';
 
 /*
@@ -188,7 +189,7 @@ export function ServiceLookup({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 shrink-0 text-dark-400 hover:text-primary-600 dark:hover:text-primary-400"
-                    title="Pilih dari katalog layanan"
+                    title={t('Pilih dari katalog layanan')}
                 >
                     <Search className="h-3.5 w-3.5" />
                 </Button>
@@ -199,7 +200,7 @@ export function ServiceLookup({
                         autoFocus
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Cari layanan..."
+                        placeholder={t('Cari layanan...')}
                         icon={<Search className="h-3.5 w-3.5" />}
                         className="h-8 text-xs focus:ring-0"
                     />
@@ -207,7 +208,7 @@ export function ServiceLookup({
                 <div className="max-h-52 overflow-y-auto p-1.5">
                     {filtered.length === 0 ? (
                         <p className="py-6 text-center text-sm text-dark-400 dark:text-dark-500">
-                            Layanan tidak ditemukan
+                            {t('Layanan tidak ditemukan')}
                         </p>
                     ) : (
                         filtered.map((svc) => (

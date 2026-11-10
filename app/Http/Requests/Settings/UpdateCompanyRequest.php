@@ -41,11 +41,11 @@ class UpdateCompanyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'abbreviation.required' => 'Singkatan perusahaan wajib diisi (dipakai di nomor invoice dan pengajuan dana).',
-            'abbreviation.alpha' => 'Singkatan hanya boleh huruf, mis. KSN.',
-            'abbreviation.min' => 'Singkatan minimal 2 huruf.',
-            'abbreviation.max' => 'Singkatan maksimal 10 huruf.',
-            'not_in' => 'Isian ini wajib diisi dengan data sebenarnya.',
+            'abbreviation.required' => __('Singkatan perusahaan wajib diisi (dipakai di nomor invoice dan pengajuan dana).'),
+            'abbreviation.alpha' => __('Singkatan hanya boleh huruf, mis. KSN.'),
+            'abbreviation.min' => __('Singkatan minimal 2 huruf.'),
+            'abbreviation.max' => __('Singkatan maksimal 10 huruf.'),
+            'not_in' => __('Isian ini wajib diisi dengan data sebenarnya.'),
         ];
     }
 

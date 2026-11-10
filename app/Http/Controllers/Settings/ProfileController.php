@@ -54,7 +54,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return redirect()->back()->with('success', 'Profil berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Profil berhasil diperbarui.'));
     }
 
     public function destroy(Request $request): RedirectResponse

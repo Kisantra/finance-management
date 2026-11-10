@@ -7,12 +7,15 @@ import { LayoutDashboard } from 'lucide-react';
 export default function Welcome() {
     return (
         <div className="space-y-6">
+            {/* i18n-abaikan: halaman uji lama, tidak dirender rute mana pun */}
             <PageHeader
-                title="Finance Management"
-                description="React + Inertia migration in progress"
+                title="Finance Management" // i18n-abaikan: halaman uji tak dirender
+                description="React + Inertia migration in progress" // i18n-abaikan: halaman uji tak dirender
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {/* i18n-abaikan: halaman uji tak dirender */}
                 <StatsCard label="Phase" value="1 ✅" icon={<LayoutDashboard />} color="blue" />
+                {/* i18n-abaikan: halaman uji tak dirender */}
                 <StatsCard label="Status" value="Migrating" icon={<LayoutDashboard />} color="green" />
             </div>
         </div>

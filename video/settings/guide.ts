@@ -61,7 +61,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Di **Profil**, klik **Hapus Akun**, isi kata sandi Anda, lalu **Hapus Akun Saya**.',
-                'Akun dan data milik Anda (reimbursement, pengajuan dana, feedback, notifikasi) terhapus permanen dan Anda langsung keluar.',
+                'Akun dan data milik Anda (reimbursement, pengajuan dana, masukan, notifikasi) terhapus permanen dan Anda langsung keluar.',
             ],
         },
         {
@@ -71,7 +71,7 @@ export const guide: ModuleGuide = {
                 'Buka **Pengaturan** › **Koneksi Claude**, lalu klik **Salin** di samping **Alamat konektor**. Menu ini hanya tampil bila peran Anda punya izin **use claude** di perusahaan yang sedang dibuka.',
                 'Di Claude (web atau desktop), buka **Settings › Connectors**, pilih **Add custom connector**, beri nama **Kisantra Finance**, tempel alamatnya, lalu klik **Connect**.',
                 'Halaman aplikasi ini terbuka: masuk bila diminta, periksa daftar perusahaan yang akan terbaca, lalu pilih **Izinkan**.',
-                'Di percakapan, aktifkan konektor **Kisantra Finance** lalu bertanyalah, mis. "Berapa invoice yang lewat tempo bulan ini?"',
+                'Di percakapan, aktifkan konektor **Kisantra Finance** lalu bertanyalah, mis. "Berapa invoice yang lewat jatuh tempo bulan ini?"',
                 'Untuk memutus akses, klik **Cabut** di **Sambungan aktif**. Claude langsung kehilangan akses dan harus meminta izin lagi.',
             ],
         },
@@ -82,7 +82,7 @@ export const guide: ModuleGuide = {
                 'Buka **Pengaturan** › **Penomoran invoice**.',
                 'Susun **Pola nomor**: ketik teks/pemisah bebas, lalu klik chip token (mis. **{NO}**, **{PT}**, **{THN}**) untuk menyisipkannya di posisi kursor. **{NO}** wajib tepat satu kali.',
                 'Pilih **Jumlah digit nomor urut** dan kapan **Nomor kembali ke 1** (**Tiap bulan** / **Tiap tahun** / **Tidak pernah**). Tiap bulan wajib memuat bulan + tahun; tiap tahun wajib memuat tahun.',
-                'Periksa kartu **Pratinjau**, lalu klik **Simpan** (perlu profil perusahaan sudah diisi). Berlaku untuk invoice yang **dikirim** setelahnya; nomor yang sudah terbit tidak berubah.',
+                'Periksa kartu **Pratinjau**, lalu klik **Simpan** (perlu profil perusahaan sudah diisi). Berlaku untuk invoice yang **diterbitkan** setelahnya; nomor yang sudah terbit tidak berubah.',
                 'Sesudah server lama dipindah ke versi baru, halaman ini terbuka **otomatis** bila ada invoice lama tanpa urutan nomor. Bila nomor lama memakai format yang masih dipakai, samakan pola sampai tercantum "cocok" lalu **Simpan**. Nomor berformat lama yang sudah tidak dipakai atau diketik manual **biarkan saja**: pola menentukan nomor berikutnya. Lalu klik **Isi urutan & selesai meninjau**.',
             ],
         },
@@ -90,7 +90,7 @@ export const guide: ModuleGuide = {
             title: 'Melengkapi profil perusahaan',
             role: ROLES.admin,
             steps: [
-                'Buka **Pengaturan** › **Profil perusahaan**. Perusahaan baru (atau yang profilnya belum lengkap) membuka halaman ini **otomatis** sesudah login: aplikasi belum bisa dipakai siapa pun sampai profil disimpan.',
+                'Buka **Pengaturan** › **Profil perusahaan**. Perusahaan baru (atau yang profilnya belum lengkap) membuka halaman ini **otomatis** sesudah masuk: aplikasi belum bisa dipakai siapa pun sampai profil disimpan.',
                 'Isi **Identitas Perusahaan**: nama, **Singkatan** (2-10 huruf, mis. KSN; menjadi kode di nomor invoice), alamat, email, telepon. Bila sudah pernah ada invoice, form menampilkan **nomor invoice terakhir**: samakan kodenya supaya nomor bersambung.',
                 'Isi **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan).',
                 'Centang **Pengusaha Kena Pajak (PKP)** bila perusahaan PKP; kolom **NPWP** dan **Tarif PPN (%)** baru muncul setelah dicentang. Selama PKP aktif, invoice baru bisa ditagih PPN.',
@@ -103,8 +103,8 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Pengaturan** › **Template PDF**, klik **Template Baru**, isi **Nama Template**, lalu **Buat Template**.',
                 'Editor terbuka: tambahkan teks, gambar, grid, kotak, garis, atau tabel item dari bilah alat bawah; teks bisa memuat token data invoice (**Sisipkan field**).',
-                'Klik **Simpan**. **PDF** membuka PDF uji dari layout yang sudah tersimpan dengan data invoice yang terakhir dibuat (**Pratinjau**: sama, dengan 3–60 baris item contoh); **Preview** menampilkan token terisi langsung di kanvas. **Kembali** tanpa Simpan membuang perubahan.',
-                'Di daftar, menu **•••** berisi **Ubah Nama**, **Jadikan Default**, **Duplikat**, dan **Hapus**.',
+                'Klik **Simpan**. **PDF** membuka PDF uji dari layout yang sudah tersimpan dengan data invoice yang terakhir dibuat (**Pratinjau PDF** di menu sesudahnya: sama, dengan 3–60 baris item contoh); tombol **Pratinjau** (ikon mata) menampilkan token terisi langsung di kanvas, lalu berganti menjadi **Ubah**. **Kembali** tanpa Simpan membuang perubahan.',
+                'Di daftar, menu **•••** berisi **Ubah Nama**, **Jadikan Bawaan**, **Duplikat**, dan **Hapus**.',
             ],
         },
     ],
@@ -124,7 +124,7 @@ export const guide: ModuleGuide = {
             title: 'Penomoran invoice',
             tone: 'wait',
             items: [
-                'Hanya untuk invoice yang **dikirim setelah disimpan**; draft belum bernomor.',
+                'Hanya untuk invoice yang **diterbitkan setelah disimpan**; draft belum bernomor.',
                 'Nomor yang sudah terbit tidak ikut berubah.',
                 'Urutan tetap lanjut dari nomor terbesar di periode yang sama.',
                 'Nomor masih bisa diubah manual di dialog **Kirim** invoice.',
@@ -145,7 +145,7 @@ export const guide: ModuleGuide = {
             tone: 'pos',
             items: [
                 'Setiap template muncul sebagai pilihan di dialog **Cetak invoice**.',
-                '**Default** hanya menaruhnya di urutan pertama daftar template buatan; pilihan awal dialog tetap Kisantra.',
+                '**Bawaan** hanya menaruhnya di urutan pertama daftar template buatan; pilihan awal dialog tetap Kisantra.',
                 'Menghapus template menghilangkannya dari pilihan cetak; invoice tidak berubah.',
             ],
         },
@@ -183,7 +183,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Hapus akun sendiri tidak bisa dibatalkan',
-            body: 'Siapa pun bisa menghapus akunnya, termasuk admin terakhir. Reimbursement, pengajuan dana, feedback, dan notifikasi miliknya ikut terhapus, juga riwayat pembayaran reimbursement yang pernah ia catat; transaksi bank-nya tetap ada.',
+            body: 'Siapa pun bisa menghapus akunnya, termasuk admin terakhir. Reimbursement, pengajuan dana, masukan, dan notifikasi miliknya ikut terhapus, juga riwayat pembayaran reimbursement yang pernah ia catat; transaksi bank-nya tetap ada.',
         },
         {
             title: 'Data yang dibaca Claude ikut diproses Anthropic',

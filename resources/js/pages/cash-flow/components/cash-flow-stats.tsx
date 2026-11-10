@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { CashFlowStats } from '../types';
+import { t } from '@/i18n';
 
 interface Props {
     stats: CashFlowStats;
@@ -19,23 +20,23 @@ const TONE = {
 };
 
 export function CashFlowStatsBar({ stats, period, primaryLabel, primaryTone }: Props) {
-    const t = TONE[primaryTone];
+    const tone = TONE[primaryTone];
     return (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="overflow-hidden hover:shadow-md transition-shadow">
-                <div className={cn('h-1', t.accent)} />
+                <div className={cn('h-1', tone.accent)} />
                 <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
                             {primaryLabel}
                         </p>
-                        <TrendingUp className={cn('w-5 h-5 shrink-0', t.icon)} />
+                        <TrendingUp className={cn('w-5 h-5 shrink-0', tone.icon)} />
                     </div>
-                    <p className={cn('text-2xl font-bold tabular-nums leading-none', t.value)}>
+                    <p className={cn('text-2xl font-bold tabular-nums leading-none', tone.value)}>
                         {formatCurrency(stats.total_amount)}
                     </p>
                     <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                        Total transaksi terfilter
+                        {t('Total transaksi terfilter')}
                     </p>
                 </CardContent>
             </Card>
@@ -45,7 +46,7 @@ export function CashFlowStatsBar({ stats, period, primaryLabel, primaryTone }: P
                 <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                            Jumlah Transaksi
+                            {t('Jumlah Transaksi')}
                         </p>
                         <FileText className="w-5 h-5 text-blue-500 shrink-0" />
                     </div>
@@ -53,7 +54,7 @@ export function CashFlowStatsBar({ stats, period, primaryLabel, primaryTone }: P
                         {stats.total_count.toLocaleString('id-ID')}
                     </p>
                     <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                        Catatan tersaring
+                        {t('Catatan tersaring')}
                     </p>
                 </CardContent>
             </Card>
@@ -63,7 +64,7 @@ export function CashFlowStatsBar({ stats, period, primaryLabel, primaryTone }: P
                 <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                         <p className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 leading-none">
-                            Periode
+                            {t('Periode')}
                         </p>
                         <Calendar className="w-5 h-5 text-emerald-500 shrink-0" />
                     </div>
@@ -71,7 +72,7 @@ export function CashFlowStatsBar({ stats, period, primaryLabel, primaryTone }: P
                         {period}
                     </p>
                     <p className="text-xs text-dark-500 dark:text-dark-400 mt-2">
-                        Rentang aktif
+                        {t('Rentang aktif')}
                     </p>
                 </CardContent>
             </Card>

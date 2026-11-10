@@ -242,12 +242,12 @@ class ReceivableController extends Controller
             'contract_attachment_name' => $attachmentName,
         ]);
 
-        return back()->with('success', 'Piutang berhasil dibuat');
+        return back()->with('success', __('Piutang berhasil dibuat'));
     }
 
     public function update(UpdateReceivableRequest $request, Receivable $receivable): RedirectResponse
     {
-        abort_if(! in_array($receivable->status, ['draft', 'rejected']), 403, 'Piutang ini tidak dapat diedit');
+        abort_if(! in_array($receivable->status, ['draft', 'rejected']), 403, __('Piutang ini tidak dapat diubah'));
 
         $validated = $request->validated();
 
@@ -308,13 +308,13 @@ class ReceivableController extends Controller
             'approved_at' => null,
         ]);
 
-        return back()->with('success', 'Piutang berhasil diperbarui');
+        return back()->with('success', __('Piutang berhasil diperbarui'));
     }
 
     public function destroy(Receivable $receivable): RedirectResponse
     {
-        abort_if($receivable->status !== 'draft', 403, 'Piutang ini tidak dapat dihapus');
-        abort_if($receivable->payments()->exists(), 403, 'Piutang yang sudah memiliki pembayaran tidak dapat dihapus');
+        abort_if($receivable->status !== 'draft', 403, __('Piutang ini tidak dapat dihapus'));
+        abort_if($receivable->payments()->exists(), 403, __('Piutang yang sudah memiliki pembayaran tidak dapat dihapus'));
 
         if ($receivable->contract_attachment_path) {
             Storage::disk('public')->delete($receivable->contract_attachment_path);
@@ -322,22 +322,22 @@ class ReceivableController extends Controller
 
         $receivable->delete();
 
-        return back()->with('success', 'Piutang berhasil dihapus');
+        return back()->with('success', __('Piutang berhasil dihapus'));
     }
 
     public function submit(Receivable $receivable): RedirectResponse
     {
-        abort_if($receivable->status !== 'draft', 403, 'Piutang ini tidak dapat diajukan');
+        abort_if($receivable->status !== 'draft', 403, __('Piutang ini tidak dapat diajukan'));
 
         $receivable->update(['status' => 'pending_approval']);
 
-        return back()->with('success', 'Piutang berhasil diajukan untuk persetujuan');
+        return back()->with('success', __('Piutang berhasil diajukan untuk persetujuan'));
     }
 
     public function approve(ApproveReceivableRequest $request, Receivable $receivable): RedirectResponse
     {
         abort_if(! auth()->user()->can('approve receivables'), 403);
-        abort_if($receivable->status !== 'pending_approval', 403, 'Piutang ini tidak dapat diproses');
+        abort_if($receivable->status !== 'pending_approval', 403, __('Piutang ini tidak dapat diproses'));
 
         $validated = $request->validated();
 
@@ -366,7 +366,7 @@ class ReceivableController extends Controller
                 ]);
             });
 
-            return back()->with('success', 'Piutang berhasil disetujui');
+            return back()->with('success', __('Piutang berhasil disetujui'));
         }
 
         $receivable->update([
@@ -376,13 +376,13 @@ class ReceivableController extends Controller
             'rejection_reason' => $validated['notes'] ?? null,
         ]);
 
-        return back()->with('success', 'Piutang telah ditolak');
+        return back()->with('success', __('Piutang telah ditolak'));
     }
 
     public function pay(PayReceivableRequest $request, Receivable $receivable): RedirectResponse
     {
         abort_if(! auth()->user()->can('pay receivables'), 403);
-        abort_if($receivable->status !== 'active', 403, 'Piutang ini tidak dapat dibayar');
+        abort_if($receivable->status !== 'active', 403, __('Piutang ini tidak dapat dibayar'));
 
         $paidPrincipal = (int) $receivable->payments()->sum('principal_paid');
         $remainingPrincipal = $receivable->principal_amount - $paidPrincipal;
@@ -397,20 +397,20 @@ class ReceivableController extends Controller
         $interestPaid = (int) ($validated['interest_paid'] ?? 0);
 
         if ($principalPaid === 0 && $interestPaid === 0) {
-            return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
+            return back()->withErrors(['principal_paid' => __('Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga')]);
         }
 
         // Cicilan tidak boleh melampaui sisa. Tanpa batas ini kas terkredit
         // penuh dan sisa pokok/bunga menjadi negatif.
         if ($principalPaid > $remainingPrincipal) {
             return back()->withErrors([
-                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+                'principal_paid' => __('Pembayaran pokok melebihi sisa pokok (Rp :sisa).', ['sisa' => number_format($remainingPrincipal, 0, ',', '.')]),
             ]);
         }
 
         if ($interestPaid > $remainingInterest) {
             return back()->withErrors([
-                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+                'interest_paid' => __('Pembayaran bunga melebihi sisa bunga (Rp :sisa).', ['sisa' => number_format($remainingInterest, 0, ',', '.')]),
             ]);
         }
 
@@ -418,7 +418,7 @@ class ReceivableController extends Controller
         // sementara tidak ada mutasi bank yang tercatat sama sekali.
         if ($validated['payment_method'] === 'bank_transfer' && empty($validated['bank_account_id'])) {
             return back()->withErrors([
-                'bank_account_id' => 'Rekening bank wajib dipilih untuk metode transfer bank.',
+                'bank_account_id' => __('Rekening bank wajib dipilih untuk metode transfer bank.'),
             ]);
         }
 
@@ -468,7 +468,7 @@ class ReceivableController extends Controller
             }
         });
 
-        return back()->with('success', 'Pembayaran piutang berhasil dicatat');
+        return back()->with('success', __('Pembayaran piutang berhasil dicatat'));
     }
 
     private function generateReceivableNumber(): string

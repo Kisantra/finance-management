@@ -1,10 +1,10 @@
 /*
- * Ambil ulang screenshot tutorial Permintaan Dana (video/fund-requests/screens/*.webp) bila UI berubah.
+ * Ambil ulang screenshot tutorial Pengajuan Dana (video/fund-requests/screens/*.webp) bila UI berubah.
  * 1. Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8015
  * 2. Playwright MCP: browser_run_code_unsafe, filename: video/capture/fund-requests.js
  * 3. Lalu jalankan video/capture/fund-requests-admin.js (layar Admin + dampak).
  * 4. python video/capture/to-webp.py fund-requests, lalu salin koordinat hasilnya ke video/fund-requests/shots.ts.
- * Membuat 2 permintaan dana baru di DB QC (satu dicairkan dari BCA - Operasional, satu ditolak). Jangan jalankan di DB utama.
+ * Membuat 2 pengajuan dana baru di DB QC (satu dicairkan dari BCA - Operasional, satu ditolak). Jangan jalankan di DB utama.
  * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
  * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  */
@@ -22,14 +22,14 @@ async (page) => {
   const open = async (email, collapsed = false) => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5, colorScheme: 'light', locale: 'id-ID' });
     contexts.push(ctx);
-    // Tabel Permintaan Dana lebih lebar dari layar 1280 bila navigasi terbuka: ciutkan untuk FM/Admin agar kolom Aksi terlihat.
+    // Tabel Pengajuan Dana lebih lebar dari layar 1280 bila navigasi terbuka: ciutkan untuk FM/Admin agar kolom Aksi terlihat.
     await ctx.addInitScript((c) => {
       try { localStorage.setItem('sidebar.collapsed', String(c)); } catch {}
     }, collapsed);
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"],[data-sonner-toaster]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"],[data-sonner-toaster]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -37,12 +37,12 @@ async (page) => {
     await p.goto(BASE + '/login', { waitUntil: 'networkidle' });
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/, { timeout: 15000 }).catch(async () => {
       await p.goto(BASE + '/login', { waitUntil: 'networkidle' });
       await p.locator('input[type=email]').fill(email);
       await p.locator('input[type=password]').fill('password');
-      await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+      await p.getByRole('button', { name: 'Masuk', exact: true }).click();
       await p.waitForURL(/dashboard/);
     });
     return p;
@@ -84,17 +84,17 @@ async (page) => {
     const s = await open('staff@qc.test');
     await s.goto(BASE + '/fund-requests');
     await snap(s, 'staff-list-empty', {
-      create: s.getByRole('button', { name: 'Buat Permintaan' }).first(),
+      create: s.getByRole('button', { name: 'Buat Pengajuan' }).first(),
       stats: up(up(s.getByText('menunggu review', { exact: true }))).locator('xpath=..'),
       filters: up(up(s.getByRole('button', { name: 'Status', exact: true }))),
     });
 
-    await s.getByRole('button', { name: 'Buat Permintaan' }).first().click();
-    const f = () => s.getByRole('dialog', { name: 'Buat Permintaan Dana' });
+    await s.getByRole('button', { name: 'Buat Pengajuan' }).first().click();
+    const f = () => s.getByRole('dialog', { name: 'Buat Pengajuan Dana' });
     await f().getByRole('textbox', { name: 'Judul *' }).click();
     const head = () => ({
       sheet: f(),
-      number: f().getByRole('textbox', { name: 'Nomor Permintaan *' }),
+      number: f().getByRole('textbox', { name: 'Nomor Pengajuan *' }),
       title: f().getByRole('textbox', { name: 'Judul *' }),
       priority: f().getByRole('button', { name: 'Prioritas *' }),
       date: f().getByRole('button', { name: 'Dibutuhkan Sebelum *' }),
@@ -109,9 +109,9 @@ async (page) => {
     await snap(s, 'staff-form-title', head());
 
     await f().getByRole('button', { name: 'Prioritas *' }).click();
-    await s.getByRole('option', { name: 'High' }).waitFor();
-    await snap(s, 'staff-form-priority', { ...head(), option: s.getByRole('option', { name: 'High' }), list: s.getByRole('listbox') });
-    await pick(s, s.getByRole('option', { name: 'High' }));
+    await s.getByRole('option', { name: 'Tinggi' }).waitFor();
+    await snap(s, 'staff-form-priority', { ...head(), option: s.getByRole('option', { name: 'Tinggi' }), list: s.getByRole('listbox') });
+    await pick(s, s.getByRole('option', { name: 'Tinggi' }));
 
     await f().getByRole('button', { name: 'Dibutuhkan Sebelum *' }).click();
     const day = s.getByRole('button', { name: /, 16 Oktober 2026$/ });
@@ -175,10 +175,10 @@ async (page) => {
     await row(s, TITLE).first().waitFor();
     await s.waitForTimeout(800);
     log.push('after submit: ' + (await statusOf(s, TITLE)));
-    await snap(s, 'staff-list-pending', { row: row(s, TITLE), status: row(s, TITLE).getByText('Pending Review') });
+    await snap(s, 'staff-list-pending', { row: row(s, TITLE), status: row(s, TITLE).getByText('Menunggu persetujuan', { exact: true }) });
 
-    // Permintaan kedua (untuk alur penolakan), tanpa screenshot.
-    await s.getByRole('button', { name: 'Buat Permintaan' }).first().click();
+    // Pengajuan kedua (untuk alur penolakan), tanpa screenshot.
+    await s.getByRole('button', { name: 'Buat Pengajuan' }).first().click();
     await f().getByRole('textbox', { name: 'Judul *' }).fill(TITLE2);
     await f().getByRole('button', { name: 'Dibutuhkan Sebelum *' }).click();
     await pick(s, s.getByRole('button', { name: /, 20 Oktober 2026$/ }));
@@ -202,7 +202,7 @@ async (page) => {
       tabs: m.getByRole('button', { name: 'Semua Pengajuan' }).locator('xpath=..'),
       stats: up(up(m.getByText('menunggu review', { exact: true }))).locator('xpath=..'),
       row: row(m, TITLE),
-      review: row(m, TITLE).getByRole('button', { name: 'Review' }),
+      review: row(m, TITLE).getByRole('button', { name: 'Tinjau' }),
       requester: m.getByRole('button', { name: 'Pemohon', exact: true }),
     });
 
@@ -216,19 +216,19 @@ async (page) => {
       reject: top(m).getByRole('button', { name: 'Tolak' }),
     });
     await top(m).getByRole('button', { name: 'Setujui' }).click();
-    await top(m).getByRole('textbox', { name: 'Catatan Review' }).waitFor();
+    await top(m).getByRole('textbox', { name: 'Catatan peninjau' }).waitFor();
     await snap(m, 'fm-approve-empty', {});
-    await top(m).getByRole('textbox', { name: 'Catatan Review' }).fill('Disetujui. Pakai katering Sari Rasa sesuai penawaran.');
+    await top(m).getByRole('textbox', { name: 'Catatan peninjau' }).fill('Disetujui. Pakai katering Sari Rasa sesuai penawaran.');
     await snap(m, 'fm-approve', {
       dialog: top(m),
-      notes: top(m).getByRole('textbox', { name: 'Catatan Review' }),
+      notes: top(m).getByRole('textbox', { name: 'Catatan peninjau' }),
       confirm: top(m).getByRole('button', { name: 'Setujui', exact: true }),
     });
     await top(m).getByRole('button', { name: 'Setujui', exact: true }).click();
     await row(m, TITLE).getByRole('button', { name: 'Cairkan' }).waitFor();
     await snap(m, 'fm-list-approved', {
       row: row(m, TITLE),
-      status: row(m, TITLE).getByText('Approved'),
+      status: row(m, TITLE).getByText('Disetujui', { exact: true }),
       disburse: row(m, TITLE).getByRole('button', { name: 'Cairkan' }),
     });
 
@@ -256,14 +256,14 @@ async (page) => {
     await dlg().locator('input[type=file]').setInputFiles(FIX + 'fr-bukti-transfer.jpg');
     await snap(m, 'fm-disburse-filled', dis());
     await dlg().getByRole('button', { name: 'Cairkan Dana' }).click();
-    await row(m, TITLE).getByText('Disbursed').waitFor();
+    await row(m, TITLE).getByText('Dicairkan', { exact: true }).waitFor();
     await m.waitForTimeout(600);
     await row(m, TITLE).first().click();
     await top(m).getByText('Pencairan', { exact: true }).waitFor();
     await top(m).getByText('Pencairan', { exact: true }).evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await snap(m, 'fm-detail-disbursed', {
       dialog: top(m),
-      status: top(m).getByText('Disbursed'),
+      status: top(m).getByText('Dicairkan', { exact: true }),
       disbursement: up(top(m).getByText('Pencairan', { exact: true })),
       items: up(up(top(m).getByText(/Item Biaya \(/))),
     });
@@ -271,16 +271,16 @@ async (page) => {
 
     await row(m, TITLE2).first().click();
     await top(m).getByRole('button', { name: 'Tolak' }).click();
-    await top(m).getByRole('textbox', { name: 'Catatan Review' }).waitFor();
+    await top(m).getByRole('textbox', { name: 'Catatan peninjau' }).waitFor();
     await snap(m, 'fm-reject-empty', {});
-    await top(m).getByRole('textbox', { name: 'Catatan Review' }).fill('Pakai mobil kantor, tersedia di tanggal itu.');
+    await top(m).getByRole('textbox', { name: 'Catatan peninjau' }).fill('Pakai mobil kantor, tersedia di tanggal itu.');
     await snap(m, 'fm-reject', {
       dialog: top(m),
-      notes: top(m).getByRole('textbox', { name: 'Catatan Review' }),
+      notes: top(m).getByRole('textbox', { name: 'Catatan peninjau' }),
       confirm: top(m).getByRole('button', { name: 'Tolak', exact: true }),
     });
     await top(m).getByRole('button', { name: 'Tolak', exact: true }).click();
-    await row(m, TITLE2).getByText('Rejected').waitFor();
+    await row(m, TITLE2).getByText('Ditolak', { exact: true }).waitFor();
 
     /* ── Staff: hasil ── */
     await s.goto(BASE + '/fund-requests?r=1');
@@ -291,12 +291,12 @@ async (page) => {
       edit: row(s, TITLE2).getByRole('button').first(),
     });
     await row(s, TITLE2).first().click();
-    await top(s).getByText('Catatan Review').waitFor();
+    await top(s).getByText('Catatan peninjau').waitFor();
     await snap(s, 'staff-detail-rejected', {
       dialog: top(s),
-      status: top(s).getByText('Rejected'),
-      notes: up(top(s).getByText('Catatan Review')),
-      edit: top(s).getByRole('button', { name: 'Edit' }),
+      status: top(s).getByText('Ditolak', { exact: true }),
+      notes: up(top(s).getByText('Catatan peninjau')),
+      edit: top(s).getByRole('button', { name: 'Ubah' }),
     });
 
   } catch (e) {

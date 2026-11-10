@@ -3,6 +3,7 @@ import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { AppLayout } from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
+import { t, Trans } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { Type, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Bold as BoldIcon, GripVertical, Copy, Undo2, Redo2, Eye, Pencil, Plus, Save, FileDown, Lock, Unlock, RotateCcw } from 'lucide-react';
 
@@ -213,8 +214,8 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
             {
                 preserveScroll: true,
                 preserveState: true,
-                onSuccess: () => toast.success('Template tersimpan'),
-                onError: () => toast.error('Gagal menyimpan'),
+                onSuccess: () => toast.success(t('Template tersimpan')),
+                onError: () => toast.error(t('Gagal menyimpan')),
                 onFinish: () => setSaving(false),
             },
         );
@@ -323,8 +324,8 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
     // Copy/paste keyboard: Ctrl/Cmd+C gandakan elemen; Ctrl/Cmd+V tempel gambar
     // dari clipboard OS (screenshot/web) ATAU gandakan elemen yang disalin.
     React.useEffect(() => {
-        const inField = (t: EventTarget | null) =>
-            t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+        const inField = (target: EventTarget | null) =>
+            target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
         const onKey = (e: KeyboardEvent) => {
             if (inField(e.target)) return;
@@ -423,10 +424,10 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
         <div className="flex h-[calc(100vh-7rem)] rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden bg-white dark:bg-dark-800">
             {/* ── KIRI: Layers (docked) ── */}
             <aside className="w-52 shrink-0 border-r border-secondary-200 dark:border-dark-600 flex flex-col">
-                <PanelHeader title="Layers" meta={els.length ? String(els.length) : undefined} />
+                <PanelHeader title={t('Lapisan')} meta={els.length ? String(els.length) : undefined} />
                 <div className="flex-1 overflow-auto p-2 space-y-0.5">
                     {els.length === 0 && (
-                        <p className="text-xs text-dark-400 dark:text-dark-500 px-2 py-3 text-center">Belum ada elemen.<br />Seret dari toolbar.</p>
+                        <p className="text-xs text-dark-400 dark:text-dark-500 px-2 py-3 text-center">{t('Belum ada elemen.')}<br />{t('Seret dari bilah alat.')}</p>
                     )}
                     {/* urutan teratas = paling depan: tampilkan terbalik */}
                     {[...els].reverse().map((el) => {
@@ -472,7 +473,7 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                                     {el.type === 'text' ? <Type className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}
                                 </span>
                                 <span className={`flex-1 truncate text-sm ${active ? 'text-primary-700 dark:text-primary-200 font-medium' : 'text-dark-700 dark:text-dark-300'}`}>
-                                    {el.type === 'text' ? el.content : 'Gambar'}
+                                    {el.type === 'text' ? el.content : t('Gambar')}
                                 </span>
                                 <button
                                     onClick={(e) => {
@@ -480,7 +481,7 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                                         remove(el.id);
                                     }}
                                     className="grid place-items-center h-6 w-6 rounded-md text-dark-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition"
-                                    title="Hapus"
+                                    title={t('Hapus')}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -598,10 +599,10 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                             e.dataTransfer.effectAllowed = 'copy';
                             e.dataTransfer.setData('kind', 'text');
                         }}
-                        title="Seret ke kanvas, atau klik"
+                        title={t('Seret ke kanvas, atau klik')}
                     >
                         <Button variant="ghost" size="sm" className="cursor-grab active:cursor-grabbing" onClick={() => addText()}>
-                            <Type className="w-4 h-4" /> Teks
+                            <Type className="w-4 h-4" /> {t('Teks')}
                         </Button>
                     </div>
                     <div
@@ -610,10 +611,10 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                             e.dataTransfer.effectAllowed = 'copy';
                             e.dataTransfer.setData('kind', 'image');
                         }}
-                        title="Seret ke kanvas, atau klik"
+                        title={t('Seret ke kanvas, atau klik')}
                     >
                         <Button variant="ghost" size="sm" className="cursor-grab active:cursor-grabbing" onClick={() => fileRef.current?.click()}>
-                            <ImageIcon className="w-4 h-4" /> Gambar
+                            <ImageIcon className="w-4 h-4" /> {t('Gambar')}
                         </Button>
                     </div>
                     <div className="w-px h-6 bg-secondary-200 dark:bg-dark-600 mx-1" />
@@ -624,16 +625,16 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                             setPreview((p) => !p);
                             setEditingId(null);
                         }}
-                        title="Lihat hasil dengan data contoh"
+                        title={t('Lihat hasil dengan data contoh')}
                     >
                         {preview ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        {preview ? 'Edit' : 'Preview'}
+                        {preview ? t('Ubah') : t('Pratinjau')}
                     </Button>
                     <div className="w-px h-6 bg-secondary-200 dark:bg-dark-600 mx-1" />
-                    <Button variant="ghost" size="icon" onClick={() => undo()} title="Undo (Ctrl+Z)">
+                    <Button variant="ghost" size="icon" onClick={() => undo()} title={t('Urungkan (Ctrl+Z)')}>
                         <Undo2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => redo()} title="Redo (Ctrl+Shift+Z)">
+                    <Button variant="ghost" size="icon" onClick={() => redo()} title={t('Ulangi (Ctrl+Shift+Z)')}>
                         <Redo2 className="w-4 h-4" />
                     </Button>
                     <div className="w-px h-6 bg-secondary-200 dark:bg-dark-600 mx-1" />
@@ -645,11 +646,11 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                         <ZoomIn className="w-4 h-4" />
                     </Button>
                     <div className="w-px h-6 bg-secondary-200 dark:bg-dark-600 mx-1" />
-                    <Button variant="ghost" size="sm" onClick={openPdf} title="Cetak PDF (data contoh)">
+                    <Button variant="ghost" size="sm" onClick={openPdf} title={t('Cetak PDF (data contoh)')}>
                         <FileDown className="w-4 h-4" /> PDF
                     </Button>
                     <Button variant="primary" size="sm" onClick={save} disabled={saving}>
-                        <Save className="w-4 h-4" /> {saving ? 'Menyimpan…' : 'Simpan'}
+                        <Save className="w-4 h-4" /> {saving ? t('Menyimpan…') : t('Simpan')}
                     </Button>
                 </div>
 
@@ -672,25 +673,25 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
 
             {/* ── KANAN: Inspector kontekstual (docked) ── */}
             <aside className="w-64 shrink-0 border-l border-secondary-200 dark:border-dark-600 flex flex-col">
-                <PanelHeader title={selected ? (selected.type === 'text' ? 'Teks' : 'Gambar') : 'Properti'} />
+                <PanelHeader title={selected ? (selected.type === 'text' ? t('Teks') : t('Gambar')) : t('Properti')} />
 
                 {!selected ? (
                     <div className="flex-1 grid place-items-center p-6 text-center">
                         <p className="text-xs text-dark-400 dark:text-dark-500 leading-relaxed">
-                            Pilih elemen di kanvas<br />untuk mengatur propertinya.
+                            {t('Pilih elemen di kanvas')}<br />{t('untuk mengatur propertinya.')}
                         </p>
                     </div>
                 ) : (
                     <div
                         className="flex-1 overflow-auto px-3 divide-y divide-secondary-200 dark:divide-dark-600"
                         onFocusCapture={(e) => {
-                            const t = e.target as HTMLElement;
-                            if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') snapshot(); // satu entri undo per sesi edit field
+                            const target = e.target as HTMLElement;
+                            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') snapshot(); // satu entri undo per sesi edit field
                         }}
                     >
                         {selected.type === 'text' && (
                             <>
-                                <Section title="Konten">
+                                <Section title={t('Konten')}>
                                     <textarea
                                         ref={contentRef}
                                         value={selected.content}
@@ -701,38 +702,38 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                                     {/* Field picker — sisip token data dinamis */}
                                     <div className="relative">
                                         <Button variant="zinc" size="sm" className="w-full" onClick={() => setFieldMenu((o) => !o)}>
-                                            <Plus className="w-4 h-4" /> Sisipkan field
+                                            <Plus className="w-4 h-4" /> {t('Sisipkan field')}
                                         </Button>
                                         {fieldMenu && (
                                             <div className="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-auto rounded-lg border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 shadow-lg p-1">
-                                                {TOKENS.map((t) => (
+                                                {TOKENS.map((token) => (
                                                     <button
-                                                        key={t.path}
+                                                        key={token.path}
                                                         onClick={() => {
-                                                            insertToken(t.path);
+                                                            insertToken(token.path);
                                                             setFieldMenu(false);
                                                         }}
                                                         className="w-full text-left px-2 py-1.5 rounded-md hover:bg-zinc-50 dark:hover:bg-dark-600"
                                                     >
-                                                        <div className="text-xs font-mono text-primary-600 dark:text-primary-400">{`{{${t.path}}}`}</div>
-                                                        <div className="text-[11px] text-dark-400 dark:text-dark-500 truncate">{t.sample}</div>
+                                                        <div className="text-xs font-mono text-primary-600 dark:text-primary-400">{`{{${token.path}}}`}</div>
+                                                        <div className="text-[11px] text-dark-400 dark:text-dark-500 truncate">{token.sample}</div>
                                                     </button>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
                                     <p className="text-[11px] text-dark-400 dark:text-dark-500">
-                                        Token diganti data asli saat <strong>Preview</strong> / cetak.
+                                        <Trans i18nKey="Token diganti data asli saat <b>Pratinjau</b> / cetak." components={{ b: <strong /> }} />
                                     </p>
                                 </Section>
-                                <Section title="Tampilan">
-                                    <Row label="Ukuran">
+                                <Section title={t('Tampilan')}>
+                                    <Row label={t('Ukuran')}>
                                         <NumField value={selected.fontSize} onChange={(v) => update(selected.id, { fontSize: v })} />
                                     </Row>
-                                    <Row label="Warna">
+                                    <Row label={t('Warna')}>
                                         <Swatch value={selected.color} onChange={(v) => update(selected.id, { color: v })} />
                                     </Row>
-                                    <Row label="Tebal">
+                                    <Row label={t('Tebal')}>
                                         <button
                                             onClick={() => {
                                                 snapshot();
@@ -743,7 +744,7 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                                                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-300'
                                                     : 'border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700'
                                             }`}
-                                            title="Bold"
+                                            title={t('Tebal')}
                                         >
                                             <BoldIcon className="w-4 h-4" />
                                         </button>
@@ -753,14 +754,14 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                         )}
 
                         {selected.type === 'image' && (
-                            <Section title="Gambar">
-                                <Row label="Lebar">
+                            <Section title={t('Gambar')}>
+                                <Row label={t('Lebar')}>
                                     <NumField value={selected.width} onChange={(v) => setImgSize(selected, 'width', v)} />
                                 </Row>
-                                <Row label="Tinggi">
+                                <Row label={t('Tinggi')}>
                                     <NumField value={Math.round(selected.height ?? 0)} onChange={(v) => setImgSize(selected, 'height', v)} />
                                 </Row>
-                                <Row label="Rasio">
+                                <Row label={t('Rasio')}>
                                     <button
                                         onClick={() => {
                                             snapshot();
@@ -771,36 +772,36 @@ export default function TemplateBuilderTest({ layout = [] }: { layout?: El[] }) 
                                                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
                                                 : 'border-secondary-200 dark:border-dark-600 text-dark-500 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700'
                                         }`}
-                                        title="Kunci rasio lebar : tinggi"
+                                        title={t('Kunci rasio lebar : tinggi')}
                                     >
                                         {selected.lockAspect ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                        {selected.lockAspect ? 'Terkunci' : 'Bebas'}
+                                        {selected.lockAspect ? t('Terkunci') : t('Bebas')}
                                     </button>
                                 </Row>
                                 <Button variant="zinc" size="sm" className="w-full" onClick={() => resetImage(selected)}>
-                                    <RotateCcw className="w-4 h-4" /> Reset ke ukuran asli
+                                    <RotateCcw className="w-4 h-4" /> {t('Kembalikan ke ukuran asli')}
                                 </Button>
                                 <Button variant="zinc" size="sm" className="w-full" onClick={() => fileRef.current?.click()}>
-                                    <ImageIcon className="w-4 h-4" /> Ganti gambar
+                                    <ImageIcon className="w-4 h-4" /> {t('Ganti gambar')}
                                 </Button>
                             </Section>
                         )}
 
-                        <Section title="Posisi">
-                            <Row label="X">
+                        <Section title={t('Posisi')}>
+                            <Row label={t('X')}>
                                 <NumField value={Math.round(selected.x)} onChange={(v) => update(selected.id, { x: v })} />
                             </Row>
-                            <Row label="Y">
+                            <Row label={t('Y')}>
                                 <NumField value={Math.round(selected.y)} onChange={(v) => update(selected.id, { y: v })} />
                             </Row>
                         </Section>
 
                         <Section title="">
                             <Button variant="zinc" size="sm" className="w-full" onClick={() => duplicate(selected)}>
-                                <Copy className="w-4 h-4" /> Gandakan <span className="text-xs opacity-60">Ctrl+D</span>
+                                <Copy className="w-4 h-4" /> {t('Gandakan')} {/* i18n-abaikan: pintasan papan ketik */}<span className="text-xs opacity-60">Ctrl+D</span>
                             </Button>
                             <Button variant="red" size="sm" className="w-full" onClick={() => remove(selected.id)}>
-                                <Trash2 className="w-4 h-4" /> Hapus elemen
+                                <Trash2 className="w-4 h-4" /> {t('Hapus elemen')}
                             </Button>
                         </Section>
                     </div>

@@ -27,7 +27,7 @@ export const TUTORIALS: Tutorials = {
         // 8 peringatan tidak muat satu layar (kartu terakhir terpotong): dibagi 4 + 4.
         { id: 'warnings', frames: warningsSceneFrames(4), node: <WarningsScene warnings={guide.warnings!.slice(0, 4)} />, chapter: 'Perhatian' },
         { id: 'warnings-2', frames: warningsSceneFrames(guide.warnings!.length - 4), node: <WarningsScene warnings={guide.warnings!.slice(4)} title="Yang perlu diperhatikan Admin (lanjutan)" /> },
-        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Edit & hapus akun'),
+        walk('walk-admin', ADMIN_STEPS, ROLES.admin, 'Ubah & hapus akun'),
         { id: 'recap', frames: 300, node: <RecapScene guide={guide} />, chapter: 'Ringkasan hak akses' },
         outro,
     ]),

@@ -44,7 +44,7 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Panel **Perlu Diklasifikasi** di kanan berisi kategori yang transaksinya belum masuk laporan, beserta totalnya.',
-                'Pada kartu kategori, buka **Pilih grup L/R →** lalu pilih grupnya: Pemasukan → **Pendapatan Usaha** / **Pendapatan Lain**; Pengeluaran → **Harga Pokok (HPP)** / **Beban Operasional** / **Beban Lain** / **Pajak Perusahaan**.',
+                'Pada kartu kategori, buka **Pilih grup L/R →** lalu pilih grupnya: Pemasukan → **Pendapatan Usaha** / **Pendapatan Lain**; Pengeluaran → **Harga Pokok Penjualan (HPP)** / **Beban Operasional** / **Beban Lain** / **Pajak Perusahaan**.',
                 'Laporan langsung dihitung ulang dan kartu hilang dari panel. Bila semua beres, panel menampilkan **Semua sudah diklasifikasi**.',
                 'Grup juga bisa diatur di **Operasional › Kategori Transaksi**: ikon pensil pada kategori › **Grup Laba Rugi (opsional)**; hasilnya tampil di kolom **Grup L/R**. Baris **(Tanpa Kategori)** harus diberi kategori dulu di transaksi rekening.',
             ],
@@ -63,7 +63,7 @@ export const guide: ModuleGuide = {
                 '**Pendapatan dari Invoice**: pembayaran invoice yang diterima di periode, setelah dikurangi item titipan pajak dan **PPN**.',
                 'PPN yang ikut dibayar klien tampil terpisah sebagai **Catatan: PPN Keluaran diterima** di bawah Laba Bersih — titipan untuk negara, bukan pendapatan.',
                 '**HPP Invoice**: HPP item invoice, diakui seiring pembayaran masuk (uang menutup modal dulu).',
-                'Baris lain: transaksi **Arus Kas** per grup Laba Rugi kategorinya, termasuk pembayaran reimbursement & pencairan permintaan dana.',
+                'Baris lain: transaksi **Arus Kas** per grup Laba Rugi kategorinya, termasuk pembayaran reimbursement & pencairan pengajuan dana.',
             ],
         },
         {

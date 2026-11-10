@@ -16,7 +16,7 @@ class PaymentController extends Controller
         $validated = $request->validated();
 
         if (in_array($invoice->status, ['draft', 'paid'])) {
-            return response()->json(['message' => 'Invoice tidak dapat menerima pembayaran.'], 422);
+            return response()->json(['message' => __('Invoice tidak dapat menerima pembayaran.')], 422);
         }
 
         if ($error = $this->exceedsRemaining($invoice, (int) $validated['amount'])) {
@@ -94,7 +94,7 @@ class PaymentController extends Controller
         $payment->delete();
         $invoice->updateStatus();
 
-        return response()->json(['message' => 'Pembayaran berhasil dihapus.']);
+        return response()->json(['message' => __('Pembayaran berhasil dihapus.')]);
     }
 
     /**
@@ -108,7 +108,7 @@ class PaymentController extends Controller
             return null;
         }
 
-        $message = 'Melebihi sisa tagihan Rp '.number_format($remaining, 0, ',', '.').'. Catat kelebihan sebagai transaksi terpisah.';
+        $message = __('Melebihi sisa tagihan Rp :sisa. Catat kelebihan sebagai transaksi terpisah.', ['sisa' => number_format($remaining, 0, ',', '.')]);
 
         return response()->json(['message' => $message, 'errors' => ['amount' => [$message]]], 422);
     }

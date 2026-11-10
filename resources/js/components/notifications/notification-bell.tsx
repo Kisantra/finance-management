@@ -17,6 +17,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { formatTanggal, t } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { NotificationItem, SharedProps } from '@/types';
@@ -56,11 +57,11 @@ function timeAgo(iso: string): string {
     const diffH = Math.floor(diffMin / 60);
     const diffD = Math.floor(diffH / 24);
 
-    if (diffMin < 1) return 'baru saja';
-    if (diffMin < 60) return `${diffMin}m`;
-    if (diffH < 24) return `${diffH}j`;
-    if (diffD < 7) return `${diffD}h`;
-    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    if (diffMin < 1) return t('baru saja');
+    if (diffMin < 60) return t('{{n}}m', { n: diffMin });
+    if (diffH < 24) return t('{{n}}j', { n: diffH });
+    if (diffD < 7) return t('{{n}}h', { n: diffD });
+    return formatTanggal(date, { day: '2-digit', month: 'short' });
 }
 
 export function NotificationBell({ onOpenDrawer }: Props) {
@@ -112,7 +113,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
                         'relative flex h-full w-full items-center justify-center rounded-full text-ob-ink transition-colors duration-150 ease-out data-[state=open]:bg-ob-hover',
                         FOCUS_RING,
                     )}
-                    aria-label="Notifikasi"
+                    aria-label={t('Notifikasi')}
                 >
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
@@ -125,9 +126,9 @@ export function NotificationBell({ onOpenDrawer }: Props) {
             <PopoverContent align="end" sideOffset={8} className="w-88 p-0 overflow-hidden">
                 <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-ob-line">
                     <div>
-                        <h3 className="text-sm font-semibold text-ob-ink">Notifikasi</h3>
+                        <h3 className="text-sm font-semibold text-ob-ink">{t('Notifikasi')}</h3>
                         {unreadCount > 0 && (
-                            <p className="text-xs text-ob-ink-2">{unreadCount} belum dibaca</p>
+                            <p className="text-xs text-ob-ink-2">{t('{{count}} belum dibaca', { count: unreadCount })}</p>
                         )}
                     </div>
                     {unreadCount > 0 && (
@@ -139,7 +140,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
                             )}
                         >
                             <CheckCheck className="w-3.5 h-3.5" />
-                            Tandai semua
+                            {t('Tandai semua')}
                         </button>
                     )}
                 </div>
@@ -150,9 +151,9 @@ export function NotificationBell({ onOpenDrawer }: Props) {
                             <div className="h-10 w-10 mx-auto rounded-lg bg-ob-chip text-ob-ink-2 flex items-center justify-center mb-3">
                                 <Bell className="w-5 h-5" />
                             </div>
-                            <p className="text-[15px] font-semibold text-ob-ink">Belum ada notifikasi</p>
+                            <p className="text-[15px] font-semibold text-ob-ink">{t('Belum ada notifikasi')}</p>
                             <p className="text-[13px] text-ob-ink-2 mt-1">
-                                Notifikasi akan muncul saat ada aktivitas baru.
+                                {t('Notifikasi akan muncul saat ada aktivitas baru.')}
                             </p>
                         </div>
                     ) : (
@@ -215,7 +216,7 @@ export function NotificationBell({ onOpenDrawer }: Props) {
                             FOCUS_RING,
                         )}
                     >
-                        Lihat semua notifikasi
+                        {t('Lihat semua notifikasi')}
                         <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                 </div>

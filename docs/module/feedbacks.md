@@ -1,4 +1,4 @@
-# Modul: Feedbacks
+# Modul: Masukan (Feedbacks)
 
 > Sistem umpan balik internal: user melaporkan bug, mengajukan fitur, atau memberi saran lewat tombol feedback melayang yang ada di semua halaman; admin meninjau di halaman `/feedbacks` (tab All/My), menanggapi, dan mengubah status `open → in_progress → resolved → closed`. Route prefix `/feedbacks`, digate permission `view feedbacks` (grup) plus `create/edit/delete/respond/manage feedbacks` per aksi. Laporan bertipe **Bug** juga diteruskan ke **Watchpost** (pemantau error tim IT) menjadi tiket, lewat antrean (lihat "Penerusan ke Watchpost").
 
@@ -20,7 +20,7 @@
 
 ## Fitur
 
-### Tombol Feedback Melayang (semua halaman)
+### Tombol Masukan Melayang (semua halaman)
 
 **Alur step-by-step:**
 1. `resources/js/layouts/app-layout.tsx` me-render `<FloatingFeedbackButton />` di setiap halaman aplikasi (tombol bulat kanan-bawah, `fixed bottom-6 right-6`).
@@ -40,7 +40,7 @@ React.useEffect(() => {
 }, [open]);
 ```
 
-### Buat Feedback (`POST /feedbacks`)
+### Buat Masukan (`POST /feedbacks`)
 
 **Alur step-by-step:**
 1. Request dari floating button (atau halaman feedbacks) → middleware `can:view feedbacks` (grup) + `can:create feedbacks`.
@@ -48,7 +48,7 @@ React.useEffect(() => {
 3. Dalam `DB::transaction`: file (bila ada) disimpan `$file->store('feedbacks', 'public')` dengan nama asli disimpan di `attachment_name`; `Feedback::create()` dengan `user_id = auth()->id()`, `company_id = tenant()`, konteks di atas, `user_agent` dari request, dan `status = 'open'`.
 4. `notifyAdmins($feedback)`: user role `admin`/`finance manager` **anggota perusahaan ini** (`memberOfCurrentCompany()`) → `AppNotification::notify(..., 'feedback_submitted', ...)` berisi `{feedback_id, url}`. Tanpa cakupan itu judul feedback bocor ke admin perusahaan lain.
 5. Bila `type = bug`: `KirimLaporanBugKeWatchpost::dispatch($feedback->id)` setelah transaksi (lihat bagian berikut).
-6. Redirect back + flash "Feedback berhasil dikirim. Terima kasih atas masukannya."
+6. Redirect back + flash "Masukan berhasil dikirim. Terima kasih."
    **Kecuali** request meminta JSON (`wantsJson()`) → `201 {"id": <feedback_id>}`. Dipakai tombol
    "Laporkan ke Tim IT" di halaman error (`useHttp`): redirect `back()` di sana justru memuat ulang
    halaman yang sedang error. Laporan dari halaman error berupa `type=bug`, `priority` `high` untuk
@@ -101,10 +101,10 @@ Watchpost adalah panel pemantau error tim IT (`kisantra/watchpost-laravel` ≥ 1
 - `POST /feedbacks/{id}/status` ditolak dengan flash error "Status laporan ini mengikuti tiket Watchpost #12 dan diatur tim IT di sana."; dropdown **Ubah Status** disembunyikan.
 - **Tanggapi** tetap bisa: `RespondFeedbackRequest` tidak mewajibkan `status` untuk bug yang diteruskan dan controller mengabaikan status kiriman; dialog menampilkan catatan, bukan pilihan status. Prop `showFeedback.status_ikut_watchpost` untuk semua pengguna.
 
-### Daftar Feedback — Tab All / My (`GET /feedbacks`)
+### Daftar Masukan — Tab All / My (`GET /feedbacks`)
 
 **Alur step-by-step:**
-1. User membuka Administrasi → Feedback → middleware `can:view feedbacks`.
+1. User membuka Administrasi → Masukan → middleware `can:view feedbacks`.
 2. `FeedbackController::index()` menghitung `$canManage = $user->can('manage feedbacks')`.
 3. Tab default: `all` untuk pengelola, `mine` untuk lainnya. **Tab All hanya efektif jika `canManage`** — selain itu query selalu `Feedback::forUser($user->id)` (staff mustahil melihat feedback orang lain walau memaksa `?tab=all`).
 4. Filter: `search` (title/description/nama user), `status`, `type`, `priority`; sorting + paginasi `withQueryString()`.
@@ -120,19 +120,19 @@ $baseQuery = ($canManage && $tab === 'all')
     : Feedback::forUser($user->id);
 ```
 
-### Edit Feedback (`PUT /feedbacks/{feedback}`)
+### Ubah Masukan (`PUT /feedbacks/{feedback}`)
 
 **Alur step-by-step:**
 1. Pemilik membuka dialog edit (tombol hanya muncul jika `can_edit`).
 2. Middleware `can:edit feedbacks` → guard controller: `abort_unless($feedback->user_id === auth()->id() && $feedback->canEdit(), 403)` — hanya **pemilik** dan hanya selama status masih `open` (belum diproses admin).
 3. Validasi `UpdateFeedbackRequest` → `$feedback->update($validated)`.
-4. Redirect back + flash "Feedback berhasil diperbarui."
+4. Redirect back + flash "Masukan berhasil diperbarui."
 
-### Hapus Feedback (`DELETE /feedbacks/{feedback}`)
+### Hapus Masukan (`DELETE /feedbacks/{feedback}`)
 
 **Alur step-by-step:**
 1. Middleware `can:delete feedbacks`.
-2. Guard: boleh dihapus oleh **pemilik** ATAU siapa pun dengan `manage feedbacks`; jika pemilik tetapi status bukan `open` → flash error "Feedback yang sudah diproses tidak dapat dihapus." (pengelola tetap boleh menghapus status apa pun).
+2. Guard: boleh dihapus oleh **pemilik** ATAU siapa pun dengan `manage feedbacks`; jika pemilik tetapi status bukan `open` → flash error "Masukan yang sudah diproses tidak dapat dihapus." (pengelola tetap boleh menghapus status apa pun).
 3. `$feedback->delete()` — hook `deleting` di model otomatis menghapus file lampiran dari storage.
    Catatan UI: tombol **Hapus** di dialog detail hanya tampil bila `can_delete` (pemilik + `open`); hak pengelola menghapus feedback siapa pun hanya bisa dipakai lewat endpoint, tidak ada tombolnya di layar.
 4. Redirect back + flash success.
@@ -143,18 +143,18 @@ $baseQuery = ($canManage && $tab === 'all')
 abort_unless($feedback->user_id === auth()->id() || auth()->user()->can('manage feedbacks'), 403);
 
 if ($feedback->user_id === auth()->id() && ! $feedback->canDelete()) {
-    return redirect()->back()->with('error', 'Feedback yang sudah diproses tidak dapat dihapus.');
+    return redirect()->back()->with('error', 'Masukan yang sudah diproses tidak dapat dihapus.');
 }
 ```
 
-### Tanggapi Feedback (`POST /feedbacks/{feedback}/respond`)
+### Tanggapi Masukan (`POST /feedbacks/{feedback}/respond`)
 
 **Alur step-by-step:**
 1. Admin/FM membuka detail feedback → menulis tanggapan + memilih status baru.
 2. Middleware `can:respond feedbacks` + guard ganda di controller: `can('respond feedbacks')` dan `$feedback->canRespond()` (hanya `open`/`in_progress` — feedback resolved/closed tidak bisa ditanggapi lagi).
 3. Validasi `RespondFeedbackRequest`: `response` max 5000, `status` in `in_progress,resolved,closed` (respond selalu memajukan status, tidak boleh kembali ke `open`).
 4. `$feedback->respond(auth()->id(), $response, $status)` mengisi `admin_response`, `responded_by`, `responded_at`, `status`.
-5. `AppNotification::notify($feedback->user_id, 'feedback_responded', ...)` — pemilik mendapat notifikasi bell. Hanya ada satu `admin_response`: menanggapi ulang (tombol berubah menjadi **Edit Tanggapan** di UI) menimpa tanggapan lama dan mengirim notifikasi lagi.
+5. `AppNotification::notify($feedback->user_id, 'feedback_responded', ...)` — pemilik mendapat notifikasi bell. Hanya ada satu `admin_response`: menanggapi ulang (tombol berubah menjadi **Ubah Tanggapan** di UI) menimpa tanggapan lama dan mengirim notifikasi lagi.
 6. Redirect back + flash "Tanggapan berhasil dikirim."
 
 **Penjelasan kode** (`app/Models/Feedback.php`):
@@ -195,7 +195,7 @@ public function respond(int $responderId, string $response, ?string $newStatus =
 
 ### Panduan & video tutorial
 
-1. Tombol **Tutorial** di header halaman Feedback (`<TutorialButton slug="feedbacks" />`, di samping **Kirim Feedback**) membuka video per role; teks lengkap di `/panduan/feedbacks`.
+1. Tombol **Tutorial** di header halaman Masukan (`<TutorialButton slug="feedbacks" />`, di samping **Kirim Masukan**) membuka video per role; teks lengkap di `/panduan/feedbacks`.
 2. Isi panduan: `video/feedbacks/guide.ts` (alur Terbuka → Diproses → Selesai → Ditutup, cara mengirim/menanggapi, dampak notifikasi, peringatan). Video: `video/feedbacks/tutorial.tsx` (`FeedbacksStaff`, `FeedbacksFinanceManager`, `FeedbacksAdmin`), langkah di `steps.ts`, koordinat di `shots.ts`.
 3. Ambil ulang screenshot: jalankan server QC di port 8017, lalu `video/capture/feedbacks.js` lewat Playwright MCP. Skrip itu membuat 2 feedback milik `staff@qc.test` (Fitur → Diproses, Bug → Selesai, lampiran `video/capture/fixtures/feedback-tangkapan-layar.png`) beserta notifikasinya; hapus dulu keduanya bila ingin mengulang. Lalu `python video/capture/to-webp.py feedbacks`.
 4. Perubahan alur status, tombol, atau notifikasi modul ini harus diikuti pembaruan `guide.ts`, ambil ulang screenshot, dan `shots.ts`/`steps.ts`.

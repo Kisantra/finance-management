@@ -1,6 +1,7 @@
 import { ArrowUpDown } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { t } from '@/i18n';
 
 /*
  * Bahan tabel bersama tab Semua / Pemasukan / Pengeluaran (gaya Obsidian), supaya ketiga tab
@@ -56,7 +57,7 @@ export function SortableTh({ label, column, current, direction, onSort, align = 
 /** Isi kolom "Diinput oleh": nama pencatat, atau "Tidak tercatat" untuk data sebelum pencatat direkam. */
 export function InputByText({ name }: { name: string | null }) {
     if (!name) {
-        return <span className="text-xs text-ob-ink-3">Tidak tercatat</span>;
+        return <span className="text-xs text-ob-ink-3">{t('Tidak tercatat')}</span>;
     }
     return <span className="block max-w-40 truncate text-ob-ink-2">{name}</span>;
 }

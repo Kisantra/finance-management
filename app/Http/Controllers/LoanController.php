@@ -163,7 +163,7 @@ class LoanController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Utang berhasil dicatat');
+        return back()->with('success', __('Utang berhasil dicatat'));
     }
 
     public function update(UpdateLoanRequest $request, Loan $loan): RedirectResponse
@@ -177,7 +177,7 @@ class LoanController extends Controller
             ->where('transaction_type', 'credit')
             ->exists();
 
-        abort_if($loan->status !== 'active', 403, 'Utang yang sudah lunas tidak dapat diedit');
+        abort_if($loan->status !== 'active', 403, __('Utang yang sudah lunas tidak dapat diubah'));
 
         $validated = $request->validated();
 
@@ -210,12 +210,12 @@ class LoanController extends Controller
             'contract_attachment' => $attachmentPath,
         ]);
 
-        return back()->with('success', 'Utang berhasil diperbarui');
+        return back()->with('success', __('Utang berhasil diperbarui'));
     }
 
     public function destroy(Loan $loan): RedirectResponse
     {
-        abort_if($loan->payments()->exists(), 403, 'Utang yang sudah memiliki pembayaran tidak dapat dihapus');
+        abort_if($loan->payments()->exists(), 403, __('Utang yang sudah memiliki pembayaran tidak dapat dihapus'));
 
         DB::transaction(function () use ($loan) {
             // Pencairan pinjaman membentuk transaksi masuk di bank, ditautkan
@@ -236,12 +236,12 @@ class LoanController extends Controller
             $loan->delete();
         });
 
-        return back()->with('success', 'Utang berhasil dihapus beserta mutasi pencairannya');
+        return back()->with('success', __('Utang berhasil dihapus beserta mutasi pencairannya'));
     }
 
     public function pay(PayLoanRequest $request, Loan $loan): RedirectResponse
     {
-        abort_if($loan->status !== 'active', 403, 'Utang ini tidak dapat dibayar');
+        abort_if($loan->status !== 'active', 403, __('Utang ini tidak dapat dibayar'));
 
         $paidPrincipal = (int) $loan->payments()->sum('principal_paid');
         $remainingPrincipal = $loan->principal_amount - $paidPrincipal;
@@ -259,20 +259,20 @@ class LoanController extends Controller
         $interestPaid = (int) ($validated['interest_paid'] ?? 0);
 
         if ($principalPaid === 0 && $interestPaid === 0) {
-            return back()->withErrors(['principal_paid' => 'Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga']);
+            return back()->withErrors(['principal_paid' => __('Minimal salah satu harus diisi: Pembayaran Pokok atau Bunga')]);
         }
 
         // Pembayaran tidak boleh melampaui sisa. Tanpa batas ini kas terdebit
         // penuh dan sisa pokok/bunga menjadi negatif.
         if ($principalPaid > $remainingPrincipal) {
             return back()->withErrors([
-                'principal_paid' => 'Pembayaran pokok melebihi sisa pokok (Rp '.number_format($remainingPrincipal, 0, ',', '.').').',
+                'principal_paid' => __('Pembayaran pokok melebihi sisa pokok (Rp :sisa).', ['sisa' => number_format($remainingPrincipal, 0, ',', '.')]),
             ]);
         }
 
         if ($interestPaid > $remainingInterest) {
             return back()->withErrors([
-                'interest_paid' => 'Pembayaran bunga melebihi sisa bunga (Rp '.number_format($remainingInterest, 0, ',', '.').').',
+                'interest_paid' => __('Pembayaran bunga melebihi sisa bunga (Rp :sisa).', ['sisa' => number_format($remainingInterest, 0, ',', '.')]),
             ]);
         }
 
@@ -320,7 +320,7 @@ class LoanController extends Controller
             }
         });
 
-        return back()->with('success', 'Pembayaran utang berhasil dicatat');
+        return back()->with('success', __('Pembayaran utang berhasil dicatat'));
     }
 
     private function generateLoanNumber(): string

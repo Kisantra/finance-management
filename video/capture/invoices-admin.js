@@ -25,7 +25,7 @@ async (page) => {
   await ctx.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
       const s = document.createElement('style');
-      s.textContent = 'button[aria-label="Kirim Feedback"],[data-sonner-toaster]{display:none!important}';
+      s.textContent = 'button[aria-label="Kirim Masukan"],[data-sonner-toaster]{display:none!important}';
       document.head.appendChild(s);
     });
   });
@@ -33,7 +33,7 @@ async (page) => {
   await p.goto(BASE + '/login');
   await p.locator('input[type=email]').fill('admin@gmail.com');
   await p.locator('input[type=password]').fill('password');
-  await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+  await p.getByRole('button', { name: 'Masuk', exact: true }).click();
   await p.waitForURL(/dashboard/);
 
   const settle = async () => {
@@ -119,7 +119,7 @@ async (page) => {
     payments: parentOf(drawer().getByRole('heading', { name: /^Pembayaran/ })),
     history: parentOf(drawer().getByRole('heading', { name: 'Riwayat' })),
     profit: parentOf(drawer().getByText('Laba kotor', { exact: true })),
-    editPay: drawer().getByRole('button', { name: /^Edit pembayaran/ }),
+    editPay: drawer().getByRole('button', { name: /^Ubah pembayaran/ }),
     delPay: drawer().getByRole('button', { name: /^Hapus pembayaran/ }),
     tabs: drawer().getByRole('radiogroup', { name: 'Tampilan detail' }),
   });
@@ -142,7 +142,7 @@ async (page) => {
     total: p.getByText(/Total pemasukan/i).first().locator('xpath=..'),
   });
 
-  /* Laba rugi bulan ini: pendapatan invoice (kas) & HPP cost-recovery. */
+  /* Laba rugi bulan ini: pendapatan invoice (kas) & HPP pemulihan biaya. */
   await p.goto(BASE + '/reports/profit-loss');
   await p.getByRole('button', { name: 'Bulan ini', exact: true }).click();
   const apply = p.getByRole('button', { name: 'Terapkan' });
@@ -154,7 +154,7 @@ async (page) => {
   await snap('admin-pl', {
     period: p.getByText(/^Periode:/),
     revenue: revenue.locator('xpath=..'),
-    cogs: p.getByText('HPP Invoice (cost-recovery)').locator('xpath=..'),
+    cogs: p.getByText('HPP Invoice (pemulihan biaya)').locator('xpath=..'),
     gross: p.getByText(/^Laba Kotor/).first().locator('xpath=..'),
     unclassified: p.getByText(/Perlu Diklasifikasi/).first().locator('xpath=../../..'),
   });

@@ -36,6 +36,7 @@ php artisan test                       # Run tests
 ./vendor/bin/pint                      # Format code
 php artisan pail                       # View logs real-time
 npm run build                          # Build for production
+npm run i18n:check                     # Pemindai multi bahasa (teks tanpa t(), kunci kamus en/zh) — wajib 0 galat
 npm run video                          # Remotion Studio (video tutorial, folder video/)
 npm run video:render -- <Id> out/x.mp4 # Render video, mis. ReimbursementStaff
 ```
@@ -292,33 +293,83 @@ $pdf = (new InvoicePrintService())->generateSingleInvoicePdf($invoice, $dp, $pel
 
 ## Development Guidelines
 
-### Translation & Localization Protocol
+### Multi Bahasa (id · en · zh)
 
-Aplikasi mendukung **id / en / zh**. Locale aktif dibagikan ke frontend lewat prop Inertia `locale` (`HandleInertiaRequests::share()`).
+**CRITICAL: setiap teks yang tampil ke pengguna WAJIB lewat `t()` (React) atau `__()` (server). CI menolak teks keras (`npm run i18n:check` + `TeksServerMultiBahasaTest`).**
 
-**Status frontend i18n:** `i18next` + `react-i18next` sudah terpasang di `package.json`, **tetapi belum diinisialisasi** di `resources/js`. Saat ini halaman React belum punya konvensi translation yang mapan. **Sebelum menambah teks UI baru yang perlu i18n, konfirmasi dulu pendekatan yang diinginkan.** Jangan mengarang pola tanpa konfirmasi.
+**Keputusan tetap.** K1: kunci terjemahan = **teks Indonesia persis** (`t('Simpan Pemasukan')`); Bahasa Indonesia tidak butuh kamus, terjemahan yang belum ada tampil Indonesia (bukan kunci mentah). K2: PDF, Excel, isi template builder & terbilang **selalu Bahasa Indonesia**. K3: cakupan = tampilan aplikasi + pesan server + email; `/panduan`, video, isi dialog Tutorial, nama kategori & semua data pengguna tampil apa adanya. K4: belum ada peninjau Mandarin — istilah WAJIB ikut `docs/i18n/glosarium.md`. Rupiah & angka tetap format `id-ID` (`Rp 1.500.000`) di semua bahasa.
 
-**Server-side `lang/` masih aktif** — dipakai untuk: pesan validasi, template PDF (Blade), dan heading Excel export.
+**Aturan emas.** Terjemahkan teks yang **tampil pada request/render ini**. Teks yang **disimpan** ke database (deskripsi transaksi otomatis yang dibaca ulang regex, nomor dokumen, teks notifikasi) atau **dikirim ke sistem lain** (Watchpost, alat MCP Claude) tetap Bahasa Indonesia — jangan dibungkus `__()`/`t()`.
 
+**Cara kerja.**
+- Penentu bahasa TUNGGAL: `App\Http\Middleware\SetLocale` — pengguna login → `users.locale`; tamu → sesi; selain itu `id`. `config/app.php`: `available_locales` = `['id','en','zh']`; `locale` & `fallback_locale` dipatok `'id'` (bukan dari `.env`: fallback `en` membuat layar Mandarin jatuh ke Inggris). Carbon ikut otomatis lewat event `LocaleUpdated`.
+- Ganti bahasa: `<LanguageSwitcher>` (`@/components/language-switcher`, header + layout tamu) → `POST /language` (`LanguageController`) → `users.locale` (tamu: sesi + penanda, dibawa ke akun saat masuk oleh `App\Listeners\TerapkanBahasaPilihanTamu`) → `Inertia::location` = **muat ulang penuh**. `HandleInertiaRequests::version()` memuat bahasa, jadi kunjungan Inertia yang bahasanya berubah (masuk/keluar, tab lain) juga dimuat ulang penuh — tidak ada sisa bahasa lama.
+- Frontend: `resources/js/i18n.ts`; `initI18n()` dipanggil `inertia.tsx` SEBELUM render pertama dan memuat `resources/js/locales/{en,zh}.json` (hanya bahasa aktif). Kunci belum diterjemahkan → teks Indonesia + `console.warn('[i18n] belum diterjemahkan: …')` di build dev.
+- Server: `__('teks Indonesia', ['nama' => $x])` + `lang/en.json` & `lang/zh.json`. Teks bawaan Laravel (validasi, auth, pagination, email reset/verifikasi) lewat `lang/{id,en,zh}/*.php` dan `lang/{id,zh}.json` (kuncinya Inggris). Kunci satu kata yang sama dengan nama berkas grup (`feedback`, `invoice`, `pages`, …) ditafsir sebagai grup — hindari.
+- Dokumen: rute PDF/Excel/pratinjau PDF **WAJIB** middleware `locale.dokumen` (`SetDocumentLocale`) dan didaftarkan di `MultiBahasaTest::RUTE_DOKUMEN`; isi dokumen yang dibangun di request tampilan dibungkus `withDocumentLocale(fn () => …)` (contoh: kanvas `PdfTemplateController::edit`).
+
+**API frontend** — `import { t, tk, Trans, formatTanggal, dateLocale, polaTanggal } from '@/i18n'`:
+
+| Kebutuhan | Pakai |
+|---|---|
+| Teks di komponen/fungsi | `t('Simpan')` saat render/fungsi berjalan — satu cara untuk komponen maupun helper (tanpa hook) |
+| Konstanta tingkat modul (peta status, opsi, menu) | `tk('Lunas')` saat didefinisikan, `t(PETA[kode])` saat render. **DILARANG** `t()` di level modul (kamus belum dimuat) |
+| Nilai di dalam kalimat | SATU kalimat utuh + placeholder berbahasa Inggris (`{{name}}`, `{{amount}}`, `{{date}}`, `{{count}}`); nilai diformat dulu (`formatCurrency`, `formatTanggal`). Jangan merangkai potongan kalimat |
+| Bilangan + benda | `t('{{count}} invoice', { count })` → kamus en `…_one` + `…_other`, zh `…_other`. Angka yang bukan hitungan benda: nama lain (`{{n}}`) |
+| Tebal/tautan di dalam kalimat | `<Trans i18nKey="Pengguna baru? <tautan>…</tautan>" values={…} components={{ tautan: <AuthLink href="…" /> }} />`; nama tag `<b>`, `<tautan>` (bukan nama tag HTML kosong seperti `link`/`br`) |
+| Kata sama, terjemahan beda | konteks: `t('Jumlah', { context: 'jurnal' })` / `tk('Lunas', 'angsuran')` → kunci kamus `Jumlah_jurnal`. Nama modul/menu (menu, breadcrumb, judul halaman, `<Head>`) memakai konteks `menu` (EN jamak "Invoices", kolom "Invoice") |
+| Kode yang = teks Indonesia (tipe layanan, peran bawaan) | tampilkan `t(kode)`, simpan/saring tetap kode; daftarkan kodenya dengan `tk()` (`TYPE_COLORS` di `pages/services`, `roleLabel()` di `@/lib/roles`) |
+| Tanggal | `formatDate(v)` (tabel, `@/lib/utils`) atau `formatTanggal(v, 'pendek'\|'panjang'\|'hari'\|'bulan'\|'waktu'\|opsi Intl)`; date-fns di kalender: `format(d, polaTanggal('tanggal'), { locale: dateLocale() })`. Jangan menulis nama bulan/hari sendiri |
+| Label aria pustaka | `DatePicker`, kalender Ringkasan & `Toaster` sudah meneruskan bahasa; komponen pustaka baru wajib diberi `locale`/label dari `dateLocale()`/`t()` |
+
+Jangan menamai variabel lokal `t` di berkas yang mengimpor `t` (ganti: `timer`, `tone`, `tab`) — pemindai menolaknya.
+
+**Pemindai** (0 galat sebelum merge; CI `tests.yml`):
+- Frontend `npm run i18n:check` (`scripts/i18n-check.mjs`): teks JSX, prop teks, toast, `<Head title>`, peta label, nilai bawaan prop, kalimat di return/variabel/setState/penugasan; kunci `t()`/`tk()`/`<Trans>` wajib ada di `locales/{en,zh}.json` dengan placeholder & tag identik dan jamak en. `-- --scope pages/invoices` = satu folder; `-- --kunci-hilang out.json` = ekspor kunci yang belum ada (bahan penerjemah). Pengecualian SATU baris: `// i18n-abaikan: <alasan>` (JSX: `{/* i18n-abaikan: <alasan> */}`) di baris itu, atau di baris tepat di atasnya **bila baris itu murni komentar** (komentar di ekor kode tidak menutup baris berikutnya); pengecualian sebuah kunci `t()` hanya berlaku bila SEMUA pemakaiannya diabaikan. Kolom tabel (`header:`), `meta`, dan peta `*Subtitle` ikut dipindai. Contoh pola yang wajib gagal: `tests/Fixtures/i18n-pemindai` (`PemindaiI18nTest`, `--root <folder>`). `pages/guide/**` tidak dipindai.
+- Server `tests/Unit/TeksServerMultiBahasaTest.php`: literal tanpa `__()` di flash, `withErrors`, `ValidationException::withMessages`, `'message'` JSON, `abort*()`, `messages()`/`attributes()` FormRequest; kunci `__()` ada di `lang/{en,zh}.json`; `lang/{en,zh}/*.php` sejajar `lang/id`. Perilaku: `tests/Feature/MultiBahasaTest.php`.
+
+**Menambah teks baru:** tulis teks Indonesia di `t()`/`__()` → `npm run i18n:check -- --scope <folder>` → tambah entri ke `resources/js/locales/en.json` & `zh.json` (server: `lang/en.json` & `lang/zh.json`) memakai istilah glosarium → 0 galat.
+
+#### Panduan ekstraksi (contoh nyata dari pilot)
+
+```tsx
+// 1. <Head> & judul halaman = nama modul → konteks 'menu'                       (pages/services/index.tsx)
+<Head title="Layanan" />                     →  <Head title={t('Layanan', { context: 'menu' })} />
+
+// 2. Toast
+toast.success('Layanan berhasil ditambahkan.')  →  toast.success(t('Layanan berhasil ditambahkan.'))
+
+// 3. Kalimat dengan nilai: satu kalimat utuh + placeholder
+description={`Apakah Anda yakin ingin menghapus "${deleteTarget.name}"?`}
+  →  description={t('Apakah Anda yakin ingin menghapus "{{name}}"?', { name: deleteTarget.name })}
+{services.from ?? 0}–{services.to ?? 0} dari {services.total}
+  →  {t('{{from}}–{{to}} dari {{total}}', { from: services.from ?? 0, to: services.to ?? 0, total: services.total })}
+
+// 4. Peta status/kode: tk() saat didefinisikan, t() saat render                  (components/jadwal-angsuran.tsx)
+const STATUS = { lunas: { label: 'Lunas', tone: 'pos' }, … }
+  →  const STATUS = { lunas: { label: tk('Lunas', 'angsuran'), tone: 'pos' }, … }  …  {t(label, { context: 'angsuran' })}
+//    kode tersimpan yang sekaligus teks Indonesia                               (pages/services/index.tsx)
+const TYPE_COLORS = { [tk('Perizinan')]: 'blue', … }  …  <Badge>{t(s.type)}</Badge>   // simpan & saring tetap s.type
+
+// 5. Jamak                                                                         (notification-drawer.tsx)
+`${m} menit lalu`  →  t('{{count}} menit lalu', { count: m })
+//    en.json: "{{count}} menit lalu_one": "{{count}} minute ago", "{{count}} menit lalu_other": "{{count}} minutes ago"
+//    zh.json: "{{count}} menit lalu_other": "{{count}} 分钟前"
+
+// 6. Bagian tebal di dalam kalimat (Trans)                                         (components/shared/pagination.tsx)
+Menampilkan <span className="…">{from}</span>–<span className="…">{to}</span> dari <span className="…">{total}</span> data
+  →  <Trans i18nKey="Menampilkan <b>{{from}}</b>–<b>{{to}}</b> dari <b>{{count}}</b> data" count={total}
+            values={{ from, to }} components={{ b: <span className="font-medium text-ob-ink-2" /> }} />
+//    kalimat bervariasi = beberapa kalimat utuh, bukan potongan                    (components/shared/financing.tsx)
+tk('<b>Pendanaan:</b> saldo {{account}} bertambah {{amount}}, Laba Rugi tidak berubah.')  // + "berkurang", + tanpa nominal
 ```
-lang/
-├── id/  (UTAMA) — common.php, pages.php, invoice.php, feedback.php, validation.php
-├── en/  (partial)
-└── zh/  (sync dengan id/ — salin nilai sama, terjemahan Mandarin diupdate terpisah)
+
+```php
+// 7. Server: teks yang tampil di request ini
+return back()->with('success', 'Layanan berhasil ditambahkan.');
+  →  return back()->with('success', __('Layanan berhasil ditambahkan.'));   // + entri lang/en.json & lang/zh.json
+// Teks yang DISIMPAN (deskripsi transfer otomatis, dibaca ulang regex) TIDAK dibungkus __().
 ```
-
-**Aturan saat menyentuh `lang/`:** key baru ditambah ke `lang/id/` lalu langsung ke `lang/zh/` (nilai sama dulu). `common.php` untuk string reusable; `pages.php` dengan prefix module (`fund_request_title`, `fund_request_status_draft`).
-
-### Dynamic Translation (Data dari DB — backend/PDF only)
-
-| Sumber | Metode | Contoh |
-|--------|--------|--------|
-| UI string hardcoded | `__('file.key')` | `__('common.save')` |
-| Enum/status diketahui | `__('pages.status_' . $model->status)` | — |
-| Data dari DB (user-generated) | `translate_text($text)` | `translate_text($row->name)` |
-| Nama kategori transaksi | `translate_category($name)` | `translate_category($row->label)` |
-
-`translate_text()` dan `translate_category()` ada di `app/helpers.php` + `app/Services/TranslationService.php`. Cache 6 bulan, fallback ke teks asli jika gagal.
 
 ### Currency
 
@@ -342,6 +393,7 @@ Berlaku untuk: shadcn/ui components, library React (react-day-picker, cmdk, reac
 | Balance incorrect | Balance is computed dynamically, NOT stored — cek transaction types |
 | Currency display | Simpan integer; tampilkan dengan `CurrencyInput` atau `Intl.NumberFormat('id-ID')` |
 | Vite/React changes not visible | Run `npm run build` atau `composer run dev` |
+| Teks tetap Indonesia di EN/ZH | Belum dibungkus `t()`/`__()` (jalankan `npm run i18n:check`) atau kunci belum ada di kamus (console dev: `[i18n] belum diterjemahkan`) |
 
 ---
 
@@ -358,7 +410,10 @@ Berlaku untuk: shadcn/ui components, library React (react-day-picker, cmdk, reac
 | `app/Models/RecurringTemplate.php` | Recurring date calculations |
 | `app/Models/BankAccount.php` | Dynamic balance |
 | `app/Http/Middleware/HandleInertiaRequests.php` | Shared Inertia props (auth, locale, flash, notifications) |
-| `app/helpers.php` | translate_text(), translate_category() |
+| `app/helpers.php` | `withDocumentLocale()` (isi dokumen selalu Bahasa Indonesia) |
+| `resources/js/i18n.ts` | Inti multi bahasa: `t`, `tk`, `Trans`, `initI18n`, helper tanggal; kamus `resources/js/locales/{en,zh}.json` |
+| `app/Http/Middleware/SetLocale.php` | Satu-satunya penentu bahasa per request; `SetDocumentLocale` = alias `locale.dokumen` |
+| `scripts/i18n-check.mjs` | Pemindai teks multi bahasa frontend (`npm run i18n:check`) |
 | `database/seeders/MasterPermissionSeeder.php` | Permission structure |
 | `routes/web.php` | All route definitions |
 | `resources/views/pdf/kisantra-invoice.blade.php` | Main invoice template |

@@ -16,6 +16,8 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { formatTanggal, t, tk } from '@/i18n';
+import { compactRupiah } from '@/components/dashboard/cash-flow-chart';
 import { AppLayout } from '@/layouts/app-layout';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
@@ -169,10 +171,10 @@ interface PageProps {
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const FREQUENCY_LABELS: Record<string, string> = {
-    monthly: 'Bulanan',
-    quarterly: 'Triwulanan',
-    semi_annual: 'Semesteran',
-    annual: 'Tahunan',
+    monthly: tk('Bulanan'),
+    quarterly: tk('Triwulanan'),
+    semi_annual: tk('Semesteran'),
+    annual: tk('Tahunan'),
 };
 
 const FREQUENCY_COLORS: Record<string, string> = {
@@ -182,8 +184,10 @@ const FREQUENCY_COLORS: Record<string, string> = {
     annual: 'emerald',
 };
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-const MONTH_NAMES_FULL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+/** "Agustus 2026" menurut bahasa aktif. */
+function monthYear(month: number, year: number): string {
+    return formatTanggal(new Date(year, month - 1, 1), 'bulan');
+}
 
 const EMPTY_ITEM: ItemForm = { client_id: null, service_name: '', quantity: 1, unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
 
@@ -245,22 +249,22 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wide">{items.length} item</span>
+                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wide">{t('{{count}} item', { count: items.length })}</span>
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={resetWidths}
                         className="hidden sm:block text-xs text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors"
-                        title="Reset lebar kolom ke default"
+                        title={t('Kembalikan lebar kolom bawaan')}
                     >
-                        Reset Ukuran Kolom
+                        {t('Kembalikan Ukuran Kolom')}
                     </button>
                     <button
                         type="button"
                         onClick={addItem}
                         className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
                     >
-                        <Plus className="w-3.5 h-3.5" /> Tambah Item
+                        <Plus className="w-3.5 h-3.5" /> {t('Tambah Item')}
                     </button>
                 </div>
             </div>
@@ -270,29 +274,29 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
                     <thead>
                         <tr className="bg-secondary-50 dark:bg-dark-800 border-b border-secondary-200 dark:border-dark-600">
                             <ResizableTh width={widths.no} onResizeStart={(e) => onMouseDown('no', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-400 dark:text-dark-500 text-left">#</ResizableTh>
-                            <ResizableTh width={widths.client} onResizeStart={(e) => onMouseDown('client', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Klien</ResizableTh>
-                            <ResizableTh width={widths.service} onResizeStart={(e) => onMouseDown('service', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Nama Layanan</ResizableTh>
+                            <ResizableTh width={widths.client} onResizeStart={(e) => onMouseDown('client', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Klien')}</ResizableTh>
+                            <ResizableTh width={widths.service} onResizeStart={(e) => onMouseDown('service', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Nama Layanan')}</ResizableTh>
                             <ResizableTh width={widths.qty} onResizeStart={(e) => onMouseDown('qty', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">
                                 <TooltipProvider delayDuration={0}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <span className="inline-flex items-center gap-1 cursor-default">
-                                                Qty
+                                                {t('Qty')}
                                                 <Info className="w-3 h-3 text-primary-400 dark:text-primary-500" />
                                             </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="max-w-48 text-center leading-relaxed">
-                                            Gunakan titik atau koma sebagai pemisah desimal.<br />
-                                            Contoh: <span className="font-mono">1.5</span>, <span className="font-mono">5.000,25</span>
+                                            {t('Gunakan titik atau koma sebagai pemisah desimal.')}<br />
+                                            {t('Contoh:')} <span className="font-mono">1.5</span>, <span className="font-mono">5.000,25</span>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             </ResizableTh>
-                            <ResizableTh width={widths.unit} onResizeStart={(e) => onMouseDown('unit', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Satuan</ResizableTh>
-                            <ResizableTh width={widths.price} onResizeStart={(e) => onMouseDown('price', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Harga Sat.</ResizableTh>
-                            <ResizableTh width={widths.hpp} onResizeStart={(e) => onMouseDown('hpp', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">HPP</ResizableTh>
-                            <ResizableTh width={widths.pph} onResizeStart={(e) => onMouseDown('pph', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left" title="Titipan Pajak (PPh)">PPh</ResizableTh>
-                            <ResizableTh width={widths.subtotal} onResizeStart={(e) => onMouseDown('subtotal', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Subtotal</ResizableTh>
+                            <ResizableTh width={widths.unit} onResizeStart={(e) => onMouseDown('unit', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Satuan')}</ResizableTh>
+                            <ResizableTh width={widths.price} onResizeStart={(e) => onMouseDown('price', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Harga Sat.')}</ResizableTh>
+                            <ResizableTh width={widths.hpp} onResizeStart={(e) => onMouseDown('hpp', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('HPP')}</ResizableTh>
+                            <ResizableTh width={widths.pph} onResizeStart={(e) => onMouseDown('pph', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left" title={t('Titipan Pajak (PPh)')}>{t('PPh')}</ResizableTh>
+                            <ResizableTh width={widths.subtotal} onResizeStart={(e) => onMouseDown('subtotal', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Subtotal')}</ResizableTh>
                             <th style={{ width: widths.del, minWidth: widths.del }} />
                         </tr>
                     </thead>
@@ -307,7 +311,7 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
                                         options={clientOptions}
                                         value={item.client_id}
                                         onChange={(v) => updateItem(idx, 'client_id', v ? Number(v) : null)}
-                                        placeholder="Pilih klien..."
+                                        placeholder={t('Pilih klien...')}
                                         clearable
                                         popoverWidth="w-56"
                                         className="w-full [&_button]:h-8 [&_button]:text-xs [&_button]:px-2 [&_button]:rounded-md [&_button]:ring-0 [&_button]:shadow-none"
@@ -317,7 +321,7 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
                                     <Input
                                         value={item.service_name}
                                         onChange={(e) => handleServiceChange(idx, e.target.value)}
-                                        placeholder="Nama layanan..."
+                                        placeholder={t('Nama layanan...')}
                                         list={`services-monthly-${idx}`}
                                         error={errors?.[`items.${idx}.service_name`]}
                                         className={itemCellCls}
@@ -341,7 +345,7 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
                                         list={`unit-monthly-${idx}`}
                                         value={item.unit}
                                         onChange={(e) => updateItem(idx, 'unit', e.target.value)}
-                                        placeholder="satuan"
+                                        placeholder={t('satuan')}
                                         className={itemCellCls}
                                     />
                                     <datalist id={`unit-monthly-${idx}`}>
@@ -358,7 +362,7 @@ function ItemsRepeater({ items, onChange, clients, services, defaultClientId, er
                                     <button
                                         type="button"
                                         onClick={() => updateItem(idx, 'is_tax_deposit', !item.is_tax_deposit)}
-                                        title={item.is_tax_deposit ? 'Titipan pajak: aktif' : 'Titipan pajak: nonaktif'}
+                                        title={item.is_tax_deposit ? t('Titipan pajak: aktif') : t('Titipan pajak: nonaktif')}
                                         className={cn(
                                             'h-5 w-5 rounded inline-flex items-center justify-center border text-xs font-bold transition-colors',
                                             item.is_tax_deposit
@@ -416,16 +420,16 @@ function InvoiceSummary({ items, summary, onSummaryChange }: InvoiceSummaryProps
 
     return (
         <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-secondary-50 dark:bg-dark-800 p-4 space-y-4">
-            <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50">Ringkasan</h4>
+            <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t('Ringkasan')}</h4>
 
             {/* Discount */}
             <div className="space-y-2">
-                <Label className="text-xs text-dark-500 dark:text-dark-400">Diskon</Label>
+                <Label className="text-xs text-dark-500 dark:text-dark-400">{t('Diskon')}</Label>
                 <div className="flex gap-2">
                     <Tabs
                         items={[
-                            { value: 'fixed', label: 'Nominal' },
-                            { value: 'percentage', label: 'Persen' },
+                            { value: 'fixed', label: t('Nominal') },
+                            { value: 'percentage', label: t('Persen') },
                         ]}
                         value={summary.discount_type}
                         onChange={(v) => onSummaryChange({ ...summary, discount_type: v as 'fixed' | 'percentage' })}
@@ -450,7 +454,7 @@ function InvoiceSummary({ items, summary, onSummaryChange }: InvoiceSummaryProps
                 </div>
                 {summary.discount_value > 0 && (
                     <Input
-                        placeholder="Alasan diskon (opsional)"
+                        placeholder={t('Alasan diskon (opsional)')}
                         value={summary.discount_reason}
                         onChange={(e) => onSummaryChange({ ...summary, discount_reason: e.target.value })}
                     />
@@ -462,24 +466,24 @@ function InvoiceSummary({ items, summary, onSummaryChange }: InvoiceSummaryProps
             {/* Totals */}
             <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-dark-600 dark:text-dark-400">
-                    <span>Subtotal</span>
+                    <span>{t('Subtotal')}</span>
                     <span>{formatCurrency(subtotal)}</span>
                 </div>
                 {taxDeposit > 0 && (
                     <div className="flex justify-between text-dark-600 dark:text-dark-400">
-                        <span>Titipan Pajak</span>
+                        <span>{t('Titipan Pajak')}</span>
                         <span>{formatCurrency(taxDeposit)}</span>
                     </div>
                 )}
                 {discountAmount > 0 && (
                     <div className="flex justify-between text-red-600 dark:text-red-400">
-                        <span>Diskon {summary.discount_type === 'percentage' && summary.discount_value > 0 ? `(${summary.discount_value}%)` : ''}</span>
+                        <span>{summary.discount_type === 'percentage' && summary.discount_value > 0 ? t('Diskon ({{value}}%)', { value: summary.discount_value }) : t('Diskon')}</span>
                         <span>- {formatCurrency(discountAmount)}</span>
                     </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-dark-900 dark:text-dark-50">
-                    <span>Total</span>
+                    <span>{t('Total')}</span>
                     <span className="text-primary-600 dark:text-primary-400">{formatCurrency(total)}</span>
                 </div>
             </div>
@@ -561,7 +565,7 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
 
     const loadFromTemplate = (templateId: number | null) => {
         if (!templateId) return;
-        const tmpl = activeTemplates.find((t) => t.id === templateId);
+        const tmpl = activeTemplates.find((tpl) => tpl.id === templateId);
         if (!tmpl) return;
         const d = tmpl.invoice_template;
         setForm((prev) => ({
@@ -615,7 +619,7 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                     setErrors(json.errors);
                     toastErrors(json.errors, 'RecurringInvoiceForm');
                 } else {
-                    toastError(json.message ?? 'Terjadi kesalahan.');
+                    toastError(json.message ?? t('Terjadi kesalahan.'));
                     console.error('[RecurringInvoiceForm]', res.status, json);
                 }
                 return;
@@ -625,14 +629,14 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
             onSuccess(json.invoice);
             onClose();
         } catch (err) {
-            toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.');
+            toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.'));
             console.error('[RecurringInvoiceForm]', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const templateOptions = activeTemplates.map((t) => ({ value: String(t.id), label: t.label }));
+    const templateOptions = activeTemplates.map((tpl) => ({ value: String(tpl.id), label: tpl.label }));
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -643,8 +647,8 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                             <FileText className="w-6 h-6 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                            <DialogTitle>{isEdit ? 'Edit Invoice Recurring' : 'Buat Invoice Recurring'}</DialogTitle>
-                            <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">Invoice draft untuk bulan ini</p>
+                            <DialogTitle>{isEdit ? t('Ubah Invoice Berulang') : t('Buat Invoice Berulang')}</DialogTitle>
+                            <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">{t('Invoice draft untuk bulan ini')}</p>
                         </div>
                     </div>
                 </DialogHeader>
@@ -654,7 +658,7 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                         {!isEdit && (
                             <div className="sm:col-span-2">
                                 <Combobox
-                                    label="Template (opsional)"
+                                    label={t('Template (opsional)')}
                                     options={templateOptions}
                                     value={form.template_id ? String(form.template_id) : ''}
                                     onChange={(v) => {
@@ -662,23 +666,23 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                                         setForm({ ...form, template_id: id });
                                         loadFromTemplate(id);
                                     }}
-                                    placeholder="Pilih template untuk mengisi otomatis"
+                                    placeholder={t('Pilih template untuk mengisi otomatis')}
                                 />
                             </div>
                         )}
                         <DatePicker
-                            label="Tanggal Terjadwal *"
+                            label={t('Tanggal Terjadwal *')}
                             value={form.scheduled_date ? new Date(form.scheduled_date) : undefined}
                             onChange={(d) => setForm({ ...form, scheduled_date: d ? toLocalIso(d) : '' })}
                             error={errors.scheduled_date}
                         />
                         <DatePicker
-                            label="Tanggal Terbit"
+                            label={t('Tanggal Invoice')}
                             value={form.issue_date ? new Date(form.issue_date) : undefined}
                             onChange={(d) => setForm({ ...form, issue_date: d ? toLocalIso(d) : '' })}
                         />
                         <DatePicker
-                            label="Tanggal Jatuh Tempo"
+                            label={t('Tanggal Jatuh Tempo')}
                             value={form.due_date ? new Date(form.due_date) : undefined}
                             onChange={(d) => setForm({ ...form, due_date: d ? toLocalIso(d) : '' })}
                         />
@@ -687,7 +691,7 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
                     <Separator />
 
                     <div>
-                        <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50 mb-3">Item Invoice</h4>
+                        <h4 className="text-sm font-semibold text-dark-900 dark:text-dark-50 mb-3">{t('Item Invoice')}</h4>
                         <ItemsRepeater
                             items={form.items}
                             onChange={(items) => setForm({ ...form, items })}
@@ -706,11 +710,11 @@ function MonthlyFormModal({ open, onClose, onSuccess, editTarget, clients, servi
 
                 <DialogFooter>
                     <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button variant="primary" onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto order-1 sm:order-2">
                         {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        {isEdit ? 'Simpan Perubahan' : 'Buat Invoice'}
+                        {isEdit ? t('Simpan Perubahan') : t('Buat Invoice')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -761,11 +765,11 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
                 body: JSON.stringify({ month, year, issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
-            if (!res.ok) { toastError(json.message ?? 'Gagal generate.'); console.error('[Generate]', res.status, json); return; }
+            if (!res.ok) { toastError(json.message ?? t('Gagal membuat draft.')); console.error('[Generate]', res.status, json); return; }
             toast.success(json.message);
             onSuccess();
             onClose();
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[Generate]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[Generate]', err); }
         finally { setLoading(false); }
     };
 
@@ -778,9 +782,9 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
                             <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <DialogTitle>Generate Invoice Otomatis</DialogTitle>
+                            <DialogTitle>{t('Buat Draft Invoice Otomatis')}</DialogTitle>
                             <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">
-                                {MONTH_NAMES_FULL[month - 1]} {year}
+                                {monthYear(month, year)}
                             </p>
                         </div>
                     </div>
@@ -788,16 +792,16 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
 
                 <div className="px-6 pb-2 space-y-4">
                     <p className="text-sm text-dark-600 dark:text-dark-400">
-                        Sistem akan membuat invoice draft dari semua template aktif yang sesuai dengan jadwal bulan ini.
+                        {t('Sistem akan membuat invoice draft dari semua template aktif yang sesuai dengan jadwal bulan ini.')}
                     </p>
                     <div className="grid grid-cols-2 gap-4">
                         <DatePicker
-                            label="Tanggal Terbit"
+                            label={t('Tanggal Invoice')}
                             value={issueDate ? new Date(issueDate) : undefined}
                             onChange={(d) => setIssueDate(d ? toLocalIso(d) : '')}
                         />
                         <DatePicker
-                            label="Jatuh Tempo"
+                            label={t('Jatuh Tempo')}
                             value={dueDate ? new Date(dueDate) : undefined}
                             onChange={(d) => setDueDate(d ? toLocalIso(d) : '')}
                         />
@@ -805,10 +809,10 @@ function GenerateModal({ open, onClose, onSuccess, month, year }: GenerateModalP
                 </div>
 
                 <DialogFooter>
-                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">Batal</Button>
+                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">{t('Batal')}</Button>
                     <Button variant="primary" onClick={handle} disabled={loading} className="w-full sm:w-auto order-1 sm:order-2">
                         {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Generate Sekarang
+                        {t('Buat Sekarang')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -852,11 +856,11 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
                 body: JSON.stringify({ issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
-            if (!res.ok) { toastError(json.message ?? 'Gagal publish.'); console.error('[Publish]', res.status, json); return; }
+            if (!res.ok) { toastError(json.message ?? t('Gagal menjadikan invoice.')); console.error('[Publish]', res.status, json); return; }
             toast.success(json.message);
             onSuccess(json.invoice);
             onClose();
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[Publish]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[Publish]', err); }
         finally { setLoading(false); }
     };
 
@@ -869,7 +873,7 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
                             <Send className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <DialogTitle>Publish Invoice</DialogTitle>
+                            <DialogTitle>{t('Jadikan Invoice')}</DialogTitle>
                             <p className="text-sm text-dark-600 dark:text-dark-400 mt-0.5">
                                 {invoice?.client_name} · {invoice?.template_name}
                             </p>
@@ -879,16 +883,16 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
 
                 <div className="px-6 pb-2 space-y-4">
                     <p className="text-sm text-dark-600 dark:text-dark-400">
-                        Invoice akan dipublish dan menjadi invoice permanen. Tidak bisa diedit setelah dipublish.
+                        {t('Draft ini akan dijadikan invoice di menu Invoice dan tidak bisa diubah lagi di sini.')}
                     </p>
                     <div className="grid grid-cols-2 gap-4">
                         <DatePicker
-                            label="Tanggal Terbit *"
+                            label={t('Tanggal Invoice *')}
                             value={issueDate ? new Date(issueDate) : undefined}
                             onChange={(d) => setIssueDate(d ? toLocalIso(d) : '')}
                         />
                         <DatePicker
-                            label="Jatuh Tempo *"
+                            label={t('Jatuh Tempo *')}
                             value={dueDate ? new Date(dueDate) : undefined}
                             onChange={(d) => setDueDate(d ? toLocalIso(d) : '')}
                         />
@@ -896,10 +900,10 @@ function PublishModal({ open, onClose, onSuccess, invoice }: PublishModalProps) 
                 </div>
 
                 <DialogFooter>
-                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">Batal</Button>
+                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">{t('Batal')}</Button>
                     <Button variant="green" onClick={handle} disabled={loading} className="w-full sm:w-auto order-1 sm:order-2">
                         {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Publish
+                        {t('Jadikan Invoice')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -931,11 +935,11 @@ function BulkPublishModal({ open, onClose, onSuccess, selectedIds }: BulkPublish
                 body: JSON.stringify({ ids: selectedIds, issue_date: issueDate, due_date: dueDate }),
             });
             const json = await res.json();
-            if (!res.ok) { toastError(json.message ?? 'Gagal bulk publish.'); console.error('[BulkPublish]', res.status, json); return; }
+            if (!res.ok) { toastError(json.message ?? t('Gagal menjadikan invoice secara massal.')); console.error('[BulkPublish]', res.status, json); return; }
             toast.success(json.message);
             onSuccess();
             onClose();
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[BulkPublish]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[BulkPublish]', err); }
         finally { setLoading(false); }
     };
 
@@ -948,18 +952,18 @@ function BulkPublishModal({ open, onClose, onSuccess, selectedIds }: BulkPublish
                             <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <DialogTitle>Publish {selectedIds.length} Invoice</DialogTitle>
+                            <DialogTitle>{t('Jadikan {{count}} Invoice', { count: selectedIds.length })}</DialogTitle>
                         </div>
                     </div>
                 </DialogHeader>
                 <div className="px-6 pb-2 grid grid-cols-2 gap-4">
-                    <DatePicker label="Tanggal Terbit *" value={issueDate ? new Date(issueDate) : undefined} onChange={(d) => setIssueDate(d ? toLocalIso(d) : '')} />
-                    <DatePicker label="Jatuh Tempo *" value={dueDate ? new Date(dueDate) : undefined} onChange={(d) => setDueDate(d ? toLocalIso(d) : '')} />
+                    <DatePicker label={t('Tanggal Invoice *')} value={issueDate ? new Date(issueDate) : undefined} onChange={(d) => setIssueDate(d ? toLocalIso(d) : '')} />
+                    <DatePicker label={t('Jatuh Tempo *')} value={dueDate ? new Date(dueDate) : undefined} onChange={(d) => setDueDate(d ? toLocalIso(d) : '')} />
                 </div>
                 <DialogFooter>
-                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">Batal</Button>
+                    <Button variant="zinc" onClick={onClose} disabled={loading} className="w-full sm:w-auto order-2 sm:order-1">{t('Batal')}</Button>
                     <Button variant="green" onClick={handle} disabled={loading} className="w-full sm:w-auto order-1 sm:order-2">
-                        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Publish
+                        {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{t('Jadikan Invoice')}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1044,9 +1048,9 @@ export default function RecurringInvoicesIndex({
 
     // ── Filtered templates ──
     const filteredTemplates = React.useMemo(() => {
-        return templates.filter((t) => {
-            const matchStatus = templateStatusFilter === 'all' || t.status === templateStatusFilter;
-            const matchSearch = !templateSearch || t.template_name.toLowerCase().includes(templateSearch.toLowerCase()) || t.client_name.toLowerCase().includes(templateSearch.toLowerCase());
+        return templates.filter((tpl) => {
+            const matchStatus = templateStatusFilter === 'all' || tpl.status === templateStatusFilter;
+            const matchSearch = !templateSearch || tpl.template_name.toLowerCase().includes(templateSearch.toLowerCase()) || tpl.client_name.toLowerCase().includes(templateSearch.toLowerCase());
             return matchStatus && matchSearch;
         });
     }, [templates, templateSearch, templateStatusFilter]);
@@ -1063,11 +1067,11 @@ export default function RecurringInvoicesIndex({
             if (!res.ok) { toastError(json.message); console.error('[DeleteTemplate]', res.status, json); return; }
             toast.success(json.message);
             if (json.archived) {
-                setTemplates((prev) => prev.map((t) => t.id === deleteTemplateTarget!.id ? { ...t, status: 'archived' } : t));
+                setTemplates((prev) => prev.map((tpl) => tpl.id === deleteTemplateTarget!.id ? { ...tpl, status: 'archived' } : tpl));
             } else {
-                setTemplates((prev) => prev.filter((t) => t.id !== deleteTemplateTarget!.id));
+                setTemplates((prev) => prev.filter((tpl) => tpl.id !== deleteTemplateTarget!.id));
             }
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[DeleteTemplate]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[DeleteTemplate]', err); }
         finally { setDeleteTemplateLoading(false); setDeleteTemplateTarget(null); }
     };
 
@@ -1079,8 +1083,8 @@ export default function RecurringInvoicesIndex({
             const json = await res.json();
             if (!res.ok) { toastError(json.message); console.error('[RestoreTemplate]', res.status, json); return; }
             toast.success(json.message);
-            setTemplates((prev) => prev.map((t) => t.id === template.id ? { ...t, status: 'active' } : t));
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[RestoreTemplate]', err); }
+            setTemplates((prev) => prev.map((tpl) => tpl.id === template.id ? { ...tpl, status: 'active' } : tpl));
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[RestoreTemplate]', err); }
     };
 
     // ── Monthly CRUD handlers ──
@@ -1106,7 +1110,7 @@ export default function RecurringInvoicesIndex({
             toast.success(json.message);
             setMonthly((prev) => ({ ...prev, invoices: prev.invoices.filter((x) => x.id !== deleteMonthlyTarget!.id) }));
             setSelectedIds((prev) => prev.filter((id) => id !== deleteMonthlyTarget!.id));
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[DeleteMonthly]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[DeleteMonthly]', err); }
         finally { setDeleteMonthlyLoading(false); setDeleteMonthlyTarget(null); }
     };
 
@@ -1124,7 +1128,7 @@ export default function RecurringInvoicesIndex({
             toast.success(json.message);
             setMonthly((prev) => ({ ...prev, invoices: prev.invoices.filter((x) => !selectedIds.includes(x.id)) }));
             setSelectedIds([]);
-        } catch (err) { toastError(err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.'); console.error('[BulkDelete]', err); }
+        } catch (err) { toastError(err instanceof Error ? err.message : t('Terjadi kesalahan jaringan.')); console.error('[BulkDelete]', err); }
         finally { setBulkDeleteLoading(false); }
     };
 
@@ -1149,9 +1153,9 @@ export default function RecurringInvoicesIndex({
 
     const templateStatsOverall = React.useMemo(() => {
         const total = templates.length;
-        const active = templates.filter((t) => t.status === 'active').length;
-        const archived = templates.filter((t) => t.status === 'archived').length;
-        const totalRevenue = templates.reduce((sum, t) => sum + (t.total_amount * t.generated_count), 0);
+        const active = templates.filter((tpl) => tpl.status === 'active').length;
+        const archived = templates.filter((tpl) => tpl.status === 'archived').length;
+        const totalRevenue = templates.reduce((sum, tpl) => sum + (tpl.total_amount * tpl.generated_count), 0);
         return { total, active, archived, totalRevenue };
     }, [templates]);
 
@@ -1169,23 +1173,23 @@ export default function RecurringInvoicesIndex({
         <>
         <div className="space-y-6">
                 <PageHeader
-                    title="Invoice Recurring"
-                    description="Kelola template dan generate invoice otomatis berulang"
+                    title={t('Invoice Berulang', { context: 'menu' })}
+                    description={t('Kelola template dan buat draft invoice berulang')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="recurring-invoices" />
                             {activeTab === 'templates' && (
                                 <Button variant="primary" size="sm" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}>
-                                    <Plus className="w-4 h-4 mr-1.5" /> Buat Template
+                                    <Plus className="w-4 h-4 mr-1.5" /> {t('Buat Template')}
                                 </Button>
                             )}
                             {activeTab === 'monthly' && (
                                 <>
                                     <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}>
-                                        <Zap className="w-4 h-4 mr-1.5" /> Generate Otomatis
+                                        <Zap className="w-4 h-4 mr-1.5" /> {t('Buat Draft Otomatis')}
                                     </Button>
                                     <Button variant="primary" size="sm" onClick={() => { setEditMonthly(null); setMonthlyFormOpen(true); }}>
-                                        <Plus className="w-4 h-4 mr-1.5" /> Buat Manual
+                                        <Plus className="w-4 h-4 mr-1.5" /> {t('Buat Manual')}
                                     </Button>
                                 </>
                             )}
@@ -1196,9 +1200,9 @@ export default function RecurringInvoicesIndex({
                 {/* ── Tabs ── */}
                 <Tabs
                     items={[
-                        { value: 'templates', label: 'Templates', icon: <Repeat2 className="h-4 w-4" /> },
-                        { value: 'monthly', label: 'Bulanan', icon: <Calendar className="h-4 w-4" /> },
-                        { value: 'analytics', label: 'Analitik', icon: <BarChart3 className="h-4 w-4" /> },
+                        { value: 'templates', label: t('Template'), icon: <Repeat2 className="h-4 w-4" /> },
+                        { value: 'monthly', label: t('Bulanan'), icon: <Calendar className="h-4 w-4" /> },
+                        { value: 'analytics', label: t('Analitik'), icon: <BarChart3 className="h-4 w-4" /> },
                     ]}
                     value={activeTab}
                     onChange={setActiveTab}
@@ -1211,16 +1215,16 @@ export default function RecurringInvoicesIndex({
                     <div className="space-y-6">
                         {/* Stats */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                            <StatsCard label="Total Template" value={templateStatsOverall.total} icon={<Repeat2 />} color="blue" />
-                            <StatsCard label="Aktif" value={templateStatsOverall.active} icon={<CheckCircle2 />} color="green" />
-                            <StatsCard label="Diarsipkan" value={templateStatsOverall.archived} icon={<Clock />} color="indigo" />
-                            <StatsCard label="Template Selesai" value={templates.filter((t) => t.remaining_count === 0).length} icon={<RefreshCw />} color="emerald" />
+                            <StatsCard label={t('Total Template')} value={templateStatsOverall.total} icon={<Repeat2 />} color="blue" />
+                            <StatsCard label={t('Aktif')} value={templateStatsOverall.active} icon={<CheckCircle2 />} color="green" />
+                            <StatsCard label={t('Diarsipkan')} value={templateStatsOverall.archived} icon={<Clock />} color="indigo" />
+                            <StatsCard label={t('Template Selesai')} value={templates.filter((tpl) => tpl.remaining_count === 0).length} icon={<RefreshCw />} color="emerald" />
                         </div>
 
                         {/* Filter bar */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                             <Input
-                                placeholder="Cari template atau klien..."
+                                placeholder={t('Cari template atau klien...')}
                                 value={templateSearch}
                                 onChange={(e) => setTemplateSearch(e.target.value)}
                                 icon={<span className="text-dark-400">🔍</span>}
@@ -1228,9 +1232,9 @@ export default function RecurringInvoicesIndex({
                             />
                             <Tabs
                                 items={[
-                                    { value: 'all', label: 'Semua' },
-                                    { value: 'active', label: 'Aktif' },
-                                    { value: 'archived', label: 'Diarsipkan' },
+                                    { value: 'all', label: t('Semua') },
+                                    { value: 'active', label: t('Aktif') },
+                                    { value: 'archived', label: t('Diarsipkan') },
                                 ]}
                                 value={templateStatusFilter}
                                 onChange={(v) => setTemplateStatusFilter(v as 'all' | 'active' | 'archived')}
@@ -1241,39 +1245,39 @@ export default function RecurringInvoicesIndex({
                         {filteredTemplates.length === 0 ? (
                             <EmptyState
                                 icon={<Repeat2 className="w-12 h-12" />}
-                                title="Belum ada template"
-                                description="Buat template recurring untuk generate invoice otomatis"
-                                action={<Button variant="primary" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}><Plus className="w-4 h-4 mr-1.5" /> Buat Template</Button>}
+                                title={t('Belum ada template')}
+                                description={t('Buat template agar draft invoice bisa dibuat otomatis')}
+                                action={<Button variant="primary" onClick={() => router.get(companyUrl('/recurring-invoices/templates/create'))}><Plus className="w-4 h-4 mr-1.5" /> {t('Buat Template')}</Button>}
                             />
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                {filteredTemplates.map((t) => (
-                                    <Card key={t.id} className={`hover:shadow-md transition-shadow ${t.status === 'archived' ? 'opacity-60' : ''}`}>
+                                {filteredTemplates.map((tpl) => (
+                                    <Card key={tpl.id} className={`hover:shadow-md transition-shadow ${tpl.status === 'archived' ? 'opacity-60' : ''}`}>
                                         <CardContent className="p-5 space-y-4">
                                             {/* Header */}
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
-                                                        <Badge variant={FREQUENCY_COLORS[t.frequency] as any} className="text-xs">
-                                                            {FREQUENCY_LABELS[t.frequency]}
+                                                        <Badge variant={FREQUENCY_COLORS[tpl.frequency] as any} className="text-xs">
+                                                            {t(FREQUENCY_LABELS[tpl.frequency])}
                                                         </Badge>
-                                                        {t.status === 'archived' && <Badge variant="zinc" className="text-xs">Arsip</Badge>}
+                                                        {tpl.status === 'archived' && <Badge variant="zinc" className="text-xs">{t('Arsip')}</Badge>}
                                                     </div>
-                                                    <h3 className="mt-1.5 font-semibold text-dark-900 dark:text-dark-50 truncate">{t.template_name}</h3>
-                                                    <p className="text-sm text-dark-500 dark:text-dark-400">{t.client_name}</p>
+                                                    <h3 className="mt-1.5 font-semibold text-dark-900 dark:text-dark-50 truncate">{tpl.template_name}</h3>
+                                                    <p className="text-sm text-dark-500 dark:text-dark-400">{tpl.client_name}</p>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0">
-                                                    {t.status === 'active' && (
-                                                        <button onClick={() => router.get(companyUrl(`/recurring-invoices/templates/${t.id}/edit`))} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
+                                                    {tpl.status === 'active' && (
+                                                        <button onClick={() => router.get(companyUrl(`/recurring-invoices/templates/${tpl.id}/edit`))} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 transition-colors">
                                                             <Edit2 className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}
-                                                    {t.status === 'archived' ? (
-                                                        <button onClick={() => handleRestoreTemplate(t)} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-emerald-600 transition-colors">
+                                                    {tpl.status === 'archived' ? (
+                                                        <button onClick={() => handleRestoreTemplate(tpl)} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-emerald-600 transition-colors">
                                                             <RotateCcw className="w-3.5 h-3.5" />
                                                         </button>
                                                     ) : (
-                                                        <button onClick={() => setDeleteTemplateTarget(t)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-dark-400 hover:text-red-500 transition-colors">
+                                                        <button onClick={() => setDeleteTemplateTarget(tpl)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-dark-400 hover:text-red-500 transition-colors">
                                                             <Trash2 className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}
@@ -1282,30 +1286,30 @@ export default function RecurringInvoicesIndex({
 
                                             {/* Amount */}
                                             <div className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                                {formatCurrency(t.total_amount)}
+                                                {formatCurrency(tpl.total_amount)}
                                             </div>
 
                                             {/* Date range */}
                                             <div className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-1">
                                                 <Calendar className="w-3.5 h-3.5" />
-                                                {t.start_date} — {t.end_date}
+                                                {tpl.start_date} — {tpl.end_date}
                                             </div>
 
                                             {/* Progress */}
                                             <div className="space-y-1.5">
                                                 <div className="flex justify-between text-xs text-dark-500 dark:text-dark-400">
-                                                    <span>{t.generated_count}/{t.total_invoices_count} invoice</span>
-                                                    <span>{t.progress_pct}%</span>
+                                                    <span>{t('{{generated}}/{{count}} invoice', { generated: tpl.generated_count, count: tpl.total_invoices_count })}</span>
+                                                    <span>{tpl.progress_pct}%</span>
                                                 </div>
                                                 <div className="h-1.5 bg-secondary-200 dark:bg-dark-600 rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full bg-primary-500 rounded-full transition-all"
-                                                        style={{ width: `${t.progress_pct}%` }}
+                                                        style={{ width: `${tpl.progress_pct}%` }}
                                                     />
                                                 </div>
                                                 <div className="flex gap-3 text-xs">
-                                                    <span className="text-emerald-600 dark:text-emerald-400">{t.published_count} published</span>
-                                                    <span className="text-dark-400">{t.remaining_count} tersisa</span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400">{t('{{count}} dijadikan invoice', { count: tpl.published_count })}</span>
+                                                    <span className="text-dark-400">{t('{{count}} tersisa', { count: tpl.remaining_count })}</span>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -1328,7 +1332,7 @@ export default function RecurringInvoicesIndex({
                                     <ChevronLeft className="w-4 h-4" />
                                 </button>
                                 <div className="min-w-[160px] text-center font-semibold text-dark-900 dark:text-dark-50">
-                                    {MONTH_NAMES_FULL[monthly.month - 1]} {monthly.year}
+                                    {monthYear(monthly.month, monthly.year)}
                                 </div>
                                 <button onClick={nextMonth} className="p-2 rounded-xl border border-secondary-200 dark:border-dark-600 hover:bg-secondary-100 dark:hover:bg-dark-700 text-dark-500 transition-colors">
                                     <ChevronRight className="w-4 h-4" />
@@ -1338,17 +1342,17 @@ export default function RecurringInvoicesIndex({
                             {/* Filters */}
                             <div className="flex items-center gap-2 flex-wrap">
                                 <Combobox
-                                    options={[{ value: '', label: 'Semua Template' }, ...active_templates.map((t) => ({ value: String(t.id), label: t.label }))]}
+                                    options={[{ value: '', label: t('Semua Template') }, ...active_templates.map((tpl) => ({ value: String(tpl.id), label: tpl.label }))]}
                                     value={monthly.template_filter ? String(monthly.template_filter) : ''}
                                     onChange={(v) => navigateMonthly(monthly.month, monthly.year, v ? Number(v) : null)}
-                                    placeholder="Filter template"
+                                    placeholder={t('Filter template')}
                                     className="w-52"
                                 />
                                 <Tabs
                                     items={[
-                                        { value: 'all', label: 'Semua' },
-                                        { value: 'draft', label: 'Draft' },
-                                        { value: 'published', label: 'Published' },
+                                        { value: 'all', label: t('Semua') },
+                                        { value: 'draft', label: t('Draft') },
+                                        { value: 'published', label: t('Dijadikan invoice') },
                                     ]}
                                     value={monthly.status_filter}
                                     onChange={(s) => navigateMonthly(monthly.month, monthly.year, undefined, s)}
@@ -1358,22 +1362,22 @@ export default function RecurringInvoicesIndex({
 
                         {/* Stats */}
                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                            <StatsCard label="Total Revenue" value={formatCurrency(monthly.stats.total_revenue)} icon={<TrendingUp />} color="blue" />
-                            <StatsCard label="Total Profit" value={formatCurrency(monthly.stats.total_profit)} icon={<TrendingUp />} color="green" />
-                            <StatsCard label="Margin Profit" value={`${monthly.stats.profit_margin}%`} icon={<BarChart3 />} color="purple" />
-                            <StatsCard label="Profit Pending" value={formatCurrency(monthly.stats.outstanding_profit)} icon={<Clock />} color="yellow" />
+                            <StatsCard label={t('Total Pendapatan')} value={formatCurrency(monthly.stats.total_revenue)} icon={<TrendingUp />} color="blue" />
+                            <StatsCard label={t('Total Laba')} value={formatCurrency(monthly.stats.total_profit)} icon={<TrendingUp />} color="green" />
+                            <StatsCard label={t('Margin Laba')} value={`${monthly.stats.profit_margin}%`} icon={<BarChart3 />} color="purple" />
+                            <StatsCard label={t('Laba Belum Diterima')} value={formatCurrency(monthly.stats.outstanding_profit)} icon={<Clock />} color="yellow" />
                         </div>
 
                         {/* Table */}
                         {monthly.invoices.length === 0 ? (
                             <EmptyState
                                 icon={<FileText className="w-12 h-12" />}
-                                title="Belum ada invoice"
-                                description="Generate invoice dari template atau buat manual"
+                                title={t('Belum ada invoice')}
+                                description={t('Buat draft dari template atau buat manual')}
                                 action={
                                     <div className="flex gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}><Zap className="w-4 h-4 mr-1.5" /> Generate</Button>
-                                        <Button variant="primary" size="sm" onClick={() => { setEditMonthly(null); setMonthlyFormOpen(true); }}><Plus className="w-4 h-4 mr-1.5" /> Buat Manual</Button>
+                                        <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}><Zap className="w-4 h-4 mr-1.5" /> {t('Buat Draft')}</Button>
+                                        <Button variant="primary" size="sm" onClick={() => { setEditMonthly(null); setMonthlyFormOpen(true); }}><Plus className="w-4 h-4 mr-1.5" /> {t('Buat Manual')}</Button>
                                     </div>
                                 }
                             />
@@ -1388,11 +1392,11 @@ export default function RecurringInvoicesIndex({
                                                     onCheckedChange={toggleSelectAll}
                                                 />
                                             </th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Klien / Template</th>
-                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden sm:table-cell">Tanggal</th>
-                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Total</th>
-                                            <th className="px-3 py-3 text-center text-xs font-semibold text-dark-500 dark:text-dark-400">Status</th>
-                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Aksi</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Klien / Template')}</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden sm:table-cell">{t('Tanggal')}</th>
+                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Total')}</th>
+                                            <th className="px-3 py-3 text-center text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Status')}</th>
+                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Aksi')}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -1413,7 +1417,7 @@ export default function RecurringInvoicesIndex({
                                                         {inv.template_name}
                                                         {inv.frequency && (
                                                             <Badge variant={FREQUENCY_COLORS[inv.frequency] as any} className="text-xs ml-1">
-                                                                {FREQUENCY_LABELS[inv.frequency]}
+                                                                {t(FREQUENCY_LABELS[inv.frequency])}
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -1423,7 +1427,7 @@ export default function RecurringInvoicesIndex({
                                                     {inv.published_invoice_id && (
                                                         <a href={resourceHref('invoice', inv.published_invoice_id)} className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 mt-0.5">
                                                             <ExternalLink className="w-3 h-3" />
-                                                            {inv.published_invoice_number ?? 'Draft · belum dikirim'}
+                                                            {inv.published_invoice_number ?? t('Draft · belum terbit')}
                                                         </a>
                                                     )}
                                                 </td>
@@ -1432,20 +1436,20 @@ export default function RecurringInvoicesIndex({
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     <Badge variant={inv.status === 'published' ? 'emerald' : 'yellow'}>
-                                                        {inv.status === 'published' ? 'Published' : 'Draft'}
+                                                        {inv.status === 'published' ? t('Dijadikan invoice') : t('Draft')}
                                                     </Badge>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-end gap-1">
                                                         {inv.status === 'draft' && (
                                                             <>
-                                                                <button onClick={() => setPublishTarget(inv)} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-dark-400 hover:text-emerald-600 transition-colors" title="Publish">
+                                                                <button onClick={() => setPublishTarget(inv)} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-dark-400 hover:text-emerald-600 transition-colors" title={t('Jadikan Invoice')}>
                                                                     <Send className="w-3.5 h-3.5" />
                                                                 </button>
-                                                                <button onClick={() => { setEditMonthly(inv); setMonthlyFormOpen(true); }} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 transition-colors" title="Edit">
+                                                                <button onClick={() => { setEditMonthly(inv); setMonthlyFormOpen(true); }} className="p-1.5 rounded-lg hover:bg-secondary-100 dark:hover:bg-dark-600 text-dark-400 hover:text-dark-700 transition-colors" title={t('Ubah')}>
                                                                     <PenLine className="w-3.5 h-3.5" />
                                                                 </button>
-                                                                <button onClick={() => setDeleteMonthlyTarget(inv)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-dark-400 hover:text-red-500 transition-colors" title="Hapus">
+                                                                <button onClick={() => setDeleteMonthlyTarget(inv)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-dark-400 hover:text-red-500 transition-colors" title={t('Hapus')}>
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                 </button>
                                                             </>
@@ -1464,13 +1468,13 @@ export default function RecurringInvoicesIndex({
                             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
                                 <div className="bg-white dark:bg-dark-700 rounded-xl shadow-lg border border-secondary-200 dark:border-dark-600 px-4 py-3 flex items-center gap-3 min-w-80">
                                     <span className="text-sm font-medium text-dark-700 dark:text-dark-200 flex-1">
-                                        {selectedIds.length} invoice dipilih
+                                        {t('{{count}} invoice dipilih', { count: selectedIds.length })}
                                     </span>
                                     <Button variant="outline" size="sm" onClick={() => setBulkPublishOpen(true)}>
-                                        <Send className="w-3.5 h-3.5 mr-1.5" /> Publish
+                                        <Send className="w-3.5 h-3.5 mr-1.5" /> {t('Jadikan Invoice')}
                                     </Button>
                                     <Button variant="red" size="sm" onClick={handleBulkDelete} disabled={bulkDeleteLoading}>
-                                        {bulkDeleteLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />} Hapus
+                                        {bulkDeleteLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1.5" />} {t('Hapus')}
                                     </Button>
                                     <button onClick={() => setSelectedIds([])} className="text-dark-400 hover:text-dark-600 ml-1">✕</button>
                                 </div>
@@ -1490,13 +1494,13 @@ export default function RecurringInvoicesIndex({
                                 options={yearOptions}
                                 value={String(analyticsYear)}
                                 onChange={(v) => { if (v) { setAnalyticsYear(Number(v)); navigateAnalytics(Number(v), analyticsPeriod); } }}
-                                placeholder="Tahun"
+                                placeholder={t('Tahun')}
                                 className="w-32"
                             />
                             <Tabs
                                 items={[
-                                    { value: 'monthly', label: 'Bulanan' },
-                                    { value: 'quarterly', label: 'Triwulanan' },
+                                    { value: 'monthly', label: t('Bulanan') },
+                                    { value: 'quarterly', label: t('Triwulanan') },
                                 ]}
                                 value={analyticsPeriod}
                                 onChange={(p) => { setAnalyticsPeriod(p as 'monthly' | 'quarterly'); navigateAnalytics(analyticsYear, p as 'monthly' | 'quarterly'); }}
@@ -1505,31 +1509,31 @@ export default function RecurringInvoicesIndex({
 
                         {/* KPI metrics */}
                         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                            <StatsCard label={`Revenue ${analyticsYear}`} value={formatCurrency(analytics.metrics.current_year)} icon={<TrendingUp />} color="blue" />
-                            <StatsCard label={`Revenue ${analyticsYear - 1}`} value={formatCurrency(analytics.metrics.previous_year)} icon={<TrendingDown />} color="indigo" />
+                            <StatsCard label={t('Pendapatan {{year}}', { year: analyticsYear })} value={formatCurrency(analytics.metrics.current_year)} icon={<TrendingUp />} color="blue" />
+                            <StatsCard label={t('Pendapatan {{year}}', { year: analyticsYear - 1 })} value={formatCurrency(analytics.metrics.previous_year)} icon={<TrendingDown />} color="indigo" />
                             <StatsCard
-                                label="Pertumbuhan"
+                                label={t('Pertumbuhan')}
                                 value={`${analytics.metrics.growth_rate > 0 ? '+' : ''}${analytics.metrics.growth_rate}%`}
                                 icon={analytics.metrics.growth_rate >= 0 ? <TrendingUp /> : <TrendingDown />}
                                 color={analytics.metrics.growth_rate >= 0 ? 'green' : 'red'}
                             />
-                            <StatsCard label="Rata-rata Bulanan" value={formatCurrency(analytics.metrics.average_monthly)} icon={<BarChart3 />} color="purple" />
+                            <StatsCard label={t('Rata-rata Bulanan')} value={formatCurrency(analytics.metrics.average_monthly)} icon={<BarChart3 />} color="purple" />
                         </div>
 
                         {/* Revenue chart */}
                         <Card>
                             <CardContent className="p-6">
                                 <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 mb-4">
-                                    Revenue {analyticsPeriod === 'monthly' ? 'Bulanan' : 'Triwulanan'} {analyticsYear}
+                                    {analyticsPeriod === 'monthly' ? t('Pendapatan Bulanan {{year}}', { year: analyticsYear }) : t('Pendapatan Triwulanan {{year}}', { year: analyticsYear })}
                                 </h3>
                                 <ReactApexChart
                                     type="bar"
                                     height={260}
-                                    series={[{ name: 'Revenue', data: analytics.chart.map((c) => c.revenue) }]}
+                                    series={[{ name: t('Pendapatan'), data: analytics.chart.map((c) => c.revenue) }]}
                                     options={{
-                                        chart: { toolbar: { show: false }, background: 'transparent' },
-                                        xaxis: { categories: analytics.chart.map((c) => c.label), labels: { style: { colors: '#71717a', fontSize: '12px' } } },
-                                        yaxis: { labels: { formatter: (v) => `Rp ${(v / 1000000).toFixed(1)}M`, style: { colors: '#71717a', fontSize: '11px' } } },
+                                        chart: { toolbar: { show: false }, background: 'transparent', accessibility: { description: t('Grafik batang pendapatan invoice berulang') } },
+                                        xaxis: { categories: analytics.chart.map((c, i) => (c.label.startsWith('Q') ? c.label : formatTanggal(new Date(analyticsYear, i, 1), { month: 'short' }))), labels: { style: { colors: '#71717a', fontSize: '12px' } } },
+                                        yaxis: { labels: { formatter: (v) => (v === 0 ? 'Rp 0' : `Rp ${compactRupiah(Number(v))}`), style: { colors: '#71717a', fontSize: '11px' } } },
                                         colors: ['#2563eb'],
                                         plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
                                         dataLabels: { enabled: false },
@@ -1546,19 +1550,19 @@ export default function RecurringInvoicesIndex({
                             <div className="xl:col-span-2">
                                 <Card>
                                     <CardContent className="p-6">
-                                        <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 mb-4">Performa Template</h3>
+                                        <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 mb-4">{t('Performa Template')}</h3>
                                         {analytics.template_stats.length === 0 ? (
-                                            <p className="text-sm text-dark-500 dark:text-dark-400 text-center py-6">Belum ada data</p>
+                                            <p className="text-sm text-dark-500 dark:text-dark-400 text-center py-6">{t('Belum ada data')}</p>
                                         ) : (
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-sm">
                                                     <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
                                                         <tr>
-                                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Template</th>
-                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Revenue</th>
-                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden sm:table-cell">Inv</th>
-                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">Sukses</th>
-                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">Margin</th>
+                                                            <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Template')}</th>
+                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Pendapatan')}</th>
+                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden sm:table-cell">{t('Inv')}</th>
+                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">{t('Jadi invoice')}</th>
+                                                            <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">{t('Margin')}</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -1593,11 +1597,11 @@ export default function RecurringInvoicesIndex({
                             {/* Status breakdown */}
                             <Card>
                                 <CardContent className="p-6 space-y-4">
-                                    <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">Breakdown Status</h3>
+                                    <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t('Rincian Status')}</h3>
                                     <div className="space-y-3">
                                         {[
-                                            { key: 'published', label: 'Published', color: 'bg-emerald-500' },
-                                            { key: 'draft', label: 'Draft', color: 'bg-yellow-400' },
+                                            { key: 'published', label: t('Dijadikan invoice'), color: 'bg-emerald-500' },
+                                            { key: 'draft', label: t('Draft'), color: 'bg-yellow-400' },
                                         ].map(({ key, label, color }) => {
                                             const data = analytics.status_breakdown[key as 'draft' | 'published'];
                                             return (
@@ -1615,8 +1619,8 @@ export default function RecurringInvoicesIndex({
                                         })}
                                         <Separator />
                                         <div className="flex justify-between text-sm font-semibold text-dark-900 dark:text-dark-50">
-                                            <span>Total</span>
-                                            <span>{analytics.status_breakdown.total.count} invoice</span>
+                                            <span>{t('Total')}</span>
+                                            <span>{t('{{count}} invoice', { count: analytics.status_breakdown.total.count })}</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -1630,11 +1634,11 @@ export default function RecurringInvoicesIndex({
             <ConfirmDialog
                 open={!!deleteTemplateTarget}
                 onOpenChange={(v) => !v && setDeleteTemplateTarget(null)}
-                title="Hapus Template?"
+                title={t('Hapus Template?')}
                 description={
                     deleteTemplateTarget?.published_count
-                        ? `Template "${deleteTemplateTarget?.template_name}" memiliki ${deleteTemplateTarget?.published_count} invoice terpublish. Template akan diarsipkan, bukan dihapus.`
-                        : `Template "${deleteTemplateTarget?.template_name}" akan dihapus permanen beserta semua invoice draft-nya.`
+                        ? t('Template "{{name}}" sudah menghasilkan {{count}} invoice. Template akan diarsipkan, bukan dihapus.', { name: deleteTemplateTarget?.template_name, count: deleteTemplateTarget?.published_count })
+                        : t('Template "{{name}}" akan dihapus permanen beserta semua invoice draft-nya.', { name: deleteTemplateTarget?.template_name })
                 }
                 onConfirm={handleDeleteTemplate}
                 variant="danger"
@@ -1670,8 +1674,8 @@ export default function RecurringInvoicesIndex({
             <ConfirmDialog
                 open={!!deleteMonthlyTarget}
                 onOpenChange={(v) => !v && setDeleteMonthlyTarget(null)}
-                title="Hapus Invoice?"
-                description={`Invoice dari ${deleteMonthlyTarget?.client_name} akan dihapus permanen.`}
+                title={t('Hapus Invoice?')}
+                description={t('Invoice dari {{client}} akan dihapus permanen.', { client: deleteMonthlyTarget?.client_name })}
                 onConfirm={handleDeleteMonthly}
                 variant="danger"
             />

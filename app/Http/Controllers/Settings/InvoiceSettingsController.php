@@ -36,7 +36,7 @@ class InvoiceSettingsController extends Controller
                 'padding' => InvoiceNumberService::DEFAULT_PADDING,
                 'reset' => InvoiceNumberService::DEFAULT_RESET,
             ],
-            'tokens' => collect(InvoiceNumberService::TOKENS)
+            'tokens' => collect(InvoiceNumberService::keteranganToken())
                 ->map(fn (string $label, string $token) => ['token' => $token, 'label' => $label])
                 ->values(),
             'paddings' => InvoiceNumberService::PADDINGS,
@@ -45,7 +45,7 @@ class InvoiceSettingsController extends Controller
             'sample' => [
                 'date' => $today->toDateString(),
                 'company_initials' => $numbers->companyInitials(),
-                'client_name' => $client ? ($client->type === 'company' && $client->company_name ? $client->company_name : $client->name) : 'PT Contoh Klien',
+                'client_name' => $client ? ($client->type === 'company' && $client->company_name ? $client->company_name : $client->name) : __('PT Contoh Klien'),
                 'client_initials' => $client ? $numbers->clientInitials($client->id) : 'CK',
                 'next_sequence' => collect(InvoiceNumberService::RESETS)
                     ->mapWithKeys(fn (string $reset) => [$reset => $numbers->nextSequence($today, $reset)]),
@@ -74,7 +74,7 @@ class InvoiceSettingsController extends Controller
             'invoice_number_reset' => $validated['reset'],
         ]);
 
-        return redirect()->back()->with('success', 'Format penomoran invoice disimpan. Berlaku untuk invoice yang dikirim setelah ini.');
+        return redirect()->back()->with('success', __('Format penomoran invoice disimpan. Berlaku untuk invoice yang diterbitkan setelah ini.'));
     }
 
     /**
@@ -87,7 +87,7 @@ class InvoiceSettingsController extends Controller
 
         CompanyProfile::current()->update(['default_due_days' => $hari]);
 
-        return redirect()->back()->with('success', "Termin bawaan disimpan: {$hari} hari.");
+        return redirect()->back()->with('success', __('Termin bawaan disimpan: :hari hari.', ['hari' => $hari]));
     }
 
     /**
@@ -103,6 +103,6 @@ class InvoiceSettingsController extends Controller
         $profil->forceFill(['invoice_legacy_reviewed_at' => now()])->save();
 
         return redirect()->route('dashboard')
-            ->with('success', "{$hasil['filled']} invoice lama diisi urutannya. Nomor berikutnya melanjutkan deret yang ada.");
+            ->with('success', __(':count invoice lama diisi urutannya. Nomor berikutnya melanjutkan deret yang ada.', ['count' => $hasil['filled']]));
     }
 }

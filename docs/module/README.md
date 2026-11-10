@@ -13,7 +13,7 @@
 | Dokumen | Cakupan | Route utama |
 |---------|---------|-------------|
 | [invoices.md](invoices.md) | Invoice, item, diskon, pembayaran, PDF/Excel | `/invoices`, `/payments`, `/invoice/{id}` |
-| [recurring-invoices.md](recurring-invoices.md) | Template recurring, generate bulanan, publish | `/recurring-invoices` |
+| [recurring-invoices.md](recurring-invoices.md) | Template invoice berulang, buat draft bulanan, jadikan invoice | `/recurring-invoices` |
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
 | [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), logo bank & saran Nama Bank, saldo terhitung, transaksi | `/bank-accounts` |
@@ -72,6 +72,15 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
 - **Pencatat uang masuk/keluar**: `bank_transactions` dan `payments` punya `created_by`/`updated_by` (id pengguna PUSAT, tanpa FK) yang diisi trait `App\Models\Concerns\MencatatPengguna` dari pengguna login. Update massal lewat query builder tidak memicu trait itu: isi `updated_by` sendiri (contoh: kaki lawan transfer, pemindahan kategori saat hapus kategori). Nama pengguna dicari di pusat lewat `whereIn`, jangan join dari database perusahaan.
 - **Jenis akun Kas & Bank**: `bank_accounts.type` = `bank` (rekening) atau `cash` (kas tunai/kas kecil). Akun kas tetap punya `account_number` (kode `KAS-0001`, diisi model) dan `bank_name` `Tunai`, sehingga picker & label `nama — bank` di modul lain tidak perlu diubah; kenali kas lewat `type`/`isCash()`, bukan lewat nama bank. `custodian_id` (penanggung jawab) juga id pengguna PUSAT tanpa FK: nama lewat `BankAccount::custodianNames()` (`whereIn`), keanggotaan lewat `User::memberOfCurrentCompany()`. Total saldo di mana pun dirinci Total Bank + Total Kas memakai `withBalance()`. Detail di [bank-accounts.md](bank-accounts.md).
 - **Currency**: semua nominal disimpan `bigint` rupiah penuh (150000 = Rp 150.000), tanpa desimal.
+- **Multi bahasa (id · en · zh)**: setiap teks tampilan lewat `t('teks Indonesia persis')` (`@/i18n`) atau
+  `__('teks Indonesia')` di server; kamus `resources/js/locales/{en,zh}.json` dan `lang/{en,zh}.json`. Penentu
+  bahasa tunggal `SetLocale` (`users.locale` → sesi → `id`); ganti bahasa = `POST /language` + muat ulang penuh.
+  Teks yang **disimpan** (deskripsi transaksi otomatis, nomor dokumen, notifikasi) atau dikirim ke sistem lain
+  (Watchpost, MCP) tetap Bahasa Indonesia; kode/status tetap kode, labelnya dari peta `tk()` → `t()` saat render.
+  Dokumen (PDF/Excel/isi template builder) selalu Bahasa Indonesia: rute dokumen wajib middleware
+  `locale.dokumen`, isi dokumen di request tampilan lewat `withDocumentLocale()`. Rupiah & angka tetap format
+  `id-ID`; tanggal lewat `formatDate()`/`formatTanggal()`. Pemindai: `npm run i18n:check` +
+  `tests/Unit/TeksServerMultiBahasaTest.php`. Konvensi lengkap & contoh: CLAUDE.md › "Multi Bahasa".
 - **Permission**: Spatie Permission; gate di route (`can:...`), FormRequest, dan UI (`useCan`).
   Struktur lengkap: `database/seeders/MasterPermissionSeeder.php`.
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.

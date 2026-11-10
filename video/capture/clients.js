@@ -23,7 +23,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"],[data-sonner-toaster]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"],[data-sonner-toaster]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -31,7 +31,7 @@ async (page) => {
     await p.goto(BASE + '/login', { waitUntil: 'networkidle' });
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -88,7 +88,7 @@ async (page) => {
       npwp: d().getByRole('textbox', { name: 'NPWP' }),
       kpp: d().getByRole('textbox', { name: 'KPP' }),
       efin: d().getByRole('textbox', { name: 'EFIN' }),
-      pic: d().getByRole('textbox', { name: 'PIC (Person in Charge)' }),
+      pic: d().getByRole('textbox', { name: 'PIC (Penanggung Jawab)' }),
       ar: d().getByRole('textbox', { name: 'Account Representative' }),
       arPhone: d().getByRole('textbox', { name: 'No. HP AR' }),
       left: up(d().getByText('Informasi Dasar', { exact: true })).locator('xpath=..'),
@@ -114,7 +114,7 @@ async (page) => {
     await d().getByRole('textbox', { name: 'EFIN' }).fill('4120987654');
     await snap(s, 'staff-form-tax', fields());
 
-    await d().getByRole('textbox', { name: 'PIC (Person in Charge)' }).fill('Ratna Dewi');
+    await d().getByRole('textbox', { name: 'PIC (Penanggung Jawab)' }).fill('Ratna Dewi');
     await d().getByRole('textbox', { name: 'Account Representative' }).fill('Hendra Gunawan');
     await d().getByRole('textbox', { name: 'No. HP AR' }).fill('0812-3456-7890');
     await snap(s, 'staff-form-filled', fields());
@@ -137,7 +137,7 @@ async (page) => {
     });
 
     await row(s, NAME).getByRole('button').first().click();
-    const e = () => s.getByRole('dialog', { name: 'Edit Klien' });
+    const e = () => s.getByRole('dialog', { name: 'Ubah Klien' });
     await e().getByRole('textbox', { name: 'Nama Klien *' }).waitFor();
     await e().getByRole('button', { name: 'Tidak Aktif' }).click();
     await snap(s, 'staff-edit', {

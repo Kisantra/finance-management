@@ -3,6 +3,7 @@ import { CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, type InputProps } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 /*
@@ -27,7 +28,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, Omit<InputProps,
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => setVisible((v) => !v)}
-                    aria-label={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                    aria-label={visible ? t('Sembunyikan kata sandi') : t('Tampilkan kata sandi')}
                     className="-m-2 flex"
                 >
                     {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

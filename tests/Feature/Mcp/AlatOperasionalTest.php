@@ -106,7 +106,7 @@ class AlatOperasionalTest extends TestCase
         $this->assertSame(1_000_000, $hasil['ringkasan']['total_nominal']);
         $this->assertSame(300_000, $hasil['ringkasan']['total_dibayar']);
         $this->assertSame(200_000, $hasil['ringkasan']['menunggu_dibayar'], 'Menunggu dibayar = nominal disetujui dikurangi yang sudah dibayar.');
-        $this->assertSame(['label' => 'Menunggu review', 'jumlah' => 1, 'nominal' => 500_000, 'dibayar' => 0], $hasil['ringkasan']['per_status']['pending']);
+        $this->assertSame(['label' => 'Menunggu persetujuan', 'jumlah' => 1, 'nominal' => 500_000, 'dibayar' => 0], $hasil['ringkasan']['per_status']['pending']);
         $this->assertSame(['label' => 'Disetujui', 'jumlah' => 1, 'nominal' => 300_000, 'dibayar' => 100_000], $hasil['ringkasan']['per_status']['approved']);
         $this->assertSame(['label' => 'Lunas', 'jumlah' => 1, 'nominal' => 200_000, 'dibayar' => 200_000], $hasil['ringkasan']['per_status']['paid']);
         $this->assertSame(0, $hasil['ringkasan']['per_status']['draft']['jumlah']);

@@ -1,6 +1,7 @@
 import { Command as CommandPrimitive } from 'cmdk';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { badgeVariants } from './badge';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
@@ -65,15 +66,15 @@ export function Combobox({
     options,
     value,
     onChange,
-    placeholder = 'Pilih...',
-    searchPlaceholder = 'Cari...',
+    placeholder = t('Pilih...'),
+    searchPlaceholder = t('Cari...'),
     label,
     hint,
     error,
     disabled,
     clearable = true,
     className,
-    emptyText = 'Tidak ada data.',
+    emptyText = t('Tidak ada data.'),
     multiple = false,
     popoverWidth,
 }: ComboboxProps & { multiple?: boolean }) {
@@ -220,7 +221,7 @@ export function Combobox({
                     className={cn('min-w-(--radix-popover-trigger-width) overflow-hidden p-0', popoverWidth ?? 'w-(--radix-popover-trigger-width)')}
                     align="start"
                 >
-                    <CommandPrimitive shouldFilter={false}>
+                    <CommandPrimitive shouldFilter={false} label={t('Daftar pilihan')}>
                         <div className="flex items-center border-b border-ob-line px-3">
                             <Search className="mr-2.5 h-3.5 w-3.5 shrink-0 text-ob-ink-3" />
                             <CommandPrimitive.Input
@@ -231,6 +232,7 @@ export function Combobox({
                             />
                         </div>
                         <CommandPrimitive.List
+                            label={t('Daftar pilihan')}
                             className="max-h-60 overflow-y-auto p-2"
                             onWheel={(e) => e.stopPropagation()}
                         >
@@ -309,7 +311,7 @@ export function Combobox({
                                     }}
                                     className="w-full rounded-xl px-3 py-1.5 text-left text-xs font-medium text-ob-ink-2 transition-colors duration-150 ease-out hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill motion-reduce:transition-none"
                                 >
-                                    Hapus semua pilihan ({multiValue.length})
+                                    {t('Hapus semua pilihan ({{count}})', { count: multiValue.length })}
                                 </button>
                             </div>
                         )}

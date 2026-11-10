@@ -209,6 +209,7 @@ User::whereIn('id', $ids)->delete();
 3. Semua permission dikelompokkan per modul dengan memecah nama pada spasi pertama — kata setelah aksi menjadi nama grup (`view invoices` → grup `Invoices`).
 4. Query string `?role={id}` menentukan role yang dipilih (default role pertama).
 5. Render `permissions/index` (React: `resources/js/pages/permissions/index.tsx`) dengan prop `canManagePermissions` — jika `false` (finance manager), matriks bersifat read-only.
+6. Tampilan: tiap kode izin (`view invoices`) ditampilkan lewat peta label berbahasa Indonesia baku (mis. "Lihat invoice") dari `resources/js/pages/permissions/izin-label.ts` (`izinLabel(kode)`; kode mentah tetap tampil kecil di bawahnya, kode yang belum terpetakan tampil apa adanya), nama grup modul lewat `modulIzinLabel()`. Pencarian mencocokkan label, kode, dan nama modul. Izin baru WAJIB ditambahkan ke peta itu bersama migrasinya/seeder.
 
 **Penjelasan kode** (`app/Http/Controllers/Admin/PermissionController.php`):
 
@@ -330,7 +331,7 @@ Dipakai di cash-flow, bank-accounts, dll. untuk menyembunyikan menu/tombol; side
 
 ### Panduan & video tutorial
 
-1. Tombol **Tutorial** ada di header **Manajemen Pengguna** (`resources/js/pages/users/index.tsx`, di samping **Tambah Pengguna**) dan **Manajemen Peran & Permission** (`resources/js/pages/permissions/index.tsx`, di samping **Tambah Peran**; Finance manager hanya melihat tombol Tutorial) — `<TutorialButton slug="users-permissions" />`. Teks panduan lengkap di `/panduan/users-permissions`.
+1. Tombol **Tutorial** ada di header **Manajemen Pengguna** (`resources/js/pages/users/index.tsx`, di samping **Tambah Pengguna**) dan **Izin & Peran** (`resources/js/pages/permissions/index.tsx`, di samping **Tambah Peran**; Finance manager hanya melihat tombol Tutorial) — `<TutorialButton slug="users-permissions" />`. Teks panduan lengkap di `/panduan/users-permissions`.
 2. Isi panduan: `video/users-permissions/guide.ts` (peran Admin & Finance manager — Staff tidak punya akses; tugas tambah/edit/hapus pengguna, atur izin, tambah/hapus peran; dampak hapus pengguna (cascade FK), status Tidak Aktif yang tidak memblokir login, dan peringatan lockout). Video: `video/users-permissions/tutorial.tsx` (`UsersPermissionsFinanceManager`, `UsersPermissionsAdmin`), langkah di `steps.ts`, koordinat di `shots.ts`, screenshot di `screens/`.
 3. Ambil ulang screenshot: jalankan server QC (`DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8018`), jalankan `video/capture/users-permissions.js` lewat Playwright MCP (`browser_run_code_unsafe`), lalu `python video/capture/to-webp.py users-permissions` dan salin koordinat hasilnya ke `shots.ts`. Skrip itu **menulis data QC**: membuat pengguna `budi.santoso@kisantra.test` (staff) bila belum ada, serta peran sementara `auditor` yang dihapus lagi di akhir; izin peran bawaan tidak diubah. Jangan jalankan di DB utama.
 4. Perubahan hak akses, label, cascade hapus, atau aturan berbasis nama role di modul ini harus diikuti pembaruan `guide.ts` (`roles`, `impacts`, `records`, `warnings`, `matrix`), ambil ulang screenshot, dan `shots.ts`/`steps.ts`.
@@ -360,7 +361,7 @@ Dipakai di cash-flow, bank-accounts, dll. untuk menyembunyikan menu/tombol; side
 - **Tidak ada pengaman lockout**: admin bisa mencabut `manage users`/`manage permissions` dari role `admin`, menekan **Cabut Semua** pada role admin, atau mengganti role akun sendiri — semuanya tanpa guard. Pemulihan hanya lewat DB/seeder.
 - Hapus permission (`DELETE /admin/permissions/{id}`) tidak bisa dibatalkan dari UI — tidak ada endpoint untuk membuat permission; harus migrasi/seeder.
 - Bulk delete memakai query builder (`User::whereIn()->delete()`), jadi event Eloquent tidak berjalan dan baris `model_has_roles` user tersebut tertinggal (yatim). Hapus tunggal (`$user->delete()`) membersihkannya lewat trait `HasRoles`.
-- Ikon bawaan seeder (`shield-exclamation`, `banknotes`) bukan anggota `RoleController::AVAILABLE_ICONS` (hanya alias di `ICON_MAP` frontend), sehingga menyimpan dialog **Edit Peran** untuk role bawaan tanpa memilih ikon baru gagal validasi `icon`.
+- Ikon bawaan seeder (`shield-exclamation`, `banknotes`) bukan anggota `RoleController::AVAILABLE_ICONS` (hanya alias di `ICON_MAP` frontend), sehingga menyimpan dialog **Ubah Peran** untuk role bawaan tanpa memilih ikon baru gagal validasi `icon`.
 
 ## File Kunci
 

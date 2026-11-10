@@ -21,7 +21,7 @@ class ChooseCompanyController extends Controller
             ->where('status', 'active')
             ->get(['companies.id', 'name', 'abbreviation']);
 
-        abort_if($companies->isEmpty(), 403, 'Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.');
+        abort_if($companies->isEmpty(), 403, __('Akun Anda belum terdaftar di perusahaan mana pun. Hubungi administrator.'));
 
         if ($companies->count() === 1) {
             return redirect()->route('dashboard', ['company' => $companies->first()->getTenantKey()]);

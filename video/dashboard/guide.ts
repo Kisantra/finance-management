@@ -78,7 +78,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Kartu donat menampilkan **Pengeluaran** atau **Pemasukan** bulan ini per kategori; klik pilnya untuk berganti. Paling banyak 5 irisan, sisanya digabung jadi **Lainnya**; transaksi tanpa kategori masuk **Lainnya** atau **Tanpa kategori**. Transfer antar rekening sendiri tidak muncul; biaya admin transfernya tampil sebagai **Biaya admin transfer**.',
-                'Kartu **Invoice Belum Dibayar** menampilkan 5 invoice terkirim yang belum lunas, yang jatuh temponya paling awal di atas. **Lihat semua** membuka daftar lengkapnya.',
+                'Kartu **Invoice Belum Dibayar** menampilkan 5 invoice terbit yang belum lunas, yang jatuh temponya paling awal di atas. **Lihat semua** membuka daftar lengkapnya.',
                 'Klik salah satu baris: detail invoice terbuka di atas Ringkasan tanpa berpindah halaman. Tombol di dalamnya (mis. **Catat pembayaran**) mengikuti hak akses modul Invoice.',
             ],
         },
@@ -124,10 +124,10 @@ export const guide: ModuleGuide = {
             title: 'Invoice & Sepanjang waktu',
             tone: 'wait',
             items: [
-                '**Invoice Belum Dibayar** = berstatus terkirim atau sebagian; draft tidak ikut.',
-                '**Lewat tempo** dihitung dari tanggal jatuh tempo; status invoice tidak diubah.',
+                '**Invoice Belum Dibayar** = berstatus terbit atau sebagian; draft tidak ikut.',
+                '**Lewat jatuh tempo** dihitung dari tanggal jatuh tempo; status invoice tidak diubah.',
                 '**Pendapatan** sepanjang waktu hanya pembayaran invoice.',
-                '**HPP** dan **Est. PPh 0,5%** dari item invoice yang sudah dibayar sebagian/lunas.',
+                '**HPP** dan **Est. PPh final 0,5%** dari item invoice yang sudah dibayar sebagian/lunas.',
             ],
         },
     ],
@@ -139,12 +139,12 @@ export const guide: ModuleGuide = {
                 { label: 'Total saldo', value: 'Saldo awal + pembayaran invoice + masuk − keluar, dirinci Bank / Kas', source: 'Kas & Bank', tone: 'act' },
                 { label: 'Pemasukan', value: 'Transaksi masuk + pembayaran invoice (bulan ini), tanpa transfer antar rekening sendiri', source: 'Kas & Bank + Invoice', tone: 'pos' },
                 { label: 'Pengeluaran', value: 'Semua transaksi keluar (bulan ini), tanpa transfer antar rekening sendiri; biaya admin transfer tetap dihitung', source: 'Kas & Bank', tone: 'pos' },
-                { label: 'Invoice Belum Dibayar', value: 'Sisa tagihan invoice terkirim / sebagian', source: 'Invoice', tone: 'wait' },
+                { label: 'Invoice Belum Dibayar', value: 'Sisa tagihan invoice terbit / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Pendapatan', value: 'Semua pembayaran invoice, sejak awal', source: 'Invoice', tone: 'wait' },
                 { label: 'Laba kotor', value: 'Pendapatan − PPN yang sudah dibayar − HPP item invoice lunas / sebagian', source: 'Invoice', tone: 'wait' },
                 { label: 'Est. PPh final 0,5%', value: '0,5% × item invoice lunas / sebagian, selain titipan pajak', source: 'Perkiraan', tone: 'neutral' },
             ],
-            note: 'Est. PPh hanya **perkiraan** untuk PPh final UMKM, bukan pajak yang tercatat.',
+            note: '**Est. PPh final 0,5%** hanya **perkiraan** untuk PPh final UMKM, bukan pajak yang tercatat.',
         },
     ],
     warnings: [
@@ -154,7 +154,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Mencabut Ringkasan tanpa memberi Pengeluaran',
-            body: 'Pengguna tanpa **view dashboard** dialihkan ke Arus Kas › Pengeluaran. Staff bawaan tidak punya izin itu, sehingga setelah masuk ia langsung melihat halaman **Akses ditolak**, dan tombol **Ke Dashboard** di sana membawanya kembali ke halaman yang sama.',
+            body: 'Pengguna tanpa **view dashboard** dialihkan ke Arus Kas › Pengeluaran. Staff bawaan tidak punya izin itu, sehingga setelah masuk ia langsung melihat halaman **Akses ditolak**, dan tombol **Ke Ringkasan** di sana membawanya kembali ke halaman yang sama.',
         },
         {
             title: 'Transfer antar rekening bukan pemasukan',
@@ -162,7 +162,7 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Angka lama bisa berubah',
-            body: 'Karena semua dihitung ulang, menghapus atau mengedit transaksi, pembayaran, atau rekening lama ikut mengubah saldo, grafik periode lalu, dan angka **Sepanjang waktu**.',
+            body: 'Karena semua dihitung ulang, menghapus atau mengubah transaksi, pembayaran, atau rekening lama ikut mengubah saldo, grafik periode lalu, dan angka **Sepanjang waktu**.',
         },
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],

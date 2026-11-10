@@ -43,8 +43,8 @@ class SetupRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'slug.regex' => 'Kode URL hanya boleh huruf kecil, angka, dan strip (mis. pt-kinara).',
-            'abbreviation.alpha' => 'Singkatan hanya boleh huruf, mis. KSN.',
+            'slug.regex' => __('Kode URL hanya boleh huruf kecil, angka, dan strip (mis. pt-kinara).'),
+            'abbreviation.alpha' => __('Singkatan hanya boleh huruf, mis. KSN.'),
         ];
     }
 

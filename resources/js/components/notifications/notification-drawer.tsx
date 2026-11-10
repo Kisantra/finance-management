@@ -20,6 +20,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import { formatTanggal, t } from '@/i18n';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
 import { openResource } from '@/lib/resource-modal';
@@ -64,11 +65,11 @@ function timeAgo(iso: string): string {
     const m = Math.floor(diff / 60000);
     const h = Math.floor(m / 60);
     const d = Math.floor(h / 24);
-    if (m < 1) return 'baru saja';
-    if (m < 60) return `${m} menit lalu`;
-    if (h < 24) return `${h} jam lalu`;
-    if (d < 7) return `${d} hari lalu`;
-    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (m < 1) return t('baru saja');
+    if (m < 60) return t('{{count}} menit lalu', { count: m });
+    if (h < 24) return t('{{count}} jam lalu', { count: h });
+    if (d < 7) return t('{{count}} hari lalu', { count: d });
+    return formatTanggal(date);
 }
 
 export function NotificationDrawer({ open, onOpenChange }: Props) {
@@ -152,16 +153,16 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                                 <Bell className="w-5 h-5" />
                             </div>
                             <div>
-                                <SheetTitle>Semua Notifikasi</SheetTitle>
+                                <SheetTitle>{t('Semua Notifikasi')}</SheetTitle>
                                 <SheetDescription className="text-[13px]">
-                                    {total} total · {unreadCount} belum dibaca
+                                    {t('{{total}} total · {{count}} belum dibaca', { total, count: unreadCount })}
                                 </SheetDescription>
                             </div>
                         </div>
                         {unreadCount > 0 && (
                             <Button variant="outline" size="sm" onClick={markAllRead}>
                                 <CheckCheck className="w-4 h-4" />
-                                Tandai semua
+                                {t('Tandai semua')}
                             </Button>
                         )}
                     </div>
@@ -177,9 +178,9 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                             <div className="h-12 w-12 rounded-lg bg-ob-chip text-ob-ink-2 flex items-center justify-center mb-4">
                                 <Bell className="w-5 h-5" />
                             </div>
-                            <h3 className="text-[15px] font-semibold text-ob-ink">Tidak ada notifikasi</h3>
+                            <h3 className="text-[15px] font-semibold text-ob-ink">{t('Tidak ada notifikasi')}</h3>
                             <p className="text-[13px] text-ob-ink-2 mt-1 max-w-xs">
-                                Notifikasi tentang invoice, pembayaran, dan feedback akan muncul di sini.
+                                {t('Notifikasi tentang invoice, pembayaran, dan masukan akan muncul di sini.')}
                             </p>
                         </div>
                     ) : (
@@ -237,7 +238,7 @@ export function NotificationDrawer({ open, onOpenChange }: Props) {
                                 loading={loadingMore}
                                 className="w-full"
                             >
-                                Muat lebih banyak
+                                {t('Muat lebih banyak')}
                             </Button>
                         </div>
                     )}

@@ -1,9 +1,9 @@
 /*
- * Ambil ulang screenshot tutorial Feedback (video/feedbacks/screens/*.webp, lewat to-webp.py) bila UI berubah.
+ * Ambil ulang screenshot tutorial Masukan (video/feedbacks/screens/*.webp, lewat to-webp.py) bila UI berubah.
  * 1. Jalankan server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8017
  * 2. Jalankan file ini lewat Playwright MCP (browser_run_code_unsafe, filename: video/capture/feedbacks.js).
  * 3. python video/capture/to-webp.py feedbacks, lalu salin koordinat dari hasilnya ke video/feedbacks/shots.ts.
- * Skrip ini membuat 2 feedback baru milik staff@qc.test di DB QC (satu Fitur ditanggapi "Diproses", satu Bug "Selesai")
+ * Skrip ini membuat 2 masukan baru milik staff@qc.test di DB QC (satu Fitur ditanggapi "Diproses", satu Bug "Selesai")
  * beserta notifikasinya. Notifikasi staff sengaja dibiarkan belum dibaca untuk video/capture/notifications.js.
  * Jangan jalankan di DB utama.
  */
@@ -26,7 +26,7 @@ async (page) => {
       await ctx.addInitScript(() => {
         document.addEventListener('DOMContentLoaded', () => {
           const s = document.createElement('style');
-          s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+          s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
           document.head.appendChild(s);
         });
       });
@@ -35,7 +35,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -69,7 +69,7 @@ async (page) => {
     description: d.locator('textarea').first(),
     priority: field(d, 'Prioritas *'),
     upload: d.locator('input[type=file]').locator('xpath=..'),
-    submit: d.getByRole('button', { name: 'Kirim Feedback' }),
+    submit: d.getByRole('button', { name: 'Kirim Masukan' }),
   });
   const card = (p, title) => p.getByRole('button', { name: new RegExp(title) });
   const showTargets = (p) => ({
@@ -81,8 +81,8 @@ async (page) => {
     response: top(p).getByText(/^Tanggapan dari/).locator('xpath=../..'),
     footer: top(p).getByRole('button', { name: 'Tutup' }).locator('xpath=..'),
     changeStatus: top(p).getByRole('button', { name: 'Ubah Status' }),
-    respond: top(p).getByRole('button', { name: /^(Tanggapi|Edit Tanggapan)$/ }),
-    edit: top(p).getByRole('button', { name: 'Edit', exact: true }),
+    respond: top(p).getByRole('button', { name: /^(Tanggapi|Ubah Tanggapan)$/ }),
+    edit: top(p).getByRole('button', { name: 'Ubah', exact: true }),
     remove: top(p).getByRole('button', { name: 'Hapus', exact: true }),
   });
 
@@ -94,12 +94,12 @@ async (page) => {
     const s = await open('staff@qc.test', { showFloating: true });
     await s.goto(BASE + '/dashboard');
     await s.getByRole('region', { name: 'Arus Kas' }).first().waitFor();
-    const floating = s.locator('button[aria-label="Kirim Feedback"]');
+    const floating = s.locator('button[aria-label="Kirim Masukan"]');
     await floating.hover();
     await s.waitForTimeout(500);
     await snap(s, 'staff-floating', { floating }, { keepMouse: true });
 
-    // Lampiran contoh untuk feedback Bug: potongan layar Ringkasan.
+    // Lampiran contoh untuk masukan Bug: potongan layar Ringkasan.
     await s.screenshot({ path: FIX + 'feedback-tangkapan-layar.png', clip: { x: 292, y: 160, width: 946, height: 480 } });
 
     await floating.click();
@@ -113,16 +113,16 @@ async (page) => {
       'Setiap awal bulan kami menyalin transaksi Arus Kas ke Excel secara manual untuk laporan ke direksi. Mohon ada tombol ekspor per bulan beserta kategorinya.',
     );
     await snap(s, 'staff-float-filled', formTargets(top(s)));
-    await top(s).getByRole('button', { name: 'Kirim Feedback' }).click();
-    await s.getByText(/Feedback berhasil dikirim/).first().waitFor();
-    await snap(s, 'staff-float-sent', { toast: s.getByText(/Feedback berhasil dikirim/).first().locator('xpath=ancestor::li[1]') });
+    await top(s).getByRole('button', { name: 'Kirim Masukan' }).click();
+    await s.getByText(/Masukan berhasil dikirim/).first().waitFor();
+    await snap(s, 'staff-float-sent', { toast: s.getByText(/Masukan berhasil dikirim/).first().locator('xpath=ancestor::li[1]') });
 
-    /* ── Staff: kirim lewat halaman Feedback (dengan lampiran) ── */
+    /* ── Staff: kirim lewat halaman Masukan (dengan lampiran) ── */
     await s.goto(BASE + '/feedbacks');
-    await s.getByRole('heading', { name: 'Feedback & Saran' }).waitFor();
-    const headerBtn = s.locator('main').getByRole('button', { name: 'Kirim Feedback' }).first();
+    await s.getByRole('heading', { name: 'Masukan' }).waitFor();
+    const headerBtn = s.locator('main').getByRole('button', { name: 'Kirim Masukan' }).first();
     await snap(s, 'staff-list-one', {
-      header: s.getByRole('heading', { name: 'Feedback & Saran' }).locator('xpath=../..'),
+      header: s.getByRole('heading', { name: 'Masukan' }).locator('xpath=../..'),
       create: headerBtn,
       tutorial: s.getByRole('button', { name: 'Tutorial' }),
       floating,
@@ -140,7 +140,7 @@ async (page) => {
     await top(s).locator('input[type=file]').setInputFiles(FIX + 'feedback-tangkapan-layar.png');
     await top(s).locator('.max-h-\\[70vh\\]').evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await snap(s, 'staff-form-filled', formTargets(top(s)));
-    await top(s).getByRole('button', { name: 'Kirim Feedback' }).click();
+    await top(s).getByRole('button', { name: 'Kirim Masukan' }).click();
     await card(s, BUG).waitFor();
     await snap(s, 'staff-list', {
       stats: s.getByText('Total', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
@@ -159,7 +159,7 @@ async (page) => {
     await m.goto(BASE + '/feedbacks');
     await card(m, BUG).waitFor();
     await snap(m, 'fm-list', {
-      tabs: m.getByRole('button', { name: 'Semua Feedback' }).locator('xpath=..'),
+      tabs: m.getByRole('button', { name: 'Semua Masukan' }).locator('xpath=..'),
       stats: m.getByText('Total', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
       filters: m.getByRole('button', { name: 'Semua tipe' }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
       search: m.getByPlaceholder('Cari judul, deskripsi, atau pengirim...'),
@@ -184,8 +184,8 @@ async (page) => {
     await snap(m, 'fm-respond-text', respond());
     await top(m).getByText('Status Baru *').locator('xpath=..').getByRole('button').first().click();
     await m.getByRole('option', { name: 'Selesai' }).waitFor();
-    await snap(m, 'fm-respond-status', { ...respond(), list: m.getByRole('listbox'), option: m.getByRole('option', { name: 'Sedang Diproses' }) });
-    await m.getByRole('option', { name: 'Sedang Diproses' }).click();
+    await snap(m, 'fm-respond-status', { ...respond(), list: m.getByRole('listbox'), option: m.getByRole('option', { name: 'Diproses' }) });
+    await m.getByRole('option', { name: 'Diproses' }).click();
     await top(m).getByRole('button', { name: 'Kirim Tanggapan' }).click();
     await top(m).getByText(/^Tanggapan dari/).waitFor();
     await m.waitForTimeout(600);
@@ -223,12 +223,12 @@ async (page) => {
     await top(s).getByText(/^Tanggapan dari/).waitFor();
     await snap(s, 'staff-show-responded', showTargets(s));
 
-    /* ── Admin: daftar semua + notifikasi feedback baru ── */
+    /* ── Admin: daftar semua + notifikasi masukan baru ── */
     const a = await open('admin@gmail.com');
     await a.goto(BASE + '/feedbacks');
     await card(a, BUG).waitFor();
     await snap(a, 'admin-list', {
-      tabs: a.getByRole('button', { name: 'Semua Feedback' }).locator('xpath=..'),
+      tabs: a.getByRole('button', { name: 'Semua Masukan' }).locator('xpath=..'),
       stats: a.getByText('Total', { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
       cardBug: card(a, BUG),
       cardFeature: card(a, FEATURE),
@@ -238,7 +238,7 @@ async (page) => {
     await a.getByText('Lihat semua notifikasi').waitFor();
     await snap(a, 'admin-bell', {
       popover: a.getByText('Lihat semua notifikasi').locator('xpath=ancestor::*[@role="dialog"][1]'),
-      first: a.getByRole('button', { name: /Feedback Baru/ }).first(),
+      first: a.getByRole('button', { name: /Masukan Baru/ }).first(),
     });
   } finally {
     for (const ctx of contexts) await ctx.close();

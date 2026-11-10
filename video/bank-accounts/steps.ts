@@ -29,7 +29,7 @@ export const TOUR_STEPS: Step[] = [
         src: img('fm-overview'),
         focus: around(S['fm-overview'].chart, S['fm-overview'].breakdown),
         zoom: 1.2,
-        caption: 'Grafik membandingkan uang masuk dan keluar selama 12 bulan; Breakdown Kategori menunjukkan ke mana uang rekening ini paling banyak keluar.',
+        caption: 'Grafik membandingkan uang masuk dan keluar selama 12 bulan; Rincian per Kategori menunjukkan ke mana uang rekening ini paling banyak keluar.',
         duration: 130,
     },
 ];
@@ -122,14 +122,14 @@ export const EXPENSE_STEPS: Step[] = [
         cursor: S['fm-quick-category'].save,
         click: true,
         zoom: 1.4,
-        caption: 'Pilih Kelompok Kategori, isi nama sub kategorinya, lalu klik Tambah. Kategori baru langsung terpilih.',
+        caption: 'Pilih Kelompok Kategori, isi nama subkategorinya, lalu klik Tambah. Kategori baru langsung terpilih.',
         duration: 120,
     },
     {
         src: img('fm-expense-category'),
         focus: S['fm-expense-category'].categoryTrigger,
         zoom: 1.7,
-        caption: 'Langganan Software kini terpilih. Transaksi selalu memakai sub kategori (bertanda ↳).',
+        caption: 'Langganan Software kini terpilih. Transaksi selalu memakai subkategori (bertanda ↳).',
         duration: 90,
     },
     {
@@ -206,7 +206,7 @@ export const TRANSFER_STEPS: Step[] = [
         src: img('fm-transfer-submit'),
         focus: S['fm-transfer-submit'].summary,
         zoom: 1.5,
-        caption: 'Setelah mengisi Deskripsi, periksa Total Debit: jumlah + biaya admin yang keluar dari rekening sumber.',
+        caption: 'Setelah mengisi Deskripsi, periksa Total Keluar: jumlah + biaya admin yang keluar dari rekening sumber.',
         duration: 130,
     },
     {
@@ -322,7 +322,7 @@ export const ADMIN_STEPS: Step[] = [
         focus: S['fm-menu'].menu,
         cursor: S['fm-menu'].edit,
         zoom: 1.8,
-        caption: 'Menu ••• di samping Transfer berisi Edit Rekening, Export PDF laporan kas, dan Hapus Rekening.',
+        caption: 'Menu ••• di samping Transfer berisi Ubah Rekening, Ekspor PDF laporan kas, dan Hapus Rekening.',
         duration: 130,
     },
     {

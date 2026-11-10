@@ -56,14 +56,14 @@ Model: `app/Models/Receivable.php` — relasi `debtor(): MorphTo`, `payments(): 
 4. Ringkasan dihitung tiga query:
    - satu `selectRaw` agregat status (total, per-status, `pending_amount`, `next_due` = jatuh tempo paling awal di antara yang **aktif**);
    - satu agregat pembayaran yang **dicakup ke piutang aktif** → `paid_principal`, `paid_interest`, `outstanding_principal = total_principal_active − paid_principal`. Tanpa cakupan ini, pembayaran piutang yang sudah lunas ikut menyusutkan sisa piutang yang masih berjalan;
-   - satu query **lewat tempo** lewat `leftJoinSub` agregat pembayaran: aktif, `due_date` sudah lewat, DAN `principal_amount > COALESCE(bayar.pokok, 0)`. Syarat terakhir wajib — tanpanya, piutang yang tanggalnya lewat tapi pokoknya sudah kembali ikut terhitung sebagai tunggakan. Dijaga `ReceivableControllerTest::test_lewat_tempo_hanya_menghitung_piutang_aktif_yang_pokoknya_belum_tertutup`.
+   - satu query **lewat jatuh tempo** lewat `leftJoinSub` agregat pembayaran: aktif, `due_date` sudah lewat, DAN `principal_amount > COALESCE(bayar.pokok, 0)`. Syarat terakhir wajib — tanpanya, piutang yang tanggalnya lewat tapi pokoknya sudah kembali ikut terhitung sebagai tunggakan. Dijaga `ReceivableControllerTest::test_lewat_tempo_hanya_menghitung_piutang_aktif_yang_pokoknya_belum_tertutup`.
 
-   Dihitung di SQL, bukan dengan menarik baris ke PHP: jumlah piutang lewat tempo tidak punya batas atas.
+   Dihitung di SQL, bukan dengan menarik baris ke PHP: jumlah piutang lewat jatuh tempo tidak punya batas atas.
 5. Props tambahan: `statusCounts` (hitungan per status untuk pil filter), `bankAccountOptions` (dengan saldo), `employeeOptions` (User `status=active`), `companyOptions` (Client `type=company`, `status=Active`), `nextReceivableNumber`, `canApprove`, `canPay`.
-6. Halaman React (gaya Obsidian) menampilkan ringkasan 4 angka — **belum kembali, lewat tempo, menunggu persetujuan, jatuh tempo terdekat** — lalu pil status berhitung dan tabel 6 kolom.
-   Susunannya sengaja berbeda dari halaman Utang: di Utang kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
-   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian (`components/receivable-drawer.tsx`) yang terbuka saat baris diklik: jadwal angsuran, Ajukan, Proses pengajuan, Catat pembayaran, Edit, Hapus.
-   Untuk piutang **ditolak**, alasan penolakan tampil paling atas di panel, karena itulah yang harus diperbaiki pengajunya.
+6. Halaman React (gaya Obsidian) menampilkan ringkasan 4 angka — **belum kembali, lewat jatuh tempo, menunggu persetujuan, jatuh tempo terdekat** — lalu pil status berhitung dan tabel 6 kolom.
+   Susunannya sengaja berbeda dari halaman Utang: di Utang kita yang menentukan kapan membayar, di sini kita tidak mengendalikan kapan uang kembali, jadi "lewat jatuh tempo" naik jadi angka utama dan antrean persetujuan ikut diringkas.
+   Aksi per baris **tidak ada lagi di tabel**; semuanya ada di panel rincian (`components/receivable-drawer.tsx`) yang terbuka saat baris diklik: jadwal angsuran, Ajukan untuk persetujuan, Proses pengajuan, Catat pembayaran, Ubah, Hapus.
+   Untuk piutang **ditolak**, alasan penolakan tampil paling atas di panel, karena itulah yang harus diperbaiki pemohonnya.
    Jadwal angsuran tetap ditampilkan sebelum disetujui (itu yang dinilai penyetuju), tetapi penanda "termin berikutnya" dimatikan: menyorot termin yang harus dibayar duluan pada sesuatu yang belum berjalan menjanjikan aksi yang belum ada.
 5. React (`resources/js/pages/receivables/index.tsx`) merender tabel + tombol aksi per baris sesuai flag `can_*`.
 
@@ -90,10 +90,10 @@ $debtorType = $validated['type'] === 'employee_loan' ? User::class : Client::cla
 4. `Receivable::create` dengan `status='draft'`, nomor dari `generateReceivableNumber()` (`RCV-` + pad 5 digit). **Belum ada mutasi bank apa pun di tahap ini.**
 5. Respons `back()->with('success')`.
 
-### Edit Piutang (Update) — hanya `draft`/`rejected`, reset ke `draft`
+### Ubah Piutang (Update) — hanya `draft`/`rejected`, reset ke `draft`
 
 **Alur step-by-step:**
-1. Tombol Edit muncul jika `can_edit` (`draft` atau `rejected`).
+1. Tombol Ubah muncul jika `can_edit` (`draft` atau `rejected`).
 2. `PUT /receivables/{receivable}` → `can:edit receivables` → guard `abort_if(! in_array($status, ['draft','rejected']), 403)`.
 3. Validasi `UpdateReceivableRequest` (paralel dengan store); lampiran bisa dihapus (`remove_attachment`) atau diganti.
 4. Hitung ulang `interest_rate`, `installment_amount`, `due_date` (rumus sama dengan store), lalu `update(...)` termasuk **`status => 'draft'` dan `rejection_reason => null`** — piutang yang ditolak otomatis kembali ke draft setelah direvisi, siap diajukan ulang.

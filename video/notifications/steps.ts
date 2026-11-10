@@ -26,7 +26,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-popover'),
         focus: S['staff-popover'].first,
         zoom: 2,
-        caption: 'Yang belum dibaca bercetak tebal dan bertitik biru. Contoh ini: feedback Anda sudah ditanggapi.',
+        caption: 'Yang belum dibaca bercetak tebal dan bertitik biru. Contoh ini: masukan Anda sudah ditanggapi.',
         duration: 130,
     },
     {
@@ -42,7 +42,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-after-click'),
         focus: S['staff-after-click'].bell,
         zoom: 2.6,
-        caption: 'Halaman Feedback terbuka, dan angka di lonceng berkurang satu.',
+        caption: 'Halaman Masukan terbuka, dan angka di lonceng berkurang satu.',
         chime: true,
         duration: 110,
     },
@@ -79,7 +79,7 @@ export const STAFF_STEPS: Step[] = [
     },
 ];
 
-/** Finance manager: notifikasi feedback baru. */
+/** Finance manager: notifikasi masukan baru. */
 export const FM_STEPS: Step[] = [
     {
         src: img('fm-popover'),
@@ -87,14 +87,14 @@ export const FM_STEPS: Step[] = [
         cursor: S['fm-popover'].bell,
         click: true,
         zoom: 1.6,
-        caption: 'Finance manager menerima Feedback Baru setiap kali ada pengguna mengirim feedback.',
+        caption: 'Finance manager menerima Masukan Baru setiap kali ada pengguna mengirim masukan.',
         duration: 130,
     },
     {
         src: img('fm-popover'),
         focus: S['fm-popover'].first,
         zoom: 2,
-        caption: 'Pesannya menyebut pengirim, tipe, dan judul feedback.',
+        caption: 'Pesannya menyebut pengirim, tipe, dan judul masukan.',
         duration: 110,
     },
     {
@@ -103,14 +103,14 @@ export const FM_STEPS: Step[] = [
         cursor: S['fm-popover'].first,
         click: true,
         zoom: 2,
-        caption: 'Klik untuk membuka halaman Feedback, lalu cari feedback-nya dan tanggapi.',
+        caption: 'Klik untuk membuka halaman Masukan, lalu cari masukannya dan tanggapi.',
         duration: 110,
     },
     {
         src: img('fm-after-click'),
         focus: S['fm-after-click'].heading,
         zoom: 1.6,
-        caption: 'Halaman Feedback terbuka. Cara menanggapi ada di tutorial modul Feedback.',
+        caption: 'Halaman Masukan terbuka. Cara menanggapi ada di tutorial modul Masukan.',
         chime: true,
         duration: 120,
     },
@@ -122,14 +122,14 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-header'),
         focus: S['admin-header'].bell,
         zoom: 2.6,
-        caption: 'Lonceng Admin bertambah setiap ada feedback baru dan setiap pengingat invoice jatuh tempo pukul 08.00 WITA.',
+        caption: 'Lonceng Admin bertambah setiap ada masukan baru dan setiap pengingat invoice jatuh tempo pukul 08.00 WITA.',
         duration: 150,
     },
     {
         src: img('admin-popover'),
         focus: S['admin-popover'].popover,
         zoom: 1.6,
-        caption: 'Satu feedback menghasilkan satu notifikasi untuk setiap Admin dan setiap Finance manager.',
+        caption: 'Satu masukan menghasilkan satu notifikasi untuk setiap Admin dan setiap Finance manager.',
         duration: 140,
     },
     {

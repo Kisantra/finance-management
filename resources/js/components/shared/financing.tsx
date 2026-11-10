@@ -3,6 +3,7 @@ import { ArrowRight, Info, Landmark, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ComboboxOption } from '@/components/ui/combobox';
 import { useCan } from '@/hooks/use-can';
+import { t, tk, Trans } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency } from '@/lib/utils';
 
@@ -13,8 +14,8 @@ import { cn, formatCurrency } from '@/lib/utils';
  * adalah jenis, bukan arah atau status. Lihat docs/module/cash-flow.md › Pendanaan.
  */
 
-/** Judul bagian grup Pendanaan di pemilih kategori (selalu grup terakhir). */
-export const FINANCING_SECTION = 'Pendanaan · tidak masuk Laba Rugi';
+/** Judul bagian grup Pendanaan di pemilih kategori (selalu grup terakhir). Kunci terjemahan: t(FINANCING_SECTION). */
+export const FINANCING_SECTION = tk('Pendanaan · tidak masuk Laba Rugi');
 
 /** Opsi kategori dari server (`TransactionCategory::selectOptions()` / `financingOptions()`). */
 export interface CategoryPickerOption {
@@ -39,12 +40,12 @@ export function withFinancingGroup(options: CategoryPickerOption[]): ComboboxOpt
 
         const decorated: ComboboxOption = option.disabled
             ? base
-            : { ...base, tag: 'Pendanaan', tagIcon: <Landmark aria-hidden="true" /> };
+            : { ...base, tag: t('Pendanaan'), tagIcon: <Landmark aria-hidden="true" /> };
 
         if (sectionOpened) return decorated;
 
         sectionOpened = true;
-        return { ...decorated, section: FINANCING_SECTION, sectionIcon: <Landmark aria-hidden="true" /> };
+        return { ...decorated, section: t(FINANCING_SECTION), sectionIcon: <Landmark aria-hidden="true" /> };
     });
 }
 
@@ -64,7 +65,7 @@ export function FinancingBadge({ className }: { className?: string }) {
     return (
         <Badge variant="outline" className={cn('shrink-0 gap-1 whitespace-nowrap', className)}>
             <Landmark className="h-3 w-3" aria-hidden="true" />
-            Pendanaan
+            {t('Pendanaan')}
         </Badge>
     );
 }
@@ -79,16 +80,34 @@ interface FinancingHintProps {
     className?: string;
 }
 
+/*
+ * Satu kalimat utuh per arah × ada/tidaknya nominal (D1): penerjemah bebas menukar urutan kata, nilai
+ * disisipkan lewat placeholder, bagian tebal lewat <b> — kalimat tidak pernah dirangkai dari potongan.
+ */
+const FINANCING_HINT = {
+    credit: {
+        amount: tk('<b>Pendanaan:</b> saldo {{account}} bertambah {{amount}}, Laba Rugi tidak berubah.'),
+        plain: tk('<b>Pendanaan:</b> saldo {{account}} bertambah, Laba Rugi tidak berubah.'),
+    },
+    debit: {
+        amount: tk('<b>Pendanaan:</b> saldo {{account}} berkurang {{amount}}, Laba Rugi tidak berubah.'),
+        plain: tk('<b>Pendanaan:</b> saldo {{account}} berkurang, Laba Rugi tidak berubah.'),
+    },
+} as const;
+
 /** Petunjuk di bawah pemilih kategori setelah kategori pendanaan dipilih. */
 export function FinancingHint({ direction, accountName, amount = 0, className }: FinancingHintProps) {
-    const arah = direction === 'credit' ? 'bertambah' : 'berkurang';
+    const kalimat = FINANCING_HINT[direction][amount > 0 ? 'amount' : 'plain'];
 
     return (
         <div role="note" className={cn('mt-2 flex gap-2 rounded-xl bg-ob-inner px-3 py-2.5 text-xs leading-relaxed text-ob-ink-2', className)}>
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ob-ink-3" aria-hidden="true" />
             <p>
-                <span className="font-semibold text-ob-ink">Pendanaan:</span> saldo {accountName || 'rekening'} {arah}
-                {amount > 0 ? ` ${formatCurrency(amount)}` : ''}, Laba Rugi tidak berubah.
+                <Trans
+                    i18nKey={kalimat}
+                    values={{ account: accountName || t('rekening'), amount: formatCurrency(amount) }}
+                    components={{ b: <span className="font-semibold text-ob-ink" /> }}
+                />
             </p>
         </div>
     );
@@ -102,26 +121,39 @@ export interface ManagedBy {
     search: string | null;
 }
 
+/** Nama modul pengelola (kode → label). Dipakai alih-alih `label` dari server agar ikut bahasa tampilan. */
+const MANAGED_BY_MODULE: Record<ManagedBy['module'], string> = {
+    loans: tk('Utang', 'menu'),
+    receivables: tk('Piutang', 'menu'),
+};
+
+/** Label modul pengelola baris hanya-lihat dalam bahasa aktif ("Utang" / "Payables" / "应付借款"). */
+export function managedByLabel(managedBy: ManagedBy): string {
+    const kunci = MANAGED_BY_MODULE[managedBy.module];
+    return kunci ? t(kunci, { context: 'menu' }) : managedBy.label;
+}
+
 /** Catatan baris hanya-lihat: gembok + "Hanya-lihat · kelola di Utang/Piutang". */
 export function ManagedByNote({ managedBy, className }: { managedBy: ManagedBy; className?: string }) {
     const { can } = useCan();
+    const modul = managedByLabel(managedBy);
     const href = companyUrl(`/${managedBy.module}`) + (managedBy.search ? `?search=${encodeURIComponent(managedBy.search)}` : '');
 
     return (
         <span className={cn('flex flex-wrap items-center gap-x-1 text-xs text-ob-ink-3', className)}>
             <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span>Hanya-lihat ·</span>
+            <span>{t('Hanya-lihat')} ·</span>
             {can(`view ${managedBy.module}`) ? (
                 <Link
                     href={href}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-0.5 rounded-md font-medium text-ob-act hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                 >
-                    kelola di {managedBy.label}
+                    {t('kelola di {{module}}', { module: modul })}
                     <ArrowRight className="h-3 w-3" aria-hidden="true" />
                 </Link>
             ) : (
-                <span>kelola di {managedBy.label}</span>
+                <span>{t('kelola di {{module}}', { module: modul })}</span>
             )}
         </span>
     );

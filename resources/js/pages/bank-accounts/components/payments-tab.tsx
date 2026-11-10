@@ -13,6 +13,7 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import { TransactionDetailDialog, type PaymentDialogData } from '../../cash-flow/components/transaction-detail-dialog';
 import type { PaginatedResponse, PaymentRow } from '../types';
+import { t, tk, Trans } from '@/i18n';
 
 interface Props {
     accountId: number;
@@ -42,8 +43,13 @@ const DEFAULT_FILTERS: Filters = {
 };
 
 const METHOD_LABEL: Record<string, string> = {
-    cash: 'Tunai',
-    bank_transfer: 'Transfer Bank',
+    cash: tk('Tunai'),
+    bank_transfer: tk('Transfer Bank'),
+};
+
+const CLIENT_TYPE_LABEL: Record<string, string> = {
+    individual: tk('Individu'),
+    company: tk('Perusahaan'),
 };
 
 const STATUS_VARIANT: Record<string, 'zinc' | 'blue' | 'yellow' | 'green'> = {
@@ -54,10 +60,10 @@ const STATUS_VARIANT: Record<string, 'zinc' | 'blue' | 'yellow' | 'green'> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-    draft: 'Draft',
-    sent: 'Terkirim',
-    partially_paid: 'Sebagian',
-    paid: 'Lunas',
+    draft: tk('Draft'),
+    sent: tk('Terbit'),
+    partially_paid: tk('Sebagian'),
+    paid: tk('Lunas'),
 };
 
 export function PaymentsTab({ accountId, refreshKey }: Props) {
@@ -123,32 +129,32 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <Combobox
                         options={[
-                            { label: 'Semua metode', value: '' },
-                            { label: 'Tunai', value: 'cash' },
-                            { label: 'Transfer Bank', value: 'bank_transfer' },
+                            { label: t('Semua metode'), value: '' },
+                            { label: t('Tunai'), value: 'cash' },
+                            { label: t('Transfer Bank'), value: 'bank_transfer' },
                         ]}
                         value={filters.payment_method}
                         onChange={(v) => setFilters((p) => ({ ...p, payment_method: (v as string) ?? '', page: 1 }))}
-                        placeholder="Semua metode"
+                        placeholder={t('Semua metode')}
                         clearable={false}
                     />
                     <Combobox
                         options={[
-                            { label: 'Semua status', value: '' },
-                            { label: 'Terkirim', value: 'sent' },
-                            { label: 'Sebagian', value: 'partially_paid' },
-                            { label: 'Lunas', value: 'paid' },
+                            { label: t('Semua status'), value: '' },
+                            { label: t('Terbit'), value: 'sent' },
+                            { label: t('Sebagian'), value: 'partially_paid' },
+                            { label: t('Lunas'), value: 'paid' },
                         ]}
                         value={filters.invoice_status}
                         onChange={(v) => setFilters((p) => ({ ...p, invoice_status: (v as string) ?? '', page: 1 }))}
-                        placeholder="Semua status invoice"
+                        placeholder={t('Semua status invoice')}
                         clearable={false}
                     />
                     <DatePicker
                         mode="month"
                         value={filters.month || null}
                         onChange={(m) => setFilters((p) => ({ ...p, month: m ?? '', page: 1 }))}
-                        placeholder="Semua bulan"
+                        placeholder={t('Semua bulan')}
                         clearable
                     />
                 </div>
@@ -160,7 +166,7 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                 icon={<Search className="w-4 h-4" />}
                                 value={filters.search}
                                 onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value, page: 1 }))}
-                                placeholder="Cari invoice, klien, atau referensi..."
+                                placeholder={t('Cari invoice, klien, atau referensi...')}
                                 className="h-9"
                             />
                         </div>
@@ -168,15 +174,24 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="w-3 h-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <div className="text-sm text-dark-500 dark:text-dark-400">
-                                <span className="hidden sm:inline">Menampilkan </span>
-                                <span className="tabular-nums">{rows.length}</span>
-                                {data && data.total !== rows.length && (
-                                    <span className="hidden sm:inline"> dari <span className="tabular-nums">{data.total}</span></span>
-                                )}{' '}hasil
+                                {data && data.total !== rows.length ? (
+                                    <Trans
+                                        i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil"
+                                        count={data.total}
+                                        values={{ shown: rows.length }}
+                                        components={{ b: <span className="tabular-nums" /> }}
+                                    />
+                                ) : (
+                                    <Trans
+                                        i18nKey="Menampilkan <b>{{count}}</b> hasil"
+                                        count={rows.length}
+                                        components={{ b: <span className="tabular-nums" /> }}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>
@@ -188,7 +203,7 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                             className="text-xs text-dark-500"
                         >
                             <X className="w-3.5 h-3.5" />
-                            Reset
+                            {t('Hapus filter')}
                         </Button>
                     )}
                 </div>
@@ -201,8 +216,8 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                 ) : rows.length === 0 ? (
                     <EmptyState
                         icon={<Banknote className="w-7 h-7" />}
-                        title="Belum ada pembayaran"
-                        description="Pembayaran invoice yang dialokasikan ke rekening ini akan muncul di sini."
+                        title={t('Belum ada pembayaran')}
+                        description={t('Pembayaran invoice yang dialokasikan ke rekening ini akan muncul di sini.')}
                     />
                 ) : (
                     <div className="overflow-x-auto">
@@ -210,21 +225,21 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                             <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
                                 <tr>
                                     <SortableHeader
-                                        label="Tanggal"
+                                        label={t('Tanggal')}
                                         column="payment_date"
                                         current={filters.sort}
                                         direction={filters.direction}
                                         onSort={onSort}
                                     />
                                     <SortableHeader
-                                        label="Invoice"
+                                        label={t('Invoice')}
                                         column="invoice_number"
                                         current={filters.sort}
                                         direction={filters.direction}
                                         onSort={onSort}
                                     />
                                     <SortableHeader
-                                        label="Klien"
+                                        label={t('Klien')}
                                         column="client_name"
                                         current={filters.sort}
                                         direction={filters.direction}
@@ -232,10 +247,10 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                         className="hidden md:table-cell"
                                     />
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden sm:table-cell">
-                                        Metode
+                                        {t('Metode')}
                                     </th>
                                     <SortableHeader
-                                        label="Jumlah"
+                                        label={t('Jumlah')}
                                         column="amount"
                                         current={filters.sort}
                                         direction={filters.direction}
@@ -273,20 +288,20 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                                     className="rounded-md text-left font-mono text-sm font-medium text-dark-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill dark:text-dark-50"
                                                 >
                                                     {row.invoice_number || '—'}
-                                                    <span className="sr-only"> — lihat rincian dan jurnal</span>
+                                                    <span className="sr-only"> — {t('lihat rincian dan jurnal')}</span>
                                                 </button>
                                                 {row.invoice_status && (
                                                     <Badge
                                                         variant={STATUS_VARIANT[row.invoice_status] ?? 'zinc'}
                                                         size="sm"
                                                     >
-                                                        {STATUS_LABEL[row.invoice_status] ?? row.invoice_status}
+                                                        {STATUS_LABEL[row.invoice_status] ? t(STATUS_LABEL[row.invoice_status]) : row.invoice_status}
                                                     </Badge>
                                                 )}
                                             </div>
                                             {row.reference_number && (
                                                 <div className="text-xs text-dark-500 dark:text-dark-400 font-mono mt-0.5">
-                                                    Ref: {row.reference_number}
+                                                    {t('Ref: {{number}}', { number: row.reference_number })}
                                                 </div>
                                             )}
                                             {row.attachment_url && (
@@ -300,8 +315,8 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                             <div className="font-medium text-dark-900 dark:text-dark-50 truncate max-w-50">
                                                 {row.client_name}
                                             </div>
-                                            <div className="text-xs text-dark-500 dark:text-dark-400 capitalize">
-                                                {row.client_type}
+                                            <div className="text-xs text-dark-500 dark:text-dark-400">
+                                                {CLIENT_TYPE_LABEL[row.client_type] ? t(CLIENT_TYPE_LABEL[row.client_type]) : row.client_type}
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 align-middle hidden sm:table-cell">
@@ -311,7 +326,7 @@ export function PaymentsTab({ accountId, refreshKey }: Props) {
                                                 ) : (
                                                     <CreditCard className="w-3 h-3" />
                                                 )}
-                                                {METHOD_LABEL[row.payment_method] ?? row.payment_method}
+                                                {METHOD_LABEL[row.payment_method] ? t(METHOD_LABEL[row.payment_method]) : row.payment_method}
                                             </span>
                                         </td>
                                         <td className="px-3 py-3 align-middle text-right">

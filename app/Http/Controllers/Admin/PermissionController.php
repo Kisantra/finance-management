@@ -156,7 +156,7 @@ class PermissionController extends Controller
     private function tolakJikaAdmin(Role $role): ?RedirectResponse
     {
         return $role->name === 'admin'
-            ? redirect()->back()->with('error', 'Role admin selalu memiliki semua hak akses dan tidak bisa diubah.')
+            ? redirect()->back()->with('error', __('Role admin selalu memiliki semua hak akses dan tidak bisa diubah.'))
             : null;
     }
 
@@ -174,9 +174,9 @@ class PermissionController extends Controller
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-            return redirect()->back()->with('success', 'Permission berhasil dihapus.');
+            return redirect()->back()->with('success', __('Izin berhasil dihapus.'));
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menghapus permission: '.$e->getMessage());
+            return redirect()->back()->with('error', __('Gagal menghapus izin: :pesan', ['pesan' => $e->getMessage()]));
         }
     }
 }

@@ -56,8 +56,8 @@ class StoreReceivableRequest extends FormRequest
 
             if (! $ada) {
                 $validator->errors()->add('debtor_id', $type === 'employee_loan'
-                    ? 'Karyawan yang dipilih tidak ditemukan.'
-                    : 'Klien yang dipilih tidak ditemukan.');
+                    ? __('Karyawan yang dipilih tidak ditemukan.')
+                    : __('Klien yang dipilih tidak ditemukan.'));
             }
         });
     }

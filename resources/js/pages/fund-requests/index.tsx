@@ -55,6 +55,7 @@ import type {
     FundRequestStats,
     PaginationMeta,
 } from './types';
+import { t, tk, Trans } from '@/i18n';
 
 interface EditFundRequest {
     id: number;
@@ -84,19 +85,21 @@ interface Props {
 }
 
 const STATUS_OPTIONS: FilterOption[] = [
-    { label: 'Draft', value: 'draft' },
-    { label: 'Pending Review', value: 'pending' },
-    { label: 'Approved', value: 'approved' },
-    { label: 'Rejected', value: 'rejected' },
-    { label: 'Disbursed', value: 'disbursed' },
+    { label: tk('Draft'), value: 'draft' },
+    { label: tk('Menunggu persetujuan'), value: 'pending' },
+    { label: tk('Disetujui'), value: 'approved' },
+    { label: tk('Ditolak'), value: 'rejected' },
+    { label: tk('Dicairkan'), value: 'disbursed' },
 ];
 
 const PRIORITY_OPTIONS: FilterOption[] = [
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'High', value: 'high' },
-    { label: 'Urgent', value: 'urgent' },
+    { label: tk('Rendah'), value: 'low' },
+    { label: tk('Sedang'), value: 'medium' },
+    { label: tk('Tinggi'), value: 'high' },
+    { label: tk('Mendesak'), value: 'urgent' },
 ];
+
+const translateOptions = (options: FilterOption[]): FilterOption[] => options.map((o) => ({ ...o, label: t(o.label) }));
 
 const EMPTY_ITEM = (): FundRequestItem => ({
     description: '',
@@ -156,10 +159,10 @@ export default function FundRequestsIndex({
     const [submitProcessing, setSubmitProcessing] = React.useState(false);
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) apply({ search, page: 1 });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -202,11 +205,11 @@ export default function FundRequestsIndex({
             // toast merah yang benar. Pola ini sudah dipakai invoices/index.tsx.
             onSuccess: (page) => {
                 if ((page.props.flash as { error?: string } | undefined)?.error) return;
-                toast.success('Permintaan dana berhasil dihapus');
+                toast.success(t('Pengajuan dana berhasil dihapus'));
                 setDeleteRow(null);
                 setDetailRow(null);
             },
-            onError: () => toast.error('Gagal menghapus'),
+            onError: () => toast.error(t('Gagal menghapus')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
@@ -222,11 +225,11 @@ export default function FundRequestsIndex({
                     // Jalur submit juga punya penolakan ber-flash: "Perubahan
                     // tersimpan, tetapi pengajuan tidak dapat dikirim ...".
                     if ((page.props.flash as { error?: string } | undefined)?.error) return;
-                    toast.success('Permintaan dana berhasil diajukan');
+                    toast.success(t('Pengajuan dana berhasil diajukan'));
                     setSubmitRow(null);
                     setDetailRow(null);
                 },
-                onError: () => toast.error('Gagal mengajukan'),
+                onError: () => toast.error(t('Gagal mengajukan')),
                 onFinish: () => setSubmitProcessing(false),
             },
         );
@@ -241,12 +244,12 @@ export default function FundRequestsIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success(reviewAction === 'approve' ? 'Permintaan dana disetujui' : 'Permintaan dana ditolak');
+                    toast.success(reviewAction === 'approve' ? t('Pengajuan dana disetujui') : t('Pengajuan dana ditolak'));
                     setReviewRow(null);
                     setDetailRow(null);
                     setReviewNotes('');
                 },
-                onError: () => toast.error('Gagal memproses'),
+                onError: () => toast.error(t('Gagal memproses')),
                 onFinish: () => setReviewProcessing(false),
             },
         );
@@ -266,14 +269,14 @@ export default function FundRequestsIndex({
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Dana berhasil dicairkan');
+                    toast.success(t('Dana berhasil dicairkan'));
                     setDisburseRow(null);
                     setDetailRow(null);
                     setDisburseBankAccountId(null);
                     setDisburseNotes('');
                     setDisburseFile(null);
                 },
-                onError: () => toast.error('Gagal mencairkan dana'),
+                onError: () => toast.error(t('Gagal mencairkan dana')),
                 onFinish: () => setDisburseProcessing(false),
             },
         );
@@ -294,7 +297,7 @@ export default function FundRequestsIndex({
                     setEditLoading(false);
                 },
                 onError: () => {
-                    toast.error('Gagal memuat data permintaan');
+                    toast.error(t('Gagal memuat data pengajuan'));
                     setEditLoading(false);
                 },
             },
@@ -311,24 +314,24 @@ export default function FundRequestsIndex({
     const allSelected = rows.length > 0 && selected.length === rows.length;
 
     const tabItems = [
-        ...(canApprove ? [{ value: 'all', label: 'Semua Pengajuan' }] : []),
-        { value: 'my', label: 'Pengajuan Saya' },
+        ...(canApprove ? [{ value: 'all', label: t('Semua Pengajuan') }] : []),
+        { value: 'my', label: t('Pengajuan Saya') },
     ];
 
     return (
         <AppLayout>
-            <Head title="Permintaan Dana" />
+            <Head title={t('Pengajuan Dana', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Permintaan Dana"
-                    description="Kelola pengajuan pencairan dana operasional."
+                    title={t('Pengajuan Dana', { context: 'menu' })}
+                    description={t('Kelola pengajuan pencairan dana operasional.')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="fund-requests" />
                             <Button variant="primary" size="md" onClick={() => setCreateOpen(true)}>
                                 <Plus className="w-4 h-4" />
-                                Buat Permintaan
+                                {t('Buat Pengajuan')}
                             </Button>
                         </div>
                     }
@@ -336,10 +339,10 @@ export default function FundRequestsIndex({
 
                 {/* Stats bar */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <StatCard label="Total" value={stats.total} sub="permintaan" color="blue" />
-                    <StatCard label="Pending" value={stats.pending_count} sub="menunggu review" color="yellow" />
-                    <StatCard label="Approved" value={stats.approved_count} sub="siap dicairkan" color="green" />
-                    <StatCard label="Dicairkan" value={stats.disbursed_count} sub="selesai" color="purple" />
+                    <StatCard label={t('Total')} value={stats.total} sub={t('pengajuan')} color="blue" />
+                    <StatCard label={t('Menunggu persetujuan')} value={stats.pending_count} sub={t('perlu ditinjau')} color="yellow" />
+                    <StatCard label={t('Disetujui')} value={stats.approved_count} sub={t('siap dicairkan')} color="green" />
+                    <StatCard label={t('Dicairkan')} value={stats.disbursed_count} sub={t('selesai')} color="purple" />
                 </div>
 
                 {/* Tabs */}
@@ -355,37 +358,37 @@ export default function FundRequestsIndex({
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <Combobox
-                            label="Status"
-                            options={STATUS_OPTIONS}
+                            label={t('Status')}
+                            options={translateOptions(STATUS_OPTIONS)}
                             value={filters.status ?? null}
                             onChange={(v) => apply({ status: v ? String(v) : null, page: 1 })}
-                            placeholder="Semua status"
+                            placeholder={t('Semua status')}
                             clearable
                         />
                         <Combobox
-                            label="Prioritas"
-                            options={PRIORITY_OPTIONS}
+                            label={t('Prioritas')}
+                            options={translateOptions(PRIORITY_OPTIONS)}
                             value={filters.priority ?? null}
                             onChange={(v) => apply({ priority: v ? String(v) : null, page: 1 })}
-                            placeholder="Semua prioritas"
+                            placeholder={t('Semua prioritas')}
                             clearable
                         />
                         {filters.tab === 'all' && (
                             <Combobox
-                                label="Pemohon"
+                                label={t('Pemohon')}
                                 options={userOptions}
                                 value={filters.user_id ?? null}
                                 onChange={(v) => apply({ user_id: v ? String(v) : null, page: 1 })}
-                                placeholder="Semua pengguna"
+                                placeholder={t('Semua pengguna')}
                                 clearable
                             />
                         )}
                         <Input
-                            label="Cari"
+                            label={t('Cari')}
                             icon={<Search className="w-4 h-4" />}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Judul, tujuan..."
+                            placeholder={t('Judul, tujuan...')}
                         />
                     </div>
 
@@ -394,18 +397,22 @@ export default function FundRequestsIndex({
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="w-3 h-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <span className="text-sm text-dark-500 dark:text-dark-400">
-                                Menampilkan <span className="tabular-nums">{rows.length}</span> dari{' '}
-                                <span className="tabular-nums">{pagination.total}</span> hasil
+                                <Trans
+                                    i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil"
+                                    count={pagination.total}
+                                    values={{ shown: rows.length }}
+                                    components={{ b: <span className="tabular-nums" /> }}
+                                />
                             </span>
                         </div>
                         {activeFilterCount > 0 && (
                             <Button variant="ghost" size="sm" onClick={reset}>
                                 <X className="w-3.5 h-3.5" />
-                                Reset
+                                {t('Hapus filter')}
                             </Button>
                         )}
                     </div>
@@ -416,12 +423,12 @@ export default function FundRequestsIndex({
                     {rows.length === 0 ? (
                         <EmptyState
                             icon={<FileText className="w-7 h-7" />}
-                            title="Belum ada permintaan dana"
-                            description="Buat permintaan dana baru untuk memulai."
+                            title={t('Belum ada pengajuan dana')}
+                            description={t('Buat pengajuan dana baru untuk memulai.')}
                             action={
                                 <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="w-4 h-4" />
-                                    Buat Permintaan
+                                    {t('Buat Pengajuan')}
                                 </Button>
                             }
                         />
@@ -434,30 +441,30 @@ export default function FundRequestsIndex({
                                             <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            No. Permintaan
+                                            {t('No. Pengajuan')}
                                         </th>
                                         {filters.tab === 'all' && (
                                             <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">
-                                                Pemohon
+                                                {t('Pemohon')}
                                             </th>
                                         )}
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Judul
+                                            {t('Judul')}
                                         </th>
                                         <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Total
+                                            {t('Total')}
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden lg:table-cell">
-                                            Prioritas
+                                            {t('Prioritas')}
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden lg:table-cell">
-                                            Dibutuhkan
+                                            {t('Dibutuhkan')}
                                         </th>
                                         <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Status
+                                            {t('Status')}
                                         </th>
                                         <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                            Aksi
+                                            {t('Aksi')}
                                         </th>
                                     </tr>
                                 </thead>
@@ -499,7 +506,7 @@ export default function FundRequestsIndex({
                                                     {row.title}
                                                 </div>
                                                 <div className="text-xs text-dark-400 dark:text-dark-500 mt-0.5">
-                                                    {row.items_count} item
+                                                    {t('{{count}} item', { count: row.items_count })}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 align-middle text-right">
@@ -521,18 +528,18 @@ export default function FundRequestsIndex({
                                                     {row.can_submit && (
                                                         <Button variant="outline" size="sm" onClick={() => setSubmitRow(row)}>
                                                             <CheckCircle className="w-3.5 h-3.5" />
-                                                            Ajukan
+                                                            {t('Ajukan')}
                                                         </Button>
                                                     )}
                                                     {row.can_review && canApprove && (
                                                         <Button variant="outline" size="sm" onClick={() => { setReviewRow(row); setReviewAction('approve'); setReviewNotes(''); }}>
                                                             <Clock className="w-3.5 h-3.5" />
-                                                            Review
+                                                            {t('Tinjau')}
                                                         </Button>
                                                     )}
                                                     {row.can_disburse && canDisburse && (
                                                         <Button variant="green" size="sm" onClick={() => { setDisburseRow(row); setDisburseBankAccountId(null); setDisburseDate(toLocalIso(new Date())); setDisburseNotes(''); }}>
-                                                            Cairkan
+                                                            {t('Cairkan')}
                                                         </Button>
                                                     )}
                                                     {row.can_edit && (
@@ -607,24 +614,24 @@ export default function FundRequestsIndex({
                     {detailRow && (
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                <Field label="No. Permintaan" value={<span className="font-mono">{detailRow.request_number}</span>} />
-                                <Field label="Pemohon" value={detailRow.user_name ?? '—'} />
-                                <Field label="Prioritas" value={<PriorityBadge priority={detailRow.priority} />} />
-                                <Field label="Dibutuhkan" value={formatDate(detailRow.needed_by_date)} />
-                                <Field label="Total" value={formatCurrency(detailRow.total_amount)} />
-                                <Field label="Status" value={<StatusBadge status={detailRow.status} />} />
+                                <Field label={t('No. Pengajuan')} value={<span className="font-mono">{detailRow.request_number}</span>} />
+                                <Field label={t('Pemohon')} value={detailRow.user_name ?? '—'} />
+                                <Field label={t('Prioritas')} value={<PriorityBadge priority={detailRow.priority} />} />
+                                <Field label={t('Dibutuhkan')} value={formatDate(detailRow.needed_by_date)} />
+                                <Field label={t('Total')} value={formatCurrency(detailRow.total_amount)} />
+                                <Field label={t('Status')} value={<StatusBadge status={detailRow.status} />} />
                                 {detailRow.reviewed_by_name && (
-                                    <Field label="Direview oleh" value={detailRow.reviewed_by_name} />
+                                    <Field label={t('Ditinjau oleh')} value={detailRow.reviewed_by_name} />
                                 )}
                                 {detailRow.review_notes && (
                                     <div className="col-span-2">
-                                        <Field label="Catatan Review" value={detailRow.review_notes} />
+                                        <Field label={t('Catatan peninjau')} value={detailRow.review_notes} />
                                     </div>
                                 )}
                             </div>
                             {detailRow.purpose && (
                                 <div>
-                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">Tujuan</p>
+                                    <p className="text-xs text-dark-500 dark:text-dark-400 mb-1">{t('Tujuan')}</p>
                                     <p className="text-sm text-dark-700 dark:text-dark-300">{detailRow.purpose}</p>
                                 </div>
                             )}
@@ -632,7 +639,7 @@ export default function FundRequestsIndex({
                                 <AttachmentPreviewButton
                                     url={detailRow.attachment_url}
                                     name={detailRow.attachment_name}
-                                    label={detailRow.attachment_name ?? 'Lihat Lampiran'}
+                                    label={detailRow.attachment_name ?? t('Lihat Lampiran')}
                                     className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                                     iconSize="w-4 h-4"
                                 />
@@ -642,7 +649,7 @@ export default function FundRequestsIndex({
                             {detailRow.items.length > 0 && (
                                 <div>
                                     <p className="text-xs font-medium uppercase tracking-wide text-dark-500 dark:text-dark-400 mb-2">
-                                        Item Biaya ({detailRow.items.length})
+                                        {t('Item Biaya ({{count}})', { count: detailRow.items.length })}
                                     </p>
                                     <div className="rounded-xl border border-secondary-200 dark:border-dark-600 divide-y divide-secondary-200 dark:divide-dark-600 overflow-hidden">
                                         {detailRow.items.map((item) => (
@@ -659,7 +666,7 @@ export default function FundRequestsIndex({
                                             </div>
                                         ))}
                                         <div className="flex items-center justify-between px-3 py-2.5">
-                                            <p className="text-sm font-medium text-dark-900 dark:text-dark-200">Total</p>
+                                            <p className="text-sm font-medium text-dark-900 dark:text-dark-200">{t('Total')}</p>
                                             <p className="text-sm font-semibold text-dark-900 dark:text-dark-50">
                                                 {formatCurrency(detailRow.total_amount)}
                                             </p>
@@ -672,32 +679,32 @@ export default function FundRequestsIndex({
                             {detailRow.status === 'disbursed' && (
                                 <div>
                                     <p className="text-xs font-medium uppercase tracking-wide text-dark-500 dark:text-dark-400 mb-2">
-                                        Pencairan
+                                        {t('Pencairan')}
                                     </p>
                                     <div className="rounded-xl border border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/10 p-3 space-y-3">
                                         <div className="grid grid-cols-2 gap-3 text-sm">
-                                            <Field label="Rekening" value={detailRow.disbursement_account_name ?? '—'} />
-                                            <Field label="Tanggal" value={formatDate(detailRow.disbursement_date ?? '')} />
+                                            <Field label={t('Rekening')} value={detailRow.disbursement_account_name ?? '—'} />
+                                            <Field label={t('Tanggal')} value={formatDate(detailRow.disbursement_date ?? '')} />
                                             {detailRow.disbursed_by_name && (
-                                                <Field label="Dicairkan oleh" value={detailRow.disbursed_by_name} />
+                                                <Field label={t('Dicairkan oleh')} value={detailRow.disbursed_by_name} />
                                             )}
                                             {detailRow.disbursement_notes && (
-                                                <Field label="Catatan" value={detailRow.disbursement_notes} />
+                                                <Field label={t('Catatan')} value={detailRow.disbursement_notes} />
                                             )}
                                         </div>
                                         <p className="text-xs text-dark-500 dark:text-dark-400">
-                                            {detailRow.items_count} transaksi pengeluaran dibuat di rekening ini — lihat di menu Pengeluaran.
+                                            {t('{{count}} transaksi pengeluaran dibuat di rekening ini — lihat di Arus Kas › Pemasukan & Pengeluaran.', { count: detailRow.items_count })}
                                         </p>
                                         {detailRow.disbursement_attachment_url ? (
                                             <AttachmentPreviewButton
                                                 url={detailRow.disbursement_attachment_url}
                                                 name={detailRow.disbursement_attachment_name}
-                                                label={detailRow.disbursement_attachment_name ?? 'Lihat Bukti Pembayaran'}
+                                                label={detailRow.disbursement_attachment_name ?? t('Lihat Bukti Pembayaran')}
                                                 className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                                                 iconSize="w-4 h-4"
                                             />
                                         ) : (
-                                            <p className="text-xs text-dark-400 dark:text-dark-500">Tidak ada bukti pembayaran diupload.</p>
+                                            <p className="text-xs text-dark-400 dark:text-dark-500">{t('Tidak ada bukti pembayaran yang diunggah.')}</p>
                                         )}
                                     </div>
                                 </div>
@@ -709,28 +716,28 @@ export default function FundRequestsIndex({
                             {detailRow?.can_submit && (
                                 <Button variant="primary" size="sm" onClick={() => { setDetailRow(null); setSubmitRow(detailRow); }}>
                                     <CheckCircle className="w-3.5 h-3.5" />
-                                    Ajukan
+                                    {t('Ajukan')}
                                 </Button>
                             )}
                             {detailRow?.can_review && canApprove && (
                                 <>
                                     <Button variant="green" size="sm" onClick={() => { setDetailRow(null); setReviewRow(detailRow); setReviewAction('approve'); setReviewNotes(''); }}>
-                                        Setujui
+                                        {t('Setujui')}
                                     </Button>
                                     <Button variant="red" size="sm" onClick={() => { setDetailRow(null); setReviewRow(detailRow); setReviewAction('reject'); setReviewNotes(''); }}>
-                                        Tolak
+                                        {t('Tolak')}
                                     </Button>
                                 </>
                             )}
                             {detailRow?.can_disburse && canDisburse && (
                                 <Button variant="green" size="sm" onClick={() => { setDetailRow(null); setDisburseRow(detailRow); setDisburseBankAccountId(null); setDisburseDate(toLocalIso(new Date())); setDisburseNotes(''); }}>
-                                    Cairkan Dana
+                                    {t('Cairkan Dana')}
                                 </Button>
                             )}
                             {detailRow?.can_edit && (
                                 <Button variant="outline" size="sm" onClick={() => openEditSheet(detailRow)}>
                                     <Edit className="w-3.5 h-3.5" />
-                                    Edit
+                                    {t('Ubah')}
                                 </Button>
                             )}
                         </div>
@@ -743,7 +750,7 @@ export default function FundRequestsIndex({
                 <DialogContent size="md">
                     <DialogHeader>
                         <DialogTitle>
-                            {reviewAction === 'approve' ? 'Setujui Permintaan Dana' : 'Tolak Permintaan Dana'}
+                            {reviewAction === 'approve' ? t('Setujui Pengajuan Dana') : t('Tolak Pengajuan Dana')}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="p-6 space-y-4">
@@ -756,22 +763,22 @@ export default function FundRequestsIndex({
                             </div>
                         )}
                         <Textarea
-                            label="Catatan Review"
+                            label={t('Catatan peninjau')}
                             value={reviewNotes}
                             onChange={(e) => setReviewNotes(e.target.value)}
-                            placeholder="Catatan untuk pemohon (opsional)..."
+                            placeholder={t('Catatan untuk pemohon (opsional)...')}
                             rows={3}
                         />
                     </div>
                     <DialogFooter>
-                        <Button variant="zinc" size="sm" onClick={() => setReviewRow(null)}>Batal</Button>
+                        <Button variant="zinc" size="sm" onClick={() => setReviewRow(null)}>{t('Batal')}</Button>
                         <Button
                             variant={reviewAction === 'approve' ? 'green' : 'red'}
                             size="sm"
                             onClick={handleReview}
                             disabled={reviewProcessing}
                         >
-                            {reviewAction === 'approve' ? 'Setujui' : 'Tolak'}
+                            {reviewAction === 'approve' ? t('Setujui') : t('Tolak')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -781,54 +788,58 @@ export default function FundRequestsIndex({
             <Dialog open={!!disburseRow} onOpenChange={(open) => { if (!open) setDisburseRow(null); }}>
                 <DialogContent size="md">
                     <DialogHeader>
-                        <DialogTitle>Cairkan Dana</DialogTitle>
+                        <DialogTitle>{t('Cairkan Dana')}</DialogTitle>
                     </DialogHeader>
                     <div className="p-6 space-y-4">
                         {disburseRow && (
                             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 p-3 bg-secondary-50/50 dark:bg-dark-800/50">
                                 <p className="font-medium text-dark-900 dark:text-dark-50">{disburseRow.title}</p>
                                 <p className="text-sm text-dark-500 dark:text-dark-400 mt-0.5">
-                                    Total: <span className="font-semibold text-dark-900 dark:text-dark-50">{formatCurrency(disburseRow.total_amount)}</span>
+                                    <Trans
+                                        i18nKey="Total: <b>{{amount}}</b>"
+                                        values={{ amount: formatCurrency(disburseRow.total_amount) }}
+                                        components={{ b: <span className="font-semibold text-dark-900 dark:text-dark-50" /> }}
+                                    />
                                 </p>
                             </div>
                         )}
                         <Combobox
-                            label="Rekening Bank *"
+                            label={t('Rekening Bank *')}
                             options={bankAccountOptions}
                             value={disburseBankAccountId}
                             onChange={(v) => setDisburseBankAccountId(v ? Number(v) : null)}
-                            placeholder="Pilih rekening"
+                            placeholder={t('Pilih rekening')}
                         />
                         <DatePicker
-                            label="Tanggal Pencairan *"
+                            label={t('Tanggal Pencairan *')}
                             value={disburseDate ? new Date(disburseDate) : null}
                             onChange={(d) => setDisburseDate(d ? toLocalIso(d) : '')}
                             maxDate={new Date()}
                         />
                         <Textarea
-                            label="Catatan Pencairan"
+                            label={t('Catatan Pencairan')}
                             value={disburseNotes}
                             onChange={(e) => setDisburseNotes(e.target.value)}
-                            placeholder="Catatan atau nomor referensi (opsional)..."
+                            placeholder={t('Catatan atau nomor referensi (opsional)...')}
                             rows={2}
                         />
                         <FileUpload
-                            label="Bukti Pembayaran (opsional)"
+                            label={t('Bukti Pembayaran (opsional)')}
                             value={disburseFile}
                             onChange={setDisburseFile}
                             accept={['.pdf', '.jpg', '.jpeg', '.png']}
-                            hint="Dilampirkan ke transaksi pengeluaran yang terbentuk"
+                            hint={t('Dilampirkan ke transaksi pengeluaran yang terbentuk')}
                         />
                     </div>
                     <DialogFooter>
-                        <Button variant="zinc" size="sm" onClick={() => setDisburseRow(null)}>Batal</Button>
+                        <Button variant="zinc" size="sm" onClick={() => setDisburseRow(null)}>{t('Batal')}</Button>
                         <Button
                             variant="green"
                             size="sm"
                             onClick={handleDisburse}
                             disabled={disburseProcessing || !disburseBankAccountId}
                         >
-                            Cairkan Dana
+                            {t('Cairkan Dana')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -838,9 +849,9 @@ export default function FundRequestsIndex({
             <ConfirmDialog
                 open={!!submitRow}
                 onOpenChange={(open) => { if (!open) setSubmitRow(null); }}
-                title="Ajukan permintaan dana?"
-                description="Setelah diajukan, permintaan akan masuk ke antrian review dan tidak dapat diedit."
-                confirmLabel="Ajukan"
+                title={t('Ajukan pengajuan dana ini?')}
+                description={t('Setelah diajukan, pengajuan masuk ke antrean persetujuan dan tidak dapat diubah.')}
+                confirmLabel={t('Ajukan')}
                 loading={submitProcessing}
                 onConfirm={() => submitRow && handleSubmit(submitRow)}
             />
@@ -849,9 +860,9 @@ export default function FundRequestsIndex({
             <ConfirmDialog
                 open={!!deleteRow}
                 onOpenChange={(open) => { if (!open) setDeleteRow(null); }}
-                title="Hapus permintaan dana ini?"
-                description="Tindakan ini tidak dapat dibatalkan."
-                confirmLabel="Hapus"
+                title={t('Hapus pengajuan dana ini?')}
+                description={t('Tindakan ini tidak dapat dibatalkan.')}
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
                 onConfirm={() => deleteRow && handleDelete(deleteRow)}
             />
@@ -868,13 +879,6 @@ interface FundRequestFormProps {
     fundRequest?: EditFundRequest;
     onClose: () => void;
 }
-
-const PRIORITY_FORM_OPTIONS = [
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'High', value: 'high' },
-    { label: 'Urgent', value: 'urgent' },
-];
 
 function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }: FundRequestFormProps) {
     const isEdit = mode === 'edit';
@@ -932,21 +936,21 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Permintaan dana berhasil diperbarui');
+                    toast.success(t('Pengajuan dana berhasil diperbarui'));
                     onClose();
                 },
-                onError: () => toast.error('Gagal menyimpan'),
+                onError: () => toast.error(t('Gagal menyimpan')),
             });
         } else {
             post(fundRequestRoutes.store.url(), {
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Permintaan dana berhasil dibuat');
+                    toast.success(t('Pengajuan dana berhasil dibuat'));
                     reset();
                     onClose();
                 },
-                onError: () => toast.error('Gagal menyimpan'),
+                onError: () => toast.error(t('Gagal menyimpan')),
             });
         }
     };
@@ -960,12 +964,12 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                     </div>
                     <div>
                         <SheetTitle>
-                            {isEdit ? 'Edit Permintaan Dana' : 'Buat Permintaan Dana'}
+                            {isEdit ? t('Ubah Pengajuan Dana') : t('Buat Pengajuan Dana')}
                         </SheetTitle>
                         <SheetDescription>
                             {isEdit
-                                ? `No. ${fundRequest?.request_number}`
-                                : 'Ajukan pencairan dana operasional.'}
+                                ? t('No. {{number}}', { number: fundRequest?.request_number })
+                                : t('Ajukan pencairan dana operasional.')}
                         </SheetDescription>
                     </div>
                 </div>
@@ -977,31 +981,31 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                     {!isEdit && (
                         <div className="sm:col-span-2">
                             <Input
-                                label="Nomor Permintaan *"
+                                label={t('Nomor Pengajuan *')}
                                 value={data.request_number}
                                 onChange={(e) => setData('request_number', e.target.value)}
                                 error={errors.request_number}
-                                hint="Auto-generate, dapat diubah"
+                                hint={t('Auto-generate, dapat diubah')}
                             />
                         </div>
                     )}
                     <Input
-                        label="Judul *"
+                        label={t('Judul *')}
                         value={data.title}
                         onChange={(e) => setData('title', e.target.value)}
                         error={errors.title}
-                        placeholder="cth: Pembelian ATK Kantor..."
+                        placeholder={t('cth: Pembelian ATK Kantor...')}
                     />
                     <Combobox
-                        label="Prioritas *"
-                        options={PRIORITY_FORM_OPTIONS}
+                        label={t('Prioritas *')}
+                        options={translateOptions(PRIORITY_OPTIONS)}
                         value={data.priority || null}
                         onChange={(v) => setData('priority', v ? String(v) : 'medium')}
                         error={errors.priority}
                     />
                     <div className="sm:col-span-2">
                         <DatePicker
-                            label="Dibutuhkan Sebelum *"
+                            label={t('Dibutuhkan Sebelum *')}
                             value={data.needed_by_date ? new Date(data.needed_by_date) : null}
                             onChange={(d) => setData('needed_by_date', d ? toLocalIso(d) : '')}
                             error={errors.needed_by_date}
@@ -1009,11 +1013,11 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                     </div>
                     <div className="sm:col-span-2">
                         <Textarea
-                            label="Tujuan / Keterangan *"
+                            label={t('Tujuan / Keterangan *')}
                             value={data.purpose}
                             onChange={(e) => setData('purpose', e.target.value)}
                             error={errors.purpose}
-                            placeholder="Jelaskan tujuan penggunaan dana..."
+                            placeholder={t('Jelaskan tujuan penggunaan dana...')}
                             rows={3}
                         />
                     </div>
@@ -1021,7 +1025,7 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                     {/* Attachment */}
                     <div className="sm:col-span-2">
                         <FileUpload
-                            label="Lampiran (opsional)"
+                            label={t('Lampiran (opsional)')}
                             value={data.attachment}
                             onChange={(file) => setData('attachment', file)}
                             accept={['.jpg', '.jpeg', '.png', '.pdf']}
@@ -1038,8 +1042,8 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                 <div className="rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden">
                     <div className="px-4 py-3 border-b border-secondary-200 dark:border-dark-600 bg-secondary-50/60 dark:bg-dark-800/60 flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-semibold text-dark-900 dark:text-dark-50">Item Biaya</p>
-                            <p className="text-xs text-dark-500 dark:text-dark-400">Rincian pengeluaran yang diajukan</p>
+                            <p className="text-xs font-semibold text-dark-900 dark:text-dark-50">{t('Item Biaya')}</p>
+                            <p className="text-xs text-dark-500 dark:text-dark-400">{t('Rincian pengeluaran yang diajukan')}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Badge variant="blue" className="tabular-nums text-xs">
@@ -1047,7 +1051,7 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                             </Badge>
                             <Button variant="outline" size="sm" onClick={addItem}>
                                 <Plus className="w-3.5 h-3.5" />
-                                Tambah
+                                {t('Tambah')}
                             </Button>
                         </div>
                     </div>
@@ -1071,7 +1075,7 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
                     </div>
 
                     <div className="px-4 py-3 bg-secondary-50/50 dark:bg-dark-800/50 border-t border-secondary-200 dark:border-dark-600 text-right">
-                        <span className="text-xs text-dark-500 dark:text-dark-400">Total Pengajuan: </span>
+                        <span className="text-xs text-dark-500 dark:text-dark-400">{t('Total Pengajuan:')} </span>
                         <span className="text-sm font-bold text-dark-900 dark:text-dark-50 tabular-nums">
                             {formatCurrency(totalAmount)}
                         </span>
@@ -1081,14 +1085,14 @@ function FundRequestForm({ mode, categories, nextNumber, fundRequest, onClose }:
 
             <SheetFooter>
                 <Button variant="zinc" onClick={onClose} disabled={processing}>
-                    Batal
+                    {t('Batal')}
                 </Button>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => submit('draft')} disabled={processing}>
-                        Simpan Draft
+                        {t('Simpan Draft')}
                     </Button>
                     <Button variant="primary" onClick={() => submit('submit')} disabled={processing}>
-                        Ajukan
+                        {t('Ajukan')}
                     </Button>
                 </div>
             </SheetFooter>
@@ -1113,7 +1117,7 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
     return (
         <div className="px-4 py-3 space-y-3">
             <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400">Item #{index + 1}</span>
+                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Item #{{n}}', { n: index + 1 })}</span>
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-dark-900 dark:text-dark-50 tabular-nums">
                         {formatCurrency(itemTotal)}
@@ -1129,25 +1133,25 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
             <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                     <Input
-                        label="Nama Item *"
+                        label={t('Nama Item *')}
                         value={item.description}
                         onChange={(e) => onChange(index, 'description', e.target.value)}
                         error={errors[`items.${index}.description`]}
-                        placeholder="cth: Kertas A4..."
+                        placeholder={t('cth: Kertas A4...')}
                     />
                 </div>
                 <div className="col-span-2">
                     <Combobox
-                        label="Kategori *"
+                        label={t('Kategori *')}
                         options={categories}
                         value={item.category_id}
                         onChange={(v) => onChange(index, 'category_id', v ? Number(v) : null)}
                         error={errors[`items.${index}.category_id`]}
-                        placeholder="Pilih kategori"
+                        placeholder={t('Pilih kategori')}
                     />
                 </div>
                 <Input
-                    label="Qty *"
+                    label={t('Qty *')}
                     type="number"
                     min={1}
                     value={item.quantity}
@@ -1155,17 +1159,17 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
                     error={errors[`items.${index}.quantity`]}
                 />
                 <CurrencyInput
-                    label="Harga Satuan *"
+                    label={t('Harga Satuan *')}
                     value={item.unit_price}
                     onChange={(v) => onChange(index, 'unit_price', v)}
                     error={errors[`items.${index}.unit_price`]}
                 />
                 <div className="col-span-2">
                     <Input
-                        label="Catatan"
+                        label={t('Catatan')}
                         value={item.notes}
                         onChange={(e) => onChange(index, 'notes', e.target.value)}
-                        placeholder="Catatan tambahan (opsional)..."
+                        placeholder={t('Catatan tambahan (opsional)...')}
                     />
                 </div>
             </div>
@@ -1204,26 +1208,26 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
 }
 
 const STATUS_BADGE_MAP: Record<string, { label: string; variant: string }> = {
-    draft: { label: 'Draft', variant: 'zinc' },
-    pending: { label: 'Pending Review', variant: 'yellow' },
-    approved: { label: 'Approved', variant: 'blue' },
-    rejected: { label: 'Rejected', variant: 'red' },
-    disbursed: { label: 'Disbursed', variant: 'green' },
+    draft: { label: tk('Draft'), variant: 'zinc' },
+    pending: { label: tk('Menunggu persetujuan'), variant: 'yellow' },
+    approved: { label: tk('Disetujui'), variant: 'blue' },
+    rejected: { label: tk('Ditolak'), variant: 'red' },
+    disbursed: { label: tk('Dicairkan'), variant: 'green' },
 };
 
 const PRIORITY_BADGE_MAP: Record<string, { label: string; variant: string }> = {
-    low: { label: 'Low', variant: 'zinc' },
-    medium: { label: 'Medium', variant: 'blue' },
-    high: { label: 'High', variant: 'orange' },
-    urgent: { label: 'Urgent', variant: 'red' },
+    low: { label: tk('Rendah'), variant: 'zinc' },
+    medium: { label: tk('Sedang'), variant: 'blue' },
+    high: { label: tk('Tinggi'), variant: 'orange' },
+    urgent: { label: tk('Mendesak'), variant: 'red' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const { label, variant } = STATUS_BADGE_MAP[status] ?? { label: status, variant: 'zinc' };
-    return <Badge variant={variant as never}>{label}</Badge>;
+    return <Badge variant={variant as never}>{t(label)}</Badge>;
 }
 
 function PriorityBadge({ priority }: { priority: string }) {
     const { label, variant } = PRIORITY_BADGE_MAP[priority] ?? { label: priority, variant: 'zinc' };
-    return <Badge variant={variant as never}>{label}</Badge>;
+    return <Badge variant={variant as never}>{t(label)}</Badge>;
 }

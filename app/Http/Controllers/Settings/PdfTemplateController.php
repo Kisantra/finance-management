@@ -53,7 +53,7 @@ class PdfTemplateController extends Controller
         ]);
 
         return redirect()->route('settings.pdf-templates.edit', $template)
-            ->with('success', 'Template berhasil dibuat.');
+            ->with('success', __('Template berhasil dibuat.'));
     }
 
     public function update(Request $request, PdfTemplate $pdfTemplate): RedirectResponse
@@ -73,7 +73,7 @@ class PdfTemplateController extends Controller
             $pdfTemplate->setAsDefault();
         }
 
-        return redirect()->back()->with('success', 'Template berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Template berhasil diperbarui.'));
     }
 
     public function destroy(PdfTemplate $pdfTemplate): RedirectResponse
@@ -91,7 +91,7 @@ class PdfTemplateController extends Controller
         }
 
         return redirect()->route('settings.pdf-templates.index')
-            ->with('success', 'Template berhasil dihapus.');
+            ->with('success', __('Template berhasil dihapus.'));
     }
 
     public function duplicate(PdfTemplate $pdfTemplate): RedirectResponse
@@ -104,14 +104,14 @@ class PdfTemplateController extends Controller
         ]);
 
         return redirect()->route('settings.pdf-templates.edit', $copy)
-            ->with('success', 'Template berhasil diduplikat.');
+            ->with('success', __('Template berhasil digandakan.'));
     }
 
     public function setDefault(PdfTemplate $pdfTemplate): RedirectResponse
     {
         $pdfTemplate->setAsDefault();
 
-        return redirect()->back()->with('success', 'Template default berhasil diubah.');
+        return redirect()->back()->with('success', __('Template bawaan berhasil diubah.'));
     }
 
     /**
@@ -119,12 +119,17 @@ class PdfTemplateController extends Controller
      */
     public function edit(PdfTemplate $pdfTemplate): InertiaResponse
     {
-        $invoice = $this->resolvePreviewInvoice();
-        $sampleData = TemplateTokens::buildMap($invoice);
+        // Isi kanvas (nilai token, baris item, terbilang, tanggal) adalah ISI DOKUMEN → selalu Bahasa
+        // Indonesia (K2). Katalog palet/inspector di bawah adalah UI → ikut bahasa pengguna.
+        [$sampleData, $sampleItems] = withDocumentLocale(function (): array {
+            $invoice = $this->resolvePreviewInvoice();
 
-        // Build resolved sample rows for the table element Preview mode.
-        $defaultColumns = ItemColumns::defaultColumns();
-        $sampleItems = ItemColumns::resolveItems($defaultColumns, $invoice->items);
+            return [
+                TemplateTokens::buildMap($invoice),
+                // Build resolved sample rows for the table element Preview mode.
+                ItemColumns::resolveItems(ItemColumns::defaultColumns(), $invoice->items),
+            ];
+        });
 
         // Sprint 5b: global custom font library for the editor font picker.
         $customFonts = CustomFont::query()
@@ -182,7 +187,7 @@ class PdfTemplateController extends Controller
             'layout' => $layout,
         ]);
 
-        return back()->with('success', 'Layout tersimpan.');
+        return back()->with('success', __('Tata letak tersimpan.'));
     }
 
     /**

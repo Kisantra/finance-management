@@ -4,6 +4,8 @@ import ReactApexChart from 'react-apexcharts';
 import { DatePicker } from '@/components/ui/date-picker';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { AccountDetail } from '../types';
+import { t } from '@/i18n';
+import { compactRupiah } from '@/components/dashboard/cash-flow-chart';
 
 interface Props {
     detail: AccountDetail;
@@ -14,9 +16,7 @@ interface Props {
 const DONUT_COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#ef4444', '#10b981', '#6366f1'];
 
 function formatCompact(value: number): string {
-    if (Math.abs(value) >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
-    if (Math.abs(value) >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(0)}jt`;
-    if (Math.abs(value) >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}K`;
+    if (Math.abs(value) >= 1_000) return `Rp ${compactRupiah(value)}`;
     return formatCurrency(value);
 }
 
@@ -52,6 +52,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                 background: 'transparent',
                 fontFamily: 'Inter, sans-serif',
                 animations: { enabled: true, speed: 350 },
+                accessibility: { description: t('Grafik batang pemasukan dan pengeluaran per bulan') },
             },
             xaxis: {
                 categories: chart_months.map((m) => m.month),
@@ -82,8 +83,8 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
     );
 
     const barSeries = [
-        { name: 'Pemasukan', data: chart_months.map((m) => m.income) },
-        { name: 'Pengeluaran', data: chart_months.map((m) => m.expense) },
+        { name: t('Pemasukan'), data: chart_months.map((m) => m.income) },
+        { name: t('Pengeluaran'), data: chart_months.map((m) => m.expense) },
     ];
 
     /* ── Donut chart options ───────────────────────── */
@@ -93,6 +94,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                 background: 'transparent',
                 fontFamily: 'Inter, sans-serif',
                 animations: { speed: 400 },
+                accessibility: { description: t('Grafik donat pengeluaran per kategori') },
             },
             labels: category_breakdown.map((c) => c.name),
             colors: DONUT_COLORS.slice(0, category_breakdown.length || 1),
@@ -116,7 +118,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                             },
                             total: {
                                 show: true,
-                                label: 'Total',
+                                label: t('Total'),
                                 color: axisColor,
                                 fontSize: '10px',
                                 formatter: () => formatCompact(totalExpense),
@@ -140,7 +142,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                 <div className="flex items-center gap-2 text-xs text-dark-500 dark:text-dark-400">
                     <span className="inline-block w-1 h-4 rounded-full bg-primary-500" />
                     <span className="font-medium">
-                        {period.is_all_time ? 'Semua Waktu' : `Periode: ${period.label}`}
+                        {period.is_all_time ? t('Semua Waktu') : t('Periode: {{label}}', { label: period.label })}
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -149,7 +151,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                             mode="month"
                             value={selectedMonth || null}
                             onChange={(v) => onMonthChange(v ?? '')}
-                            placeholder="Semua bulan"
+                            placeholder={t('Semua bulan')}
                             clearable
                         />
                     </div>
@@ -157,7 +159,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                         <button
                             onClick={() => onMonthChange('')}
                             className="h-8 w-8 inline-flex items-center justify-center rounded-md text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-secondary-100 dark:hover:bg-dark-600 transition-colors"
-                            title="Reset ke semua waktu"
+                            title={t('Kembali ke semua waktu')}
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -169,19 +171,19 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
             <div className="grid grid-cols-3 gap-3">
                 <StatPill
                     icon={<ArrowDownLeft className="w-4 h-4" />}
-                    label="Pemasukan"
+                    label={t('Pemasukan')}
                     value={stats.total_income}
                     tone="green"
                 />
                 <StatPill
                     icon={<ArrowUpRight className="w-4 h-4" />}
-                    label="Pengeluaran"
+                    label={t('Pengeluaran')}
                     value={stats.total_expense}
                     tone="red"
                 />
                 <StatPill
                     icon={net >= 0 ? <PlusCircle className="w-4 h-4" /> : <MinusCircle className="w-4 h-4" />}
-                    label="Arus Bersih"
+                    label={t('Arus Bersih')}
                     value={net}
                     tone={net >= 0 ? 'blue' : 'orange'}
                     prefix={net >= 0 ? '+' : ''}
@@ -199,19 +201,19 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">
-                                    Pemasukan vs Pengeluaran
+                                    {t('Pemasukan vs Pengeluaran')}
                                 </h3>
-                                <p className="text-xs text-dark-500 dark:text-dark-400">12 bulan terakhir</p>
+                                <p className="text-xs text-dark-500 dark:text-dark-400">{t('12 bulan terakhir')}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 text-xs">
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 bg-green-500 rounded-full" />
-                                <span className="text-dark-500 dark:text-dark-400">Masuk</span>
+                                <span className="text-dark-500 dark:text-dark-400">{t('Masuk', { context: 'arah' })}</span>
                             </span>
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                                <span className="text-dark-500 dark:text-dark-400">Keluar</span>
+                                <span className="text-dark-500 dark:text-dark-400">{t('Keluar', { context: 'arah' })}</span>
                             </span>
                         </div>
                     </div>
@@ -226,10 +228,10 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                         </div>
                         <div>
                             <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">
-                                Breakdown Kategori
+                                {t('Rincian per Kategori')}
                             </h3>
                             <p className="text-xs text-dark-500 dark:text-dark-400">
-                                {period.is_all_time ? 'Pengeluaran semua waktu' : `Pengeluaran ${period.label}`}
+                                {period.is_all_time ? t('Pengeluaran semua waktu') : t('Pengeluaran {{label}}', { label: period.label })}
                             </p>
                         </div>
                     </div>
@@ -276,7 +278,7 @@ export function AccountCharts({ detail, selectedMonth, onMonthChange }: Props) {
                                     <PieChart className="w-6 h-6 text-dark-400 dark:text-dark-500" />
                                 </div>
                                 <p className="text-sm text-dark-500 dark:text-dark-400">
-                                    Belum ada data kategori
+                                    {t('Belum ada data kategori')}
                                 </p>
                             </div>
                         </div>
@@ -332,16 +334,16 @@ function StatPill({ icon, label, value, tone, prefix }: StatPillProps) {
             value: 'text-orange-700 dark:text-orange-300',
         },
     };
-    const t = toneMap[tone];
+    const tones = toneMap[tone];
 
     return (
-        <div className={cn('flex items-center gap-3 p-3 rounded-xl border', t.bg, t.border)}>
-            <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', t.iconBg, t.iconText)}>
+        <div className={cn('flex items-center gap-3 p-3 rounded-xl border', tones.bg, tones.border)}>
+            <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', tones.iconBg, tones.iconText)}>
                 {icon}
             </div>
             <div className="min-w-0">
-                <p className={cn('text-xs font-medium truncate', t.label)}>{label}</p>
-                <p className={cn('text-sm font-bold truncate tabular-nums', t.value)}>
+                <p className={cn('text-xs font-medium truncate', tones.label)}>{label}</p>
+                <p className={cn('text-sm font-bold truncate tabular-nums', tones.value)}>
                     {prefix}{formatCurrency(value)}
                 </p>
             </div>

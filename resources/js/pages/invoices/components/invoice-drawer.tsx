@@ -17,6 +17,7 @@ import { CurrencyInput } from '@/components/shared/currency-input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { FileUpload } from '@/components/shared/file-upload';
 import { JournalBox } from '@/components/shared/journal-box';
+import { t } from '@/i18n';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
 import { paidBefore, paymentJournal } from '@/lib/journal';
@@ -99,7 +100,7 @@ async function invoiceAction(url: string, method: 'POST' | 'DELETE', body?: Reco
         ? Object.fromEntries(Object.entries(data.errors as Record<string, string[]>).map(([k, v]) => [k, v[0]]))
         : res.ok
           ? {}
-          : { _: data.message ?? `Server membalas ${res.status}.` };
+          : { _: data.message ?? t('Server membalas {{status}}.', { status: res.status }) };
     return { ok: res.ok, message: data.message as string | undefined, errors };
 }
 
@@ -129,12 +130,12 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
         try {
             const res = await api(`/invoices/${id}/data`, { signal });
             if (res.status === 404) return setState({ kind: 'missing' });
-            if (!res.ok) throw new Error(`Server membalas ${res.status}.`);
+            if (!res.ok) throw new Error(t('Server membalas {{status}}.', { status: res.status }));
             setState({ kind: 'ready', detail: await res.json() });
         } catch (e) {
             if (signal?.aborted) return;
             console.error('[InvoiceDetail]', e);
-            setState({ kind: 'error', message: e instanceof Error ? e.message : 'Periksa koneksi lalu coba lagi.' });
+            setState({ kind: 'error', message: e instanceof Error ? e.message : t('Periksa koneksi lalu coba lagi.') });
         }
     }, []);
 
@@ -159,8 +160,8 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
         setBusy(true);
         const result = await invoiceAction(`/invoices/${detail.id}/rollback`, 'POST').catch(() => null);
         setBusy(false);
-        if (!result?.ok) return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'RollbackInvoice');
-        toast.success(result.message ?? 'Invoice dikembalikan ke draft.');
+        if (!result?.ok) return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'RollbackInvoice');
+        toast.success(result.message ?? t('Invoice dikembalikan ke draft.'));
         refresh();
     };
 
@@ -170,8 +171,8 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
         const result = await invoiceAction(`/invoices/${detail.id}`, 'DELETE').catch(() => null);
         setBusy(false);
         setDialog(null);
-        if (!result?.ok) return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'DeleteInvoice');
-        toast.success(result.message ?? 'Invoice dihapus.');
+        if (!result?.ok) return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'DeleteInvoice');
+        toast.success(result.message ?? t('Invoice dihapus.'));
         onChanged();
         onClose();
     };
@@ -182,12 +183,12 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
         try {
             const res = await api(`/payments/${deletePayment.id}`, { method: 'DELETE' });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) return toastError(data.message ?? `Pembayaran gagal dihapus (${res.status}).`);
-            toast.success('Pembayaran dihapus.');
+            if (!res.ok) return toastError(data.message ?? t('Pembayaran gagal dihapus ({{status}}).', { status: res.status }));
+            toast.success(t('Pembayaran dihapus.'));
             setDeletePayment(null);
             refresh();
         } catch (e) {
-            toastError(e instanceof Error ? e.message : 'Pembayaran gagal dihapus.');
+            toastError(e instanceof Error ? e.message : t('Pembayaran gagal dihapus.'));
         } finally {
             setBusy(false);
         }
@@ -196,9 +197,9 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
     const copyLink = async () => {
         try {
             await navigator.clipboard.writeText(window.location.href);
-            toast.success('Tautan invoice disalin.');
+            toast.success(t('Tautan invoice disalin.'));
         } catch {
-            toastError('Tautan tidak dapat disalin', window.location.href);
+            toastError(t('Tautan tidak dapat disalin'), window.location.href);
         }
     };
 
@@ -214,54 +215,54 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                     className={cn(SURFACE, 'max-w-[920px] rounded-l-3xl border-l')}
                     onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                    <SheetTitle className="sr-only">{detail ? `Invoice ${detail.invoice_number ?? 'draft'} — ${detail.client.name}` : 'Detail invoice'}</SheetTitle>
+                    <SheetTitle className="sr-only">{detail ? t('Invoice {{number}} — {{client}}', { number: detail.invoice_number ?? t('draft'), client: detail.client.name }) : t('Detail invoice')}</SheetTitle>
 
                     {/* ── bilah atas ── */}
                     <div className="flex shrink-0 flex-wrap items-center gap-2.5 px-6 pb-3 pt-5">
-                        <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label="Tutup detail">
+                        <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label={t('Tutup detail')}>
                             <X className="h-4 w-4" />
                         </Button>
                         {detail && (
                             <>
-                                <span className="font-mono text-[13px] text-ob-ink">{detail.invoice_number ?? 'belum bernomor'}</span>
+                                <span className="font-mono text-[13px] text-ob-ink">{detail.invoice_number ?? t('belum bernomor')}</span>
                                 <InvoiceStatusPill status={detail.status} />
-                                <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" onClick={copyLink} aria-label="Salin tautan invoice">
+                                <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" onClick={copyLink} aria-label={t('Salin tautan invoice')}>
                                     <Link2 className="h-4 w-4" />
                                 </Button>
                                 <div className="ml-auto flex items-center gap-2">
                                     {detail.invoice_number && (
                                         <Button variant="outline" className={cn(BTN.secondary, 'h-10')} onClick={() => setDialog('print')} icon={<Printer className="h-4 w-4" />}>
-                                            Cetak
+                                            {t('Cetak')}
                                         </Button>
                                     )}
                                     {detail.status === 'draft' && (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('send')} icon={<Send className="h-4 w-4" />}>
-                                            Kirim invoice
+                                            {t('Terbitkan invoice')}
                                         </Button>
                                     )}
                                     {canPay && (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => { setEditPayment(null); setDialog('pay'); }} icon={<Wallet className="h-4 w-4" />}>
-                                            Catat pembayaran
+                                            {t('Catat pembayaran', { context: 'invoice' })}
                                         </Button>
                                     )}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" className={BTN.icon} aria-label="Aksi lain">
+                                            <Button variant="outline" className={BTN.icon} aria-label={t('Aksi lain')}>
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-52">
                                             <DropdownMenuItem onClick={() => router.visit(companyUrl(`/invoices/${detail.id}/edit`))}>
-                                                <Pencil className="h-4 w-4" /> Edit invoice
+                                                <Pencil className="h-4 w-4" /> {t('Ubah invoice')}
                                             </DropdownMenuItem>
                                             {rollbackable && (
                                                 <DropdownMenuItem onClick={rollback} disabled={busy}>
-                                                    <RotateCcw className="h-4 w-4" /> Kembalikan ke draft
+                                                    <RotateCcw className="h-4 w-4" /> {t('Kembalikan ke draft')}
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-ob-late focus:text-ob-late" onClick={() => setDialog('delete')}>
-                                                <Trash2 className="h-4 w-4" /> Hapus invoice
+                                                <Trash2 className="h-4 w-4" /> {t('Hapus invoice')}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -273,14 +274,14 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                     <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8">
                         {state.kind === 'loading' && <DrawerSkeleton />}
                         {state.kind === 'missing' && (
-                            <DrawerNotice title="Invoice tidak ditemukan" text={`Tautan /invoices/${invoiceId} mengarah ke invoice yang sudah dihapus atau tidak ada. Daftar invoice tetap terbuka.`} action={<Button variant="outline" className={BTN.small} onClick={onClose}>Tutup</Button>} />
+                            <DrawerNotice title={t('Invoice tidak ditemukan')} text={t('Tautan /invoices/{{id}} mengarah ke invoice yang sudah dihapus atau tidak ada. Daftar invoice tetap terbuka.', { id: invoiceId })} action={<Button variant="outline" className={BTN.small} onClick={onClose}>{t('Tutup')}</Button>} />
                         )}
                         {state.kind === 'error' && (
                             <DrawerNotice
                                 alert
-                                title={`Invoice #${invoiceId} tidak dapat dimuat`}
-                                text={`${state.message} Data di daftar tetap benar.`}
-                                action={<Button variant="outline" className={BTN.small} onClick={() => setAttempt((n) => n + 1)}>Coba lagi</Button>}
+                                title={t('Invoice #{{id}} tidak dapat dimuat', { id: invoiceId })}
+                                text={t('{{message}} Data di daftar tetap benar.', { message: state.message })}
+                                action={<Button variant="outline" className={BTN.small} onClick={() => setAttempt((n) => n + 1)}>{t('Coba lagi')}</Button>}
                             />
                         )}
                         {detail && (
@@ -318,13 +319,13 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                     <ConfirmDialog
                         open={dialog === 'delete'}
                         onOpenChange={(o) => setDialog(o ? 'delete' : null)}
-                        title="Hapus invoice"
+                        title={t('Hapus invoice')}
                         description={
                             detail.payments.length > 0
-                                ? 'Invoice ini sudah punya pembayaran. Hapus pembayarannya terlebih dahulu.'
-                                : `Invoice ${detail.invoice_number ?? 'draft'} untuk ${detail.client.name} akan dihapus permanen beserta semua itemnya.`
+                                ? t('Invoice ini sudah punya pembayaran. Hapus pembayarannya terlebih dahulu.')
+                                : t('Invoice {{number}} untuk {{client}} akan dihapus permanen beserta semua itemnya.', { number: detail.invoice_number ?? t('draft'), client: detail.client.name })
                         }
-                        confirmLabel="Hapus invoice"
+                        confirmLabel={t('Hapus invoice')}
                         loading={busy}
                         onConfirm={destroy}
                     />
@@ -333,9 +334,9 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
             <ConfirmDialog
                 open={!!deletePayment}
                 onOpenChange={(o) => !o && setDeletePayment(null)}
-                title="Hapus pembayaran"
-                description={deletePayment ? `Pembayaran ${rp(deletePayment.amount)} tanggal ${longDate(deletePayment.payment_date)} akan dihapus dan saldo rekening ikut berkurang.` : ''}
-                confirmLabel="Hapus pembayaran"
+                title={t('Hapus pembayaran', { context: 'invoice' })}
+                description={deletePayment ? t('Pembayaran {{amount}} tanggal {{date}} akan dihapus dan saldo rekening ikut berkurang.', { amount: rp(deletePayment.amount), date: longDate(deletePayment.payment_date) }) : ''}
+                confirmLabel={t('Hapus pembayaran', { context: 'invoice' })}
                 loading={busy}
                 onConfirm={removePayment}
             />
@@ -372,9 +373,9 @@ function DrawerBody({
     const history = [
         ...detail.payments.map((p) => ({
             at: p.created_at ?? p.payment_date,
-            text: `Pembayaran ${rp(p.amount)} dicatat · ${p.payment_method === 'cash' ? 'tunai' : 'transfer'}`,
+            text: p.payment_method === 'cash' ? t('Pembayaran {{amount}} dicatat · tunai', { amount: rp(p.amount) }) : t('Pembayaran {{amount}} dicatat · transfer', { amount: rp(p.amount) }),
         })),
-        ...(detail.created_at ? [{ at: detail.created_at, text: 'Dibuat sebagai draft' }] : []),
+        ...(detail.created_at ? [{ at: detail.created_at, text: t('Dibuat sebagai draft') }] : []),
     ].sort((a, b) => b.at.localeCompare(a.at));
 
     return (
@@ -382,8 +383,8 @@ function DrawerBody({
             <div>
                 <h2 className="text-2xl font-semibold leading-tight text-ob-ink">{detail.client.name}</h2>
                 <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ob-ink-2">
-                    <span>{detail.status === 'draft' ? 'Draft bertanggal' : 'Diterbitkan'} {longDate(detail.issue_date)}</span>
-                    <span>· jatuh tempo {longDate(detail.due_date)}</span>
+                    <span>{detail.status === 'draft' ? t('Draft bertanggal {{date}}', { date: longDate(detail.issue_date) }) : t('Diterbitkan {{date}}', { date: longDate(detail.issue_date) })}</span>
+                    <span>· {t('jatuh tempo {{date}}', { date: longDate(detail.due_date) })}</span>
                     {due.label && detail.status !== 'paid' && (
                         due.overdue ? <OverdueChip label={due.label} /> : <span className={cn('font-semibold', due.tone === 'soon' ? 'text-ob-neg' : 'text-ob-ink-2')}>· {due.label}</span>
                     )}
@@ -391,21 +392,21 @@ function DrawerBody({
             </div>
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Metric label="Total" value={rp(detail.total_amount)} />
-                <Metric label="Sudah dibayar" value={rp(detail.amount_paid)} valueClass="text-ob-pos" sub={`${paidPct}% terbayar`} />
-                <Metric label="Sisa tagihan" value={rp(detail.amount_remaining)} />
-                <Metric label="Laba kotor" value={rp(grossProfit)} valueClass={grossProfit < 0 ? 'text-ob-late' : undefined} sub="Pendapatan − HPP" />
+                <Metric label={t('Total')} value={rp(detail.total_amount)} />
+                <Metric label={t('Sudah dibayar')} value={rp(detail.amount_paid)} valueClass="text-ob-pos" sub={t('{{percent}}% terbayar', { percent: paidPct })} />
+                <Metric label={t('Sisa tagihan')} value={rp(detail.amount_remaining)} />
+                <Metric label={t('Laba kotor')} value={rp(grossProfit)} valueClass={grossProfit < 0 ? 'text-ob-late' : undefined} sub={t('Pendapatan − HPP')} />
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-ob-chip" role="progressbar" aria-label="Terbayar" aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
+            <div className="h-1.5 overflow-hidden rounded-full bg-ob-chip" role="progressbar" aria-label={t('Terbayar')} aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
             </div>
 
             <SegmentedControl
                 variant="pill"
-                label="Tampilan detail"
+                label={t('Tampilan detail')}
                 options={[
-                    { value: 'summary' as const, label: 'Ringkasan' },
-                    { value: 'print' as const, label: 'Pratinjau cetak' },
+                    { value: 'summary' as const, label: t('Ringkasan') },
+                    { value: 'print' as const, label: t('Pratinjau cetak') },
                 ]}
                 value={tab}
                 onChange={onTab}
@@ -415,8 +416,8 @@ function DrawerBody({
             {tab === 'print' ? (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between text-[13px] text-ob-ink-2">
-                        <span>Template Kisantra · sama dengan PDF unduhan</span>
-                        <SegmentedControl variant="pill" label="Zoom kertas" options={[{ value: 'fit' as const, label: 'Pas lebar' }, { value: 'actual' as const, label: '100%' }]} value={zoom} onChange={setZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
+                        <span>{t('Template Kisantra · sama dengan PDF unduhan')}</span>
+                        <SegmentedControl variant="pill" label={t('Perbesaran kertas')} options={[{ value: 'fit' as const, label: t('Pas lebar') }, { value: 'actual' as const, label: '100%' }]} value={zoom} onChange={setZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
                     </div>
                     <div className="rounded-2xl bg-ob-inner p-3">
                         {/* updated_at ikut di URL agar PDF dirender ulang setelah invoice berubah */}
@@ -429,10 +430,10 @@ function DrawerBody({
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <th className="py-2 pl-2.5 font-medium">Layanan</th>
-                                    <th className="py-2 text-right font-medium">Qty</th>
-                                    <th className="py-2 text-right font-medium">Harga</th>
-                                    <th className="py-2 pr-2.5 text-right font-medium">Subtotal</th>
+                                    <th className="py-2 pl-2.5 font-medium">{t('Layanan')}</th>
+                                    <th className="py-2 text-right font-medium">{t('Qty')}</th>
+                                    <th className="py-2 text-right font-medium">{t('Harga')}</th>
+                                    <th className="py-2 pr-2.5 text-right font-medium">{t('Subtotal')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -444,7 +445,7 @@ function DrawerBody({
                                                 {item.service_name}
                                             </span>
                                             <span className="block text-xs text-ob-ink-2">
-                                                {item.is_tax_deposit ? 'Titipan pajak · bukan pendapatan' : `HPP ${rp(item.cogs_amount).replace('Rp ', '')}`}
+                                                {item.is_tax_deposit ? t('Titipan pajak · bukan pendapatan') : t('HPP {{amount}}', { amount: rp(item.cogs_amount).replace('Rp ', '') })}
                                                 {multiClient && item.client_name ? ` · ${item.client_name}` : ''}
                                             </span>
                                         </td>
@@ -456,17 +457,17 @@ function DrawerBody({
                             </tbody>
                         </table>
                         <div className="ml-auto flex w-full max-w-[300px] flex-col gap-1">
-                            <SumRow label="Subtotal layanan" value={rp(serviceTotal)} />
-                            {deposits > 0 && <SumRow label="Titipan pajak" value={rp(deposits)} />}
+                            <SumRow label={t('Subtotal layanan')} value={rp(serviceTotal)} />
+                            {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
                             {detail.discount_amount > 0 && (
-                                <SumRow label={detail.discount_reason ? `Diskon (${detail.discount_reason})` : 'Diskon'} value={`− ${rp(detail.discount_amount)}`} />
+                                <SumRow label={detail.discount_reason ? t('Diskon ({{reason}})', { reason: detail.discount_reason }) : t('Diskon')} value={`− ${rp(detail.discount_amount)}`} />
                             )}
-                            {detail.ppn_amount > 0 && <SumRow label={`PPN ${(detail.ppn_rate ?? 0).toLocaleString('id-ID')}%`} value={rp(detail.ppn_amount)} />}
-                            <SumRow label="Total" value={rp(detail.total_amount)} strong className="mt-1 border-t border-ob-line pt-2" />
+                            {detail.ppn_amount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: (detail.ppn_rate ?? 0).toLocaleString('id-ID') })} value={rp(detail.ppn_amount)} />}
+                            <SumRow label={t('Total')} value={rp(detail.total_amount)} strong className="mt-1 border-t border-ob-line pt-2" />
                         </div>
 
                         <div>
-                            <h3 className="mb-2 text-[13px] font-semibold text-ob-ink">Riwayat</h3>
+                            <h3 className="mb-2 text-[13px] font-semibold text-ob-ink">{t('Riwayat')}</h3>
                             <ol className="flex flex-col">
                                 {history.map((h, i) => (
                                     <li key={i} className="grid grid-cols-[170px_minmax(0,1fr)] gap-3 border-b border-ob-line-soft py-2 text-[13px]">
@@ -480,24 +481,24 @@ function DrawerBody({
 
                     <div className="flex flex-col gap-4">
                         <section className="flex flex-col gap-1 rounded-2xl border border-ob-line bg-ob-inner p-4 text-[13px]">
-                            <h3 className="mb-1 text-xs font-semibold text-ob-ink-2">Klien</h3>
+                            <h3 className="mb-1 text-xs font-semibold text-ob-ink-2">{t('Klien')}</h3>
                             <span className="font-semibold text-ob-ink">{detail.client.name}</span>
                             {detail.client.email && <span className="break-all text-ob-ink-2">{detail.client.email}</span>}
-                            {detail.client.NPWP && <span className="text-ob-ink-2">NPWP {detail.client.NPWP}</span>}
+                            {detail.client.NPWP && <span className="text-ob-ink-2">{t('NPWP {{npwp}}', { npwp: detail.client.NPWP })}</span>}
                             {detail.client.address && <span className="text-ob-ink-2">{detail.client.address}</span>}
                             {detail.faktur && (
                                 <span className="mt-1 flex items-center gap-1.5 border-t border-ob-line pt-2 text-ob-ink-2">
-                                    <ReceiptText className="h-3.5 w-3.5 shrink-0" /> Faktur pajak {detail.faktur}
+                                    <ReceiptText className="h-3.5 w-3.5 shrink-0" /> {t('Faktur pajak {{faktur}}', { faktur: detail.faktur })}
                                 </span>
                             )}
                         </section>
 
                         <section className="flex flex-col gap-2 rounded-2xl border border-ob-line bg-ob-inner p-4 text-[13px]">
                             <h3 className="flex items-center justify-between text-xs font-semibold text-ob-ink-2">
-                                Pembayaran <span className="font-medium">{detail.payments.length} kali</span>
+                                {t('Pembayaran', { context: 'invoice' })} <span className="font-medium">{t('{{count}} kali', { count: detail.payments.length })}</span>
                             </h3>
                             {detail.payments.length === 0 ? (
-                                <p className="py-2 text-ob-ink-2">{detail.status === 'draft' ? 'Terbitkan invoice untuk mulai mencatat pembayaran.' : 'Belum ada pembayaran tercatat.'}</p>
+                                <p className="py-2 text-ob-ink-2">{detail.status === 'draft' ? t('Terbitkan invoice untuk mulai mencatat pembayaran.') : t('Belum ada pembayaran tercatat.')}</p>
                             ) : (
                                 <ul className="flex flex-col">
                                     {detail.payments.map((p) => (
@@ -506,21 +507,21 @@ function DrawerBody({
                                             <div className="min-w-0 flex-1">
                                                 <p className="font-semibold text-ob-ink">{rp(p.amount)}</p>
                                                 <p className="text-xs text-ob-ink-2">
-                                                    {longDate(p.payment_date)} · {p.payment_method === 'cash' ? 'Tunai' : 'Transfer'}{p.bank_account_name ? ` · ${p.bank_account_name}` : ''}
+                                                    {longDate(p.payment_date)} · {p.payment_method === 'cash' ? t('Tunai') : t('Transfer')}{p.bank_account_name ? ` · ${p.bank_account_name}` : ''}
                                                 </p>
                                                 {(p.reference_number || p.attachment_url) && (
                                                     <p className="flex items-center gap-1 truncate text-xs text-ob-ink-2">
-                                                        {p.reference_number && <span className="truncate">Ref {p.reference_number}</span>}
+                                                        {p.reference_number && <span className="truncate">{t('Ref {{ref}}', { ref: p.reference_number })}</span>}
                                                         {p.attachment_url && p.attachment_name && (
-                                                            <AttachmentPreviewButton url={p.attachment_url} name={p.attachment_name} label="bukti" className="inline-flex items-center gap-1 text-ob-act hover:underline" />
+                                                            <AttachmentPreviewButton url={p.attachment_url} name={p.attachment_name} label={t('bukti')} className="inline-flex items-center gap-1 text-ob-act hover:underline" />
                                                         )}
                                                     </p>
                                                 )}
                                             </div>
-                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" aria-label={`Edit pembayaran ${rp(p.amount)}`} onClick={() => onEditPayment(p)}>
+                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" aria-label={t('Ubah pembayaran {{amount}}', { amount: rp(p.amount) })} onClick={() => onEditPayment(p)}>
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10" aria-label={`Hapus pembayaran ${rp(p.amount)}`} onClick={() => onDeletePayment(p)}>
+                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10" aria-label={t('Hapus pembayaran {{amount}}', { amount: rp(p.amount) })} onClick={() => onDeletePayment(p)}>
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </li>
@@ -528,7 +529,7 @@ function DrawerBody({
                                 </ul>
                             )}
                             <div className="flex items-center justify-between border-t border-ob-line pt-2.5">
-                                <span className="text-ob-ink-2">Sisa tagihan</span>
+                                <span className="text-ob-ink-2">{t('Sisa tagihan')}</span>
                                 <span className="text-sm font-semibold text-ob-ink">{rp(detail.amount_remaining)}</span>
                             </div>
                         </section>
@@ -562,7 +563,7 @@ function DrawerNotice({ title, text, action, alert }: { title: string; text: str
 
 function DrawerSkeleton() {
     return (
-        <div className="flex flex-col gap-5 pt-2" aria-label="Memuat invoice" aria-busy="true">
+        <div className="flex flex-col gap-5 pt-2" aria-label={t('Memuat invoice')} aria-busy="true">
             <Skeleton className="h-7 w-72 rounded-lg bg-ob-chip dark:bg-ob-chip" />
             <Skeleton className="h-4 w-96 rounded-lg bg-ob-chip dark:bg-ob-chip" />
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -593,9 +594,9 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
         setSending(false);
         if (!result?.ok) {
             setError(result?.errors.invoice_number ?? null);
-            return toastErrors(result?.errors ?? { _: 'Periksa koneksi lalu coba lagi.' }, 'SendInvoice');
+            return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'SendInvoice');
         }
-        toast.success(result.message ?? `Invoice diterbitkan: ${number}`);
+        toast.success(result.message ?? t('Invoice diterbitkan: {{number}}', { number }));
         onOpenChange(false);
         onSent();
     };
@@ -604,9 +605,9 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
         <InvoiceNumberDialog
             open={open}
             onOpenChange={onOpenChange}
-            title="Kirim invoice"
-            sub="Memberi nomor dan mengubah status menjadi Terkirim. Klien tidak menerima email otomatis; unduh PDF setelah terbit."
-            confirmLabel="Kirim invoice"
+            title={t('Terbitkan invoice')}
+            sub={t('Memberi nomor dan mengubah status menjadi Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')}
+            confirmLabel={t('Terbitkan invoice')}
             suggested={detail.next_invoice_number ?? ''}
             clientName={detail.client.name}
             total={detail.total_amount}
@@ -686,7 +687,7 @@ function PaymentDialog({
         }
     };
 
-    const overMessage = form.amount > remaining ? `Melebihi sisa tagihan ${rp(remaining)}. Catat kelebihan sebagai transaksi terpisah.` : null;
+    const overMessage = form.amount > remaining ? t('Melebihi sisa tagihan {{amount}}. Catat kelebihan sebagai transaksi terpisah.', { amount: rp(remaining) }) : null;
 
     // Pratinjau jurnal "titipan dulu" (cermin JournalService::paymentLines / Invoice::allocatePayments):
     // yang sudah dibayar SEBELUM pembayaran ini dihitung dari daftar pembayaran invoice, urut (tanggal, id).
@@ -724,16 +725,16 @@ function PaymentDialog({
             if (!res.ok) {
                 const errs: Record<string, string> = data.errors
                     ? Object.fromEntries(Object.entries(data.errors as Record<string, string[]>).map(([k, v]) => [k, v[0]]))
-                    : { _: data.message ?? `Server membalas ${res.status}.` };
+                    : { _: data.message ?? t('Server membalas {{status}}.', { status: res.status }) };
                 setErrors(errs);
                 toastErrors(errs, 'PaymentSubmit');
                 return;
             }
-            toast.success(payment ? 'Pembayaran diperbarui.' : `Pembayaran ${rp(form.amount)} dicatat.`);
+            toast.success(payment ? t('Pembayaran diperbarui.') : t('Pembayaran {{amount}} dicatat.', { amount: rp(form.amount) }));
             onOpenChange(false);
             onSaved();
         } catch (err) {
-            toastError(err instanceof Error ? err.message : 'Pembayaran gagal disimpan.');
+            toastError(err instanceof Error ? err.message : t('Pembayaran gagal disimpan.'));
         } finally {
             setSaving(false);
         }
@@ -757,8 +758,8 @@ function PaymentDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent size="lg" hideClose className={DIALOG}>
                 <DialogHead
-                    title={payment ? 'Edit pembayaran' : 'Catat pembayaran'}
-                    sub={`${detail.invoice_number ?? 'Draft'} · sisa ${rp(remaining)}`}
+                    title={payment ? t('Ubah pembayaran', { context: 'invoice' }) : t('Catat pembayaran', { context: 'invoice' })}
+                    sub={t('{{number}} · sisa {{amount}}', { number: detail.invoice_number ?? t('Draft'), amount: rp(remaining) })}
                     onClose={() => onOpenChange(false)}
                 />
                 <form onSubmit={submit} className="flex flex-col gap-4">
@@ -766,7 +767,7 @@ function PaymentDialog({
                     <div ref={amountRef}>
                         <div className={FIELD}>
                         <CurrencyInput
-                            label="Jumlah"
+                            label={t('Jumlah')}
                             value={form.amount}
                             onChange={(v) => {
                                 set('amount', v);
@@ -776,36 +777,36 @@ function PaymentDialog({
                         />
                         </div>
                         <div className="mt-2 flex flex-wrap gap-2">
-                            {chip('full', 'Sisa penuh')}
+                            {chip('full', t('Sisa penuh'))}
                             {chip('half', '50%')}
-                            {chip('custom', 'Nominal lain')}
+                            {chip('custom', t('Nominal lain'))}
                         </div>
                     </div>
                     <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-2')}>
                         <DatePicker
-                            label="Tanggal"
+                            label={t('Tanggal')}
                             value={form.payment_date ? new Date(form.payment_date + 'T00:00:00') : null}
                             onChange={(d) => set('payment_date', d ? format(d, 'yyyy-MM-dd') : '')}
                             clearable={false}
                             error={errors.payment_date}
                         />
                         <Combobox
-                            label="Rekening tujuan"
+                            label={t('Rekening tujuan')}
                             options={accounts}
                             value={form.bank_account_id}
                             onChange={(v) => set('bank_account_id', v != null ? Number(v) : null)}
-                            placeholder="Pilih rekening"
-                            searchPlaceholder="Cari rekening..."
+                            placeholder={t('Pilih rekening')}
+                            searchPlaceholder={t('Cari rekening...')}
                             clearable={false}
                             error={errors.bank_account_id}
                         />
                     </div>
                     <SegmentedControl
                         variant="pill"
-                        label="Metode"
+                        label={t('Metode')}
                         options={[
-                            { value: 'bank_transfer' as const, label: 'Transfer bank' },
-                            { value: 'cash' as const, label: 'Tunai' },
+                            { value: 'bank_transfer' as const, label: t('Transfer bank') },
+                            { value: 'cash' as const, label: t('Tunai') },
                         ]}
                         value={form.payment_method}
                         onChange={(v) => set('payment_method', v)}
@@ -815,15 +816,15 @@ function PaymentDialog({
                     <JournalBox
                         mode="preview"
                         lines={journal}
-                        caption="Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar"
-                        placeholder="Pilih rekening tujuan untuk melihat jurnalnya."
+                        caption={t('Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar')}
+                        placeholder={t('Pilih rekening tujuan untuk melihat jurnalnya.')}
                     />
                     <div className={FIELD}>
                         <Input
-                            label="Nomor referensi"
+                            label={t('Nomor referensi')}
                             value={form.reference_number}
                             onChange={(e) => set('reference_number', e.target.value)}
-                            placeholder="Opsional"
+                            placeholder={t('Opsional')}
                             error={errors.reference_number}
                         />
                     </div>
@@ -833,15 +834,15 @@ function PaymentDialog({
                         existingFileName={!form.remove_attachment ? payment?.attachment_name ?? null : null}
                         existingFileUrl={!form.remove_attachment ? payment?.attachment_url ?? null : null}
                         onRemoveExisting={() => setForm((f) => ({ ...f, remove_attachment: true, attachment: null }))}
-                        hint="Bukti transfer · JPG, PNG, PDF · maks 5 MB"
+                        hint={t('Bukti transfer · JPG, PNG, PDF · maks 5 MB')}
                         error={errors.attachment}
                     />
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)}>
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" className={BTN.primary} loading={saving} disabled={!form.amount || !!overMessage} icon={<Check className="h-4 w-4" />}>
-                            {payment ? 'Simpan perubahan' : 'Simpan pembayaran'}
+                            {payment ? t('Simpan perubahan') : t('Simpan pembayaran', { context: 'invoice' })}
                         </Button>
                     </div>
                 </form>

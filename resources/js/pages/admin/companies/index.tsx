@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
+import { t, tk, Trans } from '@/i18n';
 import { suggestAbbreviation, suggestSlug } from '@/lib/company-name';
+import { roleLabel } from '@/lib/roles';
 import { cn, toastErrors } from '@/lib/utils';
 import { CARD, initials, longDate } from '@/pages/invoices/components/ob';
 
@@ -57,32 +59,38 @@ interface CompanyForm {
 }
 
 const STATUS: Record<CompanyRow['status'], { label: string; variant: 'green' | 'yellow' | 'red' }> = {
-    active: { label: 'Aktif', variant: 'green' },
-    provisioning: { label: 'Sedang dibuat', variant: 'yellow' },
-    failed: { label: 'Gagal dibuat', variant: 'red' },
+    active: { label: tk('Aktif'), variant: 'green' },
+    provisioning: { label: tk('Sedang dibuat'), variant: 'yellow' },
+    failed: { label: tk('Gagal dibuat'), variant: 'red' },
 };
-
-const PERAN: Record<string, string> = { admin: 'Admin', 'finance manager': 'Finance Manager', staff: 'Staff' };
 
 function labelPeran(role: string | null): string {
     if (!role) {
-        return 'Tanpa peran';
+        return t('Tanpa peran');
     }
 
-    return PERAN[role] ?? role.replace(/\b\w/g, (huruf) => huruf.toUpperCase());
+    return roleLabel(role).replace(/\b\w/g, (huruf) => huruf.toUpperCase());
 }
 
 /** Yang terjadi setelah "Buat perusahaan" — sesuai CompanyController::store, TenantDatabaseSeeder, dan gerbang profil. */
 const LANGKAH = [
-    { otomatis: true, judul: 'Database dibuat', rinci: 'Lengkap dengan seluruh tabelnya. Butuh beberapa detik, dan halaman ini menunggu sampai selesai.' },
-    { otomatis: true, judul: 'Data awal diisi', rinci: 'Template kategori transaksi yang sudah ber-grup Laba Rugi, plus profil berisi nama dan singkatan.' },
-    { otomatis: true, judul: 'Anda menjadi Admin', rinci: 'Satu-satunya anggota. User lain belum bisa masuk.' },
+    {
+        otomatis: true,
+        judul: tk('Database dibuat'),
+        rinci: tk('Lengkap dengan seluruh tabelnya. Butuh beberapa detik, dan halaman ini menunggu sampai selesai.'),
+    },
+    {
+        otomatis: true,
+        judul: tk('Data awal diisi'),
+        rinci: tk('Template kategori transaksi yang sudah ber-grup Laba Rugi, plus profil berisi nama dan singkatan.'),
+    },
+    { otomatis: true, judul: tk('Anda menjadi Admin'), rinci: tk('Satu-satunya anggota. Pengguna lain belum bisa masuk.') },
     {
         otomatis: false,
-        judul: 'Lengkapi profil',
-        rinci: 'Saat pertama dibuka: alamat, email, telepon, dan penanggung jawab keuangan wajib diisi sebelum menu lain terbuka.',
+        judul: tk('Lengkapi profil'),
+        rinci: tk('Saat pertama dibuka: alamat, email, telepon, dan penanggung jawab keuangan wajib diisi sebelum menu lain terbuka.'),
     },
-    { otomatis: false, judul: 'Beri akses user lain', rinci: 'Di Pengguna: edit user, centang perusahaan ini, lalu pilih peran.' },
+    { otomatis: false, judul: tk('Beri akses ke pengguna lain'), rinci: tk('Di Pengguna: ubah pengguna, centang perusahaan ini, lalu pilih peran.') },
 ];
 
 const ROMAWI = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
@@ -123,24 +131,24 @@ export default function CompaniesIndex({ organizationCompanies: companies, quota
 
     return (
         <>
-            <Head title="Perusahaan" />
+            <Head title={t('Perusahaan', { context: 'menu' })} />
             <div className="ob-motion flex flex-col gap-6 pt-1">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Perusahaan</h1>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Perusahaan', { context: 'menu' })}</h1>
                         <p className="text-[13px] text-ob-ink-2">
-                            {organizationName} · {quota.used} dari {quota.total} perusahaan terpakai
+                            {t('{{name}} · {{used}} dari {{total}} perusahaan terpakai', { name: organizationName, used: quota.used, total: quota.total })}
                         </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                         <Button onClick={() => setCreateOpen(true)} disabled={quotaFull} icon={<Plus className="h-4 w-4" />}>
-                            Perusahaan baru
+                            {t('Perusahaan baru')}
                         </Button>
-                        {quotaFull && <span className="text-xs text-ob-ink-3">Kuota grup sudah penuh</span>}
+                        {quotaFull && <span className="text-xs text-ob-ink-3">{t('Kuota grup sudah penuh')}</span>}
                     </div>
                 </div>
 
-                <section aria-label="Daftar perusahaan" className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+                <section aria-label={t('Daftar perusahaan')} className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
                     {companies.map((company) => (
                         <CompanyCard
                             key={company.slug}
@@ -184,15 +192,17 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
                         <h2 id={titleId} className="min-w-0 truncate text-base font-semibold text-ob-ink">
                             {company.name}
                         </h2>
-                        <Badge variant={status.variant}>{status.label}</Badge>
-                        {company.is_current && <Badge variant="outline">Sedang dibuka</Badge>}
+                        <Badge variant={status.variant}>{t(status.label)}</Badge>
+                        {company.is_current && <Badge variant="outline">{t('Sedang dibuka')}</Badge>}
                     </div>
                     <p className="mt-1 text-[13px] text-ob-ink-2">
                         <span className="font-mono">/c/{company.slug}</span>
-                        <span aria-hidden="true"> · </span>Singkatan {company.abbreviation}
+                        <span aria-hidden="true"> · </span>
+                        {t('Singkatan {{abbr}}', { abbr: company.abbreviation })}
                         {company.created_at && (
                             <>
-                                <span aria-hidden="true"> · </span>Dibuat {longDate(company.created_at)}
+                                <span aria-hidden="true"> · </span>
+                                {t('Dibuat {{date}}', { date: longDate(company.created_at) })}
                             </>
                         )}
                     </p>
@@ -201,8 +211,10 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
 
             {company.status === 'failed' ? (
                 <p className="rounded-2xl bg-ob-inner p-4 text-[13px] text-ob-ink-2">
-                    Pembuatan berhenti di tengah jalan, jadi perusahaan ini belum bisa dibuka.{' '}
-                    <span className="font-semibold text-ob-ink">Coba ulang</span> membuang database yang setengah jadi, lalu membuatnya dari awal.
+                    <Trans
+                        i18nKey="Pembuatan berhenti di tengah jalan, jadi perusahaan ini belum bisa dibuka. <b>Coba ulang</b> membuang database yang setengah jadi, lalu membuatnya dari awal."
+                        components={{ b: <span className="font-semibold text-ob-ink" /> }}
+                    />
                 </p>
             ) : (
                 <div className="rounded-2xl bg-ob-inner p-4">
@@ -222,7 +234,7 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
                                     )}
                                 </div>
                             )}
-                            <span className="min-w-0 text-sm text-ob-ink-2">{company.members_count} anggota bisa membuka perusahaan ini</span>
+                            <span className="min-w-0 text-sm text-ob-ink-2">{t('{{count}} anggota bisa membuka perusahaan ini', { count: company.members_count })}</span>
                         </div>
                         {company.members_count > 0 && (
                             <Button
@@ -233,7 +245,7 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
                                 aria-controls={listId}
                                 onClick={() => setShowMembers((shown) => !shown)}
                             >
-                                {showMembers ? 'Sembunyikan' : 'Lihat siapa saja'}
+                                {showMembers ? t('Sembunyikan') : t('Lihat siapa saja')}
                                 <ChevronDown
                                     aria-hidden="true"
                                     className={cn('h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none', showMembers && 'rotate-180')}
@@ -267,7 +279,7 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
                             disabled={retrying}
                             icon={retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                         >
-                            {retrying ? 'Membuat ulang…' : 'Coba ulang'}
+                            {retrying ? t('Membuat ulang…') : t('Coba ulang')}
                         </Button>
                     )}
                     {canOpen &&
@@ -275,10 +287,10 @@ function CompanyCard({ company, retrying, onRetry }: { company: CompanyRow; retr
                             <Button variant="outline" asChild>
                                 {/* <a> biasa, bukan AppLink: tujuannya perusahaan LAIN, dan berpindah
                                     perusahaan memuat ulang halaman penuh (sama dengan pengalih di header). */}
-                                <a href={`/c/${company.slug}/dashboard`}>Buka perusahaan</a>
+                                <a href={`/c/${company.slug}/dashboard`}>{t('Buka perusahaan')}</a>
                             </Button>
                         ) : (
-                            <span className="text-xs text-ob-ink-3">Anda belum menjadi anggota perusahaan ini</span>
+                            <span className="text-xs text-ob-ink-3">{t('Anda belum menjadi anggota perusahaan ini')}</span>
                         ))}
                 </div>
             )}
@@ -295,17 +307,16 @@ function AccessCard({ multiCompany }: { multiCompany: boolean }) {
                 </span>
                 <div>
                     <h2 id="akses-judul" className="text-base font-semibold text-ob-ink">
-                        Mengatur siapa yang bisa masuk
+                        {t('Mengatur siapa yang bisa masuk')}
                     </h2>
                     <p className="mt-1 max-w-2xl text-[13px] text-ob-ink-2">
-                        Akses diatur di halaman Pengguna: edit user, centang perusahaannya, lalu pilih peran. Peran itu berlaku di setiap perusahaan
-                        yang dicentang.
-                        {!multiCompany && ' Pilihan perusahaan muncul di sana setelah grup punya lebih dari satu perusahaan.'}
+                        {t('Akses diatur di halaman Pengguna: ubah pengguna, centang perusahaannya, lalu pilih peran. Peran itu berlaku di setiap perusahaan yang dicentang.')}
+                        {!multiCompany && ` ${t('Pilihan perusahaan muncul di sana setelah grup punya lebih dari satu perusahaan.')}`}
                     </p>
                 </div>
             </div>
             <Button variant="outline" className="shrink-0 self-start md:self-auto" asChild>
-                <AppLink href="/admin/users">Buka Pengguna</AppLink>
+                <AppLink href="/admin/users">{t('Buka Pengguna')}</AppLink>
             </Button>
         </section>
     );
@@ -372,48 +383,48 @@ function CreateCompanyDialog({
                 ) : (
                     <form onSubmit={submit}>
                         <DialogHeader className="px-6 pt-6 pb-2">
-                            <DialogTitle>Perusahaan baru</DialogTitle>
+                            <DialogTitle>{t('Perusahaan baru')}</DialogTitle>
                             <DialogDescription>
-                                Setiap perusahaan punya database sendiri. Cukup isi tiga hal ini; sisanya dilengkapi saat perusahaan pertama kali dibuka.
+                                {t('Setiap perusahaan punya database sendiri. Cukup isi tiga hal ini; sisanya dilengkapi saat perusahaan pertama kali dibuka.')}
                             </DialogDescription>
                         </DialogHeader>
 
                         <div className="grid max-h-[70vh] grid-cols-1 gap-6 overflow-y-auto px-6 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                             <div className="flex flex-col gap-4">
                                 <Input
-                                    label="Nama perusahaan"
+                                    label={t('Nama perusahaan')}
                                     value={form.data.name}
                                     onChange={(event) => changeName(event.target.value)}
                                     error={form.errors.name}
-                                    placeholder="PT Semesta Raya"
+                                    placeholder={t('PT Semesta Raya')}
                                     autoFocus
                                 />
                                 <Input
-                                    label="Kode URL (permanen)"
+                                    label={t('Kode URL (permanen)')}
                                     value={form.data.slug}
                                     onChange={(event) => {
                                         setSlugTouched(true);
                                         form.setData('slug', event.target.value.toLowerCase());
                                     }}
                                     error={form.errors.slug}
-                                    placeholder="semesta-raya"
-                                    hint="Huruf kecil, angka, dan tanda hubung. Menjadi alamat perusahaan dan tidak bisa diubah."
+                                    placeholder={t('semesta-raya')}
+                                    hint={t('Huruf kecil, angka, dan tanda hubung. Menjadi alamat perusahaan dan tidak bisa diubah.')}
                                 />
                                 <Input
-                                    label="Singkatan"
+                                    label={t('Singkatan')}
                                     value={form.data.abbreviation}
                                     onChange={(event) => {
                                         setAbbreviationTouched(true);
                                         form.setData('abbreviation', event.target.value.toUpperCase());
                                     }}
                                     error={form.errors.abbreviation}
-                                    placeholder="SR"
+                                    placeholder={t('SR')}
                                     maxLength={10}
-                                    hint="Kode perusahaan di nomor invoice. Bisa diubah nanti di Profil Perusahaan."
+                                    hint={t('Kode perusahaan di nomor invoice. Bisa diubah nanti di Profil Perusahaan.')}
                                 />
                                 <p className="flex gap-2.5 rounded-2xl bg-ob-inner p-3.5 text-xs text-ob-ink-2">
                                     <Info aria-hidden="true" className="mt-px h-4 w-4 shrink-0 text-ob-ink-3" />
-                                    <span>Kode URL tidak bisa diubah, dan perusahaan belum bisa dihapus dari aplikasi. Hindari membuat perusahaan percobaan.</span>
+                                    <span>{t('Kode URL tidak bisa diubah, dan perusahaan belum bisa dihapus dari aplikasi. Hindari membuat perusahaan percobaan.')}</span>
                                 </p>
                             </div>
 
@@ -422,14 +433,14 @@ function CreateCompanyDialog({
 
                         <DialogFooter className="border-t border-ob-line px-6 py-4">
                             <Button type="button" variant="outline" onClick={() => close(false)} disabled={form.processing}>
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button
                                 type="submit"
                                 disabled={form.processing}
                                 icon={form.processing ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
                             >
-                                {form.processing ? 'Membuat perusahaan…' : 'Buat perusahaan'}
+                                {form.processing ? t('Membuat perusahaan…') : t('Buat perusahaan')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -452,11 +463,11 @@ function PreviewPanel({
     quota: Quota;
     preview: Preview;
 }) {
-    const name = data.name.trim() || 'Nama perusahaan';
-    const slug = data.slug || 'kode-url';
+    const name = data.name.trim() || t('Nama perusahaan');
+    const slug = data.slug || t('kode-url');
 
     return (
-        <aside aria-label="Pratinjau perusahaan baru" className="flex flex-col gap-5 rounded-2xl bg-ob-inner p-5">
+        <aside aria-label={t('Pratinjau perusahaan baru')} className="flex flex-col gap-5 rounded-2xl bg-ob-inner p-5">
             <div className="flex items-center gap-3">
                 <span
                     aria-hidden="true"
@@ -466,35 +477,39 @@ function PreviewPanel({
                 </span>
                 <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-ob-ink">{name}</p>
-                    <p className="text-xs text-ob-ink-3">Pratinjau, berubah mengikuti isian</p>
+                    <p className="text-xs text-ob-ink-3">{t('Pratinjau, berubah mengikuti isian')}</p>
                 </div>
             </div>
 
             <dl className="grid gap-3 text-[13px]">
-                <PreviewRow label="Alamat" value={<span className="break-all font-mono">{`${host}/c/${slug}`}</span>} />
+                {/* i18n-abaikan: URL perusahaan, bukan teks */}
+                <PreviewRow label={t('Alamat')} value={<span className="break-all font-mono">{`${host}/c/${slug}`}</span>} />
                 <PreviewRow
-                    label="Invoice pertama"
+                    label={t('Invoice pertama')}
                     value={
                         <span className="break-all font-mono">
                             {nomorInvoicePertama(preview.invoiceFormat, preview.invoicePadding, data.abbreviation, new Date())}
                         </span>
                     }
-                    note="KLN diganti kode klien"
+                    note={t('KLN diganti kode klien')}
                 />
                 <PreviewRow
-                    label="Data"
-                    value="Database sendiri, terpisah dari perusahaan lain"
+                    label={t('Data')}
+                    value={t('Database sendiri, terpisah dari perusahaan lain')}
                     note={`${preview.databasePrefix}${slug}${preview.databaseSuffix}`}
                     noteMono
                 />
-                <PreviewRow label="Akses awal" value="Hanya Anda, sebagai Admin" />
-                <PreviewRow label="Kuota grup" value={`${Math.min(quota.used + 1, quota.total)} dari ${quota.total} terpakai setelah dibuat`} />
+                <PreviewRow label={t('Akses awal')} value={t('Hanya Anda, sebagai Admin')} />
+                <PreviewRow
+                    label={t('Kuota grup')}
+                    value={t('{{used}} dari {{total}} terpakai setelah dibuat', { used: Math.min(quota.used + 1, quota.total), total: quota.total })}
+                />
             </dl>
 
             <div aria-live="polite">
                 <h3 className="flex items-center gap-2 text-[13px] font-semibold text-ob-ink">
                     {processing && <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin text-ob-ink-2" />}
-                    {processing ? 'Sedang dibuat. Jangan tutup halaman ini.' : 'Setelah Anda klik Buat perusahaan'}
+                    {processing ? t('Sedang dibuat. Jangan tutup halaman ini.') : t('Setelah Anda klik Buat perusahaan')}
                 </h3>
                 <ol className="mt-3 flex flex-col gap-3">
                     {LANGKAH.map((langkah, index) => (
@@ -507,10 +522,10 @@ function PreviewPanel({
                             </span>
                             <div className="min-w-0">
                                 <p className="text-[13px] font-semibold text-ob-ink">
-                                    {langkah.judul}{' '}
-                                    <span className="font-normal text-ob-ink-3">· {langkah.otomatis ? 'otomatis' : 'oleh Anda'}</span>
+                                    {t(langkah.judul)}{' '}
+                                    <span className="font-normal text-ob-ink-3">· {langkah.otomatis ? t('otomatis') : t('oleh Anda')}</span>
                                 </p>
-                                <p className="text-xs text-ob-ink-2">{langkah.rinci}</p>
+                                <p className="text-xs text-ob-ink-2">{t(langkah.rinci)}</p>
                             </div>
                         </li>
                     ))}
@@ -541,31 +556,34 @@ function CreatedView({ created, host, onClose }: { created: Pick<CompanyForm, 'n
                         <Check className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 space-y-1">
-                        <DialogTitle>{created.name} siap</DialogTitle>
+                        <DialogTitle>{t('{{name}} siap', { name: created.name })}</DialogTitle>
                         <DialogDescription>
-                            <span className="break-all font-mono">{`${host}/c/${created.slug}`}</span> sudah dibuat: database, data awal, dan akses Admin
-                            untuk Anda.
+                            <Trans
+                                i18nKey="<kode>{{url}}</kode> sudah dibuat: database, data awal, dan akses Admin untuk Anda."
+                                values={{ url: `${host}/c/${created.slug}` }}
+                                components={{ kode: <span className="break-all font-mono" /> }}
+                            />
                         </DialogDescription>
                     </div>
                 </div>
                 <ol className="flex flex-col gap-3">
                     <NextStep
                         number={1}
-                        title="Buka perusahaan, lalu lengkapi profilnya"
-                        detail="Aplikasi langsung membuka Profil Perusahaan. Menu lain terbuka setelah profil disimpan."
+                        title={t('Buka perusahaan, lalu lengkapi profilnya')}
+                        detail={t('Aplikasi langsung membuka Profil Perusahaan. Menu lain terbuka setelah profil disimpan.')}
                         action={
                             <Button asChild>
-                                <a href={`/c/${created.slug}/dashboard`}>Buka perusahaan</a>
+                                <a href={`/c/${created.slug}/dashboard`}>{t('Buka perusahaan')}</a>
                             </Button>
                         }
                     />
                     <NextStep
                         number={2}
-                        title="Beri akses user lain"
-                        detail={`Di Pengguna: edit user, centang ${created.name}, lalu pilih peran.`}
+                        title={t('Beri akses ke pengguna lain')}
+                        detail={t('Di Pengguna: ubah pengguna, centang {{name}}, lalu pilih peran.', { name: created.name })}
                         action={
                             <Button variant="outline" asChild>
-                                <AppLink href="/admin/users">Buka Pengguna</AppLink>
+                                <AppLink href="/admin/users">{t('Buka Pengguna')}</AppLink>
                             </Button>
                         }
                     />
@@ -573,7 +591,7 @@ function CreatedView({ created, host, onClose }: { created: Pick<CompanyForm, 'n
             </div>
             <DialogFooter className="border-t border-ob-line px-6 py-4">
                 <Button variant="ghost" onClick={onClose}>
-                    Tutup
+                    {t('Tutup')}
                 </Button>
             </DialogFooter>
         </>

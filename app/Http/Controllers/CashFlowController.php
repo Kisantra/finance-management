@@ -579,7 +579,7 @@ class CashFlowController extends Controller
         abort_if(
             $trxs->contains(fn (BankTransaction $t): bool => $t->moduleLockMessage() !== null),
             403,
-            'Seleksi berisi pokok utang/piutang yang dicatat otomatis oleh modul Utang/Piutang. Transaksi itu tidak bisa dihapus dari sini; kelola lewat menu Utang atau Piutang.'
+            __('Seleksi berisi pokok utang/piutang yang dicatat otomatis oleh modul Utang/Piutang. Transaksi itu tidak bisa dihapus dari sini; kelola lewat menu Utang atau Piutang.')
         );
 
         // Require the matching delete permission for every feature in the selection.
@@ -636,7 +636,7 @@ class CashFlowController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', __('pages.bulk_delete_done', ['count' => $deleted]));
+        return redirect()->back()->with('success', __(':count catatan berhasil dihapus.', ['count' => $deleted]));
     }
 
     /* ─── Helpers ───────────────────────────────────────────── */
@@ -992,7 +992,7 @@ class CashFlowController extends Controller
             return null;
         }
 
-        return $nama[(int) $id] ?? 'Pengguna dihapus';
+        return $nama[(int) $id] ?? __('Pengguna dihapus');
     }
 
     /** @return int|null id pencatat dari `?input_by=` */

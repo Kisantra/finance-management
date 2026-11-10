@@ -218,7 +218,7 @@ class ProfitLossService
         return [
             'by_category' => $rows->map(fn ($r) => [
                 'category_id' => (int) $r->category_id,
-                'category_label' => (string) $r->category_label,
+                'category_label' => $r->category_label === '(Tanpa Kategori)' ? __('(Tanpa Kategori)') : (string) $r->category_label,
                 'amount' => (int) $r->total,
             ])->all(),
             'total' => (int) $rows->sum('total'),
@@ -273,7 +273,7 @@ class ProfitLossService
         return [
             'by_category' => $rows->map(fn ($r) => [
                 'category_id' => $r->category_id !== null ? (int) $r->category_id : null,
-                'category_label' => (string) $r->category_label,
+                'category_label' => $r->category_label === '(Tanpa Kategori)' ? __('(Tanpa Kategori)') : (string) $r->category_label,
                 'amount' => (int) $r->total,
             ])->all(),
             'total' => (int) $rows->sum('total'),

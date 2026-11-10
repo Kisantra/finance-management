@@ -81,7 +81,7 @@ export const ADMIN_EDIT_STEPS: Step[] = brisk([
         src: img('admin-edit'),
         focus: S['admin-edit'].status,
         zoom: 1.8,
-        caption: 'Ikon pensil membuka Edit Pengguna: ganti Peran atau Status, lalu Simpan Perubahan. Kata Sandi kosongkan bila tidak diubah. Ingat: Tidak Aktif tidak memblokir login.',
+        caption: 'Ikon pensil membuka Ubah Pengguna: ganti Peran atau Status, lalu Simpan Perubahan. Kata Sandi kosongkan bila tidak diubah. Ingat: Tidak Aktif tidak memblokir login.',
         duration: 150,
     },
     {
@@ -89,7 +89,7 @@ export const ADMIN_EDIT_STEPS: Step[] = brisk([
         focus: S['admin-delete'].dialog,
         cursor: S['admin-delete'].confirm,
         zoom: 1.6,
-        caption: 'Hapus pengguna tidak bisa dibatalkan dan ikut menghapus reimbursement, pengajuan dana, dan feedback miliknya. Pikirkan dulu sebelum klik Hapus.',
+        caption: 'Hapus pengguna tidak bisa dibatalkan dan ikut menghapus reimbursement, pengajuan dana, dan masukan miliknya. Pikirkan dulu sebelum klik Hapus.',
         duration: 150,
     },
 ]);
@@ -126,7 +126,7 @@ export const ADMIN_PERM_STEPS: Step[] = brisk([
         cursor: S['admin-perm-toggled'].viewInvoices,
         click: true,
         zoom: 1.9,
-        caption: 'Saring lewat Cari permission..., lalu centang izin, mis. view invoices. Perubahan langsung tersimpan.',
+        caption: 'Saring lewat Cari izin…, lalu centang izin, mis. view invoices. Perubahan langsung tersimpan.',
         duration: 130,
     },
     {

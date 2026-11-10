@@ -4,7 +4,7 @@
  *    Akun (sandi "password"): fm@qc.test (finance manager) & admin@gmail.com (admin), anggota SATU perusahaan contoh hasil
  *    provisioning (template kategori lengkap, termasuk bagian Pendanaan) + seeder demo ClientSeeder, BankAccountSeeder,
  *    InvoiceSeeder, BankTransactionSeeder.
- * 2. Prasyarat data QC: sub-kategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R
+ * 2. Prasyarat data QC: subkategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R
  *    dikosongkan); satu utang "Bank BRI" (LOAN-00001) beserta pembayaran pokok + bunganya di BCA - Operasional (baris
  *    pokok tampil hanya-lihat). Sub transfer "Antar Rekening Sendiri" (induk Transfer Internal) sudah dibuat seeder.
  * 3. Jalankan headless: Playwright MCP browser_run_code_unsafe (filename: video/capture/cash-flow.js) atau runner Node
@@ -31,7 +31,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -39,7 +39,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     await p.waitForLoadState('networkidle');
     return p;
@@ -79,7 +79,7 @@ async (page) => {
   const toBottom = (d) => d.evaluate((el) => [el, ...el.querySelectorAll('*')].forEach((n) => { if (n.scrollHeight > n.clientHeight + 4) n.scrollTop = n.scrollHeight; }));
   const listTargets = (p, createName) => ({
     create: p.getByRole('button', { name: createName }),
-    export: p.getByRole('button', { name: 'Export PDF' }),
+    export: p.getByRole('button', { name: 'Ekspor PDF' }),
     stats: up(p.getByText(/^(Pemasukan \(masuk Laba Rugi\)|Beban \(masuk Laba Rugi\)|Total Transfer)$/).first(), 4),
     filters: up(p.getByText('Rentang Tanggal', { exact: true }).first(), 2),
     table: p.locator('table').first(),
@@ -96,7 +96,7 @@ async (page) => {
     await m.goto(BASE + '/cash-flow/income');
     await m.locator('table').first().waitFor();
     await snap(m, 'fm-income-list', {
-      ...listTargets(m, 'Input Pemasukan'),
+      ...listTargets(m, 'Catat Pemasukan'),
       invoiceRow: m.locator('tbody tr').filter({ hasText: 'Invoice' }).first(),
       directRow: m.locator('tbody tr').filter({ hasText: 'Langsung' }).first(),
       sourceCol: m.locator('thead th').nth(2),
@@ -104,7 +104,7 @@ async (page) => {
       cards: up(m.getByText('Pemasukan (masuk Laba Rugi)', { exact: true }).first(), 3),
     });
 
-    await m.getByRole('button', { name: 'Input Pemasukan' }).click();
+    await m.getByRole('button', { name: 'Catat Pemasukan' }).click();
     const incomeFields = () => ({
       dialog: top(m),
       account: up(label(top(m), 'Rekening *')),
@@ -150,7 +150,7 @@ async (page) => {
     await m.getByRole('row', { name: /Sewa ruang rapat lantai 3/ }).first().waitFor();
     await m.waitForTimeout(800);
     await snap(m, 'fm-income-list-after', {
-      ...listTargets(m, 'Input Pemasukan'),
+      ...listTargets(m, 'Catat Pemasukan'),
       row: m.getByRole('row', { name: /Sewa ruang rapat lantai 3/ }).first(),
     });
 
@@ -169,9 +169,9 @@ async (page) => {
     /* ── Finance manager: pengeluaran ── */
     await m.goto(BASE + '/cash-flow/expenses');
     await m.locator('table').first().waitFor();
-    await snap(m, 'fm-expense-list', listTargets(m, 'Input Pengeluaran'));
+    await snap(m, 'fm-expense-list', listTargets(m, 'Catat Pengeluaran'));
 
-    await m.getByRole('button', { name: 'Input Pengeluaran' }).click();
+    await m.getByRole('button', { name: 'Catat Pengeluaran' }).click();
     await top(m).getByRole('button', { name: 'Pilih kategori' }).waitFor();
     await m.waitForTimeout(500);
     const expenseFields = () => ({
@@ -209,13 +209,13 @@ async (page) => {
     await expenseRow().waitFor();
     await m.waitForTimeout(800);
     await snap(m, 'fm-expense-list-after', {
-      ...listTargets(m, 'Input Pengeluaran'),
+      ...listTargets(m, 'Catat Pengeluaran'),
       row: expenseRow(),
       category: expenseRow().getByText('Internet & Telepon'),
     });
 
     await expenseRow().click();
-    await top(m).getByText('Edit Pengeluaran').waitFor();
+    await top(m).getByText('Ubah Pengeluaran').waitFor();
     await m.waitForTimeout(500);
     await toBottom(top(m));
     await snap(m, 'fm-expense-edit', {
@@ -232,7 +232,7 @@ async (page) => {
     if (!SKIP.includes('financing')) {
     /* ── Finance manager: pendanaan (Setor PPN) — grup terakhir pemilih kategori, tidak masuk Laba Rugi ── */
     await m.goto(BASE + '/cash-flow/expenses');
-    await m.getByRole('button', { name: 'Input Pengeluaran' }).click();
+    await m.getByRole('button', { name: 'Catat Pengeluaran' }).click();
     await top(m).getByRole('button', { name: 'Pilih kategori' }).waitFor();
     await m.waitForTimeout(500);
     const financeFields = () => ({
@@ -310,10 +310,10 @@ async (page) => {
     if (!SKIP.includes('transfer')) {
     /* ── Finance manager: transfer ── */
     await m.goto(BASE + '/cash-flow/transfers');
-    await m.getByRole('button', { name: 'Input Transfer' }).waitFor();
-    if (SAVE) await snap(m, 'fm-transfer-list', listTargets(m, 'Input Transfer'));
+    await m.getByRole('button', { name: 'Catat Transfer' }).waitFor();
+    if (SAVE) await snap(m, 'fm-transfer-list', listTargets(m, 'Catat Transfer'));
 
-    await m.getByRole('button', { name: 'Input Transfer' }).click();
+    await m.getByRole('button', { name: 'Catat Transfer' }).click();
     await top(m).getByRole('button', { name: 'Rekening Sumber *' }).waitFor();
     await m.waitForTimeout(500);
     const transferFields = () => ({
@@ -327,7 +327,7 @@ async (page) => {
       fee: up(label(top(m), 'Biaya Admin')),
       description: up(label(top(m), 'Deskripsi *')),
       proof: up(label(top(m), 'Bukti Transfer')),
-      summary: up(top(m).getByText('Total Debit', { exact: true }).first(), 2),
+      summary: up(top(m).getByText('Total Keluar', { exact: true }).first(), 2),
       journal: journalOf(top(m)),
       submit: top(m).getByRole('button', { name: 'Lakukan Transfer' }),
     });
@@ -356,19 +356,19 @@ async (page) => {
     await transferRow().first().waitFor();
     await m.waitForTimeout(800);
     await snap(m, 'fm-transfer-list-after', {
-      ...listTargets(m, 'Input Transfer'),
+      ...listTargets(m, 'Catat Transfer'),
       row: transferRow(),
       flowCell: transferRow().locator('td').nth(2),
       debitCell: transferRow().locator('td').nth(5),
     });
     await transferRow().first().click();
-    await top(m).getByText('Edit Transfer').waitFor();
+    await top(m).getByText('Ubah Transfer').waitFor();
     await m.waitForTimeout(500);
     await toBottom(top(m));
     await snap(m, 'fm-transfer-detail', {
       dialog: top(m),
       sums: up(top(m).getByText('Biaya Admin', { exact: true }).first(), 3),
-      edit: up(top(m).getByText('Edit Transfer', { exact: true }).first(), 2),
+      edit: up(top(m).getByText('Ubah Transfer', { exact: true }).first(), 2),
       save: top(m).getByRole('button', { name: 'Simpan Perubahan' }),
       journal: journalOf(top(m)),
     });

@@ -1,6 +1,7 @@
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import { initI18n } from '@/i18n';
 import { installCompanyUrlPrefix, setActiveCompany } from '@/lib/company';
 import { trackNavigation } from './lib/navigation';
 import { installResourceModal } from './lib/resource-modal';
@@ -52,8 +53,13 @@ createInertiaApp({
         syncActiveCompany(props.initialPage.props);
         router.on('navigate', (event) => syncActiveCompany(event.detail.page.props));
 
-        const root = createRoot(el);
-        root.render(<App {...props} />);
+        // Kamus bahasa aktif dimuat SEBELUM render pertama, jadi tidak ada kilasan teks Indonesia.
+        // Bahasa hanya berganti lewat muat ulang penuh (POST /language), jadi cukup sekali di sini.
+        const locale = (props.initialPage.props as { locale?: string }).locale;
+        // finally: halaman tetap dirender (berteks Indonesia) walau inisialisasi gagal.
+        void initI18n(locale).finally(() => {
+            createRoot(el).render(<App {...props} />);
+        });
     },
 
     progress: {

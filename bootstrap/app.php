@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RedirectToFirstRunSetup;
+use App\Http\Middleware\SetDocumentLocale;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetPermissionsTeam;
 use App\Services\ErrorReportService;
@@ -25,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            // Dokumen (PDF/Excel) selalu Bahasa Indonesia — pasang di setiap rute dokumen baru.
+            'locale.dokumen' => SetDocumentLocale::class,
         ]);
 
         // SetPermissionsTeam wajib sebelum HandleInertiaRequests:

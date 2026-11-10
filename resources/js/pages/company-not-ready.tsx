@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { Building2, LogOut, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { t } from '@/i18n';
 import type { SharedProps } from '@/types';
 
 /**
@@ -13,7 +14,7 @@ export default function CompanyNotReady() {
 
     return (
         <>
-            <Head title="Perusahaan belum disiapkan" />
+            <Head title={t('Perusahaan belum disiapkan')} />
             <div className="flex min-h-screen items-center justify-center bg-secondary-50 px-4 dark:bg-dark-950">
                 <div className="w-full max-w-md space-y-6">
                     <Card>
@@ -23,16 +24,15 @@ export default function CompanyNotReady() {
                             </div>
                             <div className="space-y-2">
                                 <h1 className="text-lg font-semibold text-secondary-900 dark:text-dark-200">
-                                    {company?.name ?? 'Perusahaan ini'} belum disiapkan
+                                    {company?.name ? t('{{name}} belum disiapkan', { name: company.name }) : t('Perusahaan ini belum disiapkan')}
                                 </h1>
                                 <p className="text-sm text-secondary-600 dark:text-dark-400">
-                                    Admin perlu melengkapi profil perusahaan lebih dulu: nama, singkatan, alamat, kontak,
-                                    dan penanggung jawab keuangan. Hubungi admin perusahaan Anda, lalu muat ulang halaman ini.
+                                    {t('Admin perlu melengkapi profil perusahaan lebih dulu: nama, singkatan, alamat, kontak, dan penanggung jawab keuangan. Hubungi admin perusahaan Anda, lalu muat ulang halaman ini.')}
                                 </p>
                             </div>
                             <Button variant="primary" onClick={() => router.reload()}>
                                 <RefreshCw className="size-4" />
-                                Muat ulang
+                                {t('Muat ulang')}
                             </Button>
                         </CardContent>
                     </Card>
@@ -40,12 +40,12 @@ export default function CompanyNotReady() {
                     <div className="flex items-center justify-center gap-2">
                         {companies.length > 1 && (
                             <Button variant="ghost" size="sm" onClick={() => router.visit('/choose-company')}>
-                                Pilih perusahaan lain
+                                {t('Pilih perusahaan lain')}
                             </Button>
                         )}
                         <Button variant="ghost" size="sm" onClick={() => router.post('/logout')}>
                             <LogOut className="size-4" />
-                            Keluar
+                            {t('Keluar')}
                         </Button>
                     </div>
                 </div>

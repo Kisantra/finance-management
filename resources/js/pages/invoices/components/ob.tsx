@@ -1,6 +1,7 @@
 import { Check, Clock } from 'lucide-react';
 import * as React from 'react';
 import { StatusPill } from '@/components/dashboard/widget';
+import { formatTanggal, t, tk } from '@/i18n';
 import { cn, formatCurrency } from '@/lib/utils';
 
 /*
@@ -12,28 +13,26 @@ import { cn, formatCurrency } from '@/lib/utils';
 export type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid';
 
 export const STATUS_LABEL: Record<InvoiceStatus, string> = {
-    draft: 'Draft',
-    sent: 'Terkirim',
-    partially_paid: 'Sebagian',
-    paid: 'Lunas',
+    draft: tk('Draft'),
+    sent: tk('Terbit'),
+    partially_paid: tk('Sebagian'),
+    paid: tk('Lunas'),
 };
 
 export function InvoiceStatusPill({ status, className }: { status: string; className?: string }) {
     if (status === 'paid') {
         return (
             <StatusPill tone="pos" icon={<Check className="h-3 w-3" strokeWidth={3} />} className={className}>
-                Lunas
+                {t('Lunas')}
             </StatusPill>
         );
     }
-    if (status === 'partially_paid') return <StatusPill tone="wait" className={className}>Sebagian</StatusPill>;
-    if (status === 'sent') return <StatusPill tone="act" className={className}>Terkirim</StatusPill>;
-    return <StatusPill tone="neutral" className={className}>Draft</StatusPill>;
+    if (status === 'partially_paid') return <StatusPill tone="wait" className={className}>{t('Sebagian')}</StatusPill>;
+    if (status === 'sent') return <StatusPill tone="act" className={className}>{t('Terbit')}</StatusPill>;
+    return <StatusPill tone="neutral" className={className}>{t('Draft')}</StatusPill>;
 }
 
 export const rp = (n: number) => formatCurrency(Math.round(n));
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 
 function parseIso(iso: string): Date {
     return new Date(iso.slice(0, 10) + 'T00:00:00');
@@ -41,27 +40,22 @@ function parseIso(iso: string): Date {
 
 /** "16 Sep" */
 export function shortDate(iso: string): string {
-    const d = parseIso(iso);
-    return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+    return formatTanggal(parseIso(iso), 'pendek');
 }
 
 /** "16 Sep 2026" */
 export function longDate(iso: string): string {
-    const d = parseIso(iso);
-    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    return formatTanggal(parseIso(iso), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** "25 Sep 2026 · 10.12" untuk stempel waktu ISO. */
 export function dateTime(iso: string): string {
-    const d = new Date(iso);
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} · ${hh}.${mm}`;
+    return `${formatTanggal(iso, { day: 'numeric', month: 'short', year: 'numeric' })} · ${formatTanggal(iso, 'jam')}`;
 }
 
+/** "Sep 2026" dari "2026-09". */
 export function monthLabel(ym: string): string {
-    const [y, m] = ym.split('-').map(Number);
-    return `${MONTHS[m - 1]} ${y}`;
+    return formatTanggal(ym, 'bulanPendek');
 }
 
 /** Selisih hari kalender dari hari ini (positif = masa depan). */
@@ -73,25 +67,25 @@ export function daysFromToday(iso: string): number {
 
 export function issuedAgo(iso: string): string {
     const d = -daysFromToday(iso);
-    if (d <= 0) return 'hari ini';
-    if (d === 1) return 'kemarin';
-    return `${d} hari lalu`;
+    if (d <= 0) return t('hari ini');
+    if (d === 1) return t('kemarin');
+    return t('{{count}} hari lalu', { count: d });
 }
 
 /**
- * Penanda jatuh tempo. Lewat tempo bukan status tersimpan: hanya invoice terkirim/sebagian
+ * Penanda jatuh tempo. Lewat jatuh tempo bukan status tersimpan: hanya invoice terbit/sebagian
  * yang tanggal jatuh temponya sudah lewat.
  */
 export function dueInfo(status: string, dueIso: string): { label: string | null; tone: 'late' | 'soon' | 'muted'; overdue: boolean } {
-    if (status === 'paid') return { label: 'lunas', tone: 'muted', overdue: false };
+    if (status === 'paid') return { label: t('lunas'), tone: 'muted', overdue: false };
     const d = daysFromToday(dueIso);
     if (status === 'draft') return { label: null, tone: 'muted', overdue: false };
-    if (d < 0) return { label: `lewat ${-d} hari`, tone: 'late', overdue: true };
-    if (d === 0) return { label: 'hari ini', tone: 'soon', overdue: false };
-    return { label: `${d} hari lagi`, tone: d <= 7 ? 'soon' : 'muted', overdue: false };
+    if (d < 0) return { label: t('lewat {{count}} hari', { count: -d }), tone: 'late', overdue: true };
+    if (d === 0) return { label: t('hari ini'), tone: 'soon', overdue: false };
+    return { label: t('{{count}} hari lagi', { count: d }), tone: d <= 7 ? 'soon' : 'muted', overdue: false };
 }
 
-/** Tampilan penanda lewat tempo: jam + teks, warna hanya redundansi. */
+/** Tampilan penanda lewat jatuh tempo: jam + teks, warna hanya redundansi. */
 export function OverdueChip({ label }: { label: string }) {
     return (
         <span className="inline-flex h-5 items-center gap-1 rounded-full bg-ob-late/12 px-1.5 text-xs font-semibold text-ob-late">

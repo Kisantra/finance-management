@@ -46,6 +46,24 @@ class InvoiceNumberService
         'THN2' => 'Tahun 2 digit',
     ];
 
+    /**
+     * Keterangan token untuk halaman pengaturan, dalam bahasa pengguna (TOKENS tetap identitas).
+     *
+     * @return array<string, string>
+     */
+    public static function keteranganToken(): array
+    {
+        return [
+            'NO' => __('Nomor urut'),
+            'PT' => __('Singkatan perusahaan'),
+            'KLIEN' => __('Alias/inisial klien'),
+            'BLN_ROMAWI' => __('Bulan romawi'),
+            'BLN' => __('Bulan 2 digit'),
+            'THN' => __('Tahun 4 digit'),
+            'THN2' => __('Tahun 2 digit'),
+        ];
+    }
+
     private const ROMAN_MONTHS = [1 => 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
     private const SKIPPED_WORDS = ['pt', 'cv', 'ud', 'tb', 'pd', 'firma', 'yayasan', 'koperasi', 'perum', 'persero'];
@@ -205,26 +223,26 @@ class InvoiceNumberService
         preg_match_all('/\{([^{}]*)\}/', $format, $matches);
         $unknown = array_diff($matches[1], array_keys(self::TOKENS));
         if ($unknown !== []) {
-            return 'Token tidak dikenal: {'.implode('}, {', $unknown).'}.';
+            return __('Token tidak dikenal: :token.', ['token' => '{'.implode('}, {', $unknown).'}']);
         }
 
         if (preg_match('/[{}]/', preg_replace('/\{[A-Z0-9_]+\}/', '', $format))) {
-            return 'Kurung kurawal hanya dipakai untuk token, mis. {NO}.';
+            return __('Kurung kurawal hanya dipakai untuk token, mis. {NO}.');
         }
 
         if (substr_count($format, '{NO}') !== 1) {
-            return 'Pola wajib berisi {NO} tepat satu kali.';
+            return __('Pola wajib berisi {NO} tepat satu kali.');
         }
 
         $hasYear = str_contains($format, '{THN}') || str_contains($format, '{THN2}');
         $hasMonth = str_contains($format, '{BLN}') || str_contains($format, '{BLN_ROMAWI}');
 
         if ($reset === 'monthly' && ! ($hasMonth && $hasYear)) {
-            return 'Nomor kembali ke 1 tiap bulan, jadi pola wajib memuat bulan ({BLN_ROMAWI} atau {BLN}) dan tahun ({THN} atau {THN2}) agar tidak sama dengan nomor bulan lain.';
+            return __('Nomor kembali ke 1 tiap bulan, jadi pola wajib memuat bulan ({BLN_ROMAWI} atau {BLN}) dan tahun ({THN} atau {THN2}) agar tidak sama dengan nomor bulan lain.');
         }
 
         if ($reset === 'yearly' && ! $hasYear) {
-            return 'Nomor kembali ke 1 tiap tahun, jadi pola wajib memuat tahun ({THN} atau {THN2}) agar tidak sama dengan nomor tahun lain.';
+            return __('Nomor kembali ke 1 tiap tahun, jadi pola wajib memuat tahun ({THN} atau {THN2}) agar tidak sama dengan nomor tahun lain.');
         }
 
         return null;

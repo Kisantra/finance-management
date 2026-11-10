@@ -25,7 +25,7 @@ export const INCOME_STEPS: Step[] = [
         cursor: S['fm-income-list'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Klik Input Pemasukan untuk mencatat uang masuk di luar invoice, mis. sewa ruang rapat.',
+        caption: 'Klik Catat Pemasukan untuk mencatat uang masuk di luar invoice, mis. sewa ruang rapat.',
         duration: 110,
     },
     {
@@ -96,7 +96,7 @@ export const EXPENSE_STEPS: Step[] = [
         cursor: S['fm-expense-list'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Uang keluar dicatat di Arus Kas › Pemasukan & Pengeluaran, tab Pengeluaran, lewat tombol Input Pengeluaran.',
+        caption: 'Uang keluar dicatat di Arus Kas › Pemasukan & Pengeluaran, tab Pengeluaran, lewat tombol Catat Pengeluaran.',
         duration: 110,
     },
     {
@@ -157,7 +157,7 @@ export const FINANCING_STEPS: Step[] = [
         cursor: S['fm-financing-picker'].option,
         click: true,
         zoom: 1.8,
-        caption: 'Pilih sub-kategorinya, mis. Setor PPN di bawah Pajak Titipan & PPN.',
+        caption: 'Pilih subkategorinya, mis. Setor PPN di bawah Pajak Titipan & PPN.',
         duration: 120,
     },
     {
@@ -223,7 +223,7 @@ export const TRANSFER_STEPS: Step[] = [
         cursor: S['fm-transfer-list'].create,
         click: true,
         zoom: 1.7,
-        caption: 'Memindahkan dana antar rekening sendiri? Buka Transfer & Penyesuaian, lalu klik Input Transfer.',
+        caption: 'Memindahkan dana antar rekening sendiri? Buka Transfer & Penyesuaian, lalu klik Catat Transfer.',
         duration: 120,
     },
     {
@@ -263,7 +263,7 @@ export const TRANSFER_STEPS: Step[] = [
         cursor: S['fm-transfer-form-submit'].submit,
         click: true,
         zoom: 1.5,
-        caption: 'Cek Total Debit: Rp 10.006.500 keluar dari BNI. Lalu klik Lakukan Transfer.',
+        caption: 'Cek Total Keluar: Rp 10.006.500 keluar dari BNI. Lalu klik Lakukan Transfer.',
         duration: 130,
     },
     {

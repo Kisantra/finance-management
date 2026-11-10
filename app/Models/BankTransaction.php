@@ -100,8 +100,8 @@ class BankTransaction extends Model
     public function moduleLockMessage(): ?string
     {
         return match ($this->managingModule()) {
-            'loans' => 'Transaksi ini pokok utang yang dicatat otomatis oleh modul Utang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Utang.',
-            'receivables' => 'Transaksi ini pokok piutang yang dicatat otomatis oleh modul Piutang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Piutang.',
+            'loans' => __('Transaksi ini pokok utang yang dicatat otomatis oleh modul Utang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Utang.'),
+            'receivables' => __('Transaksi ini pokok piutang yang dicatat otomatis oleh modul Piutang, jadi tidak bisa diubah atau dihapus dari sini. Kelola lewat menu Piutang.'),
             default => null,
         };
     }
@@ -148,7 +148,7 @@ class BankTransaction extends Model
                 return null;
             }
 
-            return ['module' => $modul, 'label' => $modul === 'loans' ? 'Utang' : 'Piutang', 'search' => $search];
+            return ['module' => $modul, 'label' => $modul === 'loans' ? __('Utang') : __('Piutang'), 'search' => $search];
         })->all();
     }
 

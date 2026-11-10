@@ -317,8 +317,8 @@ sekarang TIDAK kompatibel. Dua jalur:
 - **Jalur A (minim perubahan, rekomendasi awal)**: JANGAN aktifkan
   CacheTenancyBootstrapper. Cache tetap database di central. Konsekuensi: key cache
   yang berisi data tenant wajib manual prefix tenant id (audit pemakaian
-  `Cache::`/`remember` — `TranslationService` aman karena terjemahan teks→teks netral
-  tenant). Cache permission Spatie tetap central — sejalan dengan roles di pusat;
+  `Cache::`/`remember`; `TranslationService` yang dulu disebut di sini sudah dihapus
+  2026-11-10). Cache permission Spatie tetap central — sejalan dengan roles di pusat;
   **jangan** terapkan resep integrasi spatie di docs stancl (resep itu justru untuk
   cache per-tenant).
 - **Jalur B**: pindah Redis + aktifkan bootstrapper. Lebih bersih jangka panjang,

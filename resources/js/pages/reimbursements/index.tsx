@@ -16,6 +16,7 @@ import { BTN, CARD, FIELD, longDate, rp } from '@/pages/invoices/components/ob';
 import { PersonAvatar, ReimbursementStatusPill, STATUS_LABEL, type ReimbursementStatus } from './components/rb';
 import { ReimbursementFormSheet, type CategoryOption } from './components/reimbursement-form-sheet';
 import type { PaginationMeta, ReimbursementFilters, ReimbursementRow, ReimbursementStats } from './types';
+import { t, tk } from '@/i18n';
 
 /*
  * Daftar reimbursement (gaya Obsidian; pola referensi "Expense Approval Dashboard"): ringkasan
@@ -36,7 +37,7 @@ interface Props {
 }
 
 const STATUS_TABS: { value: '' | ReimbursementStatus; label: string }[] = [
-    { value: '', label: 'Semua' },
+    { value: '', label: tk('Semua') },
     { value: 'pending', label: STATUS_LABEL.pending },
     { value: 'approved', label: STATUS_LABEL.approved },
     { value: 'paid', label: STATUS_LABEL.paid },
@@ -91,10 +92,10 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
     };
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) navigate({ search });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -109,33 +110,35 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
 
     return (
         <>
-            <Head title="Reimbursement" />
+            <Head title={t('Reimbursement', { context: 'menu' })} />
             <div className="flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Reimbursement</h1>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Reimbursement', { context: 'menu' })}</h1>
                         <p className="text-[13px] text-ob-ink-2">
-                            {filters.tab === 'all' ? 'Pengajuan semua karyawan' : 'Pengajuan Anda'} · {stats.total} pengajuan
+                            {filters.tab === 'all'
+                                ? t('Pengajuan semua karyawan · {{count}} pengajuan', { count: stats.total })
+                                : t('Pengajuan Anda · {{count}} pengajuan', { count: stats.total })}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         {canSeeAll && (
-                            <div role="group" aria-label="Cakupan pengajuan" className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                            <div role="group" aria-label={t('Cakupan pengajuan')} className="flex items-center gap-0.5 rounded-full border border-ob-line bg-ob-rail p-[3px]">
                                 {[
-                                    { value: 'all', label: 'Semua pengajuan' },
-                                    { value: 'my', label: 'Pengajuan saya' },
-                                ].map((t) => {
-                                    const on = filters.tab === t.value;
+                                    { value: 'all', label: t('Semua pengajuan') },
+                                    { value: 'my', label: t('Pengajuan saya') },
+                                ].map((opt) => {
+                                    const on = filters.tab === opt.value;
                                     return (
                                         <button
-                                            key={t.value}
+                                            key={opt.value}
                                             type="button"
                                             aria-pressed={on}
-                                            onClick={() => !on && navigate({ tab: t.value, status: null })}
+                                            onClick={() => !on && navigate({ tab: opt.value, status: null })}
                                             className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
                                         >
-                                            {t.label}
+                                            {opt.label}
                                         </button>
                                     );
                                 })}
@@ -143,47 +146,47 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                         )}
                         <TutorialButton slug="reimbursements" />
                         <Button className={BTN.primary} onClick={() => setCreateOpen(true)} icon={<Plus className="h-4 w-4" />}>
-                            Buat pengajuan
+                            {t('Buat pengajuan')}
                         </Button>
                     </div>
                 </div>
 
                 {/* ── ringkasan per tahap ── */}
-                <section aria-label="Ringkasan reimbursement" className={cn(CARD, 'grid grid-cols-2 gap-y-5 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
+                <section aria-label={t('Ringkasan reimbursement')} className={cn(CARD, 'grid grid-cols-2 gap-y-5 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
                     <StatBlock
-                        label="Menunggu review"
+                        label={t('Menunggu persetujuan')}
                         value={rp(stats.pending_amount)}
                         valueClass={stats.pending_count > 0 ? 'text-ob-wait' : undefined}
-                        sub={`${stats.pending_count} pengajuan`}
+                        sub={t('{{count}} pengajuan', { count: stats.pending_count })}
                         onClick={stats.pending_count > 0 ? () => navigate({ status: 'pending' }) : undefined}
                     />
                     <StatBlock
-                        label="Menunggu dibayar"
+                        label={t('Menunggu dibayar')}
                         value={rp(stats.approved_remaining)}
                         valueClass={stats.approved_count > 0 ? 'text-ob-act' : undefined}
-                        sub={`${stats.approved_count} pengajuan disetujui`}
+                        sub={t('{{count}} pengajuan disetujui', { count: stats.approved_count })}
                         onClick={stats.approved_count > 0 ? () => navigate({ status: 'approved' }) : undefined}
                     />
-                    <StatBlock label="Sudah dibayar" value={rp(stats.total_paid)} valueClass="text-ob-pos" sub="termasuk cicilan" />
-                    <StatBlock label="Total diajukan" value={rp(stats.total_amount)} sub={`${stats.total} pengajuan · semua status`} />
+                    <StatBlock label={t('Sudah dibayar')} value={rp(stats.total_paid)} valueClass="text-ob-pos" sub={t('termasuk cicilan')} />
+                    <StatBlock label={t('Total diajukan')} value={rp(stats.total_amount)} sub={t('{{count}} pengajuan · semua status', { count: stats.total })} />
                 </section>
 
                 {/* ── daftar ── */}
-                <section aria-label="Daftar reimbursement" className={cn(CARD, 'flex flex-col gap-4')}>
+                <section aria-label={t('Daftar reimbursement')} className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div role="group" aria-label="Filter status" className="ob-no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
-                            {STATUS_TABS.map((t) => {
-                                const on = (filters.status ?? '') === t.value;
-                                const count = t.value ? statusCounts[t.value] : allCount;
+                        <div role="group" aria-label={t('Filter status')} className="ob-no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]">
+                            {STATUS_TABS.map((tab) => {
+                                const on = (filters.status ?? '') === tab.value;
+                                const count = tab.value ? statusCounts[tab.value] : allCount;
                                 return (
                                     <button
-                                        key={t.value || 'all'}
+                                        key={tab.value || 'all'}
                                         type="button"
                                         aria-pressed={on}
-                                        onClick={() => !on && navigate({ status: t.value || null })}
+                                        onClick={() => !on && navigate({ status: tab.value || null })}
                                         className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
                                     >
-                                        {t.label}
+                                        {t(tab.label)}
                                         <span className={cn('text-xs', on ? 'opacity-70' : 'text-ob-ink-3')}>{count}</span>
                                     </button>
                                 );
@@ -191,17 +194,17 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                         </div>
                         <div className={cn(FIELD, 'flex flex-wrap items-center gap-2 [&_button]:h-10 [&_input]:h-10')}>
                             <div className="w-full sm:w-56">
-                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari pengajuan…" icon={<Search className="h-4 w-4" />} aria-label="Cari pengajuan" />
+                                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Cari pengajuan…')} icon={<Search className="h-4 w-4" />} aria-label={t('Cari pengajuan')} />
                             </div>
                             <div className="w-full sm:w-48">
-                                <Combobox options={categoryOptions} value={filters.category} onChange={(v) => navigate({ category: v ? String(v) : null })} placeholder="Semua kategori" clearable />
+                                <Combobox options={categoryOptions} value={filters.category} onChange={(v) => navigate({ category: v ? String(v) : null })} placeholder={t('Semua kategori')} clearable />
                             </div>
                             <div className="w-full sm:w-56">
                                 <DatePicker
                                     mode="range"
                                     value={{ from: parseIso(filters.date_from), to: parseIso(filters.date_to) }}
                                     onChange={(r) => navigate({ date_from: r.from ? toLocalIso(r.from) : null, date_to: r.to ? toLocalIso(r.to) : null })}
-                                    placeholder="Tanggal pengeluaran"
+                                    placeholder={t('Tanggal pengeluaran')}
                                     placeholderTo="…"
                                     clearable
                                 />
@@ -237,11 +240,11 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                                                   {row.category_label}
                                                   {showRequester && row.user_name ? ` · ${row.user_name}` : ''}
                                                   {row.expense_date ? ` · ${longDate(row.expense_date)}` : ''}
-                                                  {row.has_attachment && <Paperclip className="h-3 w-3 shrink-0" aria-label="Ada bukti" />}
+                                                  {row.has_attachment && <Paperclip className="h-3 w-3 shrink-0" aria-label={t('Ada bukti')} />}
                                               </span>
                                               <ReimbursementStatusPill status={row.status} />
                                           </span>
-                                          {row.status === 'approved' && row.amount_paid > 0 && <span className="text-xs text-ob-ink-2">sisa {rp(row.amount_remaining)}</span>}
+                                          {row.status === 'approved' && row.amount_paid > 0 && <span className="text-xs text-ob-ink-2">{t('sisa {{amount}}', { amount: rp(row.amount_remaining) })}</span>}
                                       </button>
                                   </li>
                               ))}
@@ -251,13 +254,13 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                         <table className="w-full min-w-[760px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <th className="py-2.5 pl-3 font-medium">Pengajuan</th>
-                                    {showRequester && <th className="py-2.5 font-medium">Pemohon</th>}
-                                    <th className="py-2.5 font-medium">Tgl pengeluaran</th>
-                                    <th className="py-2.5 pr-6 text-right font-medium">Nominal</th>
-                                    <th className="py-2.5 font-medium">Status</th>
+                                    <th className="py-2.5 pl-3 font-medium">{t('Pengajuan')}</th>
+                                    {showRequester && <th className="py-2.5 font-medium">{t('Pemohon')}</th>}
+                                    <th className="py-2.5 font-medium">{t('Tgl pengeluaran')}</th>
+                                    <th className="py-2.5 pr-6 text-right font-medium">{t('Nominal')}</th>
+                                    <th className="py-2.5 font-medium">{t('Status')}</th>
                                     <th className="w-10 py-2.5">
-                                        <span className="sr-only">Buka</span>
+                                        <span className="sr-only">{t('Buka')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -289,7 +292,7 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                                                   </button>
                                                   <span className="flex items-center gap-1.5 text-xs text-ob-ink-2">
                                                       {row.category_label}
-                                                      {row.has_attachment && <Paperclip className="h-3 w-3" aria-label="Ada bukti" />}
+                                                      {row.has_attachment && <Paperclip className="h-3 w-3" aria-label={t('Ada bukti')} />}
                                                   </span>
                                               </td>
                                               {showRequester && (
@@ -303,7 +306,7 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                                               <td className="py-3 pr-4 text-ob-ink-2">{row.expense_date ? longDate(row.expense_date) : '—'}</td>
                                               <td className="py-3 pr-6 text-right">
                                                   <span className="font-semibold text-ob-ink">{rp(row.amount)}</span>
-                                                  {row.status === 'approved' && row.amount_paid > 0 && <span className="block text-xs text-ob-ink-2">sisa {rp(row.amount_remaining)}</span>}
+                                                  {row.status === 'approved' && row.amount_paid > 0 && <span className="block text-xs text-ob-ink-2">{t('sisa {{amount}}', { amount: rp(row.amount_remaining) })}</span>}
                                               </td>
                                               <td className="py-3">
                                                   <ReimbursementStatusPill status={row.status} />
@@ -319,14 +322,14 @@ export default function ReimbursementsIndex({ rows, pagination, stats, statusCou
                     {!loading && rows.length === 0 && (
                         <EmptyList
                             filtered={hasFilters || !!filters.status}
-                            statusLabel={filters.status ? STATUS_LABEL[filters.status as ReimbursementStatus]?.toLowerCase() : null}
+                            statusLabel={filters.status && STATUS_LABEL[filters.status as ReimbursementStatus] ? t(STATUS_LABEL[filters.status as ReimbursementStatus]).toLowerCase() : null}
                             onReset={resetFilters}
                             onCreate={() => setCreateOpen(true)}
                         />
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
-                        <span>{pagination.total} pengajuan · terbaru lebih dulu</span>
+                        <span>{t('{{count}} pengajuan · terbaru lebih dulu', { count: pagination.total })}</span>
                         {pagination.last_page > 1 && <Pagination meta={pagination} onPageChange={(page) => navigate({ page })} />}
                     </div>
                 </section>
@@ -373,18 +376,22 @@ function EmptyList({ filtered, statusLabel, onReset, onCreate }: { filtered: boo
     return (
         <div className="my-2 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-6 py-10 text-center">
             <span className="text-sm font-semibold text-ob-ink">
-                {filtered ? `Tidak ada pengajuan ${statusLabel ?? ''} yang cocok`.replace(/\s+/g, ' ') : 'Belum ada pengajuan'}
+                {filtered
+                    ? statusLabel
+                        ? t('Tidak ada pengajuan {{status}} yang cocok', { status: statusLabel })
+                        : t('Tidak ada pengajuan yang cocok')
+                    : t('Belum ada pengajuan')}
             </span>
             <span className="max-w-[380px] text-[13px] text-ob-ink-2">
-                {filtered ? 'Ubah atau hapus filter untuk melihat pengajuan lain.' : 'Catat biaya yang Anda bayar lebih dulu untuk keperluan kantor, lalu ajukan ke finance.'}
+                {filtered ? t('Ubah atau hapus filter untuk melihat pengajuan lain.') : t('Catat biaya yang Anda bayar lebih dulu untuk keperluan kantor, lalu ajukan ke tim keuangan.')}
             </span>
             {filtered ? (
                 <Button variant="outline" className={BTN.small} onClick={onReset}>
-                    Hapus filter
+                    {t('Hapus filter')}
                 </Button>
             ) : (
                 <Button variant="outline" className={BTN.small} onClick={onCreate}>
-                    Buat pengajuan
+                    {t('Buat pengajuan')}
                 </Button>
             )}
         </div>

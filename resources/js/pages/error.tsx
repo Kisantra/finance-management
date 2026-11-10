@@ -19,6 +19,7 @@ import {
 import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { t, Trans } from '@/i18n';
 import { cn, copyText } from '@/lib/utils';
 import { watchpostTrail } from '@/lib/watchpost';
 
@@ -138,7 +139,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                             <div className="flex items-start gap-4">
                                 <div className={cn('h-12 w-12 shrink-0 rounded-xl flex items-center justify-center', TONE_CLASS[tone])}>{icon}</div>
                                 <div className="space-y-2 min-w-0">
-                                    <Badge variant={tone}>Kode {status}</Badge>
+                                    <Badge variant={tone}>{t('Kode {{status}}', { status })}</Badge>
                                     <h1 className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200">
                                         {title}
                                     </h1>
@@ -147,7 +148,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                             </div>
 
                             <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 dark:border-dark-600 bg-zinc-50 dark:bg-dark-800 px-3 py-2">
-                                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-400">ID referensi</span>
+                                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-400">{t('ID referensi')}</span>
                                 <code className="font-mono text-sm text-gray-900 dark:text-dark-200 select-all">{report.id}</code>
                             </div>
 
@@ -155,17 +156,17 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                                 {status === 419 ? (
                                     <a href={home_url} className={buttonVariants({ variant: 'primary' })}>
                                         {homeIcon}
-                                        {isGuest ? 'Masuk kembali' : homeLabel}
+                                        {isGuest ? t('Masuk kembali') : homeLabel}
                                     </a>
                                 ) : (
                                     <>
                                         {can_retry && (status >= 500 || status === 429) ? (
                                             <Button variant="primary" icon={<RotateCcw className="h-4 w-4" />} onClick={() => window.location.reload()}>
-                                                Coba lagi
+                                                {t('Coba lagi')}
                                             </Button>
                                         ) : (
                                             <Button variant="primary" icon={<ArrowLeft className="h-4 w-4" />} onClick={goBack}>
-                                                Kembali
+                                                {t('Kembali')}
                                             </Button>
                                         )}
                                         {/* Tautan biasa dengan buttonVariants: Button selalu merender slot ikon di
@@ -183,11 +184,11 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                             <div className="flex items-start gap-3">
                                 <LifeBuoy className="h-5 w-5 mt-0.5 shrink-0 text-gray-400 dark:text-dark-400" />
                                 <div className="space-y-0.5">
-                                    <h2 className="text-sm font-semibold text-gray-900 dark:text-dark-200">Butuh bantuan tim IT?</h2>
+                                    <h2 className="text-sm font-semibold text-gray-900 dark:text-dark-200">{t('Butuh bantuan tim IT?')}</h2>
                                     <p className="text-sm text-gray-600 dark:text-dark-400">
                                         {can_report
-                                            ? 'Kirim laporan langsung dari sini, atau salin detailnya untuk ditempel ke chat tim IT maupun asisten AI.'
-                                            : 'Salin detailnya, lalu kirim ke tim IT lewat chat atau email beserta ID referensi di atas.'}
+                                            ? t('Kirim laporan langsung dari sini, atau salin detailnya untuk ditempel ke chat tim IT maupun asisten AI.')
+                                            : t('Salin detailnya, lalu kirim ke tim IT lewat chat atau email beserta ID referensi di atas.')}
                                     </p>
                                 </div>
                             </div>
@@ -202,7 +203,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                                         icon={sentId !== null ? <Check className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                                         onClick={handleReport}
                                     >
-                                        {sentId !== null ? 'Laporan terkirim' : 'Laporkan ke Tim IT'}
+                                        {sentId !== null ? t('Laporan terkirim') : t('Laporkan ke Tim IT')}
                                     </Button>
                                 )}
                                 <Button
@@ -211,28 +212,31 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                                     icon={copyState === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                                     onClick={handleCopy}
                                 >
-                                    {copyState === 'copied' ? 'Tersalin' : 'Salin Markdown'}
+                                    {copyState === 'copied' ? t('Tersalin') : t('Salin Markdown')}
                                 </Button>
                                 <Button variant="ghost" size="sm" aria-expanded={detailOpen} onClick={() => setDetailOpen((open) => !open)}>
                                     <ChevronDown className={cn('h-4 w-4 transition-transform duration-150', detailOpen && 'rotate-180')} />
-                                    {detailOpen ? 'Sembunyikan detail' : 'Lihat detail'}
+                                    {detailOpen ? t('Sembunyikan detail') : t('Lihat detail')}
                                 </Button>
                             </div>
 
                             <div aria-live="polite" className="text-sm">
                                 {sentId !== null && (
                                     <p className="text-green-700 dark:text-green-400">
-                                        Laporan #{sentId} sudah diterima tim IT. Anda akan mendapat notifikasi saat ditanggapi.
+                                        {t('Laporan #{{id}} sudah diterima tim IT. Anda akan mendapat notifikasi saat ditanggapi.', { id: sentId })}
                                     </p>
                                 )}
                                 {sendFailed && (
                                     <p className="text-red-600 dark:text-red-400">
-                                        Laporan gagal dikirim. Gunakan <strong>Salin Markdown</strong> lalu kirim ke tim IT secara manual.
+                                        <Trans
+                                            i18nKey="Laporan gagal dikirim. Gunakan <b>Salin Markdown</b> lalu kirim ke tim IT secara manual."
+                                            components={{ b: <strong /> }}
+                                        />
                                     </p>
                                 )}
                                 {copyState === 'failed' && (
                                     <p className="text-red-600 dark:text-red-400">
-                                        Browser menolak akses clipboard. Buka detail di bawah, lalu salin teksnya secara manual.
+                                        {t('Browser menolak akses clipboard. Buka detail di bawah, lalu salin teksnya secara manual.')}
                                     </p>
                                 )}
                             </div>
@@ -250,7 +254,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
 
                                     {report.technical ? (
                                         <div className="space-y-2 border-t border-zinc-200 dark:border-dark-600 pt-4">
-                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-200">Detail teknis</h3>
+                                            <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-200">{t('Detail teknis')}</h3>
                                             <p className="font-mono text-xs text-gray-600 dark:text-dark-400 break-words">
                                                 {report.technical.exception} · {report.technical.location}
                                             </p>
@@ -266,7 +270,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                                     ) : (
                                         status >= 500 && (
                                             <p className="text-xs text-gray-500 dark:text-dark-500 border-t border-zinc-200 dark:border-dark-600 pt-3">
-                                                Detail teknis lengkap hanya ditampilkan untuk admin dan tercatat di log server.
+                                                {t('Detail teknis lengkap hanya ditampilkan untuk admin dan tercatat di log server.')}
                                             </p>
                                         )
                                     )}
@@ -275,6 +279,7 @@ export default function ErrorPage({ status, title, description, home_url, home_l
                         </div>
                     </section>
 
+                    {/* i18n-abaikan: nama produk */}
                     <p className="text-center text-xs text-gray-400 dark:text-dark-500">Kisantra Finance</p>
                 </div>
             </div>

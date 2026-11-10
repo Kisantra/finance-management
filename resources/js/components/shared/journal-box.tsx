@@ -1,5 +1,6 @@
 import { BookText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { t, tk } from '@/i18n';
 import type { JournalLine } from '@/lib/journal';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +14,8 @@ import { cn } from '@/lib/utils';
  * menjorok ke dalam sesuai kebiasaan jurnal, nominal rata kanan tabular tanpa "Rp" (ada di kepala kolom).
  */
 
-export const JOURNAL_CAPTION = 'Jurnal otomatis dari rekening & kategori · belum buku besar';
+/** Keterangan bawaan (kunci terjemahan; tampil lewat t()). */
+export const JOURNAL_CAPTION = tk('Jurnal otomatis dari rekening & kategori · belum buku besar');
 
 const angka = new Intl.NumberFormat('id-ID');
 
@@ -29,21 +31,21 @@ interface JournalBoxProps {
     className?: string;
 }
 
-export function JournalBox({ lines, mode = 'saved', placeholder = 'Jurnal tampil setelah kategori dipilih.', caption = JOURNAL_CAPTION, className }: JournalBoxProps) {
+export function JournalBox({ lines, mode = 'saved', placeholder = t('Jurnal tampil setelah kategori dipilih.'), caption = t(JOURNAL_CAPTION), className }: JournalBoxProps) {
     const rows = lines ?? [];
     const known = rows.length > 0 && rows.every((l) => l.amount !== null);
     const total = (side: JournalLine['side']) => rows.filter((l) => l.side === side).reduce((sum, l) => sum + (l.amount ?? 0), 0);
 
     return (
-        <section aria-label="Jurnal" className={cn('rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-ob-ink', className)}>
+        <section aria-label={t('Jurnal')} className={cn('rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-ob-ink', className)}>
             <div className="flex items-start gap-2">
                 <BookText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ob-ink-3" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <h4 className="text-[13px] font-semibold text-ob-ink">Jurnal</h4>
+                        <h4 className="text-[13px] font-semibold text-ob-ink">{t('Jurnal')}</h4>
                         {mode === 'preview' && (
                             <Badge variant="outline" size="sm">
-                                Pratinjau
+                                {t('Pratinjau')}
                             </Badge>
                         )}
                     </div>
@@ -57,18 +59,20 @@ export function JournalBox({ lines, mode = 'saved', placeholder = 'Jurnal tampil
                 <div className="relative mt-2">
                     <table className="w-full border-collapse text-[13px]">
                         <caption className="sr-only">
-                            Jurnal: akun yang didebit dan dikredit, dalam rupiah{mode === 'preview' ? ' (pratinjau dari isian formulir)' : ''}
+                            {mode === 'preview'
+                                ? t('Jurnal: akun yang didebit dan dikredit, dalam rupiah (pratinjau dari isian formulir)')
+                                : t('Jurnal: akun yang didebit dan dikredit, dalam rupiah')}
                         </caption>
                         <thead>
                             <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
                                 <th scope="col" className="py-1.5 pr-2 font-medium">
-                                    Akun
+                                    {t('Akun', { context: 'jurnal' })}
                                 </th>
                                 <th scope="col" className="w-px py-1.5 pl-3 text-right font-medium whitespace-nowrap">
-                                    Debit (Rp)
+                                    {t('Debit (Rp)')}
                                 </th>
                                 <th scope="col" className="w-px py-1.5 pl-3 text-right font-medium whitespace-nowrap">
-                                    Kredit (Rp)
+                                    {t('Kredit (Rp)')}
                                 </th>
                             </tr>
                         </thead>
@@ -87,7 +91,7 @@ export function JournalBox({ lines, mode = 'saved', placeholder = 'Jurnal tampil
                             <tfoot>
                                 <tr className="border-t border-ob-line text-ob-ink">
                                     <th scope="row" className="py-1.5 pr-2 text-left text-xs font-semibold text-ob-ink-2">
-                                        Jumlah
+                                        {t('Jumlah', { context: 'jurnal' })}
                                     </th>
                                     <td className="py-1.5 pl-3 text-right font-semibold whitespace-nowrap tabular-nums">{angka.format(total('debit'))}</td>
                                     <td className="py-1.5 pl-3 text-right font-semibold whitespace-nowrap tabular-nums">{angka.format(total('credit'))}</td>

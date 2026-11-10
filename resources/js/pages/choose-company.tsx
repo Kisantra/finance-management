@@ -3,6 +3,7 @@ import { Building2, ChevronRight, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { t } from '@/i18n';
 import type { CompanyOption, SharedProps } from '@/types';
 
 interface Props {
@@ -14,15 +15,15 @@ export default function ChooseCompany({ memberships: companies }: Props) {
 
     return (
         <>
-            <Head title="Pilih Perusahaan" />
+            <Head title={t('Pilih Perusahaan')} />
             <div className="flex min-h-screen items-center justify-center bg-secondary-50 px-4 dark:bg-dark-950">
                 <div className="w-full max-w-md space-y-6">
                     <div className="space-y-1 text-center">
                         <h1 className="text-xl font-semibold text-secondary-900 dark:text-dark-200">
-                            Pilih Perusahaan
+                            {t('Pilih Perusahaan')}
                         </h1>
                         <p className="text-sm text-secondary-500 dark:text-dark-400">
-                            {auth.user?.name}, pilih perusahaan yang ingin Anda kelola
+                            {t('{{name}}, pilih perusahaan yang ingin Anda kelola', { name: auth.user?.name ?? '' })}
                         </p>
                     </div>
 
@@ -56,7 +57,7 @@ export default function ChooseCompany({ memberships: companies }: Props) {
                     <div className="text-center">
                         <Button variant="ghost" size="sm" onClick={() => router.post('/logout')}>
                             <LogOut className="size-4" />
-                            Keluar
+                            {t('Keluar')}
                         </Button>
                     </div>
                 </div>

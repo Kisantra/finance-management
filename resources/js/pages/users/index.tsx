@@ -39,7 +39,9 @@ import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
-import { cn } from '@/lib/utils';
+import { t } from '@/i18n';
+import { roleLabel } from '@/lib/roles';
+import { cn, formatDate } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
 /* ─────────────────────────────────── types ─── */
@@ -124,24 +126,24 @@ const blankForm: UserFormData = {
 
 /* ─────────────────────────────────── role meta ─── */
 
-const ROLE_META: Record<string, { label: string; variant: 'red' | 'blue' | 'green' | 'purple' | 'zinc'; icon: React.ReactNode }> = {
-    admin: { label: 'Admin', variant: 'red', icon: <ShieldAlert className="w-3 h-3" /> },
-    'finance manager': { label: 'Finance Manager', variant: 'blue', icon: <Briefcase className="w-3 h-3" /> },
-    staff: { label: 'Staff', variant: 'green', icon: <UsersIcon className="w-3 h-3" /> },
+const ROLE_META: Record<string, { variant: 'red' | 'blue' | 'green' | 'purple' | 'zinc'; icon: React.ReactNode }> = {
+    admin: { variant: 'red', icon: <ShieldAlert className="w-3 h-3" /> },
+    'finance manager': { variant: 'blue', icon: <Briefcase className="w-3 h-3" /> },
+    staff: { variant: 'green', icon: <UsersIcon className="w-3 h-3" /> },
 };
+
+/** Peran bawaan: huruf awal tiap kata kapital; peran buatan sendiri = data, hanya huruf pertama. */
+function roleDisplay(role: string): string {
+    const label = roleLabel(role);
+    if (role in ROLE_META) {
+        return label.replace(/(^|\s)(\p{L})/gu, (_m, sp: string, ch: string) => sp + ch.toUpperCase());
+    }
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 function roleMeta(role: string | null) {
     if (!role) return null;
-    return ROLE_META[role] ?? { label: role.charAt(0).toUpperCase() + role.slice(1), variant: 'zinc' as const, icon: <Shield className="w-3 h-3" /> };
-}
-
-function formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
+    return { ...(ROLE_META[role] ?? { variant: 'zinc' as const, icon: <Shield className="w-3 h-3" /> }), label: roleDisplay(role) };
 }
 
 /* ─────────────────────────────────── user form (dialog body) ─── */
@@ -167,6 +169,7 @@ function UserFormDialog({
     const [showPasswordConfirm, setShowPasswordConfirm] = React.useState(false);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm<UserFormData>(blankForm);
+    const roleOptionsLabeled = roleOptions.map((o) => ({ ...o, label: roleDisplay(o.value) }));
 
     React.useEffect(() => {
         if (open && mode === 'edit' && editingUser) {
@@ -200,11 +203,11 @@ function UserFormDialog({
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);
-                toast.success(mode === 'create' ? 'Pengguna berhasil ditambahkan.' : 'Pengguna berhasil diperbarui.');
+                toast.success(mode === 'create' ? t('Pengguna berhasil ditambahkan.') : t('Pengguna berhasil diperbarui.'));
                 reset();
             },
             onError: () => {
-                toast.error('Periksa kembali isian form.');
+                toast.error(t('Periksa kembali isian form.'));
             },
         };
         if (mode === 'create') {
@@ -236,12 +239,12 @@ function UserFormDialog({
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                    {mode === 'create' ? 'Tambah Pengguna' : 'Edit Pengguna'}
+                                    {mode === 'create' ? t('Tambah Pengguna') : t('Ubah Pengguna')}
                                 </DialogTitle>
                                 <p className="text-sm text-dark-500 dark:text-dark-400">
                                     {mode === 'create'
-                                        ? 'Buat akun pengguna baru dengan peran tertentu'
-                                        : 'Perbarui informasi pengguna dan peran akses'}
+                                        ? t('Buat akun pengguna baru dengan peran tertentu')
+                                        : t('Perbarui informasi pengguna dan peran akses')}
                                 </p>
                             </div>
                         </div>
@@ -250,18 +253,18 @@ function UserFormDialog({
                     <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Left column */}
-                            <FormSection title="Informasi Akun" description="Identitas dan kontak pengguna">
+                            <FormSection title={t('Informasi Akun')} description={t('Identitas dan kontak pengguna')}>
                                 <Input
-                                    label="Nama Lengkap *"
+                                    label={t('Nama Lengkap *')}
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={errors.name}
-                                    placeholder="Misal: Budi Santoso"
+                                    placeholder={t('Misal: Budi Santoso')}
                                     autoFocus
                                 />
 
                                 <Input
-                                    label="Email *"
+                                    label={t('Email *')}
                                     type="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
@@ -271,7 +274,7 @@ function UserFormDialog({
                                 />
 
                                 <Input
-                                    label="Nomor Telepon"
+                                    label={t('Nomor Telepon')}
                                     value={data.phone_number}
                                     onChange={(e) => setData('phone_number', e.target.value)}
                                     error={errors.phone_number}
@@ -281,7 +284,7 @@ function UserFormDialog({
 
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                        Status *
+                                        {t('Status *')}
                                     </label>
                                     <div className="flex gap-3">
                                         {(['active', 'inactive'] as const).map((s) => (
@@ -298,7 +301,7 @@ function UserFormDialog({
                                                         : 'border-secondary-300 dark:border-dark-600 text-dark-600 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700',
                                                 )}
                                             >
-                                                {s === 'active' ? 'Aktif' : 'Tidak Aktif'}
+                                                {s === 'active' ? t('Aktif') : t('Tidak Aktif')}
                                             </button>
                                         ))}
                                     </div>
@@ -308,23 +311,23 @@ function UserFormDialog({
 
                             {/* Right column */}
                             <FormSection
-                                title="Peran & Kata Sandi"
+                                title={t('Peran & Kata Sandi')}
                                 description={
                                     mode === 'create'
-                                        ? 'Kata sandi wajib diisi'
-                                        : 'Kosongkan kata sandi jika tidak ingin mengubah'
+                                        ? t('Kata sandi wajib diisi')
+                                        : t('Kosongkan kata sandi jika tidak ingin mengubah')
                                 }
                             >
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                        Peran *
+                                        {t('Peran *')}
                                     </label>
                                     <Combobox
-                                        options={roleOptions}
+                                        options={roleOptionsLabeled}
                                         value={data.role || null}
                                         onChange={(v) => setData('role', v ? String(v) : '')}
-                                        placeholder="Pilih peran pengguna"
-                                        emptyText="Peran tidak ditemukan"
+                                        placeholder={t('Pilih peran pengguna')}
+                                        emptyText={t('Peran tidak ditemukan')}
                                     />
                                     {errors.role && <p className="text-xs text-red-600 dark:text-red-400">{errors.role}</p>}
                                 </div>
@@ -342,10 +345,10 @@ function UserFormDialog({
                                 {companyOptions.length > 1 && (
                                     <div className="space-y-1.5">
                                         <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                            Perusahaan *
+                                            {t('Perusahaan *')}
                                         </label>
                                         <p className="text-xs text-dark-500 dark:text-dark-400">
-                                            Peran di atas berlaku di setiap perusahaan yang dipilih.
+                                            {t('Peran di atas berlaku di setiap perusahaan yang dipilih.')}
                                         </p>
                                         <div className="space-y-1 rounded-xl border border-secondary-200 p-3 dark:border-dark-600">
                                             {companyOptions.map((c) => {
@@ -380,7 +383,7 @@ function UserFormDialog({
 
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                        Kata Sandi {mode === 'create' && '*'}
+                                        {mode === 'create' ? t('Kata Sandi *') : t('Kata Sandi')}
                                     </label>
                                     <div className="relative">
                                         <Input
@@ -388,7 +391,7 @@ function UserFormDialog({
                                             value={data.password}
                                             onChange={(e) => setData('password', e.target.value)}
                                             error={errors.password}
-                                            placeholder={mode === 'create' ? 'Minimal 8 karakter' : 'Kosongkan jika tidak diubah'}
+                                            placeholder={mode === 'create' ? t('Minimal 8 karakter') : t('Kosongkan jika tidak diubah')}
                                             autoComplete="new-password"
                                         />
                                         <button
@@ -404,14 +407,14 @@ function UserFormDialog({
 
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                        Konfirmasi Kata Sandi {mode === 'create' && '*'}
+                                        {mode === 'create' ? t('Konfirmasi Kata Sandi *') : t('Konfirmasi Kata Sandi')}
                                     </label>
                                     <div className="relative">
                                         <Input
                                             type={showPasswordConfirm ? 'text' : 'password'}
                                             value={data.password_confirmation}
                                             onChange={(e) => setData('password_confirmation', e.target.value)}
-                                            placeholder="Ulangi kata sandi"
+                                            placeholder={t('Ulangi kata sandi')}
                                             autoComplete="new-password"
                                         />
                                         <button
@@ -427,7 +430,7 @@ function UserFormDialog({
 
                                 <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-zinc-50 dark:bg-dark-800/50 p-3">
                                     <p className="text-xs text-dark-500 dark:text-dark-400 leading-relaxed">
-                                        Pengguna baru otomatis terverifikasi email-nya dan dapat langsung masuk ke sistem.
+                                        {t('Pengguna baru otomatis terverifikasi email-nya dan dapat langsung masuk ke sistem.')}
                                     </p>
                                 </div>
                             </FormSection>
@@ -442,7 +445,7 @@ function UserFormDialog({
                             disabled={processing}
                             className="w-full sm:w-auto order-2 sm:order-1"
                         >
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button
                             type="submit"
@@ -450,7 +453,7 @@ function UserFormDialog({
                             loading={processing}
                             className="w-full sm:w-auto order-1 sm:order-2"
                         >
-                            {mode === 'create' ? 'Tambah Pengguna' : 'Simpan Perubahan'}
+                            {mode === 'create' ? t('Tambah Pengguna') : t('Simpan Perubahan')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -484,6 +487,7 @@ function UserAvatar({ initials, size = 'md' }: { initials: string; size?: 'sm' |
 export default function UsersIndex() {
     const { users, stats, roleOptions, companyOptions, filters, auth, company } = usePage<Props>().props;
 
+    const roleOptionsLabeled = roleOptions.map((o) => ({ ...o, label: roleDisplay(o.value) }));
     const can = (perm: string) => auth.permissions.includes(perm);
     const canManage = can('manage users');
 
@@ -500,12 +504,12 @@ export default function UsersIndex() {
 
     // Debounced search
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) {
                 apply({ search, page: 1 });
             }
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -557,10 +561,10 @@ export default function UsersIndex() {
         router.delete(companyUrl(`/admin/users/${deletingUser.id}`), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Pengguna berhasil dihapus.');
+                toast.success(t('Pengguna berhasil dihapus.'));
                 setDeletingUser(null);
             },
-            onError: () => toast.error('Gagal menghapus pengguna.'),
+            onError: () => toast.error(t('Gagal menghapus pengguna.')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
@@ -574,11 +578,11 @@ export default function UsersIndex() {
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success(`Berhasil menghapus ${selected.length} pengguna.`);
+                    toast.success(t('Berhasil menghapus {{count}} pengguna.', { count: selected.length }));
                     setSelected([]);
                     setBulkDeleteOpen(false);
                 },
-                onError: () => toast.error('Gagal menghapus pengguna.'),
+                onError: () => toast.error(t('Gagal menghapus pengguna.')),
                 onFinish: () => setDeleteProcessing(false),
             },
         );
@@ -589,19 +593,19 @@ export default function UsersIndex() {
 
     return (
         <>
-            <Head title="Manajemen Pengguna" />
+            <Head title={t('Manajemen Pengguna', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Manajemen Pengguna"
-                    description="Kelola akun pengguna, peran akses, dan status keaktifan"
+                    title={t('Manajemen Pengguna', { context: 'menu' })}
+                    description={t('Kelola akun pengguna, peran akses, dan status keaktifan')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="users-permissions" />
                             {canManage && (
                                 <Button variant="primary" onClick={() => setCreateOpen(true)}>
                                     <Plus className="w-4 h-4" />
-                                    Tambah Pengguna
+                                    {t('Tambah Pengguna')}
                                 </Button>
                             )}
                         </div>
@@ -611,25 +615,25 @@ export default function UsersIndex() {
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     <StatsCard
-                        label="Total Pengguna"
+                        label={t('Total Pengguna')}
                         value={stats.total}
                         icon={<UsersIcon />}
                         color="blue"
                     />
                     <StatsCard
-                        label="Pengguna Aktif"
+                        label={t('Pengguna Aktif')}
                         value={stats.active}
                         icon={<CheckCircle />}
                         color="green"
                     />
                     <StatsCard
-                        label="Administrator"
+                        label={t('Administrator')}
                         value={stats.admins}
                         icon={<ShieldAlert />}
                         color="red"
                     />
                     <StatsCard
-                        label="Finance Manager"
+                        label={t('Finance Manager')}
                         value={stats.finance_managers}
                         icon={<Briefcase />}
                         color="purple"
@@ -640,24 +644,24 @@ export default function UsersIndex() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <Combobox
-                            label="Peran"
-                            options={roleOptions}
+                            label={t('Peran')}
+                            options={roleOptionsLabeled}
                             value={roleFilter || null}
                             onChange={(v) => {
                                 const next = v ? String(v) : '';
                                 setRoleFilter(next);
                                 apply({ role: next, page: 1 });
                             }}
-                            placeholder="Semua peran"
-                            searchPlaceholder="Cari peran..."
-                            emptyText="Tidak ada peran"
+                            placeholder={t('Semua peran')}
+                            searchPlaceholder={t('Cari peran...')}
+                            emptyText={t('Tidak ada peran')}
                             clearable
                         />
                         <Combobox
-                            label="Status"
+                            label={t('Status')}
                             options={[
-                                { label: 'Aktif', value: 'active' },
-                                { label: 'Tidak Aktif', value: 'inactive' },
+                                { label: t('Aktif'), value: 'active' },
+                                { label: t('Tidak Aktif'), value: 'inactive' },
                             ]}
                             value={statusFilter || null}
                             onChange={(v) => {
@@ -665,8 +669,8 @@ export default function UsersIndex() {
                                 setStatusFilter(next);
                                 apply({ status: next, page: 1 });
                             }}
-                            placeholder="Semua status"
-                            emptyText="Tidak ada status"
+                            placeholder={t('Semua status')}
+                            emptyText={t('Tidak ada status')}
                             clearable
                         />
                     </div>
@@ -677,7 +681,7 @@ export default function UsersIndex() {
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari nama, email, atau telepon..."
+                                    placeholder={t('Cari nama, email, atau telepon...')}
                                     icon={<Search className="w-4 h-4" />}
                                 />
                             </div>
@@ -685,21 +689,20 @@ export default function UsersIndex() {
                             <div className="flex items-center gap-3">
                                 {activeFilterCount > 0 && (
                                     <>
-                                        <Badge variant="blue">{activeFilterCount} filter aktif</Badge>
+                                        <Badge variant="blue">{t('{{count}} filter aktif', { count: activeFilterCount })}</Badge>
                                         <button
                                             type="button"
                                             onClick={resetFilters}
                                             className="text-xs text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 inline-flex items-center gap-1"
                                         >
                                             <X className="w-3 h-3" />
-                                            Reset
+                                            {t('Hapus filter')}
                                         </button>
                                     </>
                                 )}
                                 <div className="text-sm text-dark-500 dark:text-dark-400">
-                                    <span className="hidden sm:inline">Menampilkan </span>
-                                    {users.data.length}
-                                    <span className="hidden sm:inline"> dari {users.total}</span>
+                                    <span className="sm:hidden">{users.data.length}</span>
+                                    <span className="hidden sm:inline">{t('Menampilkan {{shown}} dari {{total}}', { shown: users.data.length, total: users.total })}</span>
                                 </div>
                             </div>
                         </div>
@@ -722,23 +725,23 @@ export default function UsersIndex() {
                                         </th>
                                     )}
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                        Pengguna
+                                        {t('Pengguna')}
                                     </th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                        Kontak
+                                        {t('Kontak')}
                                     </th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                        Peran
+                                        {t('Peran')}
                                     </th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                        Status
+                                        {t('Status')}
                                     </th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">
-                                        Bergabung
+                                        {t('Bergabung')}
                                     </th>
                                     {canManage && (
                                         <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400 w-32">
-                                            Aksi
+                                            {t('Aksi')}
                                         </th>
                                     )}
                                 </tr>
@@ -749,8 +752,8 @@ export default function UsersIndex() {
                                         <td colSpan={canManage ? 7 : 5} className="p-0">
                                             <EmptyState
                                                 icon={<UsersIcon className="w-12 h-12" />}
-                                                title="Belum ada pengguna"
-                                                description="Tambahkan pengguna baru atau ubah filter pencarian."
+                                                title={t('Belum ada pengguna')}
+                                                description={t('Tambahkan pengguna baru atau ubah filter pencarian.')}
                                             />
                                         </td>
                                     </tr>
@@ -782,7 +785,7 @@ export default function UsersIndex() {
                                                             <div className="font-medium text-dark-900 dark:text-dark-50 flex items-center gap-2">
                                                                 {user.name}
                                                                 {user.is_current && (
-                                                                    <Badge variant="zinc" className="text-[10px] px-1.5 py-0.5">Anda</Badge>
+                                                                    <Badge variant="zinc" className="text-[10px] px-1.5 py-0.5">{t('Anda')}</Badge>
                                                                 )}
                                                             </div>
                                                             <div className="text-xs text-dark-500 dark:text-dark-400 truncate">
@@ -819,16 +822,16 @@ export default function UsersIndex() {
                                                             {meta.label}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-dark-400 dark:text-dark-500 italic text-xs">Tanpa peran</span>
+                                                        <span className="text-dark-400 dark:text-dark-500 italic text-xs">{t('Tanpa peran')}</span>
                                                     )}
                                                 </td>
                                                 <td className="px-3 py-3 align-middle">
                                                     <Badge variant={user.status === 'active' ? 'green' : 'red'}>
-                                                        {user.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
+                                                        {user.status === 'active' ? t('Aktif') : t('Tidak Aktif')}
                                                     </Badge>
                                                 </td>
                                                 <td className="px-3 py-3 align-middle text-dark-700 dark:text-dark-300 tabular-nums">
-                                                    {formatDate(user.created_at)}
+                                                    {user.created_at ? formatDate(user.created_at) : '—'}
                                                 </td>
                                                 {canManage && (
                                                     <td className="px-3 py-3 align-middle">
@@ -837,7 +840,7 @@ export default function UsersIndex() {
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => setEditingUser(user)}
-                                                                title="Edit pengguna"
+                                                                title={t('Ubah pengguna')}
                                                             >
                                                                 <Pencil className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                                             </Button>
@@ -846,7 +849,7 @@ export default function UsersIndex() {
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     onClick={() => setDeletingUser(user)}
-                                                                    title="Hapus pengguna"
+                                                                    title={t('Hapus pengguna')}
                                                                 >
                                                                     <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                                                                 </Button>
@@ -891,21 +894,21 @@ export default function UsersIndex() {
                                 </div>
                                 <div>
                                     <div className="font-semibold text-dark-900 dark:text-dark-50">
-                                        {selected.length} dipilih
+                                        {t('{{count}} dipilih', { count: selected.length })}
                                     </div>
                                     <div className="text-xs text-dark-500 dark:text-dark-400">
-                                        Pilih aksi untuk pengguna terpilih
+                                        {t('Pilih aksi untuk pengguna terpilih')}
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button variant="red" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                                     <Trash2 className="w-4 h-4" />
-                                    Hapus
+                                    {t('Hapus')}
                                 </Button>
                                 <Button variant="zinc" size="sm" onClick={() => setSelected([])}>
                                     <X className="w-4 h-4" />
-                                    Batal
+                                    {t('Batal')}
                                 </Button>
                             </div>
                         </div>
@@ -934,14 +937,14 @@ export default function UsersIndex() {
                 open={deletingUser !== null}
                 onOpenChange={(open) => !open && setDeletingUser(null)}
                 onConfirm={confirmDelete}
-                title="Hapus Pengguna"
+                title={t('Hapus Pengguna')}
                 description={
                     deletingUser
-                        ? `Apakah Anda yakin ingin menghapus pengguna "${deletingUser.name}"? Tindakan ini tidak dapat dibatalkan.`
+                        ? t('Apakah Anda yakin ingin menghapus pengguna "{{name}}"? Tindakan ini tidak dapat dibatalkan.', { name: deletingUser.name })
                         : ''
                 }
                 variant="danger"
-                confirmLabel="Hapus"
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
             />
 
@@ -950,10 +953,10 @@ export default function UsersIndex() {
                 open={bulkDeleteOpen}
                 onOpenChange={setBulkDeleteOpen}
                 onConfirm={confirmBulkDelete}
-                title={`Hapus ${selected.length} Pengguna`}
-                description="Tindakan ini akan menghapus semua pengguna yang dipilih secara permanen. Lanjutkan?"
+                title={t('Hapus {{count}} Pengguna', { count: selected.length })}
+                description={t('Tindakan ini akan menghapus semua pengguna yang dipilih secara permanen. Lanjutkan?')}
                 variant="danger"
-                confirmLabel="Hapus Semua"
+                confirmLabel={t('Hapus Semua')}
                 loading={deleteProcessing}
             />
         </>

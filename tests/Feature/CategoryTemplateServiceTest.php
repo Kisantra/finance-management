@@ -238,7 +238,7 @@ class CategoryTemplateServiceTest extends TestCase
     {
         return [
             'transaksi bank' => ['transaksi'],
-            'item permintaan dana' => ['item permintaan dana'],
+            'item pengajuan dana' => ['item pengajuan dana'],
             'reimbursement' => ['reimbursement'],
         ];
     }
@@ -308,7 +308,7 @@ class CategoryTemplateServiceTest extends TestCase
 
         $grup = $this->grup($this->template->plan(), 'Pajak Penghasilan Badan');
         $this->assertSame(CategoryTemplateService::STATUS_SKIPPED, $grup['status']);
-        $this->assertSame('Semua sub-kategorinya sudah ada di grup lain.', $grup['reason']);
+        $this->assertSame('Semua subkategorinya sudah ada di grup lain.', $grup['reason']);
 
         $this->template->apply();
 
@@ -392,7 +392,7 @@ class CategoryTemplateServiceTest extends TestCase
                 'transaction_type' => 'debit',
                 'description' => 'Listrik kantor Oktober',
             ]),
-            'item permintaan dana' => FundRequestItem::create([
+            'item pengajuan dana' => FundRequestItem::create([
                 'fund_request_id' => FundRequest::create([
                     'request_number' => '001/TST/X/2026',
                     'user_id' => $user->id,

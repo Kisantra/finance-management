@@ -42,6 +42,27 @@ class JournalService
     public const UNCATEGORIZED = 'Tanpa Kategori';
 
     /**
+     * Nama akun sistem untuk layar, dalam bahasa pengguna. Konstanta di atas tetap menjadi identitas
+     * (pembanding, kunci); terjemahan hanya di batas keluaran. Nama lain (label kategori, nama
+     * rekening) adalah data dan lewat apa adanya.
+     */
+    public static function terjemahAkun(string $akun): string
+    {
+        return match ($akun) {
+            self::PPN_KELUARAN => __('PPN Keluaran'),
+            self::TAX_DEPOSIT => __('Titipan Pajak Klien'),
+            self::INVOICE_REVENUE => __('Pendapatan dari Invoice'),
+            self::LOAN => __('Utang Pinjaman'),
+            self::RECEIVABLE => __('Piutang'),
+            self::TRANSFER_FEE => __('Biaya Admin Transfer'),
+            self::UNCATEGORIZED => __('Tanpa Kategori'),
+            'Modal Pemilik' => __('Modal Pemilik'),
+            'Prive Pemilik' => __('Prive Pemilik'),
+            default => $akun,
+        };
+    }
+
+    /**
      * Akun lawan sebuah kategori: pokok utang/piutang → "Utang Pinjaman"/"Piutang" (nama pihaknya
      * ditambahkan per transaksi); sub pendanaan template → akun neraca
      * (CategoryTemplateService::JOURNAL_ACCOUNTS); selain itu labelnya sendiri — pemasukan,
@@ -53,16 +74,16 @@ class JournalService
         $modul = TransactionCategory::POKOK_MODUL[(string) $systemKey]['module'] ?? null;
 
         if ($modul !== null) {
-            return $modul === 'loans' ? self::LOAN : self::RECEIVABLE;
+            return self::terjemahAkun($modul === 'loans' ? self::LOAN : self::RECEIVABLE);
         }
 
         $label = trim((string) $label);
 
         if ($label === '') {
-            return self::UNCATEGORIZED;
+            return self::terjemahAkun(self::UNCATEGORIZED);
         }
 
-        return $type === 'financing' ? (CategoryTemplateService::journalAccount($label) ?? $label) : $label;
+        return $type === 'financing' ? self::terjemahAkun(CategoryTemplateService::journalAccount($label) ?? $label) : $label;
     }
 
     public static function counterAccountFor(TransactionCategory $category): string
@@ -97,7 +118,7 @@ class JournalService
     {
         return self::withoutZero([
             self::line($to, 'debit', $amount),
-            self::line(self::TRANSFER_FEE, 'debit', $adminFee),
+            self::line(self::terjemahAkun(self::TRANSFER_FEE), 'debit', $adminFee),
             self::line($from, 'credit', $amount + $adminFee),
         ]);
     }
@@ -121,9 +142,9 @@ class JournalService
 
         return self::withoutZero([
             self::line($account, 'debit', $amount),
-            self::line(self::TAX_DEPOSIT, 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
-            self::line(self::PPN_KELUARAN, 'credit', $sesudah['ppn'] - $sebelum['ppn']),
-            self::line(self::INVOICE_REVENUE, 'credit', $sesudah['revenue'] - $sebelum['revenue']),
+            self::line(self::terjemahAkun(self::TAX_DEPOSIT), 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
+            self::line(self::terjemahAkun(self::PPN_KELUARAN), 'credit', $sesudah['ppn'] - $sebelum['ppn']),
+            self::line(self::terjemahAkun(self::INVOICE_REVENUE), 'credit', $sesudah['revenue'] - $sebelum['revenue']),
         ]);
     }
 
@@ -344,8 +365,8 @@ class JournalService
                 continue;
             }
             $baris = self::transferLines(
-                $keluar->bankAccount?->journalName() ?? 'Rekening asal',
-                $masuk->bankAccount?->journalName() ?? 'Rekening tujuan',
+                $keluar->bankAccount?->journalName() ?? __('Rekening asal'),
+                $masuk->bankAccount?->journalName() ?? __('Rekening tujuan'),
                 (int) $masuk->amount,
                 (int) $keluar->amount - (int) $masuk->amount,
             );

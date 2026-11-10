@@ -13,6 +13,7 @@ import { companyUrl } from '@/lib/company';
 import { copyText, toastError } from '@/lib/utils';
 import { dateTime, daysFromToday, longDate } from '@/pages/invoices/components/ob';
 import type { SharedProps } from '@/types';
+import { t, tk, Trans } from '@/i18n';
 
 /*
  * Koneksi Claude: alamat konektor MCP + cara menghubungkan, perusahaan yang bisa dibaca, dan
@@ -42,25 +43,25 @@ const STATUS_KUNCI: Record<Exclude<Props['oauthKeyStatus'], 'siap'>, { tone: str
     baru: {
         tone: 'border-ob-pos/40 bg-ob-pos/10',
         ikon: <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-pos" />,
-        judul: 'Server baru saja disiapkan',
-        isi: 'Kunci OAuth untuk koneksi Claude dibuat otomatis. Koneksi siap dipakai.',
+        judul: tk('Server baru saja disiapkan'),
+        isi: tk('Kunci OAuth untuk koneksi Claude dibuat otomatis. Koneksi siap dipakai.'),
     },
     gagal: {
         tone: 'border-ob-late/40 bg-ob-late/10',
         ikon: <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-late" />,
-        judul: 'Server belum siap untuk Claude',
+        judul: tk('Server belum siap untuk Claude'),
         isi: (
-            <>
-                Kunci OAuth gagal dibuat otomatis (folder <span className="font-mono">storage</span> kemungkinan tidak bisa ditulis). Minta admin
-                server menjalankan <span className="font-mono">php artisan passport:keys</span> sebagai user situs, lalu buka ulang halaman ini.
-            </>
+            <Trans
+                i18nKey="Kunci OAuth gagal dibuat otomatis (folder <kode>storage</kode> kemungkinan tidak bisa ditulis). Minta admin server menjalankan <kode>php artisan passport:keys</kode> sebagai pengguna situs, lalu buka ulang halaman ini."
+                components={{ kode: <span className="font-mono" /> }}
+            />
         ),
     },
     belum: {
         tone: 'border-ob-wait/40 bg-ob-wait/10',
         ikon: <TriangleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-wait" />,
-        judul: 'Server belum siap untuk Claude',
-        isi: 'Kunci OAuth dibuat otomatis saat pengguna berizin use claude membuka halaman ini.',
+        judul: tk('Server belum siap untuk Claude'),
+        isi: tk('Kunci OAuth dibuat otomatis saat pengguna berizin use claude membuka halaman ini.'),
     },
 };
 
@@ -75,8 +76,8 @@ function StatusKunci({ status }: { status: Props['oauthKeyStatus'] }) {
         <div role={status === 'gagal' ? 'alert' : 'status'} className={`flex gap-2.5 rounded-2xl border p-3.5 ${s.tone}`}>
             {s.ikon}
             <div className="min-w-0 text-[13px] text-ob-ink-2">
-                <p className="font-semibold text-ob-ink">{s.judul}</p>
-                <p>{s.isi}</p>
+                <p className="font-semibold text-ob-ink">{t(s.judul)}</p>
+                <p>{typeof s.isi === 'string' ? t(s.isi) : s.isi}</p>
             </div>
         </div>
     );
@@ -84,37 +85,38 @@ function StatusKunci({ status }: { status: Props['oauthKeyStatus'] }) {
 
 const NAMA_KONEKTOR = 'Kisantra Finance';
 
-function B({ children }: { children: React.ReactNode }) {
-    return <strong className="font-semibold text-ob-ink">{children}</strong>;
-}
+const TEBAL = <strong className="font-semibold text-ob-ink" />;
 
 const LANGKAH: React.ReactNode[] = [
-    <>
-        Di Claude (web atau desktop), buka <B>Settings › Connectors</B>, lalu pilih <B>Add custom connector</B>.
-    </>,
-    <>
-        Beri nama <B>{NAMA_KONEKTOR}</B>, tempel alamat konektor di atas, lalu klik <B>Connect</B>.
-    </>,
-    <>
-        Claude membuka halaman aplikasi ini. Masuk bila diminta, lalu pilih <B>Izinkan</B>.
-    </>,
-    <>
-        Di percakapan, aktifkan konektor <B>{NAMA_KONEKTOR}</B> lalu bertanyalah, misalnya “Berapa invoice yang lewat tempo bulan ini?”
-    </>,
+    <Trans
+        i18nKey="Di Claude (web atau desktop), buka <b>Settings › Connectors</b>, lalu pilih <b>Add custom connector</b>."
+        components={{ b: TEBAL }}
+    />,
+    <Trans
+        i18nKey="Beri nama <b>{{name}}</b>, tempel alamat konektor di atas, lalu klik <b>Connect</b>."
+        values={{ name: NAMA_KONEKTOR }}
+        components={{ b: TEBAL }}
+    />,
+    <Trans i18nKey="Claude membuka halaman aplikasi ini. Masuk bila diminta, lalu pilih <b>Izinkan</b>." components={{ b: TEBAL }} />,
+    <Trans
+        i18nKey="Di percakapan, aktifkan konektor <b>{{name}}</b> lalu bertanyalah, misalnya “Berapa invoice yang lewat jatuh tempo bulan ini?”"
+        values={{ name: NAMA_KONEKTOR }}
+        components={{ b: TEBAL }}
+    />,
 ];
 
 const CATATAN: { aman: boolean; teks: string }[] = [
-    { aman: true, teks: 'Hanya membaca. Claude tidak bisa menambah, mengubah, atau menghapus data apa pun.' },
-    { aman: true, teks: 'Mengikuti izin peran Anda di tiap perusahaan. Yang tidak bisa Anda buka di aplikasi juga tidak bisa dibaca Claude.' },
-    { aman: false, teks: 'Data yang dibaca Claude masuk ke percakapan dan diproses oleh Anthropic.' },
-    { aman: false, teks: 'Sambungan berakhir sendiri setelah 30 hari tidak dipakai. Setelah itu Claude meminta login dan izin lagi.' },
+    { aman: true, teks: tk('Hanya membaca. Claude tidak bisa menambah, mengubah, atau menghapus data apa pun.') },
+    { aman: true, teks: tk('Mengikuti izin peran Anda di tiap perusahaan. Yang tidak bisa Anda buka di aplikasi juga tidak bisa dibaca Claude.') },
+    { aman: false, teks: tk('Data yang dibaca Claude masuk ke percakapan dan diproses oleh Anthropic.') },
+    { aman: false, teks: tk('Sambungan berakhir sendiri setelah 30 hari tidak dipakai. Setelah itu Claude meminta masuk dan izin lagi.') },
 ];
 
 function sisaWaktu(iso: string): string {
     const hari = daysFromToday(iso);
-    if (hari <= 0) return 'hari ini';
-    if (hari === 1) return 'besok';
-    return `${hari} hari lagi`;
+    if (hari <= 0) return t('hari ini');
+    if (hari === 1) return t('besok');
+    return t('{{count}} hari lagi', { count: hari });
 }
 
 function AlamatKonektor({ url }: { url: string }) {
@@ -133,7 +135,7 @@ function AlamatKonektor({ url }: { url: string }) {
             return;
         }
         inputRef.current?.select();
-        toastError('Browser menolak menyalin. Alamatnya sudah dipilih, salin dengan Ctrl+C.');
+        toastError(t('Browser menolak menyalin. Alamatnya sudah dipilih, salin dengan Ctrl+C.'));
     };
 
     return (
@@ -141,7 +143,7 @@ function AlamatKonektor({ url }: { url: string }) {
             <div className="min-w-0 flex-1">
                 <Input
                     ref={inputRef}
-                    label="Alamat konektor"
+                    label={t('Alamat konektor')}
                     value={url}
                     readOnly
                     onFocus={(e) => e.currentTarget.select()}
@@ -156,10 +158,10 @@ function AlamatKonektor({ url }: { url: string }) {
                 icon={disalin ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 className="h-10.5 w-full sm:w-28"
             >
-                {disalin ? 'Disalin' : 'Salin'}
+                {disalin ? t('Disalin') : t('Salin')}
             </Button>
             <span className="sr-only" aria-live="polite">
-                {disalin ? 'Alamat konektor disalin.' : ''}
+                {disalin ? t('Alamat konektor disalin.') : ''}
             </span>
         </div>
     );
@@ -173,19 +175,19 @@ function SambunganItem({ connection, onCabut }: { connection: Connection; onCabu
                     <Plug className="h-4 w-4" />
                 </span>
                 <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-ob-ink">{connection.name}</p>
-                <Button type="button" variant="red" size="sm" onClick={onCabut} aria-label={`Cabut sambungan ${connection.name}`}>
-                    Cabut
+                <Button type="button" variant="red" size="sm" onClick={onCabut} aria-label={t('Cabut sambungan {{name}}', { name: connection.name })}>
+                    {t('Cabut')}
                 </Button>
             </div>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
-                <dt className="text-ob-ink-2">Pertama tersambung</dt>
+                <dt className="text-ob-ink-2">{t('Pertama tersambung')}</dt>
                 <dd className="text-ob-ink">{longDate(connection.connectedAt)}</dd>
-                <dt className="text-ob-ink-2">Terakhir aktif</dt>
+                <dt className="text-ob-ink-2">{t('Terakhir aktif')}</dt>
                 <dd className="text-ob-ink">{dateTime(connection.lastActiveAt)}</dd>
                 {connection.expiresAt && (
                     <>
-                        <dt className="text-ob-ink-2">Perlu login ulang</dt>
-                        <dd className="text-ob-ink">{sisaWaktu(connection.expiresAt)} bila tidak dipakai</dd>
+                        <dt className="text-ob-ink-2">{t('Perlu masuk ulang')}</dt>
+                        <dd className="text-ob-ink">{t('{{time}} bila tidak dipakai', { time: sisaWaktu(connection.expiresAt) })}</dd>
                     </>
                 )}
             </dl>
@@ -210,7 +212,7 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
         router.delete(companyUrl(`/settings/claude/${encodeURIComponent(target.id)}`), {
             preserveScroll: true,
             onSuccess: (page) => {
-                toast.success((page.props.flash as SharedProps['flash'] | undefined)?.success ?? 'Sambungan Claude dicabut.');
+                toast.success((page.props.flash as SharedProps['flash'] | undefined)?.success ?? t('Sambungan Claude dicabut.'));
                 setConfirmOpen(false);
             },
             onFinish: () => setRevoking(false),
@@ -221,12 +223,12 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
 
     return (
         <>
-            <Head title="Koneksi Claude" />
+            <Head title={t('Koneksi Claude')} />
 
             <SettingsLayout
                 bare
-                title="Koneksi Claude"
-                description="Hubungkan Claude ke data keuangan agar Anda bisa bertanya langsung di percakapan. Claude hanya membaca dan mengikuti izin peran Anda."
+                title={t('Koneksi Claude')}
+                description={t('Hubungkan Claude ke data keuangan agar Anda bisa bertanya langsung di percakapan. Claude hanya membaca dan mengikuti izin peran Anda.')}
             >
                 {!canUse && (
                     <section
@@ -237,22 +239,22 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                         <div className="flex min-w-0 flex-col gap-1">
                             <h2 id="claude-izin-judul" className="text-[15px] font-semibold">
                                 {adaPerusahaan
-                                    ? `${company?.name ?? 'Perusahaan ini'} tidak ikut terbaca`
-                                    : 'Claude belum bisa membaca perusahaan mana pun'}
+                                    ? t('{{name}} tidak ikut terbaca', { name: company?.name ?? t('Perusahaan ini') })
+                                    : t('Claude belum bisa membaca perusahaan mana pun')}
                             </h2>
                             <p className="text-[13px] text-ob-ink-2">
                                 {adaPerusahaan ? (
-                                    <>
-                                        Peran Anda di perusahaan ini belum punya izin <span className="font-mono">use claude</span>. Claude tetap
-                                        bisa membaca perusahaan yang tercantum di Perusahaan yang bisa dibaca.
-                                    </>
+                                    <Trans
+                                        i18nKey="Peran Anda di perusahaan ini belum punya izin <kode>use claude</kode>. Claude tetap bisa membaca perusahaan yang tercantum di Perusahaan yang bisa dibaca."
+                                        components={{ kode: <span className="font-mono" /> }}
+                                    />
                                 ) : (
-                                    <>
-                                        Peran Anda belum punya izin <span className="font-mono">use claude</span>. Minta admin mengaktifkannya di
-                                        Administrasi › Izin & Peran, lalu hubungkan Claude.
-                                    </>
+                                    <Trans
+                                        i18nKey="Peran Anda belum punya izin <kode>use claude</kode>. Minta admin mengaktifkannya di Administrasi › Izin & Peran, lalu hubungkan Claude."
+                                        components={{ kode: <span className="font-mono" /> }}
+                                    />
                                 )}
-                                {connections.length > 0 && ' Sambungan yang sudah ada tetap bisa dicabut di bawah.'}
+                                {connections.length > 0 && ` ${t('Sambungan yang sudah ada tetap bisa dicabut di bawah.')}`}
                             </p>
                         </div>
                     </section>
@@ -262,8 +264,8 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                     <div className="flex min-w-0 flex-col gap-5">
                         <Card>
                             <CardHeader>
-                                <h2 className="text-base font-semibold text-ob-ink">Hubungkan Claude</h2>
-                                <CardDescription>Tambahkan aplikasi ini sebagai konektor kustom di Claude, lalu izinkan aksesnya.</CardDescription>
+                                <h2 className="text-base font-semibold text-ob-ink">{t('Hubungkan Claude')}</h2>
+                                <CardDescription>{t('Tambahkan aplikasi ini sebagai konektor kustom di Claude, lalu izinkan aksesnya.')}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col gap-6">
                                 <StatusKunci status={oauthKeyStatus} />
@@ -287,10 +289,10 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                         <Card>
                             <CardHeader>
                                 <h2 className="flex items-baseline gap-2 text-base font-semibold text-ob-ink">
-                                    Sambungan aktif
+                                    {t('Sambungan aktif')}
                                     {connections.length > 0 && <span className="text-[13px] font-medium text-ob-ink-2">{connections.length}</span>}
                                 </h2>
-                                <CardDescription>Akun Claude yang sudah Anda izinkan. Mencabut sambungan langsung memutus akses Claude.</CardDescription>
+                                <CardDescription>{t('Akun Claude yang sudah Anda izinkan. Mencabut sambungan langsung memutus akses Claude.')}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {connections.length > 0 ? (
@@ -302,8 +304,8 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                                 ) : (
                                     <EmptyState
                                         icon={<Plug />}
-                                        title="Belum ada sambungan"
-                                        description="Setelah Anda memilih Izinkan dari Claude, sambungannya muncul di sini dan bisa dicabut kapan saja."
+                                        title={t('Belum ada sambungan')}
+                                        description={t('Setelah Anda memilih Izinkan dari Claude, sambungannya muncul di sini dan bisa dicabut kapan saja.')}
                                     />
                                 )}
                             </CardContent>
@@ -313,9 +315,12 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                     <div className="flex min-w-0 flex-col gap-5">
                         <Card>
                             <CardHeader>
-                                <h2 className="text-base font-semibold text-ob-ink">Perusahaan yang bisa dibaca</h2>
+                                <h2 className="text-base font-semibold text-ob-ink">{t('Perusahaan yang bisa dibaca')}</h2>
                                 <CardDescription>
-                                    Claude hanya membaca perusahaan tempat peran Anda punya izin <span className="font-mono">use claude</span>.
+                                    <Trans
+                                        i18nKey="Claude hanya membaca perusahaan tempat peran Anda punya izin <kode>use claude</kode>."
+                                        components={{ kode: <span className="font-mono" /> }}
+                                    />
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -329,14 +334,14 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className="text-[13px] text-ob-ink-2">Belum ada perusahaan.</p>
+                                    <p className="text-[13px] text-ob-ink-2">{t('Belum ada perusahaan.')}</p>
                                 )}
                             </CardContent>
                         </Card>
 
                         <Card>
                             <CardHeader>
-                                <h2 className="text-base font-semibold text-ob-ink">Perlu diketahui</h2>
+                                <h2 className="text-base font-semibold text-ob-ink">{t('Perlu diketahui')}</h2>
                             </CardHeader>
                             <CardContent>
                                 <ul className="flex flex-col gap-3 text-[13px] text-ob-ink-2">
@@ -347,7 +352,7 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
                                             ) : (
                                                 <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-ob-ink-3" />
                                             )}
-                                            <span>{teks}</span>
+                                            <span>{t(teks)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -360,9 +365,9 @@ export default function KoneksiClaude({ connectorUrl, readableCompanies, connect
             <ConfirmDialog
                 open={confirmOpen}
                 onOpenChange={(open) => !revoking && setConfirmOpen(open)}
-                title={`Cabut sambungan ${target?.name ?? 'Claude'}?`}
-                description="Claude langsung kehilangan akses ke data keuangan dan harus login serta meminta izin lagi. Percakapan yang sudah ada di Claude tidak ikut terhapus."
-                confirmLabel="Cabut"
+                title={t('Cabut sambungan {{name}}?', { name: target?.name ?? 'Claude' })}
+                description={t('Claude langsung kehilangan akses ke data keuangan dan harus masuk serta meminta izin lagi. Percakapan yang sudah ada di Claude tidak ikut terhapus.')}
+                confirmLabel={t('Cabut')}
                 variant="danger"
                 loading={revoking}
                 onConfirm={revoke}

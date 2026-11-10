@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { StatusPill } from '@/components/dashboard/widget';
 import { formatCurrency } from '@/lib/utils';
 import type { LoanRow } from '../types';
+import { t } from '@/i18n';
 
 /* Bahan bersama modul Pinjaman (gaya Obsidian): status, label bunga, dan total bunga. */
 
@@ -9,11 +10,11 @@ export function LoanStatusPill({ status }: { status: LoanRow['status'] }) {
     if (status === 'paid_off') {
         return (
             <StatusPill tone="pos" icon={<Check className="h-3 w-3" strokeWidth={3} />}>
-                Lunas
+                {t('Lunas', { context: 'pinjaman' })}
             </StatusPill>
         );
     }
-    return <StatusPill tone="act">Aktif</StatusPill>;
+    return <StatusPill tone="act">{t('Aktif', { context: 'pinjaman' })}</StatusPill>;
 }
 
 /**
@@ -29,7 +30,7 @@ export function interestLabel(row: LoanRow): string {
     if (!row.interest_rate) {
         return '0%';
     }
-    return `${String(Number(row.interest_rate)).replace('.', ',')}% p.a.`;
+    return t('{{rate}}% p.a.', { rate: String(Number(row.interest_rate)).replace('.', ',') });
 }
 
 /**

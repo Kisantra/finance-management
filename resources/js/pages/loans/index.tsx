@@ -17,6 +17,7 @@ import { LoanFormSheet } from './components/loan-form-sheet';
 import { LoanPaySheet } from './components/loan-pay-sheet';
 import { LoanStatusPill, interestLabel } from './components/pjm';
 import type { FilterOption, LoanFilters, LoanRow, LoanStats, PaginationMeta } from './types';
+import { t, tk, Trans } from '@/i18n';
 
 /*
  * Daftar pinjaman (gaya Obsidian).
@@ -42,10 +43,10 @@ interface Props {
     nextLoanNumber: string;
 }
 
-const TAB_STATUS: { value: '' | LoanRow['status']; label: string }[] = [
-    { value: '', label: 'Semua' },
-    { value: 'active', label: 'Aktif' },
-    { value: 'paid_off', label: 'Lunas' },
+const TAB_STATUS: { value: '' | LoanRow['status']; label: string; context?: string }[] = [
+    { value: '', label: tk('Semua') },
+    { value: 'active', label: tk('Aktif', 'pinjaman'), context: 'pinjaman' },
+    { value: 'paid_off', label: tk('Lunas', 'pinjaman'), context: 'pinjaman' },
 ];
 
 const PILL =
@@ -93,10 +94,10 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
     };
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== terkirim.current) navigate({ search });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -111,11 +112,11 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
         router.delete(loanRoutes.destroy.url({ loan: deleteRow.id }), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Utang dihapus');
+                toast.success(t('Utang dihapus'));
                 setDeleteRow(null);
                 setDetailRow(null);
             },
-            onError: () => toast.error('Utang gagal dihapus'),
+            onError: () => toast.error(t('Utang gagal dihapus')),
             onFinish: () => setDeleting(false),
         });
     };
@@ -130,18 +131,18 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
 
     return (
         <>
-            <Head title="Utang" />
+            <Head title={t('Utang', { context: 'menu' })} />
             <div className="ob-motion flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Utang</h1>
-                        <p className="text-[13px] text-ob-ink-2">Pinjaman yang diterima perusahaan dari bank, lembaga, atau perorangan · {stats.total} utang</p>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Utang', { context: 'menu' })}</h1>
+                        <p className="text-[13px] text-ob-ink-2">{t('Pinjaman yang diterima perusahaan dari bank, lembaga, atau perorangan · {{count}} utang', { count: stats.total })}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <TutorialButton slug="loans" />
                         <Button className={BTN.primary} onClick={() => bukaForm(null)} icon={<Plus className="h-4 w-4" />}>
-                            Tambah utang
+                            {t('Tambah utang')}
                         </Button>
                     </div>
                 </div>
@@ -149,43 +150,43 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                 {/* ── ringkasan ── */}
                 {/* Satu kolom di bawah sm: "Rp 375.500.000" pada 26 px tidak muat di separuh layar 360 px,
                     dan yang patah jadi "Rp" / "375.500.000" adalah angka utama halaman ini. */}
-                <section aria-label="Ringkasan utang" className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
+                <section aria-label={t('Ringkasan utang')} className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
                     <StatBlock
-                        label="Sisa pokok"
+                        label={t('Sisa pokok')}
                         value={rp(stats.outstanding_principal)}
                         valueClass={stats.outstanding_principal > 0 ? 'text-ob-neg' : 'text-ob-pos'}
-                        sub={stats.active_count > 0 ? `${stats.active_count} utang aktif · dari ${rp(stats.active_principal)}` : 'tidak ada utang aktif'}
+                        sub={stats.active_count > 0 ? t('{{count}} utang aktif · dari {{amount}}', { count: stats.active_count, amount: rp(stats.active_principal) }) : t('tidak ada utang aktif')}
                         onClick={stats.active_count > 0 ? () => navigate({ status: 'active' }) : undefined}
                     />
-                    <StatBlock label="Pokok terbayar" value={rp(stats.paid_principal)} sub="pada utang yang masih aktif" />
-                    <StatBlock label="Bunga dibayar" value={rp(stats.paid_interest)} sub="biaya utang sejauh ini" />
+                    <StatBlock label={t('Pokok terbayar')} value={rp(stats.paid_principal)} sub={t('pada utang yang masih aktif')} />
+                    <StatBlock label={t('Bunga dibayar')} value={rp(stats.paid_interest)} sub={t('biaya utang sejauh ini')} />
                     <JatuhTempoBlock iso={stats.next_maturity} />
                 </section>
 
                 {/* ── daftar ── */}
-                <section aria-label="Daftar utang" className={cn(CARD, 'flex flex-col gap-4')}>
+                <section aria-label={t('Daftar utang')} className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div
                             role="group"
-                            aria-label="Filter status"
+                            aria-label={t('Filter status')}
                             className="ob-no-scrollbar flex max-w-full min-w-0 items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]"
                         >
-                            {TAB_STATUS.map((t) => {
-                                const on = (filters.status ?? '') === t.value;
+                            {TAB_STATUS.map((tab) => {
+                                const on = (filters.status ?? '') === tab.value;
                                 return (
                                     <button
-                                        key={t.value || 'all'}
+                                        key={tab.value || 'all'}
                                         type="button"
                                         aria-pressed={on}
                                         onClick={() =>
                                             !on &&
                                             navigate({
-                                                status: t.value || null,
+                                                status: tab.value || null,
                                             })
                                         }
                                         className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
                                     >
-                                        {t.label}
+                                        {t(tab.label, tab.context ? { context: tab.context } : undefined)}
                                     </button>
                                 );
                             })}
@@ -194,9 +195,9 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari nomor atau pemberi pinjaman…"
+                                placeholder={t('Cari nomor atau pemberi pinjaman…')}
                                 icon={<Search className="h-4 w-4" />}
-                                aria-label="Cari utang"
+                                aria-label={t('Cari utang')}
                             />
                         </div>
                     </div>
@@ -225,18 +226,20 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                           </span>
                                           <span className="flex items-center justify-between gap-3">
                                               <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-ob-ink-2">
-                                                  {row.loan_number} · {row.term_months} bln
-                                                  {row.contract_attachment_url && <Paperclip className="h-3 w-3 shrink-0" aria-label="Ada kontrak" />}
+                                                  {t('{{number}} · {{months}} bln', { number: row.loan_number, months: row.term_months })}
+                                                  {row.contract_attachment_url && <Paperclip className="h-3 w-3 shrink-0" aria-label={t('Ada kontrak')} />}
                                               </span>
                                               <LoanStatusPill status={row.status} />
                                           </span>
                                           <span className="text-xs text-ob-ink-2">
                                               {row.remaining_principal > 0 ? (
-                                                  <>
-                                                      sisa <span className="tabular-nums text-ob-neg">{rp(row.remaining_principal)}</span> · jatuh tempo {longDate(row.maturity_date)}
-                                                  </>
+                                                  <Trans
+                                                      i18nKey="sisa <b>{{amount}}</b> · jatuh tempo {{date}}"
+                                                      values={{ amount: rp(row.remaining_principal), date: longDate(row.maturity_date) }}
+                                                      components={{ b: <span className="tabular-nums text-ob-neg" /> }}
+                                                  />
                                               ) : (
-                                                  <>pokok lunas · {longDate(row.maturity_date)}</>
+                                                  t('pokok lunas · {{date}}', { date: longDate(row.maturity_date) })
                                               )}
                                           </span>
                                       </button>
@@ -249,14 +252,14 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                         <table className="w-full min-w-[780px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <th className="py-2.5 pl-3 font-medium">Utang</th>
-                                    <th className="py-2.5 pr-4 text-right font-medium">Pokok</th>
-                                    <th className="py-2.5 pr-4 font-medium">Bunga &amp; tenor</th>
-                                    <th className="py-2.5 pr-4 font-medium">Jatuh tempo</th>
-                                    <th className="py-2.5 pr-6 text-right font-medium">Sisa pokok</th>
-                                    <th className="py-2.5 font-medium">Status</th>
+                                    <th className="py-2.5 pl-3 font-medium">{t('Utang')}</th>
+                                    <th className="py-2.5 pr-4 text-right font-medium">{t('Pokok')}</th>
+                                    <th className="py-2.5 pr-4 font-medium">{t('Bunga & tenor')}</th>
+                                    <th className="py-2.5 pr-4 font-medium">{t('Jatuh tempo')}</th>
+                                    <th className="py-2.5 pr-6 text-right font-medium">{t('Sisa pokok')}</th>
+                                    <th className="py-2.5 font-medium">{t('Status')}</th>
                                     <th className="w-10 py-2.5">
-                                        <span className="sr-only">Buka rincian</span>
+                                        <span className="sr-only">{t('Buka rincian')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -296,19 +299,19 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                                       </button>
                                                       <span className="flex items-center gap-1.5 text-xs text-ob-ink-2">
                                                           {row.loan_number}
-                                                          {row.contract_attachment_url && <Paperclip className="h-3 w-3" aria-label="Ada kontrak" />}
+                                                          {row.contract_attachment_url && <Paperclip className="h-3 w-3" aria-label={t('Ada kontrak')} />}
                                                       </span>
                                                   </td>
                                                   <td className="py-3 pr-4 text-right tabular-nums text-ob-ink">{rp(row.principal_amount)}</td>
                                                   <td className="py-3 pr-4 text-ob-ink-2">
                                                       <span className="block tabular-nums">{interestLabel(row)}</span>
-                                                      <span className="block text-xs text-ob-ink-3">{row.term_months} bulan</span>
+                                                      <span className="block text-xs text-ob-ink-3">{t('{{count}} bulan', { count: row.term_months })}</span>
                                                   </td>
                                                   <td className="py-3 pr-4">
                                                       <span className="block text-ob-ink-2">{longDate(row.maturity_date)}</span>
                                                       {(dekat || lewat) && (
                                                           <span className={cn('block text-xs font-semibold', lewat ? 'text-ob-late' : 'text-ob-neg')}>
-                                                              {lewat ? `lewat ${-sisaHari} hari` : `${sisaHari} hari lagi`}
+                                                              {lewat ? t('lewat {{count}} hari', { count: -sisaHari }) : t('{{count}} hari lagi', { count: sisaHari })}
                                                           </span>
                                                       )}
                                                   </td>
@@ -317,7 +320,7 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                                           dan merah di kolom ini bersaing dengan penanda "lewat N hari" di kolom jatuh tempo.
                                                           Satu halaman, satu makna merah. */}
                                                       <span className={cn('block font-semibold tabular-nums', row.remaining_principal > 0 ? 'text-ob-ink' : 'text-ob-pos')}>
-                                                          {row.remaining_principal > 0 ? rp(row.remaining_principal) : 'lunas'}
+                                                          {row.remaining_principal > 0 ? rp(row.remaining_principal) : t('lunas')}
                                                       </span>
                                                       {/* Batang progres menggantikan kolom "dibayar" tersendiri. */}
                                                       <span
@@ -326,7 +329,7 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                                                           aria-valuenow={pct}
                                                           aria-valuemin={0}
                                                           aria-valuemax={100}
-                                                          aria-label={`Pokok terbayar ${pct} persen`}
+                                                          aria-label={t('Pokok terbayar {{percent}} persen', { percent: pct })}
                                                       >
                                                           <span
                                                               className="block h-full rounded-full bg-ob-act-fill"
@@ -351,18 +354,18 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
 
                     {!loading && rows.length === 0 && (
                         <div className="my-2 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-6 py-10 text-center">
-                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? 'Tidak ada utang yang cocok' : 'Belum ada utang'}</span>
+                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? t('Tidak ada utang yang cocok') : t('Belum ada utang')}</span>
                             <span className="max-w-[380px] text-[13px] text-ob-ink-2">
-                                {terfilter ? 'Ubah atau hapus filter untuk melihat utang lain.' : 'Catat pinjaman yang diterima perusahaan, lalu angsurannya bisa dilacak per termin di sini.'}
+                                {terfilter ? t('Ubah atau hapus filter untuk melihat utang lain.') : t('Catat pinjaman yang diterima perusahaan, lalu angsurannya bisa dilacak per termin di sini.')}
                             </span>
                             <Button variant="outline" className={BTN.small} onClick={terfilter ? resetFilters : () => bukaForm(null)}>
-                                {terfilter ? 'Hapus filter' : 'Tambah utang'}
+                                {terfilter ? t('Hapus filter') : t('Tambah utang')}
                             </Button>
                         </div>
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
-                        <span>{pagination.total} utang · terbaru lebih dulu</span>
+                        <span>{t('{{count}} utang · terbaru lebih dulu', { count: pagination.total })}</span>
                         {pagination.last_page > 1 && <Pagination meta={pagination} onPageChange={(page) => navigate({ page })} />}
                     </div>
                 </section>
@@ -388,9 +391,9 @@ export default function LoansIndex({ rows, pagination, stats, filters, bankAccou
                 onOpenChange={(o) => !o && setDeleteRow(null)}
                 onConfirm={hapus}
                 loading={deleting}
-                title="Hapus utang ini?"
-                description={`${deleteRow?.loan_number} dari ${deleteRow?.lender_name} akan dihapus, dan transaksi pencairannya di rekening bank ikut dibalik.`}
-                confirmLabel="Hapus utang"
+                title={t('Hapus utang ini?')}
+                description={t('{{number}} dari {{lender}} akan dihapus, dan transaksi pencairannya di rekening bank ikut dibalik.', { number: deleteRow?.loan_number, lender: deleteRow?.lender_name })}
+                confirmLabel={t('Hapus utang')}
                 variant="danger"
             />
         </>
@@ -422,9 +425,9 @@ function JatuhTempoBlock({ iso }: { iso: string | null }) {
     if (!iso) {
         return (
             <div className="flex min-w-0 flex-col gap-1 px-0 lg:px-6">
-                <span className="text-[13px] text-ob-ink-2">Jatuh tempo terdekat</span>
+                <span className="text-[13px] text-ob-ink-2">{t('Jatuh tempo terdekat')}</span>
                 <span className="whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink sm:text-[26px]">—</span>
-                <span className="text-xs text-ob-ink-2">semua utang sudah lunas</span>
+                <span className="text-xs text-ob-ink-2">{t('semua utang sudah lunas')}</span>
             </div>
         );
     }
@@ -432,9 +435,9 @@ function JatuhTempoBlock({ iso }: { iso: string | null }) {
     const hari = daysFromToday(iso);
     return (
         <div className="flex min-w-0 flex-col gap-1 px-0 lg:px-6">
-            <span className="text-[13px] text-ob-ink-2">Jatuh tempo terdekat</span>
+            <span className="text-[13px] text-ob-ink-2">{t('Jatuh tempo terdekat')}</span>
             <span className={cn('whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.01em] sm:text-[26px]', hari < 0 ? 'text-ob-late' : 'text-ob-ink')}>{longDate(iso)}</span>
-            <span className="text-xs text-ob-ink-2">{hari < 0 ? `lewat ${-hari} hari` : hari === 0 ? 'hari ini' : `${hari} hari lagi`}</span>
+            <span className="text-xs text-ob-ink-2">{hari < 0 ? t('lewat {{count}} hari', { count: -hari }) : hari === 0 ? t('hari ini') : t('{{count}} hari lagi', { count: hari })}</span>
         </div>
     );
 }

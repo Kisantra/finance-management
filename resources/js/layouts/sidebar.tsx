@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { AppLink } from '@/components/app-link';
+import { t, tk } from '@/i18n';
 import { appPath } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
@@ -67,10 +68,15 @@ interface NavGroup {
 
 const ICON = 'w-5 h-5 shrink-0';
 
+/**
+ * Label menu = kunci terjemahan dengan konteks 'menu' (tk(…, 'menu') → kunci kamus "Invoice_menu"), karena
+ * kata yang sama dipakai halaman sebagai label tunggal (EN: menu "Invoices" vs kolom "Invoice").
+ * Diterjemahkan saat render lewat menu().
+ */
 const NAV: NavGroup[] = [
     {
         key: 'ringkasan',
-        label: 'Ringkasan',
+        label: tk('Ringkasan', 'menu'),
         icon: <Home className={ICON} />,
         href: '/dashboard',
         matchPrefix: '/dashboard',
@@ -79,85 +85,88 @@ const NAV: NavGroup[] = [
     },
     {
         key: 'keuangan',
-        label: 'Keuangan',
+        label: tk('Keuangan', 'menu'),
         icon: <FileText className={ICON} />,
         items: [
-            { label: 'Invoice', href: '/invoices', permission: 'view invoices', matchPrefix: '/invoices' },
-            { label: 'Invoice Berulang', href: '/recurring-invoices', permission: 'view recurring-invoices', matchPrefix: '/recurring-invoices' },
-            { label: 'Kas & Bank', href: '/bank-accounts', permission: 'view bank-accounts', matchPrefix: '/bank-accounts' },
+            { label: tk('Invoice', 'menu'), href: '/invoices', permission: 'view invoices', matchPrefix: '/invoices' },
+            { label: tk('Invoice Berulang', 'menu'), href: '/recurring-invoices', permission: 'view recurring-invoices', matchPrefix: '/recurring-invoices' },
+            { label: tk('Kas & Bank', 'menu'), href: '/bank-accounts', permission: 'view bank-accounts', matchPrefix: '/bank-accounts' },
         ],
     },
     {
         key: 'arus-kas',
-        label: 'Arus Kas',
+        label: tk('Arus Kas', 'menu'),
         icon: <TrendingUp className={ICON} />,
         items: [
             // Satu menu bertab (Semua / Pemasukan / Pengeluaran); /cash-flow mengarahkan ke tab pertama yang diizinkan.
             {
-                label: 'Pemasukan & Pengeluaran',
+                label: tk('Pemasukan & Pengeluaran', 'menu'),
                 href: '/cash-flow',
                 permission: ['view income', 'view expense'],
                 matchPrefix: ['/cash-flow/all', '/cash-flow/income', '/cash-flow/expenses'],
             },
-            { label: 'Transfer & Penyesuaian', href: '/cash-flow/transfers', permission: 'view transfer', matchPrefix: '/cash-flow/transfers' },
+            { label: tk('Transfer & Penyesuaian', 'menu'), href: '/cash-flow/transfers', permission: 'view transfer', matchPrefix: '/cash-flow/transfers' },
         ],
     },
     {
         key: 'operasional',
-        label: 'Operasional',
+        label: tk('Operasional', 'menu'),
         icon: <ClipboardList className={ICON} />,
         items: [
-            { label: 'Reimbursement', href: '/reimbursements', permission: 'view reimbursements', matchPrefix: '/reimbursements', badgeKey: 'reimbursements' },
-            { label: 'Permintaan Dana', href: '/fund-requests', permission: 'view fund requests', matchPrefix: '/fund-requests', badgeKey: 'fund_requests' },
-            { label: 'Kategori Transaksi', href: '/transaction-categories', permission: 'view categories', matchPrefix: '/transaction-categories' },
+            { label: tk('Reimbursement', 'menu'), href: '/reimbursements', permission: 'view reimbursements', matchPrefix: '/reimbursements', badgeKey: 'reimbursements' },
+            { label: tk('Pengajuan Dana', 'menu'), href: '/fund-requests', permission: 'view fund requests', matchPrefix: '/fund-requests', badgeKey: 'fund_requests' },
+            { label: tk('Kategori Transaksi', 'menu'), href: '/transaction-categories', permission: 'view categories', matchPrefix: '/transaction-categories' },
         ],
     },
     {
         key: 'utang-piutang',
-        label: 'Utang & Piutang',
+        label: tk('Utang & Piutang', 'menu'),
         icon: <Landmark className={ICON} />,
         items: [
-            { label: 'Utang', href: '/loans', permission: 'view loans', matchPrefix: '/loans' },
-            { label: 'Piutang', href: '/receivables', permission: 'view receivables', matchPrefix: '/receivables' },
+            { label: tk('Utang', 'menu'), href: '/loans', permission: 'view loans', matchPrefix: '/loans' },
+            { label: tk('Piutang', 'menu'), href: '/receivables', permission: 'view receivables', matchPrefix: '/receivables' },
         ],
     },
     {
         key: 'master-data',
-        label: 'Master Data',
+        label: tk('Master Data', 'menu'),
         icon: <Users className={ICON} />,
         items: [
-            { label: 'Klien', href: '/clients', permission: 'view clients', matchPrefix: '/clients' },
-            { label: 'Layanan', href: '/services', permission: 'view services', matchPrefix: '/services' },
+            { label: tk('Klien', 'menu'), href: '/clients', permission: 'view clients', matchPrefix: '/clients' },
+            { label: tk('Layanan', 'menu'), href: '/services', permission: 'view services', matchPrefix: '/services' },
         ],
     },
     {
         key: 'laporan',
-        label: 'Laporan',
+        label: tk('Laporan', 'menu'),
         icon: <BarChart3 className={ICON} />,
         items: [
-            { label: 'Laba Rugi', href: '/reports/profit-loss', permission: 'view profit-loss', matchPrefix: '/reports/profit-loss' },
+            { label: tk('Laba Rugi', 'menu'), href: '/reports/profit-loss', permission: 'view profit-loss', matchPrefix: '/reports/profit-loss' },
         ],
     },
     {
         key: 'administrasi',
-        label: 'Administrasi',
+        label: tk('Administrasi', 'menu'),
         icon: <ShieldCheck className={ICON} />,
         items: [
-            { label: 'Pengguna', href: '/admin/users', permission: 'manage users', matchPrefix: '/admin/users' },
-            { label: 'Perusahaan', href: '/admin/companies', permission: 'manage companies', matchPrefix: '/admin/companies' },
-            { label: 'Izin & Peran', href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
-            { label: 'Feedback', href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
+            { label: tk('Pengguna', 'menu'), href: '/admin/users', permission: 'manage users', matchPrefix: '/admin/users' },
+            { label: tk('Perusahaan', 'menu'), href: '/admin/companies', permission: 'manage companies', matchPrefix: '/admin/companies' },
+            { label: tk('Izin & Peran', 'menu'), href: '/admin/permissions', permission: 'view permissions', matchPrefix: '/admin/permissions' },
+            { label: tk('Masukan', 'menu'), href: '/feedbacks', permission: 'view feedbacks', matchPrefix: '/feedbacks' },
         ],
     },
     {
         key: 'panduan',
-        label: 'Panduan',
+        label: tk('Panduan', 'menu'),
         icon: <BookOpen className={ICON} />,
         href: '/panduan',
         matchPrefix: '/panduan',
         items: [],
     },
 ];
+
+/** Terjemahan label menu (konteks 'menu'). */
+const menu = (label: string) => t(label, { context: 'menu' });
 
 function matches(url: string, prefix: string | string[]): boolean {
     if (Array.isArray(prefix)) {
@@ -268,7 +277,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
     return (
         <aside
             ref={asideRef}
-            aria-label="Navigasi utama"
+            aria-label={t('Navigasi utama')}
             style={{ width: isCollapsed ? RAIL_WIDTH : RAIL_EXPANDED_WIDTH }}
             className={cn(
                 'fixed lg:relative z-50 lg:z-auto h-full flex shrink-0 flex-col bg-ob-rail border-r border-ob-line',
@@ -297,7 +306,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Tutup navigasi"
+                        aria-label={t('Tutup navigasi')}
                         className="lg:hidden flex h-9 w-9 items-center justify-center rounded-lg text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink"
                     >
                         <X className="h-4 w-4" />
@@ -306,7 +315,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
             </div>
 
             {/* Grup */}
-            <nav className="ob-scroll flex-1 min-h-0 pr-3" aria-label="Menu">
+            <nav className="ob-scroll flex-1 min-h-0 pr-3" aria-label={t('Menu')}>
                 <ul className="m-0 flex list-none flex-col gap-1.5 p-0 pl-[14px]">
                     {groups.map((g) => {
                         const isActive = g.key === activeGroupKey;
@@ -321,7 +330,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                             </span>
                         );
                         const label = !isCollapsed && (
-                            <span className="min-w-0 flex-1 truncate pl-0.5">{g.label}</span>
+                            <span className="min-w-0 flex-1 truncate pl-0.5">{menu(g.label)}</span>
                         );
 
                         /* Grup tanpa sub-item: tautan langsung. */
@@ -336,7 +345,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                     >
                                         {iconBox}
                                         {label}
-                                        {isCollapsed && <RailTooltip label={g.label} />}
+                                        {isCollapsed && <RailTooltip label={menu(g.label)} />}
                                     </AppLink>
                                 </li>
                             );
@@ -377,7 +386,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                         )
                                     )}
                                     {isCollapsed && (
-                                        <RailTooltip label={g.label} hint={g.items.map((i) => i.label).join(' · ')} />
+                                        <RailTooltip label={menu(g.label)} hint={g.items.map((i) => menu(i.label)).join(' · ')} />
                                     )}
                                 </button>
 
@@ -401,7 +410,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                                                 : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
                                                         )}
                                                     >
-                                                        <span className="truncate">{item.label}</span>
+                                                        <span className="truncate">{menu(item.label)}</span>
                                                         {count > 0 && (
                                                             <span className={cn('text-xs font-medium', cur ? 'text-ob-ink-2' : 'text-ob-ink-3')}>
                                                                 {count}
@@ -423,11 +432,11 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
             {isCollapsed && flyout && flyoutGroup && (
                 <div
                     role="menu"
-                    aria-label={flyoutGroup.label}
+                    aria-label={menu(flyoutGroup.label)}
                     style={{ top: flyout.top, left: RAIL_WIDTH + 8 }}
                     className="fixed z-50 flex w-48 flex-col gap-0.5 rounded-2xl border border-ob-line bg-ob-card p-2 shadow-xl shadow-black/20 ob-fade-in"
                 >
-                    <span className="px-2.5 pt-1.5 pb-2 text-xs font-semibold text-ob-ink-3">{flyoutGroup.label}</span>
+                    <span className="px-2.5 pt-1.5 pb-2 text-xs font-semibold text-ob-ink-3">{menu(flyoutGroup.label)}</span>
                     {flyoutGroup.items.map((item) => {
                         const cur = matches(currentUrl, item.matchPrefix);
                         const count = badgeOf(item);
@@ -442,7 +451,7 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                                     cur ? 'bg-ob-inner font-semibold text-ob-ink' : 'font-medium text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink',
                                 )}
                             >
-                                <span className="truncate">{item.label}</span>
+                                <span className="truncate">{menu(item.label)}</span>
                                 {count > 0 && <span className="text-xs text-ob-ink-3">{count}</span>}
                             </AppLink>
                         );
@@ -456,18 +465,18 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                     <button
                         type="button"
                         onClick={onToggleDark}
-                        aria-label={darkMode ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}
+                        aria-label={darkMode ? t('Ganti ke tema terang') : t('Ganti ke tema gelap')}
                         className="group relative flex h-12 w-12 items-center justify-center rounded-xl text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                     >
                         {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                        <RailTooltip label={darkMode ? 'Tema terang' : 'Tema gelap'} />
+                        <RailTooltip label={darkMode ? t('Tema terang') : t('Tema gelap')} />
                     </button>
                 ) : (
-                    <div role="group" aria-label="Tema" className="flex gap-0.5 rounded-full border border-ob-line bg-ob-card p-[3px]">
+                    <div role="group" aria-label={t('Tema')} className="flex gap-0.5 rounded-full border border-ob-line bg-ob-card p-[3px]">
                         {(
                             [
-                                { dark: true, label: 'Gelap', icon: <Moon className="h-3.5 w-3.5" /> },
-                                { dark: false, label: 'Terang', icon: <Sun className="h-3.5 w-3.5" /> },
+                                { dark: true, label: t('Gelap'), icon: <Moon className="h-3.5 w-3.5" /> },
+                                { dark: false, label: t('Terang'), icon: <Sun className="h-3.5 w-3.5" /> },
                             ] as const
                         ).map((opt) => {
                             const pressed = darkMode === opt.dark;
@@ -497,18 +506,18 @@ export function Sidebar({ open, collapsed, onClose, onToggleCollapse, darkMode, 
                     type="button"
                     onClick={onToggleCollapse}
                     aria-expanded={!isCollapsed}
-                    aria-label={isCollapsed ? 'Perlebar navigasi, pintasan [' : 'Ciutkan navigasi, pintasan ['}
+                    aria-label={isCollapsed ? t('Perlebar navigasi, pintasan [') : t('Ciutkan navigasi, pintasan [')}
                     className={cn(
                         'group relative flex h-9 items-center gap-2.5 rounded-xl border border-ob-line text-xs font-medium text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill',
                         isCollapsed ? 'w-12 justify-center' : 'w-full px-3.5',
                     )}
                 >
                     {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                    {!isCollapsed && <span className="flex-1 text-left">Ciutkan</span>}
+                    {!isCollapsed && <span className="flex-1 text-left">{t('Ciutkan')}</span>}
                     {!isCollapsed && (
                         <kbd className="rounded-md border border-ob-line px-1.5 text-xs leading-[18px]">[</kbd>
                     )}
-                    {isCollapsed && <RailTooltip label="Perlebar" hint="[" />}
+                    {isCollapsed && <RailTooltip label={t('Perlebar')} hint="[" />}
                 </button>
             </div>
         </aside>

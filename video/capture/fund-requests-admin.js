@@ -1,6 +1,6 @@
 /*
- * Screenshot Admin + dampak pencairan untuk tutorial Permintaan Dana (hanya membaca; dialog hapus dibatalkan).
- * Jalankan SETELAH fund-requests.js (butuh "Konsumsi & ATK pelatihan pajak klien" yang sudah Disbursed).
+ * Screenshot Admin + dampak pencairan untuk tutorial Pengajuan Dana (hanya membaca; dialog hapus dibatalkan).
+ * Jalankan SETELAH fund-requests.js (butuh "Konsumsi & ATK pelatihan pajak klien" yang sudah Dicairkan).
  * Server QC: DB_DATABASE=finance_management_qc php artisan serve --host=127.0.0.1 --port=8015
  * Playwright MCP: browser_run_code_unsafe, filename: video/capture/fund-requests-admin.js, lalu python video/capture/to-webp.py fund-requests
  * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
@@ -18,14 +18,14 @@ async (page) => {
   const open = async (email, collapsed = false) => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5, colorScheme: 'light', locale: 'id-ID' });
     contexts.push(ctx);
-    // Tabel Permintaan Dana lebih lebar dari layar 1280 bila navigasi terbuka: ciutkan untuk FM/Admin agar kolom Aksi terlihat.
+    // Tabel Pengajuan Dana lebih lebar dari layar 1280 bila navigasi terbuka: ciutkan untuk FM/Admin agar kolom Aksi terlihat.
     await ctx.addInitScript((c) => {
       try { localStorage.setItem('sidebar.collapsed', String(c)); } catch {}
     }, collapsed);
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"],[data-sonner-toaster]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"],[data-sonner-toaster]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -33,12 +33,12 @@ async (page) => {
     await p.goto(BASE + '/login', { waitUntil: 'networkidle' });
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/, { timeout: 15000 }).catch(async () => {
       await p.goto(BASE + '/login', { waitUntil: 'networkidle' });
       await p.locator('input[type=email]').fill(email);
       await p.locator('input[type=password]').fill('password');
-      await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+      await p.getByRole('button', { name: 'Masuk', exact: true }).click();
       await p.waitForURL(/dashboard/);
     });
     return p;

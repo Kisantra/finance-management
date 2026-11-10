@@ -1,11 +1,13 @@
 import { type ClassValue, clsx } from 'clsx';
 import { toast } from 'sonner';
 import { twMerge } from 'tailwind-merge';
+import { formatTanggal, t, type GayaTanggal } from '@/i18n';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+/** Rupiah selalu format Indonesia di semua bahasa tampilan (D6): "Rp 1.500.000". */
 export function formatCurrency(value: number | string, locale = 'id-ID'): string {
     return 'Rp ' + Number(value).toLocaleString(locale);
 }
@@ -26,12 +28,12 @@ export function toLocalIso(date: Date): string {
     return `${y}-${m}-${d}`;
 }
 
-export function formatDate(dateString: string, locale = 'id-ID'): string {
-    return new Date(dateString).toLocaleDateString(locale, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
+/**
+ * Tanggal tabel standar dalam bahasa aktif: "09 Agu 2026" · "09 Aug 2026" · "2026年8月9日".
+ * Gaya lain: formatDate(nilai, 'panjang' | 'pendek' | 'bulan' | …) atau opsi Intl — lihat formatTanggal() di @/i18n.
+ */
+export function formatDate(value: Date | string | number | null | undefined, gaya: GayaTanggal | Intl.DateTimeFormatOptions = 'tanggal'): string {
+    return formatTanggal(value, gaya);
 }
 
 /**
@@ -73,7 +75,7 @@ export function toastErrors(errs: Record<string, string>, context?: string): voi
     console.error(context ? `[${context}]` : '[Error]', errs);
 
     if (messages.length === 0) {
-        toast.error('Terjadi kesalahan tidak diketahui.', ERROR_TOAST_OPTS);
+        toast.error(t('Terjadi kesalahan tidak diketahui.'), ERROR_TOAST_OPTS);
         return;
     }
 
@@ -82,7 +84,7 @@ export function toastErrors(errs: Record<string, string>, context?: string): voi
         return;
     }
 
-    toast.error(`${messages.length} kesalahan ditemukan`, {
+    toast.error(t('{{count}} kesalahan ditemukan', { count: messages.length }), {
         ...ERROR_TOAST_OPTS,
         description: messages.map((m, i) => `${i + 1}. ${m}`).join('\n'),
     });

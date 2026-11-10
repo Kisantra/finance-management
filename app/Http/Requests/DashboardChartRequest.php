@@ -46,9 +46,9 @@ class DashboardChartRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'chart_period.in' => 'Periode grafik tidak dikenal.',
-            'chart_to.after_or_equal' => 'Tanggal akhir harus pada atau setelah tanggal awal.',
-            'chart_account.exists' => 'Rekening tidak ditemukan.',
+            'chart_period.in' => __('Periode grafik tidak dikenal.'),
+            'chart_to.after_or_equal' => __('Tanggal akhir harus pada atau setelah tanggal awal.'),
+            'chart_account.exists' => __('Rekening tidak ditemukan.'),
         ];
     }
 

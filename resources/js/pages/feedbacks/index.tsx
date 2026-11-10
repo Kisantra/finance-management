@@ -55,7 +55,8 @@ import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
-import { cn } from '@/lib/utils';
+import { Trans, formatTanggal, t, tk } from '@/i18n';
+import { cn, formatDate } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
 /* ─────────────────────────────────── types ─── */
@@ -138,58 +139,46 @@ interface Props extends SharedProps {
 /* ─────────────────────────────────── meta maps ─── */
 
 const TYPE_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; variant: 'red' | 'blue' | 'zinc'; bg: string; text: string }> = {
-    bug: { label: 'Bug', icon: Bug, variant: 'red', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
-    feature: { label: 'Fitur', icon: Lightbulb, variant: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
-    feedback: { label: 'Feedback', icon: MessageCircle, variant: 'zinc', bg: 'bg-zinc-100 dark:bg-dark-700', text: 'text-zinc-700 dark:text-zinc-300' },
+    bug: { label: tk('Bug'), icon: Bug, variant: 'red', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400' },
+    feature: { label: tk('Fitur'), icon: Lightbulb, variant: 'blue', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
+    feedback: { label: tk('Saran'), icon: MessageCircle, variant: 'zinc', bg: 'bg-zinc-100 dark:bg-dark-700', text: 'text-zinc-700 dark:text-zinc-300' },
 };
 
 const PRIORITY_META: Record<string, { label: string; variant: 'zinc' | 'blue' | 'yellow' | 'red' }> = {
-    low: { label: 'Rendah', variant: 'zinc' },
-    medium: { label: 'Sedang', variant: 'blue' },
-    high: { label: 'Tinggi', variant: 'yellow' },
-    critical: { label: 'Kritis', variant: 'red' },
+    low: { label: tk('Rendah'), variant: 'zinc' },
+    medium: { label: tk('Sedang'), variant: 'blue' },
+    high: { label: tk('Tinggi'), variant: 'yellow' },
+    critical: { label: tk('Kritis'), variant: 'red' },
 };
 
 const STATUS_META: Record<string, { label: string; variant: 'yellow' | 'blue' | 'green' | 'zinc'; icon: React.ComponentType<{ className?: string }> }> = {
-    open: { label: 'Terbuka', variant: 'yellow', icon: Inbox },
-    in_progress: { label: 'Diproses', variant: 'blue', icon: Loader2 },
-    resolved: { label: 'Selesai', variant: 'green', icon: CheckCircle2 },
-    closed: { label: 'Ditutup', variant: 'zinc', icon: XCircle },
+    open: { label: tk('Terbuka'), variant: 'yellow', icon: Inbox },
+    in_progress: { label: tk('Diproses'), variant: 'blue', icon: Loader2 },
+    resolved: { label: tk('Selesai'), variant: 'green', icon: CheckCircle2 },
+    closed: { label: tk('Ditutup'), variant: 'zinc', icon: XCircle },
 };
 
 const FEEDBACK_TYPE_OPTIONS: SegmentedOption<'bug' | 'feature' | 'feedback'>[] = [
-    { value: 'bug', label: 'Bug', icon: <Bug className="w-5 h-5" />, activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400' },
-    { value: 'feature', label: 'Fitur', icon: <Lightbulb className="w-5 h-5" />, activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400' },
-    { value: 'feedback', label: 'Feedback', icon: <MessageCircle className="w-5 h-5" />, activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-400 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
+    { value: 'bug', label: tk('Bug'), icon: <Bug className="w-5 h-5" />, activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-600 dark:text-red-400' },
+    { value: 'feature', label: tk('Fitur'), icon: <Lightbulb className="w-5 h-5" />, activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400' },
+    { value: 'feedback', label: tk('Saran'), icon: <MessageCircle className="w-5 h-5" />, activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-400 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
 ];
 
 const FEEDBACK_PRIORITY_OPTIONS: SegmentedOption<'low' | 'medium' | 'high' | 'critical'>[] = [
-    { value: 'low', label: 'Rendah', activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-300 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
-    { value: 'medium', label: 'Sedang', activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-300' },
-    { value: 'high', label: 'Tinggi', activeClassName: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500 text-yellow-700 dark:text-yellow-300' },
-    { value: 'critical', label: 'Kritis', activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300' },
+    { value: 'low', label: tk('Rendah'), activeClassName: 'bg-zinc-100 dark:bg-dark-700 border-zinc-300 dark:border-dark-500 text-zinc-700 dark:text-zinc-300' },
+    { value: 'medium', label: tk('Sedang'), activeClassName: 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-300' },
+    { value: 'high', label: tk('Tinggi'), activeClassName: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-500 text-yellow-700 dark:text-yellow-300' },
+    { value: 'critical', label: tk('Kritis'), activeClassName: 'bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300' },
 ];
 
 /* ─────────────────────────────────── helpers ─── */
 
-function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
+function formatDateTime(iso: string | null | undefined): string {
+    return formatTanggal(iso, 'waktu') || '—';
 }
 
-function formatDateTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+function tanggalAtauStrip(iso: string | null | undefined): string {
+    return formatDate(iso) || '—';
 }
 
 /* ─────────────────────────────────── create/edit dialog ─── */
@@ -248,10 +237,10 @@ function FeedbackFormDialog({
             forceFormData: mode === 'create',
             onSuccess: () => {
                 onOpenChange(false);
-                toast.success(mode === 'create' ? 'Feedback berhasil dikirim.' : 'Feedback berhasil diperbarui.');
+                toast.success(mode === 'create' ? t('Masukan berhasil dikirim.') : t('Masukan berhasil diperbarui.'));
                 reset();
             },
-            onError: () => toast.error('Periksa kembali isian form.'),
+            onError: () => toast.error(t('Periksa kembali isian form.')),
         };
         if (mode === 'create') post(companyUrl('/feedbacks'), opts);
         else if (editingFeedback) put(companyUrl(`/feedbacks/${editingFeedback.id}`), opts);
@@ -276,58 +265,58 @@ function FeedbackFormDialog({
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                    {mode === 'create' ? 'Kirim Feedback' : 'Edit Feedback'}
+                                    {mode === 'create' ? t('Kirim Masukan') : t('Ubah Masukan')}
                                 </DialogTitle>
                                 <p className="text-sm text-dark-500 dark:text-dark-400">
-                                    Bantu kami meningkatkan aplikasi dengan masukan Anda
+                                    {t('Bantu kami meningkatkan aplikasi dengan masukan Anda')}
                                 </p>
                             </div>
                         </div>
                     </DialogHeader>
 
                     <div className="px-6 py-4 max-h-[70vh] overflow-y-auto space-y-5">
-                        <FormSection title="Detail Feedback" description="Jelaskan masalah, fitur, atau saran Anda">
+                        <FormSection title={t('Detail Masukan')} description={t('Jelaskan masalah, fitur, atau saran Anda')}>
                             <SegmentedControl
-                                label="Tipe *"
+                                label={t('Tipe *')}
                                 layout="stack"
                                 columns={3}
                                 value={data.type}
                                 onChange={(v) => setData('type', v)}
-                                options={FEEDBACK_TYPE_OPTIONS}
+                                options={FEEDBACK_TYPE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
                                 error={errors.type}
                             />
 
                             <Input
-                                label="Judul *"
+                                label={t('Judul *')}
                                 value={data.title}
                                 onChange={(e) => setData('title', e.target.value)}
                                 error={errors.title}
-                                placeholder="Ringkasan singkat dan jelas"
+                                placeholder={t('Ringkasan singkat dan jelas')}
                                 autoFocus
                             />
 
                             <Textarea
-                                label="Deskripsi *"
+                                label={t('Deskripsi *')}
                                 value={data.description}
                                 onChange={(e) => setData('description', e.target.value)}
                                 error={errors.description}
                                 rows={5}
-                                placeholder="Jelaskan secara detail..."
+                                placeholder={t('Jelaskan secara detail...')}
                             />
 
                             <SegmentedControl
-                                label="Prioritas *"
+                                label={t('Prioritas *')}
                                 layout="inline"
                                 columns={4}
                                 value={data.priority}
                                 onChange={(v) => setData('priority', v)}
-                                options={FEEDBACK_PRIORITY_OPTIONS}
+                                options={FEEDBACK_PRIORITY_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
                                 error={errors.priority}
                             />
                         </FormSection>
 
                         {mode === 'create' && (
-                            <FormSection title="Lampiran (opsional)" description="Sertakan screenshot atau dokumen pendukung">
+                            <FormSection title={t('Lampiran (opsional)')} description={t('Sertakan tangkapan layar atau dokumen pendukung')}>
                                 <FileUpload
                                     value={data.attachment}
                                     onChange={(file) => setData('attachment', file)}
@@ -341,11 +330,11 @@ function FeedbackFormDialog({
 
                     <DialogFooter className="px-6 py-4">
                         <Button type="button" variant="zinc" onClick={() => onOpenChange(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" variant="primary" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
                             <Send className="w-4 h-4" />
-                            {mode === 'create' ? 'Kirim Feedback' : 'Simpan Perubahan'}
+                            {mode === 'create' ? t('Kirim Masukan') : t('Simpan Perubahan')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -388,10 +377,10 @@ function RespondDialog({
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);
-                toast.success('Tanggapan terkirim.');
+                toast.success(t('Tanggapan terkirim.'));
                 reset();
             },
-            onError: () => toast.error('Periksa kembali tanggapan.'),
+            onError: () => toast.error(t('Periksa kembali tanggapan.')),
         });
     };
 
@@ -406,7 +395,7 @@ function RespondDialog({
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                    Tanggapi Feedback
+                                    {t('Tanggapi Masukan')}
                                 </DialogTitle>
                                 <p className="text-sm text-dark-500 dark:text-dark-400 truncate max-w-md">
                                     {feedback?.title}
@@ -417,31 +406,32 @@ function RespondDialog({
 
                     <div className="px-6 py-4 space-y-4">
                         <Textarea
-                            label="Tanggapan *"
+                            label={t('Tanggapan *')}
                             value={data.response}
                             onChange={(e) => setData('response', e.target.value)}
                             error={errors.response}
                             rows={6}
-                            placeholder="Tuliskan tanggapan untuk pengguna..."
+                            placeholder={t('Tuliskan tanggapan untuk pengguna...')}
                             autoFocus
                         />
                         {feedback?.status_ikut_watchpost ? (
                             <p className="text-xs text-dark-500 dark:text-dark-400">
-                                Status laporan ini mengikuti tiket Watchpost{feedback.watchpost ? ` ${feedback.watchpost.number}` : ''} yang
-                                dikerjakan tim IT. Tanggapan Anda tetap terkirim ke pelapor.
+                                {feedback.watchpost
+                                    ? t('Status laporan ini mengikuti tiket Watchpost {{number}} yang dikerjakan tim IT. Tanggapan Anda tetap terkirim ke pelapor.', { number: feedback.watchpost.number })
+                                    : t('Status laporan ini mengikuti tiket Watchpost yang dikerjakan tim IT. Tanggapan Anda tetap terkirim ke pelapor.')}
                             </p>
                         ) : (
                         <div className="space-y-1.5">
-                            <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">Status Baru *</label>
+                            <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">{t('Status Baru *')}</label>
                             <Combobox
                                 options={[
-                                    { label: 'Sedang Diproses', value: 'in_progress' },
-                                    { label: 'Selesai', value: 'resolved' },
-                                    { label: 'Ditutup', value: 'closed' },
+                                    { label: t('Diproses'), value: 'in_progress' },
+                                    { label: t('Selesai'), value: 'resolved' },
+                                    { label: t('Ditutup'), value: 'closed' },
                                 ]}
                                 value={data.status}
                                 onChange={(v) => setData('status', v ? String(v) : 'in_progress')}
-                                placeholder="Pilih status"
+                                placeholder={t('Pilih status')}
                             />
                             {errors.status && <p className="text-xs text-red-600 dark:text-red-400">{errors.status}</p>}
                         </div>
@@ -450,11 +440,11 @@ function RespondDialog({
 
                     <DialogFooter className="px-6 py-4">
                         <Button type="button" variant="zinc" onClick={() => onOpenChange(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" variant="primary" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
                             <Send className="w-4 h-4" />
-                            Kirim Tanggapan
+                            {t('Kirim Tanggapan')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -499,7 +489,7 @@ function ShowFeedbackDialog({
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Status diperbarui.');
+                    toast.success(t('Status diperbarui.'));
                     onOpenChange(false);
                 },
             },
@@ -516,18 +506,22 @@ function ShowFeedbackDialog({
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                                <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>
-                                <Badge variant={priorityMeta.variant}>{priorityMeta.label}</Badge>
+                                <Badge variant={typeMeta.variant}>{t(typeMeta.label)}</Badge>
+                                <Badge variant={priorityMeta.variant}>{t(priorityMeta.label)}</Badge>
                                 <Badge variant={statusMeta.variant} className="inline-flex items-center gap-1">
                                     <StatusIcon className={cn('w-3 h-3', feedback.status === 'in_progress' && 'animate-spin')} />
-                                    {statusMeta.label}
+                                    {t(statusMeta.label)}
                                 </Badge>
                             </div>
                             <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50 leading-snug">
                                 {feedback.title}
                             </DialogTitle>
                             <DialogDescription className="mt-1 text-xs text-dark-500 dark:text-dark-400">
-                                Dikirim oleh <span className="font-medium text-dark-700 dark:text-dark-300">{feedback.user?.name ?? '—'}</span> · {formatDateTime(feedback.created_at)}
+                                <Trans
+                                    i18nKey="Dikirim oleh <b>{{name}}</b> · {{date}}"
+                                    values={{ name: feedback.user?.name ?? '—', date: formatDateTime(feedback.created_at) }}
+                                    components={{ b: <span className="font-medium text-dark-700 dark:text-dark-300" /> }}
+                                />
                             </DialogDescription>
                         </div>
                     </div>
@@ -536,7 +530,7 @@ function ShowFeedbackDialog({
                 <div className="px-6 py-5 max-h-[60vh] overflow-y-auto space-y-5">
                     <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 mb-2">
-                            Deskripsi
+                            {t('Deskripsi')}
                         </h4>
                         <div className="text-sm text-dark-700 dark:text-dark-300 whitespace-pre-wrap leading-relaxed">
                             {feedback.description}
@@ -545,7 +539,7 @@ function ShowFeedbackDialog({
 
                     {feedback.page_url && (
                         <div className="text-xs text-dark-500 dark:text-dark-400">
-                            <span className="font-semibold">URL halaman:</span>{' '}
+                            <span className="font-semibold">{t('URL halaman:')}</span>{' '}
                             <code className="px-2 py-0.5 rounded bg-secondary-100 dark:bg-dark-800 text-dark-700 dark:text-dark-300 font-mono">
                                 {feedback.page_url}
                             </code>
@@ -554,7 +548,7 @@ function ShowFeedbackDialog({
 
                     {feedback.watchpost && (
                         <div className="text-xs text-dark-500 dark:text-dark-400">
-                            <span className="font-semibold">Diteruskan ke Watchpost:</span>{' '}
+                            <span className="font-semibold">{t('Diteruskan ke Watchpost:')}</span>{' '}
                             {feedback.watchpost.url ? (
                                 <a
                                     href={feedback.watchpost.url}
@@ -562,24 +556,24 @@ function ShowFeedbackDialog({
                                     rel="noreferrer"
                                     className="font-mono font-medium text-primary-600 dark:text-primary-400 hover:underline"
                                 >
-                                    tiket {feedback.watchpost.number}
+                                    {t('tiket {{number}}', { number: feedback.watchpost.number })}
                                 </a>
                             ) : (
-                                <span className="font-mono">tiket {feedback.watchpost.number}</span>
+                                <span className="font-mono">{t('tiket {{number}}', { number: feedback.watchpost.number })}</span>
                             )}
-                            {feedback.status_ikut_watchpost && ' · status mengikuti tiket ini'}
+                            {feedback.status_ikut_watchpost && t(' · status mengikuti tiket ini')}
                         </div>
                     )}
 
                     {feedback.attachment_url && (
                         <div>
                             <h4 className="text-xs font-semibold uppercase tracking-wider text-dark-500 dark:text-dark-400 mb-2">
-                                Lampiran
+                                {t('Lampiran')}
                             </h4>
                             <AttachmentPreviewButton
                                 url={feedback.attachment_url}
                                 name={feedback.attachment_name}
-                                label={feedback.attachment_name ?? 'Lampiran'}
+                                label={feedback.attachment_name ?? t('Lampiran')}
                                 className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
                                 iconSize="w-4 h-4"
                             />
@@ -591,7 +585,7 @@ function ShowFeedbackDialog({
                             <div className="flex items-center gap-2 mb-2">
                                 <Reply className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                 <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                                    Tanggapan dari {feedback.responder?.name ?? 'Admin'}
+                                    {t('Tanggapan dari {{name}}', { name: feedback.responder?.name ?? 'Admin' })}
                                 </h4>
                                 <span className="text-xs text-blue-600 dark:text-blue-400">
                                     {formatDateTime(feedback.responded_at)}
@@ -610,7 +604,7 @@ function ShowFeedbackDialog({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" size="sm">
-                                        Ubah Status
+                                        {t('Ubah Status')}
                                         <ChevronDown className="w-3 h-3" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -621,7 +615,7 @@ function ShowFeedbackDialog({
                                             onClick={() => changeStatus(s)}
                                             disabled={s === feedback.status}
                                         >
-                                            {STATUS_META[s].label}
+                                            {t(STATUS_META[s].label)}
                                         </DropdownMenuItem>
                                     ))}
                                 </DropdownMenuContent>
@@ -630,23 +624,23 @@ function ShowFeedbackDialog({
                         {feedback.can_edit && (
                             <Button variant="blue" size="sm" onClick={onEdit}>
                                 <Pencil className="w-4 h-4" />
-                                Edit
+                                {t('Ubah')}
                             </Button>
                         )}
                         {feedback.can_delete && (
                             <Button variant="red" size="sm" onClick={onDelete}>
                                 <Trash2 className="w-4 h-4" />
-                                Hapus
+                                {t('Hapus')}
                             </Button>
                         )}
                         {canRespond && feedback.can_respond && (
                             <Button variant="primary" size="sm" onClick={onRespond}>
                                 <Reply className="w-4 h-4" />
-                                {feedback.admin_response ? 'Edit Tanggapan' : 'Tanggapi'}
+                                {feedback.admin_response ? t('Ubah Tanggapan') : t('Tanggapi')}
                             </Button>
                         )}
                         <Button variant="zinc" size="sm" onClick={() => onOpenChange(false)}>
-                            Tutup
+                            {t('Tutup')}
                         </Button>
                     </div>
                 </DialogFooter>
@@ -678,10 +672,10 @@ export default function FeedbacksIndex() {
 
     // Debounced search
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) apply({ search, page: 1 });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -723,11 +717,11 @@ export default function FeedbacksIndex() {
         router.delete(companyUrl(`/feedbacks/${deletingFeedback.id}`), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Feedback berhasil dihapus.');
+                toast.success(t('Masukan berhasil dihapus.'));
                 setDeletingFeedback(null);
                 setShowOpen(false);
             },
-            onError: () => toast.error('Gagal menghapus feedback.'),
+            onError: () => toast.error(t('Gagal menghapus masukan.')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
@@ -744,18 +738,18 @@ export default function FeedbacksIndex() {
 
     return (
         <>
-            <Head title="Feedback & Saran" />
+            <Head title={t('Masukan', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Feedback & Saran"
-                    description="Laporkan bug, ajukan fitur, atau berikan masukan untuk perbaikan aplikasi"
+                    title={t('Masukan', { context: 'menu' })}
+                    description={t('Laporkan bug, ajukan fitur, atau berikan masukan untuk perbaikan aplikasi')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="feedbacks" />
                             <Button variant="primary" onClick={() => setCreateOpen(true)}>
                                 <Plus className="w-4 h-4" />
-                                Kirim Feedback
+                                {t('Kirim Masukan')}
                             </Button>
                         </div>
                     }
@@ -763,10 +757,10 @@ export default function FeedbacksIndex() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <StatsCard label="Total" value={stats.total} icon={<MessageSquare />} color="blue" />
-                    <StatsCard label="Terbuka" value={stats.open} icon={<Inbox />} color="yellow" />
-                    <StatsCard label="Diproses" value={stats.in_progress} icon={<Clock />} color="purple" />
-                    <StatsCard label="Selesai" value={stats.resolved} icon={<CheckCircle2 />} color="green" />
+                    <StatsCard label={t('Total')} value={stats.total} icon={<MessageSquare />} color="blue" />
+                    <StatsCard label={t('Terbuka')} value={stats.open} icon={<Inbox />} color="yellow" />
+                    <StatsCard label={t('Diproses')} value={stats.in_progress} icon={<Clock />} color="purple" />
+                    <StatsCard label={t('Selesai')} value={stats.resolved} icon={<CheckCircle2 />} color="green" />
                 </div>
 
                 {/* Tabs */}
@@ -775,8 +769,8 @@ export default function FeedbacksIndex() {
                         value={filters.tab}
                         onChange={(v) => apply({ tab: v as 'all' | 'mine', page: 1 })}
                         items={[
-                            { value: 'all', label: 'Semua Feedback', icon: <Inbox className="w-4 h-4" /> },
-                            { value: 'mine', label: 'Feedback Saya', icon: <MessageSquare className="w-4 h-4" /> },
+                            { value: 'all', label: t('Semua Masukan'), icon: <Inbox className="w-4 h-4" /> },
+                            { value: 'mine', label: t('Masukan Saya'), icon: <MessageSquare className="w-4 h-4" /> },
                         ]}
                     />
                 )}
@@ -785,11 +779,11 @@ export default function FeedbacksIndex() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <Combobox
-                            label="Tipe"
+                            label={t('Tipe')}
                             options={[
-                                { label: 'Bug', value: 'bug' },
-                                { label: 'Fitur', value: 'feature' },
-                                { label: 'Feedback', value: 'feedback' },
+                                { label: t('Bug'), value: 'bug' },
+                                { label: t('Fitur'), value: 'feature' },
+                                { label: t('Saran'), value: 'feedback' },
                             ]}
                             value={typeFilter || null}
                             onChange={(v) => {
@@ -797,16 +791,16 @@ export default function FeedbacksIndex() {
                                 setTypeFilter(next);
                                 apply({ type: next, page: 1 });
                             }}
-                            placeholder="Semua tipe"
+                            placeholder={t('Semua tipe')}
                             clearable
                         />
                         <Combobox
-                            label="Status"
+                            label={t('Status')}
                             options={[
-                                { label: 'Terbuka', value: 'open' },
-                                { label: 'Diproses', value: 'in_progress' },
-                                { label: 'Selesai', value: 'resolved' },
-                                { label: 'Ditutup', value: 'closed' },
+                                { label: t('Terbuka'), value: 'open' },
+                                { label: t('Diproses'), value: 'in_progress' },
+                                { label: t('Selesai'), value: 'resolved' },
+                                { label: t('Ditutup'), value: 'closed' },
                             ]}
                             value={statusFilter || null}
                             onChange={(v) => {
@@ -814,16 +808,16 @@ export default function FeedbacksIndex() {
                                 setStatusFilter(next);
                                 apply({ status: next, page: 1 });
                             }}
-                            placeholder="Semua status"
+                            placeholder={t('Semua status')}
                             clearable
                         />
                         <Combobox
-                            label="Prioritas"
+                            label={t('Prioritas')}
                             options={[
-                                { label: 'Rendah', value: 'low' },
-                                { label: 'Sedang', value: 'medium' },
-                                { label: 'Tinggi', value: 'high' },
-                                { label: 'Kritis', value: 'critical' },
+                                { label: t('Rendah'), value: 'low' },
+                                { label: t('Sedang'), value: 'medium' },
+                                { label: t('Tinggi'), value: 'high' },
+                                { label: t('Kritis'), value: 'critical' },
                             ]}
                             value={priorityFilter || null}
                             onChange={(v) => {
@@ -831,7 +825,7 @@ export default function FeedbacksIndex() {
                                 setPriorityFilter(next);
                                 apply({ priority: next, page: 1 });
                             }}
-                            placeholder="Semua prioritas"
+                            placeholder={t('Semua prioritas')}
                             clearable
                         />
                     </div>
@@ -842,26 +836,26 @@ export default function FeedbacksIndex() {
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari judul, deskripsi, atau pengirim..."
+                                    placeholder={t('Cari judul, deskripsi, atau pengirim...')}
                                     icon={<Search className="w-4 h-4" />}
                                 />
                             </div>
                             <div className="flex items-center gap-3">
                                 {activeFilterCount > 0 && (
                                     <>
-                                        <Badge variant="blue">{activeFilterCount} filter aktif</Badge>
+                                        <Badge variant="blue">{t('{{count}} filter aktif', { count: activeFilterCount })}</Badge>
                                         <button
                                             type="button"
                                             onClick={resetFilters}
                                             className="text-xs text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 inline-flex items-center gap-1"
                                         >
-                                            <X className="w-3 h-3" /> Reset
+                                            <X className="w-3 h-3" /> {t('Hapus filter')}
                                         </button>
                                     </>
                                 )}
                                 <div className="text-sm text-dark-500 dark:text-dark-400">
-                                    <span className="hidden sm:inline">Menampilkan </span>{rows.data.length}
-                                    <span className="hidden sm:inline"> dari {rows.total}</span>
+                                    <span className="sm:hidden">{rows.data.length}</span>
+                                    <span className="hidden sm:inline">{t('Menampilkan {{shown}} dari {{total}}', { shown: rows.data.length, total: rows.total })}</span>
                                 </div>
                             </div>
                         </div>
@@ -873,16 +867,16 @@ export default function FeedbacksIndex() {
                     <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700">
                         <EmptyState
                             icon={<MessageSquare className="w-12 h-12" />}
-                            title="Belum ada feedback"
+                            title={t('Belum ada masukan')}
                             description={
                                 filters.tab === 'mine'
-                                    ? 'Anda belum mengirim feedback. Bantu kami dengan masukan Anda.'
-                                    : 'Belum ada feedback yang masuk.'
+                                    ? t('Anda belum mengirim masukan. Bantu kami memperbaiki aplikasi ini.')
+                                    : t('Belum ada masukan yang masuk.')
                             }
                             action={
                                 <Button variant="primary" onClick={() => setCreateOpen(true)}>
                                     <Plus className="w-4 h-4" />
-                                    Kirim Feedback
+                                    {t('Kirim Masukan')}
                                 </Button>
                             }
                         />
@@ -908,7 +902,7 @@ export default function FeedbacksIndex() {
                                                 <TypeIcon className={cn('w-5 h-5', typeMeta.text)} />
                                             </div>
                                             <Badge variant={statusMeta.variant} className="inline-flex items-center gap-1 shrink-0">
-                                                {statusMeta.label}
+                                                {t(statusMeta.label)}
                                             </Badge>
                                         </div>
                                         <div>
@@ -926,10 +920,10 @@ export default function FeedbacksIndex() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <div className="text-xs text-dark-700 dark:text-dark-300 truncate">{item.user?.name ?? '—'}</div>
-                                                    <div className="text-[10px] text-dark-400 dark:text-dark-500">{formatDate(item.created_at)}</div>
+                                                    <div className="text-[10px] text-dark-400 dark:text-dark-500">{tanggalAtauStrip(item.created_at)}</div>
                                                 </div>
                                             </div>
-                                            <Badge variant={priorityMeta.variant} size="sm">{priorityMeta.label}</Badge>
+                                            <Badge variant={priorityMeta.variant} size="sm">{t(priorityMeta.label)}</Badge>
                                         </div>
                                     </div>
                                 </button>
@@ -999,14 +993,14 @@ export default function FeedbacksIndex() {
                 open={deletingFeedback !== null}
                 onOpenChange={(o) => !o && setDeletingFeedback(null)}
                 onConfirm={confirmDelete}
-                title="Hapus Feedback"
+                title={t('Hapus Masukan')}
                 description={
                     deletingFeedback
-                        ? `Hapus feedback "${deletingFeedback.title}"? Tindakan ini tidak dapat dibatalkan.`
+                        ? t('Hapus masukan "{{title}}"? Tindakan ini tidak dapat dibatalkan.', { title: deletingFeedback.title })
                         : ''
                 }
                 variant="danger"
-                confirmLabel="Hapus"
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
             />
         </>

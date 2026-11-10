@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { FileUpload } from '@/components/shared/file-upload';
+import { t } from '@/i18n';
 import { cn, toLocalIso } from '@/lib/utils';
 import { BTN, FIELD, SURFACE, rp } from '@/pages/invoices/components/ob';
 import * as receivableRoutes from '@/routes/receivables';
@@ -28,15 +29,19 @@ interface Props {
     companyOptions: FilterOption[];
 }
 
-const TIPE_PIUTANG: SegmentedOption<'employee_loan' | 'company_loan'>[] = [
-    { value: 'employee_loan', label: 'Karyawan' },
-    { value: 'company_loan', label: 'Perusahaan' },
-];
+function tipePiutang(): SegmentedOption<'employee_loan' | 'company_loan'>[] {
+    return [
+        { value: 'employee_loan', label: t('Karyawan') },
+        { value: 'company_loan', label: t('Perusahaan') },
+    ];
+}
 
-const CARA_BUNGA: SegmentedOption<'percentage' | 'fixed'>[] = [
-    { value: 'percentage', label: 'Persentase (%)' },
-    { value: 'fixed', label: 'Nominal tetap' },
-];
+function caraBunga(): SegmentedOption<'percentage' | 'fixed'>[] {
+    return [
+        { value: 'percentage', label: t('Persentase (%)') },
+        { value: 'fixed', label: t('Nominal tetap') },
+    ];
+}
 
 export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNumber, employeeOptions, companyOptions }: Props) {
     const isEdit = !!row;
@@ -102,10 +107,10 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(isEdit ? 'Piutang diperbarui' : 'Draft piutang dibuat');
+                toast.success(isEdit ? t('Piutang diperbarui') : t('Draft piutang dibuat'));
                 onOpenChange(false);
             },
-            onError: () => toast.error('Piutang gagal disimpan'),
+            onError: () => toast.error(t('Piutang gagal disimpan')),
         });
     };
 
@@ -123,14 +128,14 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
             <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
-                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit piutang' : 'Tambah piutang'}</SheetTitle>
+                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? t('Ubah piutang') : t('Tambah piutang')}</SheetTitle>
                         <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
                             {isEdit
-                                ? `${row!.receivable_number} · hanya draft dan yang ditolak yang bisa diubah.`
-                                : `${nextReceivableNumber} · tersimpan sebagai draft dulu, pencairan baru terjadi setelah disetujui.`}
+                                ? t('{{number}} · hanya draft dan yang ditolak yang bisa diubah.', { number: row!.receivable_number })
+                                : t('{{number}} · tersimpan sebagai draft dulu, pencairan baru terjadi setelah disetujui.', { number: nextReceivableNumber })}
                         </SheetDescription>
                     </div>
-                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label="Tutup form" disabled={processing}>
+                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label={t('Tutup form')} disabled={processing}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
@@ -138,7 +143,7 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
                 <form id="receivable-form" onSubmit={simpan} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-6">
                     {/* Di luar FIELD: pembungkus itu memaksa bg-ob-inner ke setiap <button>, termasuk pil aktif. */}
                     <SegmentedControl
-                        options={TIPE_PIUTANG}
+                        options={tipePiutang()}
                         value={data.type}
                         onChange={(v) => {
                             setData('type', v);
@@ -147,34 +152,34 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
                         columns={2}
                         layout="inline"
                         variant="pill"
-                        label="Dipinjam oleh"
+                        label={t('Dipinjam oleh')}
                         error={errors.type}
                         className="[&>label]:mb-1.5 [&>label]:text-[13px] [&>label]:font-medium [&>label]:text-ob-ink-2"
                     />
 
                     <div className={cn(FIELD, 'flex flex-col gap-5')}>
                         <Combobox
-                            label={data.type === 'employee_loan' ? 'Karyawan' : 'Perusahaan'}
+                            label={data.type === 'employee_loan' ? t('Karyawan') : t('Perusahaan')}
                             error={errors.debtor_id}
                             options={pilihanPeminjam}
                             value={data.debtor_id ?? ''}
                             onChange={(v) => setData('debtor_id', v as number)}
-                            placeholder={data.type === 'employee_loan' ? 'Pilih karyawan…' : 'Pilih perusahaan…'}
-                            searchPlaceholder="Cari nama…"
-                            emptyText="Tidak ditemukan"
+                            placeholder={data.type === 'employee_loan' ? t('Pilih karyawan…') : t('Pilih perusahaan…')}
+                            searchPlaceholder={t('Cari nama…')}
+                            emptyText={t('Tidak ditemukan')}
                         />
 
-                        <CurrencyInput label="Jumlah pokok" value={data.principal_amount} onChange={(v) => setData('principal_amount', v)} error={errors.principal_amount} />
+                        <CurrencyInput label={t('Jumlah pokok')} value={data.principal_amount} onChange={(v) => setData('principal_amount', v)} error={errors.principal_amount} />
                     </div>
 
                     <SegmentedControl
-                        options={CARA_BUNGA}
+                        options={caraBunga()}
                         value={data.interest_type}
                         onChange={(v) => setData('interest_type', v)}
                         columns={2}
                         layout="inline"
                         variant="pill"
-                        label="Cara hitung bunga"
+                        label={t('Cara hitung bunga')}
                         error={errors.interest_type}
                         className="[&>label]:mb-1.5 [&>label]:text-[13px] [&>label]:font-medium [&>label]:text-ob-ink-2"
                     />
@@ -183,7 +188,7 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             {data.interest_type === 'percentage' ? (
                                 <Input
-                                    label="Suku bunga (%)"
+                                    label={t('Suku bunga (%)')}
                                     type="number"
                                     step="0.01"
                                     min="0"
@@ -191,20 +196,20 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
                                     value={data.interest_rate as string}
                                     onChange={(e) => setData('interest_rate', e.target.value)}
                                     error={errors.interest_rate}
-                                    hint="Dihitung atas seluruh pokok, bukan per bulan."
+                                    hint={t('Dihitung atas seluruh pokok, bukan per bulan.')}
                                     placeholder="0"
                                 />
                             ) : (
                                 <CurrencyInput
-                                    label="Jumlah bunga"
+                                    label={t('Jumlah bunga')}
                                     value={data.interest_amount}
                                     onChange={(v) => setData('interest_amount', v)}
                                     error={errors.interest_amount}
-                                    hint="Disimpan sebagai persentase setara."
+                                    hint={t('Disimpan sebagai persentase setara.')}
                                 />
                             )}
                             <Input
-                                label="Jumlah cicilan (bulan)"
+                                label={t('Jumlah cicilan (bulan)')}
                                 type="number"
                                 min="1"
                                 value={data.installment_months as string}
@@ -215,43 +220,43 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
                         </div>
 
                         <DatePicker
-                            label="Tanggal pinjaman"
+                            label={t('Tanggal pinjaman')}
                             error={errors.loan_date}
                             value={data.loan_date ? new Date(data.loan_date) : null}
                             onChange={(d) => setData('loan_date', d ? toLocalIso(d) : '')}
                         />
 
                         <Input
-                            label="Rekening atau cara pencairan"
+                            label={t('Rekening atau cara pencairan')}
                             value={data.disbursement_account}
                             onChange={(e) => setData('disbursement_account', e.target.value)}
                             error={errors.disbursement_account}
-                            placeholder="Misalnya BCA 1234567890, atau Kas"
+                            placeholder={t('Misalnya BCA 1234567890, atau Kas')}
                         />
 
-                        <Input label="Tujuan" value={data.purpose} onChange={(e) => setData('purpose', e.target.value)} error={errors.purpose} placeholder="Dipakai untuk apa" />
+                        <Input label={t('Tujuan')} value={data.purpose} onChange={(e) => setData('purpose', e.target.value)} error={errors.purpose} placeholder={t('Dipakai untuk apa')} />
 
-                        <Textarea label="Catatan" value={data.notes} onChange={(e) => setData('notes', e.target.value)} error={errors.notes} placeholder="Opsional" rows={2} />
+                        <Textarea label={t('Catatan')} value={data.notes} onChange={(e) => setData('notes', e.target.value)} error={errors.notes} placeholder={t('Opsional')} rows={2} />
                     </div>
 
                     {perBulan > 0 && (
                         <div className="flex items-baseline justify-between gap-3 rounded-2xl bg-ob-inner p-4 text-[13px]">
                             <span className="text-ob-ink-2">
-                                Cicilan per bulan · {bulan}× angsuran
-                                {bunga > 0 && <span className="text-ob-ink-3"> · bunga {rp(bunga)}</span>}
+                                {t('Cicilan per bulan · {{count}}× angsuran', { count: bulan })}
+                                {bunga > 0 && <span className="text-ob-ink-3"> {t('· bunga {{amount}}', { amount: rp(bunga) })}</span>}
                             </span>
                             <span className="shrink-0 text-base font-semibold tabular-nums text-ob-ink">{rp(perBulan)}</span>
                         </div>
                     )}
 
                     <FileUpload
-                        label="Dokumen kontrak"
+                        label={t('Dokumen kontrak')}
                         value={data.contract_attachment}
                         onChange={(f) => setData('contract_attachment', f)}
                         accept={['.jpg', '.jpeg', '.png', '.pdf']}
                         maxSizeMb={5}
                         error={errors.contract_attachment}
-                        existingFileName={adaLampiran ? (row!.contract_attachment_name ?? 'Kontrak tersimpan') : null}
+                        existingFileName={adaLampiran ? (row!.contract_attachment_name ?? t('Kontrak tersimpan')) : null}
                         existingFileUrl={adaLampiran ? row!.contract_attachment_url : null}
                         onRemoveExisting={() => setData('remove_attachment', true)}
                     />
@@ -259,10 +264,10 @@ export function ReceivableFormSheet({ open, onOpenChange, row, nextReceivableNum
 
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-ob-line px-6 py-4">
                     <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)} disabled={processing}>
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button type="submit" form="receivable-form" className={BTN.primary} loading={processing} disabled={processing}>
-                        {isEdit ? 'Simpan perubahan' : 'Simpan draft'}
+                        {isEdit ? t('Simpan perubahan') : t('Simpan draft')}
                     </Button>
                 </div>
             </SheetContent>

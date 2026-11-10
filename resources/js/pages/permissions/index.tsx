@@ -64,7 +64,10 @@ import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { roleLabel } from '@/lib/roles';
+import { izinLabel, modulIzinLabel } from './izin-label';
 import type { SharedProps } from '@/types';
 
 /* ─────────────────────────────────── types ─── */
@@ -210,10 +213,10 @@ function RoleFormDialog({
             preserveScroll: true,
             onSuccess: () => {
                 onOpenChange(false);
-                toast.success(mode === 'create' ? 'Peran berhasil ditambahkan.' : 'Peran berhasil diperbarui.');
+                toast.success(mode === 'create' ? t('Peran berhasil ditambahkan.') : t('Peran berhasil diperbarui.'));
                 reset();
             },
-            onError: () => toast.error('Periksa kembali isian form.'),
+            onError: () => toast.error(t('Periksa kembali isian form.')),
         };
         if (mode === 'create') post(companyUrl('/admin/roles'), opts);
         else if (editingRole) put(companyUrl(`/admin/roles/${editingRole.id}`), opts);
@@ -241,10 +244,10 @@ function RoleFormDialog({
                             </div>
                             <div>
                                 <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">
-                                    {mode === 'create' ? 'Tambah Peran' : 'Edit Peran'}
+                                    {mode === 'create' ? t('Tambah Peran') : t('Ubah Peran')}
                                 </DialogTitle>
                                 <p className="text-sm text-dark-500 dark:text-dark-400">
-                                    Pilih nama dan ikon yang merepresentasikan peran ini
+                                    {t('Pilih nama dan ikon yang merepresentasikan peran ini')}
                                 </p>
                             </div>
                         </div>
@@ -252,18 +255,18 @@ function RoleFormDialog({
 
                     <div className="px-6 py-4 space-y-5">
                         <Input
-                            label="Nama Peran *"
+                            label={t('Nama Peran *')}
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
                             error={errors.name}
-                            placeholder="Misal: supervisor, auditor, manager"
+                            placeholder={t('Misal: supervisor, auditor, manajer')}
                             autoFocus
-                            hint="Nama akan otomatis diubah ke huruf kecil"
+                            hint={t('Nama akan otomatis diubah ke huruf kecil')}
                         />
 
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                Ikon Peran *
+                                {t('Ikon Peran *')}
                             </label>
                             <div className="grid grid-cols-6 sm:grid-cols-9 gap-2 max-h-64 overflow-y-auto p-2 rounded-xl border border-secondary-200 dark:border-dark-600 bg-zinc-50/50 dark:bg-dark-800/30">
                                 {AVAILABLE_ICONS.map((iconName) => {
@@ -279,7 +282,7 @@ function RoleFormDialog({
                                                     ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-500 text-primary-600 dark:text-primary-400 scale-105'
                                                     : 'border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-dark-500 dark:text-dark-400 hover:border-primary-300 dark:hover:border-primary-600',
                                             )}
-                                            title={iconName}
+                                            aria-pressed={selected}
                                         >
                                             <RoleIcon name={iconName} className="w-4 h-4" />
                                         </button>
@@ -292,10 +295,10 @@ function RoleFormDialog({
 
                     <DialogFooter className="px-6 py-4">
                         <Button type="button" variant="zinc" onClick={() => onOpenChange(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" variant={mode === 'create' ? 'green' : 'blue'} loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
-                            {mode === 'create' ? 'Tambah Peran' : 'Simpan Perubahan'}
+                            {mode === 'create' ? t('Tambah Peran') : t('Simpan Perubahan')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -321,7 +324,7 @@ export default function PermissionsIndex() {
     const [deleteProcessing, setDeleteProcessing] = React.useState(false);
 
     const selectedRole = React.useMemo(() => roles.find((r) => r.id === selectedRoleId) ?? null, [roles, selectedRoleId]);
-    // Role admin selalu memegang semua permission (disinkronkan tiap deploy); server juga menolak perubahan.
+    // Role admin selalu memegang semua izin (disinkronkan tiap deploy); server juga menolak perubahan.
     const isAdminRole = selectedRole?.name === 'admin';
     const canEditRole = canManagePermissions && !isAdminRole;
 
@@ -331,7 +334,8 @@ export default function PermissionsIndex() {
         const q = searchPermission.toLowerCase().trim();
         const result: Record<string, PermissionRow[]> = {};
         for (const [module, perms] of Object.entries(groupedPermissions)) {
-            const filtered = perms.filter((p) => p.name.toLowerCase().includes(q));
+            const moduleMatch = module.toLowerCase().includes(q) || modulIzinLabel(module).toLowerCase().includes(q);
+            const filtered = moduleMatch ? perms : perms.filter((p) => p.name.toLowerCase().includes(q) || izinLabel(p.name).toLowerCase().includes(q));
             if (filtered.length > 0) result[module] = filtered;
         }
         return result;
@@ -351,7 +355,7 @@ export default function PermissionsIndex() {
                 onSuccess: () => {
                     // silent — UI updates from refreshed props
                 },
-                onError: () => toast.error('Gagal mengubah permission.'),
+                onError: () => toast.error(t('Gagal mengubah izin.')),
             },
         );
     };
@@ -366,9 +370,9 @@ export default function PermissionsIndex() {
                 preserveState: true,
                 only: ['roles'],
                 onSuccess: () => {
-                    toast.success(action === 'grant' ? `Semua permission ${module} diberikan.` : `Semua permission ${module} dicabut.`);
+                    toast.success(action === 'grant' ? t('Semua izin {{module}} diberikan.', { module: modulIzinLabel(module) }) : t('Semua izin {{module}} dicabut.', { module: modulIzinLabel(module) }));
                 },
-                onError: () => toast.error('Gagal memperbarui permission.'),
+                onError: () => toast.error(t('Gagal memperbarui izin.')),
             },
         );
     };
@@ -383,11 +387,11 @@ export default function PermissionsIndex() {
                 preserveState: true,
                 only: ['roles'],
                 onSuccess: () => {
-                    toast.success(action === 'grant' ? 'Semua permission diberikan.' : 'Semua permission dicabut.');
+                    toast.success(action === 'grant' ? t('Semua izin diberikan.') : t('Semua izin dicabut.'));
                     setConfirmGrantAll(false);
                     setConfirmRevokeAll(false);
                 },
-                onError: () => toast.error('Gagal memperbarui permission.'),
+                onError: () => toast.error(t('Gagal memperbarui izin.')),
             },
         );
     };
@@ -398,14 +402,14 @@ export default function PermissionsIndex() {
         router.delete(companyUrl(`/admin/roles/${deletingRole.id}`), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Peran berhasil dihapus.');
+                toast.success(t('Peran berhasil dihapus.'));
                 setDeletingRole(null);
                 if (selectedRoleId === deletingRole.id && roles.length > 1) {
                     const next = roles.find((r) => r.id !== deletingRole.id);
                     if (next) setSelectedRoleId(next.id);
                 }
             },
-            onError: () => toast.error('Gagal menghapus peran.'),
+            onError: () => toast.error(t('Gagal menghapus peran.')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
@@ -416,29 +420,29 @@ export default function PermissionsIndex() {
         router.delete(companyUrl(`/admin/permissions/${deletingPermission.id}`), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Permission berhasil dihapus.');
+                toast.success(t('Izin berhasil dihapus.'));
                 setDeletingPermission(null);
             },
-            onError: () => toast.error('Gagal menghapus permission.'),
+            onError: () => toast.error(t('Gagal menghapus izin.')),
             onFinish: () => setDeleteProcessing(false),
         });
     };
 
     return (
         <>
-            <Head title="Manajemen Peran & Permission" />
+            <Head title={t('Izin & Peran', { context: 'menu' })} />
 
             <div className="space-y-6">
                 <PageHeader
-                    title="Manajemen Peran & Permission"
-                    description="Kelola peran sistem dan akses fitur untuk setiap peran"
+                    title={t('Izin & Peran', { context: 'menu' })}
+                    description={t('Kelola peran sistem dan akses fitur untuk setiap peran')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="users-permissions" />
                             {canManagePermissions && (
                                 <Button variant="primary" onClick={() => setRoleCreateOpen(true)}>
                                     <Plus className="w-4 h-4" />
-                                    Tambah Peran
+                                    {t('Tambah Peran')}
                                 </Button>
                             )}
                         </div>
@@ -447,9 +451,9 @@ export default function PermissionsIndex() {
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <StatsCard label="Total Peran" value={roles.length} icon={<UsersIcon />} color="blue" />
-                    <StatsCard label="Total Permission" value={totalPermissions} icon={<ShieldCheck />} color="green" />
-                    <StatsCard label="Modul" value={moduleCount} icon={<Folder />} color="purple" />
+                    <StatsCard label={t('Total Peran')} value={roles.length} icon={<UsersIcon />} color="blue" />
+                    <StatsCard label={t('Total Izin')} value={totalPermissions} icon={<ShieldCheck />} color="green" />
+                    <StatsCard label={t('Modul')} value={moduleCount} icon={<Folder />} color="purple" />
                 </div>
 
                 {/* Main Layout */}
@@ -460,7 +464,7 @@ export default function PermissionsIndex() {
                             <div className="px-4 py-3 border-b border-secondary-200 dark:border-dark-600 bg-secondary-50/60 dark:bg-dark-800/60">
                                 <h3 className="font-semibold text-dark-900 dark:text-dark-50 flex items-center gap-2 text-sm">
                                     <UsersIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                                    Daftar Peran
+                                    {t('Daftar Peran')}
                                 </h3>
                             </div>
 
@@ -485,11 +489,11 @@ export default function PermissionsIndex() {
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="font-semibold text-sm text-dark-900 dark:text-dark-50 capitalize truncate">
-                                                            {role.name}
+                                                            {roleLabel(role.name)}
                                                         </div>
                                                         <div className="text-xs text-dark-500 dark:text-dark-400 tabular-nums">
-                                                            {role.permissions_count} permission
-                                                            {role.users_count > 0 && ` • ${role.users_count} user`}
+                                                            {t('{{count}} izin', { count: role.permissions_count })}
+                                                            {role.users_count > 0 && ` • ${t('{{count}} pengguna', { count: role.users_count })}`}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -504,7 +508,7 @@ export default function PermissionsIndex() {
                                                             e.stopPropagation();
                                                             setEditingRole(role);
                                                         }}
-                                                        title="Edit peran"
+                                                        title={t('Ubah peran')}
                                                     >
                                                         <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                                                     </Button>
@@ -515,7 +519,7 @@ export default function PermissionsIndex() {
                                                             e.stopPropagation();
                                                             setDeletingRole(role);
                                                         }}
-                                                        title="Hapus peran"
+                                                        title={t('Hapus peran')}
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                                                     </Button>
@@ -541,12 +545,12 @@ export default function PermissionsIndex() {
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-bold text-dark-900 dark:text-dark-50 capitalize">
-                                                    {selectedRole.name}
+                                                    {roleLabel(selectedRole.name)}
                                                 </h3>
                                                 <p className="text-xs text-dark-500 dark:text-dark-400">
                                                     {isAdminRole
-                                                        ? 'Selalu memiliki semua hak akses; permission baru otomatis diberikan tiap pembaruan.'
-                                                        : `${selectedRole.permission_ids.length} dari ${totalPermissions} permission diberikan`}
+                                                        ? t('Selalu memiliki semua izin; izin baru otomatis diberikan tiap pembaruan.')
+                                                        : t('{{granted}} dari {{count}} izin diberikan', { granted: selectedRole.permission_ids.length, count: totalPermissions })}
                                                 </p>
                                             </div>
                                         </div>
@@ -556,7 +560,7 @@ export default function PermissionsIndex() {
                                                 <Input
                                                     value={searchPermission}
                                                     onChange={(e) => setSearchPermission(e.target.value)}
-                                                    placeholder="Cari permission..."
+                                                    placeholder={t('Cari izin…')}
                                                     icon={<Search className="w-4 h-4" />}
                                                 />
                                             </div>
@@ -564,11 +568,11 @@ export default function PermissionsIndex() {
                                                 <>
                                                     <Button variant="outline" size="sm" onClick={() => setConfirmRevokeAll(true)}>
                                                         <X className="w-4 h-4 text-red-500" />
-                                                        Cabut Semua
+                                                        {t('Cabut Semua')}
                                                     </Button>
                                                     <Button variant="green" size="sm" onClick={() => setConfirmGrantAll(true)}>
                                                         <Check className="w-4 h-4" />
-                                                        Beri Semua
+                                                        {t('Beri Semua')}
                                                     </Button>
                                                 </>
                                             )}
@@ -581,8 +585,8 @@ export default function PermissionsIndex() {
                                     {Object.keys(filteredGroups).length === 0 ? (
                                         <EmptyState
                                             icon={<Search className="w-10 h-10" />}
-                                            title="Tidak ada permission ditemukan"
-                                            description="Coba ubah kata kunci pencarian Anda."
+                                            title={t('Tidak ada izin yang cocok')}
+                                            description={t('Coba ubah kata kunci pencarian Anda.')}
                                         />
                                     ) : (
                                         <div className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -591,7 +595,7 @@ export default function PermissionsIndex() {
                                                     <div className="bg-zinc-50 dark:bg-dark-800 px-5 py-3 flex items-center justify-between sticky top-0 z-10 border-b border-secondary-200 dark:border-dark-600">
                                                         <div className="flex items-center gap-2">
                                                             <FolderOpen className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                                                            <h4 className="font-semibold text-sm text-dark-900 dark:text-dark-50">{module}</h4>
+                                                            <h4 className="font-semibold text-sm text-dark-900 dark:text-dark-50">{modulIzinLabel(module)}</h4>
                                                             <Badge variant="zinc" size="sm">{perms.length}</Badge>
                                                         </div>
 
@@ -599,11 +603,11 @@ export default function PermissionsIndex() {
                                                             <div className="flex gap-1.5">
                                                                 <Button variant="ghost" size="sm" onClick={() => syncModule(module, 'grant')}>
                                                                     <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                                                                    Semua
+                                                                    {t('Semua')}
                                                                 </Button>
                                                                 <Button variant="ghost" size="sm" onClick={() => syncModule(module, 'revoke')}>
                                                                     <X className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                                                                    None
+                                                                    {t('Tidak ada')}
                                                                 </Button>
                                                             </div>
                                                         )}
@@ -623,15 +627,20 @@ export default function PermissionsIndex() {
                                                                             !canEditRole ? 'cursor-not-allowed opacity-70' : 'cursor-pointer',
                                                                         )}
                                                                     >
-                                                                        <span
-                                                                            className={cn(
-                                                                                'text-xs flex-1 font-mono',
-                                                                                checked
-                                                                                    ? 'text-primary-700 dark:text-primary-200 font-medium'
-                                                                                    : 'text-dark-700 dark:text-dark-300',
-                                                                            )}
-                                                                        >
-                                                                            {permission.name}
+                                                                        <span className="flex-1 min-w-0">
+                                                                            <span
+                                                                                className={cn(
+                                                                                    'block text-xs',
+                                                                                    checked
+                                                                                        ? 'text-primary-700 dark:text-primary-200 font-medium'
+                                                                                        : 'text-dark-700 dark:text-dark-300',
+                                                                                )}
+                                                                            >
+                                                                                {izinLabel(permission.name)}
+                                                                            </span>
+                                                                            <span className="block font-mono text-[10px] text-dark-500 dark:text-dark-400">
+                                                                                {permission.name}
+                                                                            </span>
                                                                         </span>
                                                                         <Checkbox
                                                                             checked={checked}
@@ -645,7 +654,7 @@ export default function PermissionsIndex() {
                                                                             type="button"
                                                                             onClick={() => setDeletingPermission(permission)}
                                                                             className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
-                                                                            title="Hapus permission"
+                                                                            title={t('Hapus izin')}
                                                                         >
                                                                             <X className="w-3 h-3" />
                                                                         </button>
@@ -664,8 +673,8 @@ export default function PermissionsIndex() {
                             <div className="rounded-xl border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-700 py-20">
                                 <EmptyState
                                     icon={<Shield className="w-12 h-12" />}
-                                    title="Pilih peran"
-                                    description="Pilih salah satu peran di samping untuk melihat dan mengatur permission-nya."
+                                    title={t('Pilih peran')}
+                                    description={t('Pilih salah satu peran di samping untuk melihat dan mengatur izinnya.')}
                                 />
                             </div>
                         )}
@@ -691,16 +700,16 @@ export default function PermissionsIndex() {
                 open={deletingRole !== null}
                 onOpenChange={(open) => !open && setDeletingRole(null)}
                 onConfirm={confirmDeleteRole}
-                title="Hapus Peran"
+                title={t('Hapus Peran')}
                 description={
                     deletingRole
                         ? deletingRole.users_count > 0
-                            ? `Peran "${deletingRole.name}" memiliki ${deletingRole.users_count} pengguna. Mereka akan dipindahkan ke peran dengan permission paling sedikit.`
-                            : `Apakah Anda yakin ingin menghapus peran "${deletingRole.name}"?`
+                            ? t('Peran "{{name}}" memiliki {{count}} pengguna. Mereka akan dipindahkan ke peran dengan izin paling sedikit.', { name: roleLabel(deletingRole.name), count: deletingRole.users_count })
+                            : t('Apakah Anda yakin ingin menghapus peran "{{name}}"?', { name: roleLabel(deletingRole.name) })
                         : ''
                 }
                 variant={deletingRole && deletingRole.users_count > 0 ? 'warning' : 'danger'}
-                confirmLabel="Hapus Peran"
+                confirmLabel={t('Hapus Peran')}
                 loading={deleteProcessing}
             />
 
@@ -709,14 +718,14 @@ export default function PermissionsIndex() {
                 open={deletingPermission !== null}
                 onOpenChange={(open) => !open && setDeletingPermission(null)}
                 onConfirm={confirmDeletePermission}
-                title="Hapus Permission"
+                title={t('Hapus Izin')}
                 description={
                     deletingPermission
-                        ? `Permission "${deletingPermission.name}" akan dicabut dari semua peran sebelum dihapus. Lanjutkan?`
+                        ? t('Izin "{{name}}" akan dicabut dari semua peran sebelum dihapus. Lanjutkan?', { name: izinLabel(deletingPermission.name) })
                         : ''
                 }
                 variant="danger"
-                confirmLabel="Hapus Permission"
+                confirmLabel={t('Hapus Izin')}
                 loading={deleteProcessing}
             />
 
@@ -725,10 +734,10 @@ export default function PermissionsIndex() {
                 open={confirmGrantAll}
                 onOpenChange={setConfirmGrantAll}
                 onConfirm={() => syncAll('grant')}
-                title="Beri Semua Permission"
-                description={selectedRole ? `Berikan semua permission ke peran "${selectedRole.name}"?` : ''}
+                title={t('Beri Semua Izin')}
+                description={selectedRole ? t('Berikan semua izin ke peran "{{name}}"?', { name: roleLabel(selectedRole.name) }) : ''}
                 variant="warning"
-                confirmLabel="Beri Semua"
+                confirmLabel={t('Beri Semua')}
             />
 
             {/* Revoke all */}
@@ -736,10 +745,10 @@ export default function PermissionsIndex() {
                 open={confirmRevokeAll}
                 onOpenChange={setConfirmRevokeAll}
                 onConfirm={() => syncAll('revoke')}
-                title="Cabut Semua Permission"
-                description={selectedRole ? `Cabut semua permission dari peran "${selectedRole.name}"?` : ''}
+                title={t('Cabut Semua Izin')}
+                description={selectedRole ? t('Cabut semua izin dari peran "{{name}}"?', { name: roleLabel(selectedRole.name) }) : ''}
                 variant="danger"
-                confirmLabel="Cabut Semua"
+                confirmLabel={t('Cabut Semua')}
             />
         </>
     );

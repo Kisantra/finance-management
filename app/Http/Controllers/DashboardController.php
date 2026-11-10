@@ -35,9 +35,6 @@ class DashboardController extends Controller
 
     private const PENDING = ['sent', 'partially_paid', 'overdue'];
 
-    /** Irisan donat Pengeluaran untuk sisa debit transfer bertautan (jumlah + biaya admin − yang pindah). */
-    private const BIAYA_ADMIN_TRANSFER = 'Biaya admin transfer';
-
     /**
      * Kelompok transfer antar akun sendiri per rentang (BankTransaction::internalTransferGroups()),
      * dipakai kartu Arus Kas dan kedua donat bulan berjalan: dihitung sekali per request.
@@ -125,7 +122,7 @@ class DashboardController extends Controller
             }
         }
 
-        abort(403, 'Akun Anda belum memiliki akses ke modul mana pun. Hubungi administrator.');
+        abort(403, __('Akun Anda belum memiliki akses ke modul mana pun. Hubungi administrator.'));
     }
 
     /**
@@ -364,7 +361,7 @@ class DashboardController extends Controller
             }
 
             $biayaAdmin = $type === 'debit' && $group->linked !== null && $group->credit > 0;
-            $nama = $biayaAdmin ? self::BIAYA_ADMIN_TRANSFER : ($group->category ?? 'Lainnya');
+            $nama = $biayaAdmin ? __('Biaya admin transfer') : ($group->category ?? __('Lainnya'));
             $sisaTransfer[$nama] = ($sisaTransfer[$nama] ?? 0) + $sisa;
         }
         foreach ($sisaTransfer as $nama => $nilai) {
@@ -374,7 +371,7 @@ class DashboardController extends Controller
         if ($type === 'credit') {
             $payments = (int) Payment::whereBetween('payment_date', [$start, $end])->sum('amount');
             if ($payments > 0) {
-                $grouped->push(['name' => 'Pembayaran invoice', 'value' => $payments]);
+                $grouped->push(['name' => __('Pembayaran invoice'), 'value' => $payments]);
             }
         }
 
@@ -389,7 +386,7 @@ class DashboardController extends Controller
 
         $other = $rest + $uncategorized;
         if ($other > 0) {
-            $top->push(['name' => $rest > 0 ? 'Lainnya' : 'Tanpa kategori', 'value' => $other]);
+            $top->push(['name' => $rest > 0 ? __('Lainnya') : __('Tanpa kategori'), 'value' => $other]);
         }
 
         return $top->values()->toArray();
@@ -479,7 +476,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($tx) => [
                 'date' => $tx->transaction_date?->format('Y-m-d'),
-                'description' => $tx->description ?: ($tx->category->label ?? 'Transaksi bank'),
+                'description' => $tx->description ?: ($tx->category->label ?? __('Transaksi bank')),
                 'type' => $tx->transaction_type === 'credit' ? 'income' : 'expense',
                 'amount' => (int) $tx->amount,
                 'account' => $tx->bankAccount->account_name ?? '-',
@@ -492,7 +489,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($p) => [
                 'date' => $p->payment_date?->format('Y-m-d'),
-                'description' => 'Pembayaran '.($p->invoice->invoice_number ?? 'invoice').' · '.$p->invoice->client->name,
+                'description' => __('Pembayaran :nomor · :klien', ['nomor' => $p->invoice->invoice_number ?? __('tanpa nomor'), 'klien' => $p->invoice->client->name]),
                 'type' => 'income',
                 'amount' => (int) $p->amount,
                 'account' => $p->bankAccount->account_name ?? '-',

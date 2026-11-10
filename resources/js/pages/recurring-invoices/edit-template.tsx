@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import * as React from 'react';
 import { TemplateForm } from './create-template';
+import { t } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import type { SharedProps } from '@/types';
@@ -59,7 +60,7 @@ function EditTemplatePage() {
 
     return (
         <>
-            <Head title={`Edit Template — ${template.template_name}`} />
+            <Head title={t('Ubah Template — {{name}}', { name: template.template_name })} />
             <div className="space-y-6">
                 <div className="flex items-center gap-3">
                     <Link
@@ -70,7 +71,7 @@ function EditTemplatePage() {
                     </Link>
                     <div>
                         <h1 className="text-2xl sm:text-4xl font-bold bg-linear-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent">
-                            Edit Template Recurring
+                            {t('Ubah Template')}
                         </h1>
                         <p className="text-gray-600 dark:text-zinc-400 text-sm sm:text-lg">
                             {template.template_name}
@@ -83,7 +84,7 @@ function EditTemplatePage() {
                     services={services}
                     submitUrl={companyUrl(`/recurring-invoices/templates/${template.id}`)}
                     method="put"
-                    submitLabel="Perbarui Template"
+                    submitLabel={t('Perbarui Template')}
                     isEdit={true}
                     initialData={initialData}
                 />

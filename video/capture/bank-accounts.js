@@ -4,7 +4,7 @@
  * 2. Playwright MCP: browser_run_code_unsafe, filename: video/capture/bank-accounts.js
  * 3. python video/capture/to-webp.py bank-accounts, lalu salin koordinat hasilnya ke video/bank-accounts/shots.ts.
  * Jalankan SEBELUM video/capture/transaction-categories.js (kategori "Langganan Software" & "Biaya Langganan (lama)" dibuat di sini).
- * Prasyarat data QC: sub-kategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R dikosongkan).
+ * Prasyarat data QC: subkategori pemasukan "Sewa Ruang Rapat" (induk Pendapatan Usaha (Tanpa Invoice), grup L/R dikosongkan).
  * Label kategori mengikuti template kategori perusahaan baru (TransactionCategorySeeder, 9 Nov 2026). Teks guide/steps
  * modul ini masih menyebut label lama sampai screenshot-nya diambil ulang — perbarui keduanya bersamaan.
  * Membuat di DB QC: 2 rekening (BRI - Proyek Klien, Jago - Kas Kecil), 2 kategori pengeluaran, 2 pengeluaran,
@@ -27,7 +27,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -35,7 +35,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -79,7 +79,7 @@ async (page) => {
     await p.keyboard.type(digits);
   };
   const accountBtn = (p, name) => p.getByRole('button', { name: new RegExp(name) }).first();
-  /** Gulir daftar rekening di sidebar agar rekening `name` terlihat (daftar punya scroll sendiri). */
+  /** Gulir daftar rekening di daftar akun agar rekening `name` terlihat (daftar punya scroll sendiri). */
   const reveal = (p, name) => accountBtn(p, name).evaluate((el) => {
     const c = el.parentElement;
     c.scrollTop += el.getBoundingClientRect().top - c.getBoundingClientRect().top - 8;
@@ -102,7 +102,7 @@ async (page) => {
     month: m.getByRole('button', { name: /Semua bulan|Okt/ }).first(),
     stats: parentOf(m.getByText('Arus Bersih').last().locator('xpath=../../..')),
     chart: parentOf(parentOf(m.getByRole('heading', { name: 'Pemasukan vs Pengeluaran' }))),
-    breakdown: parentOf(parentOf(m.getByRole('heading', { name: 'Breakdown Kategori' }))),
+    breakdown: parentOf(parentOf(m.getByRole('heading', { name: 'Rincian per Kategori' }))),
   });
   await snap(m, 'fm-overview', header());
 
@@ -194,7 +194,7 @@ async (page) => {
     await top(m).getByLabel('Nama Kategori *').fill('Langganan Software');
     await snap(m, 'fm-quick-category', {
       dialog: top(m),
-      mode: parentOf(top(m).getByRole('button', { name: 'Sub Kategori' })),
+      mode: parentOf(top(m).getByRole('button', { name: 'Subkategori' })),
       group: top(m).getByLabel('Kelompok Kategori *'),
       name: top(m).getByLabel('Nama Kategori *'),
       save: top(m).getByRole('button', { name: 'Tambah', exact: true }),
@@ -271,7 +271,7 @@ async (page) => {
     fee: top(m).getByLabel('Biaya Admin'),
     description: top(m).getByLabel('Deskripsi *'),
     upload: parentOf(top(m).locator('input[type=file]')),
-    summary: parentOf(top(m).getByText('Total Debit', { exact: true }).locator('xpath=../..')),
+    summary: parentOf(top(m).getByText('Total Keluar', { exact: true }).locator('xpath=../..')),
     submit: top(m).getByRole('button', { name: 'Lakukan Transfer' }),
   });
   await snap(m, 'fm-transfer-empty', tf());
@@ -283,7 +283,7 @@ async (page) => {
   await top(m).getByLabel('Deskripsi *').fill('Isi kas kecil proyek Oktober');
   await snap(m, 'fm-transfer-filled', tf());
   await top(m).getByRole('button', { name: 'Lakukan Transfer' }).evaluate((el) => el.closest('form')?.scrollIntoView({ block: 'end' }));
-  await top(m).getByText('Total Debit', { exact: true }).scrollIntoViewIfNeeded();
+  await top(m).getByText('Total Keluar', { exact: true }).scrollIntoViewIfNeeded();
   await snap(m, 'fm-transfer-submit', tf());
   if (!made.transfer) {
     await top(m).getByRole('button', { name: 'Lakukan Transfer' }).click();
@@ -345,12 +345,12 @@ async (page) => {
   await snap(m, 'fm-menu', {
     more,
     menu: m.getByRole('menu'),
-    edit: m.getByRole('menuitem', { name: 'Edit Rekening' }),
-    exportPdf: m.getByRole('menuitem', { name: 'Export PDF' }),
+    edit: m.getByRole('menuitem', { name: 'Ubah Rekening' }),
+    exportPdf: m.getByRole('menuitem', { name: 'Ekspor PDF' }),
     remove: m.getByRole('menuitem', { name: 'Hapus Rekening' }),
   });
-  await m.getByRole('menuitem', { name: 'Edit Rekening' }).click();
-  await top(m).getByText('Edit Rekening Bank').waitFor();
+  await m.getByRole('menuitem', { name: 'Ubah Rekening' }).click();
+  await top(m).getByText('Ubah Rekening Bank').waitFor();
   await top(m).getByLabel('Saldo Awal *').focus();
   await snap(m, 'fm-account-edit', { dialog: top(m), initial: top(m).getByLabel('Saldo Awal *'), hint: top(m).getByText('Mengubah saldo awal akan menggeser saldo total.'), submit: top(m).getByRole('button', { name: 'Simpan Perubahan' }) });
   await top(m).getByRole('button', { name: 'Batal' }).click();
@@ -371,7 +371,7 @@ async (page) => {
     jago: accountBtn(a, 'Jago - Kas Kecil'),
     total: parentOf(a.getByRole('heading', { name: 'Ringkasan Total' })),
     stats: parentOf(a.getByText('Arus Bersih').last().locator('xpath=../../..')),
-    breakdown: parentOf(parentOf(a.getByRole('heading', { name: 'Breakdown Kategori' }))),
+    breakdown: parentOf(parentOf(a.getByRole('heading', { name: 'Rincian per Kategori' }))),
   });
 
   await a.goto(BASE + '/cash-flow/expenses?search=Google%20Workspace');

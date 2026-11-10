@@ -481,7 +481,7 @@ class InvoiceControllerTest extends TestCase
 
         $this->actingAs($this->admin)->postJson("/invoices/{$draft->id}/send", ['invoice_number' => '002/INV/SPI-XX/III/2026'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Hanya invoice draft yang dapat dikirim.');
+            ->assertJsonPath('message', 'Hanya invoice draft yang dapat diterbitkan.');
 
         $this->actingAs($this->admin)->postJson("/invoices/{$draft->id}/rollback")->assertOk();
         $this->assertSame('draft', $draft->fresh()->status);

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { AccountListItem, OverallSummary } from '../types';
+import { t, Trans } from '@/i18n';
 
 /** Ikon jenis akun: gedung = rekening bank, dompet = kas tunai. */
 export function AccountTypeIcon({ account, className }: { account: Pick<AccountListItem, 'type'>; className?: string }) {
@@ -48,7 +49,7 @@ export function AccountSubtitle({ account }: { account: AccountListItem }) {
     return (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-dark-500 dark:text-dark-400">
             <Badge variant="outline" size="sm" className="shrink-0">
-                Kas
+                {t('Kas')}
             </Badge>
             {account.custodian_name && <span className="min-w-0 break-words">{account.custodian_name}</span>}
         </div>
@@ -76,7 +77,7 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                     <div className="px-4 py-3 border-b border-secondary-200 dark:border-dark-600 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50 flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                            Akun
+                            {t('Akun')}
                         </h3>
                         <span className="text-xs text-dark-500 dark:text-dark-400 font-medium">
                             {accounts.length}
@@ -98,7 +99,7 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                                 className="group w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 border-dashed border-zinc-300 dark:border-dark-600 hover:border-primary-400 dark:hover:border-primary-500 text-dark-400 dark:text-dark-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                             >
                                 <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
-                                <span className="text-xs font-medium">Tambah Akun</span>
+                                <span className="text-xs font-medium">{t('Tambah Akun')}</span>
                             </button>
                         )}
                     </div>
@@ -107,22 +108,22 @@ export function AccountSidebar({ accounts, selectedAccountId, overall, onSelect,
                 {/* Overall summary */}
                 <div className="bg-white dark:bg-dark-700 rounded-xl border border-secondary-200 dark:border-dark-600 p-4 space-y-3">
                     <h4 className="text-[11px] font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                        Ringkasan Total
+                        {t('Ringkasan Total')}
                     </h4>
 
-                    <SummaryRow label="Total Saldo" value={overall.total_balance} bold accent="primary" />
-                    <SummaryRow label="Total Bank" value={overall.total_bank} accent="primary" icon={<Building2 className="w-3.5 h-3.5" />} />
-                    <SummaryRow label="Total Kas" value={overall.total_cash} accent="primary" icon={<Wallet className="w-3.5 h-3.5" />} />
+                    <SummaryRow label={t('Total Saldo')} value={overall.total_balance} bold accent="primary" />
+                    <SummaryRow label={t('Total Bank')} value={overall.total_bank} accent="primary" icon={<Building2 className="w-3.5 h-3.5" />} />
+                    <SummaryRow label={t('Total Kas')} value={overall.total_cash} accent="primary" icon={<Wallet className="w-3.5 h-3.5" />} />
 
                     <div className="h-px bg-secondary-200 dark:bg-dark-600" />
 
-                    <SummaryRow label="Pemasukan" value={overall.income} accent="green" dot />
-                    <SummaryRow label="Pengeluaran" value={overall.expense} accent="red" dot />
+                    <SummaryRow label={t('Pemasukan')} value={overall.income} accent="green" dot />
+                    <SummaryRow label={t('Pengeluaran')} value={overall.expense} accent="red" dot />
 
                     <div className="h-px bg-secondary-200 dark:bg-dark-600" />
 
                     <SummaryRow
-                        label="Arus Bersih"
+                        label={t('Arus Bersih')}
                         value={net}
                         bold
                         accent={net >= 0 ? 'blue' : 'orange'}
@@ -175,7 +176,7 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
                         {account.account_name}
                     </span>
                     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dark-500 dark:text-dark-400">
-                        {account.type === 'cash' && <Badge variant="outline" size="sm" className="shrink-0">Kas</Badge>}
+                        {account.type === 'cash' && <Badge variant="outline" size="sm" className="shrink-0">{t('Kas')}</Badge>}
                         <AccountDetailText account={account} />
                         <span className="ml-auto shrink-0">
                             {account.trend === 'up' ? (
@@ -209,7 +210,11 @@ function AccountItem({ account, active, onSelect }: AccountItemProps) {
 
             {account.refill_amount > 0 && (
                 <div className="mt-1 pl-12 text-xs font-medium text-ob-wait">
-                    Perlu isi ulang <span className="whitespace-nowrap">{formatCurrency(account.refill_amount)}</span>
+                    <Trans
+                        i18nKey="Perlu isi ulang <b>{{amount}}</b>"
+                        values={{ amount: formatCurrency(account.refill_amount) }}
+                        components={{ b: <span className="whitespace-nowrap" /> }}
+                    />
                 </div>
             )}
         </button>
@@ -231,7 +236,7 @@ function AccountDetailText({ account }: { account: AccountListItem }) {
                 <TooltipTrigger asChild>
                     <span className="min-w-0 truncate">{text}</span>
                 </TooltipTrigger>
-                <TooltipContent>{account.type === 'cash' ? `Penanggung jawab: ${text}` : text}</TooltipContent>
+                <TooltipContent>{account.type === 'cash' ? t('Penanggung jawab: {{name}}', { name: text }) : text}</TooltipContent>
             </Tooltip>
         </TooltipProvider>
     );
@@ -334,7 +339,11 @@ export function MobileAccountSwitcher({
                                 </div>
                                 {account.refill_amount > 0 && (
                                     <div className="mt-0.5 text-xs font-medium text-ob-wait">
-                                        Isi ulang <span className="whitespace-nowrap">{formatCurrency(account.refill_amount)}</span>
+                                        <Trans
+                                            i18nKey="Isi ulang <b>{{amount}}</b>"
+                                            values={{ amount: formatCurrency(account.refill_amount) }}
+                                            components={{ b: <span className="whitespace-nowrap" /> }}
+                                        />
                                     </div>
                                 )}
                             </button>
@@ -346,7 +355,7 @@ export function MobileAccountSwitcher({
                             className="shrink-0 w-32 p-3 rounded-xl border-2 border-dashed border-zinc-300 dark:border-dark-600 hover:border-primary-400 dark:hover:border-primary-500 flex flex-col items-center justify-center gap-2 transition-colors"
                         >
                             <Plus className="w-5 h-5 text-dark-400 dark:text-dark-500" />
-                            <span className="text-xs text-dark-500 dark:text-dark-400">Tambah</span>
+                            <span className="text-xs text-dark-500 dark:text-dark-400">{t('Tambah')}</span>
                         </button>
                     )}
                 </div>
@@ -358,11 +367,11 @@ export function MobileAccountSwitcher({
               * "Rp 51.500.000" terpotong (QA UX-01).
               */}
             <div className="grid grid-cols-2 gap-2">
-                <CompactStat label="Total Saldo" value={overall.total_balance} tone="primary" className="col-span-2" />
-                <CompactStat label="Total Bank" value={overall.total_bank} tone="primary" />
-                <CompactStat label="Total Kas" value={overall.total_cash} tone="primary" />
-                <CompactStat label="Pemasukan" value={overall.income} tone="green" />
-                <CompactStat label="Pengeluaran" value={overall.expense} tone="red" />
+                <CompactStat label={t('Total Saldo')} value={overall.total_balance} tone="primary" className="col-span-2" />
+                <CompactStat label={t('Total Bank')} value={overall.total_bank} tone="primary" />
+                <CompactStat label={t('Total Kas')} value={overall.total_cash} tone="primary" />
+                <CompactStat label={t('Pemasukan')} value={overall.income} tone="green" />
+                <CompactStat label={t('Pengeluaran')} value={overall.expense} tone="red" />
             </div>
         </div>
     );

@@ -212,7 +212,7 @@
     @endif
 
     <div class="footer-meta">
-        <span>Dicetak: {{ now()->isoFormat('D MMMM Y HH:mm') }} WIB</span>
+        <span>Dicetak: {{ now()->isoFormat('D MMMM Y HH:mm') }} {{ now()->format('T') }}</span>
         <span>Basis: Kas · Cost-Recovery HPP</span>
     </div>
 

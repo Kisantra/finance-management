@@ -368,11 +368,11 @@ class Reimbursement extends Model
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
-            'draft' => 'Draft',
-            'pending' => 'Menunggu review',
-            'approved' => 'Disetujui',
-            'rejected' => 'Ditolak',
-            'paid' => 'Lunas',
+            'draft' => __('Draft'),
+            'pending' => __('Menunggu persetujuan'),
+            'approved' => __('Disetujui'),
+            'rejected' => __('Ditolak'),
+            'paid' => __('Lunas'),
             default => ucfirst($this->status),
         };
     }
@@ -380,9 +380,9 @@ class Reimbursement extends Model
     public function getPaymentStatusLabelAttribute(): string
     {
         return match ($this->payment_status) {
-            'unpaid' => 'Belum Dibayar',
-            'partial' => 'Cicilan',
-            'paid' => 'Lunas',
+            'unpaid' => __('Belum Dibayar'),
+            'partial' => __('Cicilan'),
+            'paid' => __('Lunas'),
             default => ucfirst($this->payment_status),
         };
     }
@@ -406,7 +406,7 @@ class Reimbursement extends Model
             }
         }
 
-        return $value ? ucfirst($value) : 'Lainnya';
+        return $value ? ucfirst($value) : __('Lainnya');
     }
 
     // =====================================
@@ -421,24 +421,24 @@ class Reimbursement extends Model
     public static function categories(): array
     {
         return [
-            ['label' => 'Transportasi', 'value' => 'transport'],
-            ['label' => 'Makan & jamuan', 'value' => 'meals'],
-            ['label' => 'Perlengkapan kantor', 'value' => 'office_supplies'],
-            ['label' => 'Komunikasi', 'value' => 'communication'],
-            ['label' => 'Akomodasi', 'value' => 'accommodation'],
-            ['label' => 'Kesehatan', 'value' => 'medical'],
-            ['label' => 'Lainnya', 'value' => 'other'],
+            ['label' => __('Transportasi'), 'value' => 'transport'],
+            ['label' => __('Makan & jamuan'), 'value' => 'meals'],
+            ['label' => __('Perlengkapan kantor'), 'value' => 'office_supplies'],
+            ['label' => __('Komunikasi'), 'value' => 'communication'],
+            ['label' => __('Akomodasi'), 'value' => 'accommodation'],
+            ['label' => __('Kesehatan'), 'value' => 'medical'],
+            ['label' => __('Lainnya'), 'value' => 'other'],
         ];
     }
 
     public static function statuses(): array
     {
         return [
-            ['label' => 'Draft', 'value' => 'draft'],
-            ['label' => 'Menunggu review', 'value' => 'pending'],
-            ['label' => 'Disetujui', 'value' => 'approved'],
-            ['label' => 'Ditolak', 'value' => 'rejected'],
-            ['label' => 'Lunas', 'value' => 'paid'],
+            ['label' => __('Draft'), 'value' => 'draft'],
+            ['label' => __('Menunggu persetujuan'), 'value' => 'pending'],
+            ['label' => __('Disetujui'), 'value' => 'approved'],
+            ['label' => __('Ditolak'), 'value' => 'rejected'],
+            ['label' => __('Lunas'), 'value' => 'paid'],
         ];
     }
 

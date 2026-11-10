@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { t } from '@/i18n';
 import {
     type ColumnDef,
     type SortingState,
@@ -42,7 +43,7 @@ export function DataTable<TData>({
     sorting = [],
     onSortingChange,
     onPageChange,
-    emptyMessage = 'Tidak ada data.',
+    emptyMessage = t('Tidak ada data.'),
     className,
 }: DataTableProps<TData>) {
     const table = useReactTable({
@@ -124,7 +125,7 @@ export function DataTable<TData>({
                             Array.from({ length: 5 }, (_, i) => (
                                 <tr key={`skeleton-${i}`} className="border-b border-ob-line-soft">
                                     <td colSpan={columns.length} className="px-3 py-2.5">
-                                        {i === 0 && <span className="sr-only">Memuat...</span>}
+                                        {i === 0 && <span className="sr-only">{t('Memuat...')}</span>}
                                         <Skeleton className="h-9 rounded-xl bg-ob-inner" />
                                     </td>
                                 </tr>

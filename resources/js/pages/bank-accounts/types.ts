@@ -3,6 +3,8 @@
 import type { ManagedBy } from '@/components/shared/financing';
 import type { JournalLine } from '@/lib/journal';
 
+import { t } from '@/i18n';
+
 /** `bank` = rekening bank, `cash` = kas tunai / kas kecil (nomor diisi kode KAS-xxxx, bank "Tunai"). */
 export type AccountType = 'bank' | 'cash';
 
@@ -141,4 +143,14 @@ export interface AccountPickerItem {
     bank_name: string;
     /** Nama akun ini di jurnal (BankAccount::journalNameFor). */
     journal_name: string;
+    /** Jenis akun; bila ada, akun kas ditampilkan "Tunai" sesuai bahasa, bukan nilai tersimpan. */
+    type?: AccountType;
+}
+
+/**
+ * Label tampilan nama bank: akun kas menyimpan `bank_name = 'Tunai'` (data), tetapi yang tampil
+ * diturunkan dari jenis akun supaya ikut bahasa aktif.
+ */
+export function bankNameLabel(bankName: string, type?: AccountType | string | null): string {
+    return type === 'cash' || (type == null && bankName === 'Tunai') ? t('Tunai') : bankName;
 }

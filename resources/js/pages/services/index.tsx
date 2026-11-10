@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { t, tk } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { formatCurrency, toastErrors } from '@/lib/utils';
@@ -76,12 +77,20 @@ interface Props extends SharedProps {
 
 /* ─────────────────────────────────── helpers ─── */
 
+/**
+ * Kategori layanan = kode yang DISIMPAN (ServiceController::TYPES) sekaligus teks Indonesianya, jadi
+ * kodenya adalah kunci terjemahan: tampilkan t(kode), simpan & saring tetap memakai kode. tk() menandai
+ * keempat kode supaya pemindai ikut memeriksa kamusnya.
+ */
 const TYPE_COLORS: Record<string, 'blue' | 'green' | 'purple' | 'yellow'> = {
-    'Perizinan': 'blue',
-    'Administrasi Perpajakan': 'green',
-    'Digital Marketing': 'purple',
-    'Sistem Digital': 'yellow',
+    [tk('Perizinan')]: 'blue',
+    [tk('Administrasi Perpajakan')]: 'green',
+    [tk('Digital Marketing')]: 'purple',
+    [tk('Sistem Digital')]: 'yellow',
 };
+
+/** Opsi Combobox kategori: value = kode, label = terjemahannya. */
+const typeOptions = (types: string[]) => types.map((type) => ({ value: type, label: t(type) }));
 
 /* ─────────────────────────────────── service form ─── */
 
@@ -108,32 +117,32 @@ function ServiceForm({ form, types, onCancel, title, submitLabel }: ServiceFormP
                     </div>
                     <div>
                         <DialogTitle className="text-xl font-bold text-dark-900 dark:text-dark-50">{title}</DialogTitle>
-                        <p className="text-sm text-dark-500 dark:text-dark-400">Nama, kategori, dan harga layanan</p>
+                        <p className="text-sm text-dark-500 dark:text-dark-400">{t('Nama, kategori, dan harga layanan')}</p>
                     </div>
                 </div>
             </DialogHeader>
 
             <div className="px-6 py-4 space-y-4">
                 <Input
-                    label="Nama Layanan *"
+                    label={t('Nama Layanan *')}
                     value={form.data.name}
                     onChange={(e) => form.setData('name', e.target.value)}
                     error={form.errors.name}
-                    placeholder="Contoh: Pembuatan NPWP Badan"
+                    placeholder={t('Contoh: Pembuatan NPWP Badan')}
                 />
 
                 <Combobox
-                    label="Kategori *"
-                    options={types.map((t) => ({ value: t, label: t }))}
+                    label={t('Kategori *')}
+                    options={typeOptions(types)}
                     value={form.data.type || null}
                     onChange={(v) => form.setData('type', v != null ? String(v) : '')}
-                    placeholder="Pilih Kategori"
+                    placeholder={t('Pilih Kategori')}
                     clearable={false}
                     error={form.errors.type}
                 />
 
                 <CurrencyInput
-                    label="Harga *"
+                    label={t('Harga *')}
                     value={form.data.price}
                     onChange={(v) => form.setData('price', v)}
                     error={form.errors.price}
@@ -142,7 +151,7 @@ function ServiceForm({ form, types, onCancel, title, submitLabel }: ServiceFormP
 
             <DialogFooter>
                 <Button variant="zinc" onClick={onCancel} disabled={form.processing} className="w-full sm:w-auto order-2 sm:order-1">
-                    Batal
+                    {t('Batal')}
                 </Button>
                 <Button type="submit" variant="primary" loading={form.processing} className="w-full sm:w-auto order-1 sm:order-2">
                     {submitLabel}
@@ -168,10 +177,10 @@ export default function ServicesIndex() {
     const isMounted = React.useRef(false);
     React.useEffect(() => {
         if (!isMounted.current) { isMounted.current = true; return; }
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             router.get(companyUrl('/services'), { search: search || undefined, type: typeFilter || undefined, per_page: filters.per_page }, { preserveState: true, replace: true });
         }, 300);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
     }, [search]);
 
     function handleTypeFilter(val: string) {
@@ -185,7 +194,7 @@ export default function ServicesIndex() {
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
         createForm.post(companyUrl('/services'), {
-            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Layanan berhasil ditambahkan.'); },
+            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success(t('Layanan berhasil ditambahkan.')); },
             onError: (errs) => toastErrors(errs, 'CreateService'),
         });
     }
@@ -202,7 +211,7 @@ export default function ServicesIndex() {
         e.preventDefault();
         if (!editTarget) return;
         editForm.put(companyUrl(`/services/${editTarget.id}`), {
-            onSuccess: () => { setEditTarget(null); toast.success('Layanan berhasil diperbarui.'); },
+            onSuccess: () => { setEditTarget(null); toast.success(t('Layanan berhasil diperbarui.')); },
             onError: (errs) => toastErrors(errs, 'UpdateService'),
         });
     }
@@ -213,7 +222,7 @@ export default function ServicesIndex() {
     function confirmDelete() {
         if (!deleteTarget) return;
         deleteForm.delete(companyUrl(`/services/${deleteTarget.id}`), {
-            onSuccess: () => { setDeleteTarget(null); toast.success('Layanan berhasil dihapus.'); },
+            onSuccess: () => { setDeleteTarget(null); toast.success(t('Layanan berhasil dihapus.')); },
             onError: (errs) => toastErrors(errs, 'DeleteService'),
         });
     }
@@ -222,32 +231,32 @@ export default function ServicesIndex() {
 
     return (
         <>
-            <Head title="Layanan" />
+            <Head title={t('Layanan', { context: 'menu' })} />
 
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="space-y-1">
                         <h1 className="text-4xl font-bold bg-linear-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent">
-                            Layanan
+                            {t('Layanan', { context: 'menu' })}
                         </h1>
                         <p className="text-gray-600 dark:text-zinc-400 text-lg">
-                            Katalog layanan dan harga
+                            {t('Katalog layanan dan harga')}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <TutorialButton slug="services" />
                         <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                            Tambah Layanan
+                            {t('Tambah Layanan')}
                         </Button>
                     </div>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <StatsCard label="Total Layanan" value={stats.total} icon={<Tag className="w-6 h-6" />} color="blue" />
-                    <StatsCard label="Rata-rata Harga" value={formatCurrency(stats.avg_price)} icon={<BarChart3 className="w-6 h-6" />} color="green" />
-                    <StatsCard label="Harga Tertinggi" value={formatCurrency(stats.highest_price)} icon={<TrendingUp className="w-6 h-6" />} color="purple" />
+                    <StatsCard label={t('Total Layanan')} value={stats.total} icon={<Tag className="w-6 h-6" />} color="blue" />
+                    <StatsCard label={t('Rata-rata Harga')} value={formatCurrency(stats.avg_price)} icon={<BarChart3 className="w-6 h-6" />} color="green" />
+                    <StatsCard label={t('Harga Tertinggi')} value={formatCurrency(stats.highest_price)} icon={<TrendingUp className="w-6 h-6" />} color="purple" />
                 </div>
 
                 {/* Filters */}
@@ -256,10 +265,10 @@ export default function ServicesIndex() {
                         <Input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Cari layanan..."
+                            placeholder={t('Cari layanan...')}
                             icon={<Search className="h-4 w-4" />}
                             iconRight={search ? (
-                                <button onClick={() => setSearch('')}>
+                                <button type="button" onClick={() => setSearch('')} aria-label={t('Hapus pencarian')}>
                                     <X className="h-3.5 w-3.5" />
                                 </button>
                             ) : undefined}
@@ -268,15 +277,15 @@ export default function ServicesIndex() {
 
                     <div className="w-full sm:w-52">
                         <Combobox
-                            options={types.map((t) => ({ value: t, label: t }))}
+                            options={typeOptions(types)}
                             value={typeFilter || null}
                             onChange={(v) => handleTypeFilter(v != null ? String(v) : '')}
-                            placeholder="Semua Kategori"
+                            placeholder={t('Semua Kategori')}
                         />
                     </div>
 
                     <span className="text-sm text-dark-500 dark:text-dark-400 shrink-0 pb-0.5">
-                        {services.from ?? 0}–{services.to ?? 0} dari {services.total}
+                        {t('{{from}}–{{to}} dari {{total}}', { from: services.from ?? 0, to: services.to ?? 0, total: services.total })}
                     </span>
                 </div>
 
@@ -285,11 +294,11 @@ export default function ServicesIndex() {
                     <table className="w-full text-sm">
                         <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
                             <tr>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Nama Layanan</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Kategori</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Harga</th>
-                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Dibuat</th>
-                                <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Aksi</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Nama Layanan')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Kategori')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Harga')}</th>
+                                <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Dibuat')}</th>
+                                <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Aksi')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -297,7 +306,7 @@ export default function ServicesIndex() {
                                 <tr>
                                     <td colSpan={5} className="px-4 py-12 text-center text-dark-400 dark:text-dark-500">
                                         <Tag className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                        <p>Belum ada layanan</p>
+                                        <p>{t('Belum ada layanan')}</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -305,7 +314,7 @@ export default function ServicesIndex() {
                                     <tr key={s.id} className="hover:bg-secondary-50/80 dark:hover:bg-dark-800/50 transition-colors">
                                         <td className="px-3 py-3 align-middle font-medium text-dark-900 dark:text-dark-50">{s.name}</td>
                                         <td className="px-3 py-3 align-middle">
-                                            <Badge variant={TYPE_COLORS[s.type] ?? 'blue'}>{s.type}</Badge>
+                                            <Badge variant={TYPE_COLORS[s.type] ?? 'blue'}>{t(s.type)}</Badge>
                                         </td>
                                         <td className="px-3 py-3 align-middle text-dark-900 dark:text-dark-50 font-medium">
                                             {formatCurrency(s.price)}
@@ -315,8 +324,8 @@ export default function ServicesIndex() {
                                         </td>
                                         <td className="px-3 py-3 align-middle">
                                             <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="icon-sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => openEdit(s)} />
-                                                <Button variant="ghost" size="icon-sm" icon={<Trash2 className="h-3.5 w-3.5 text-red-500" />} onClick={() => setDeleteTarget(s)} />
+                                                <Button variant="ghost" size="icon-sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => openEdit(s)} aria-label={t('Ubah Layanan')} />
+                                                <Button variant="ghost" size="icon-sm" icon={<Trash2 className="h-3.5 w-3.5 text-red-500" />} onClick={() => setDeleteTarget(s)} aria-label={t('Hapus Layanan')} />
                                             </div>
                                         </td>
                                     </tr>
@@ -328,16 +337,16 @@ export default function ServicesIndex() {
                     {services.last_page > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 border-t border-secondary-200 dark:border-dark-600">
                             <span className="text-sm text-dark-500 dark:text-dark-400">
-                                Halaman {services.current_page} dari {services.last_page}
+                                {t('Halaman {{page}} dari {{pages}}', { page: services.current_page, pages: services.last_page })}
                             </span>
                             <div className="flex gap-2">
                                 <Button variant="outline" size="sm" disabled={services.current_page <= 1}
                                     onClick={() => router.get(companyUrl('/services'), { ...filters, page: services.current_page - 1 }, { preserveState: true })}>
-                                    Sebelumnya
+                                    {t('Sebelumnya')}
                                 </Button>
                                 <Button variant="outline" size="sm" disabled={services.current_page >= services.last_page}
                                     onClick={() => router.get(companyUrl('/services'), { ...filters, page: services.current_page + 1 }, { preserveState: true })}>
-                                    Berikutnya
+                                    {t('Berikutnya')}
                                 </Button>
                             </div>
                         </div>
@@ -349,7 +358,7 @@ export default function ServicesIndex() {
             <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) createForm.reset(); }}>
                 <DialogContent size="md">
                     <form onSubmit={submitCreate}>
-                        <ServiceForm form={createForm} types={types} onCancel={() => { setCreateOpen(false); createForm.reset(); }} title="Tambah Layanan" submitLabel="Simpan Layanan" />
+                        <ServiceForm form={createForm} types={types} onCancel={() => { setCreateOpen(false); createForm.reset(); }} title={t('Tambah Layanan')} submitLabel={t('Simpan Layanan')} />
                     </form>
                 </DialogContent>
             </Dialog>
@@ -358,7 +367,7 @@ export default function ServicesIndex() {
             <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
                 <DialogContent size="md">
                     <form onSubmit={submitEdit}>
-                        <ServiceForm form={editForm} types={types} onCancel={() => setEditTarget(null)} title="Edit Layanan" submitLabel="Perbarui Layanan" />
+                        <ServiceForm form={editForm} types={types} onCancel={() => setEditTarget(null)} title={t('Ubah Layanan')} submitLabel={t('Perbarui Layanan')} />
                     </form>
                 </DialogContent>
             </Dialog>
@@ -367,9 +376,9 @@ export default function ServicesIndex() {
             <ConfirmDialog
                 open={!!deleteTarget}
                 onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-                title="Hapus Layanan"
-                description={deleteTarget ? `Apakah Anda yakin ingin menghapus "${deleteTarget.name}"?` : ''}
-                confirmLabel="Hapus Layanan"
+                title={t('Hapus Layanan')}
+                description={deleteTarget ? t('Apakah Anda yakin ingin menghapus "{{name}}"?', { name: deleteTarget.name }) : ''}
+                confirmLabel={t('Hapus Layanan')}
                 loading={deleteForm.processing}
                 onConfirm={confirmDelete}
             />

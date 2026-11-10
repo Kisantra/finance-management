@@ -148,7 +148,7 @@ class FeedbackController extends Controller
             return response()->json(['id' => $feedback->id], 201);
         }
 
-        return redirect()->back()->with('success', 'Feedback berhasil dikirim. Terima kasih atas masukannya.');
+        return redirect()->back()->with('success', __('Masukan berhasil dikirim. Terima kasih.'));
     }
 
     /**
@@ -178,7 +178,7 @@ class FeedbackController extends Controller
 
         $feedback->update($validated);
 
-        return redirect()->back()->with('success', 'Feedback berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Masukan berhasil diperbarui.'));
     }
 
     public function destroy(Feedback $feedback): RedirectResponse
@@ -187,12 +187,12 @@ class FeedbackController extends Controller
         abort_unless($feedback->user_id === auth()->id() || auth()->user()->can('manage feedbacks'), 403);
 
         if ($feedback->user_id === auth()->id() && ! $feedback->canDelete()) {
-            return redirect()->back()->with('error', 'Feedback yang sudah diproses tidak dapat dihapus.');
+            return redirect()->back()->with('error', __('Masukan yang sudah diproses tidak dapat dihapus.'));
         }
 
         $feedback->delete();
 
-        return redirect()->back()->with('success', 'Feedback berhasil dihapus.');
+        return redirect()->back()->with('success', __('Masukan berhasil dihapus.'));
     }
 
     public function respond(RespondFeedbackRequest $request, Feedback $feedback): RedirectResponse
@@ -208,15 +208,16 @@ class FeedbackController extends Controller
 
         $feedback->respond(auth()->id(), $validated['response'], $status);
 
-        AppNotification::notify(
+        AppNotification::notifyTerjemahan(
             $feedback->user_id,
             'feedback_responded',
-            'Tanggapan Feedback',
-            'Feedback "'.$feedback->title.'" telah ditanggapi oleh '.auth()->user()->name,
-            ['feedback_id' => $feedback->id, 'url' => route('feedbacks.index')]
+            __('Tanggapan Masukan', [], 'id'),
+            __('Masukan ":judul" telah ditanggapi oleh :nama', [], 'id'),
+            ['judul' => $feedback->title, 'nama' => auth()->user()->name],
+            ['feedback_id' => $feedback->id, 'url' => route('feedbacks.index')],
         );
 
-        return redirect()->back()->with('success', 'Tanggapan berhasil dikirim.');
+        return redirect()->back()->with('success', __('Tanggapan berhasil dikirim.'));
     }
 
     public function changeStatus(ChangeStatusFeedbackRequest $request, Feedback $feedback): RedirectResponse
@@ -225,14 +226,14 @@ class FeedbackController extends Controller
         abort_unless(auth()->user()->can('manage feedbacks'), 403);
 
         if ($feedback->statusIkutWatchpost()) {
-            return redirect()->back()->with('error', "Status laporan ini mengikuti tiket Watchpost {$feedback->watchpost_ticket_number} dan diatur tim IT di sana.");
+            return redirect()->back()->with('error', __('Status laporan ini mengikuti tiket Watchpost :nomor dan diatur tim IT di sana.', ['nomor' => $feedback->watchpost_ticket_number]));
         }
 
         $validated = $request->validated();
 
         $feedback->changeStatus($validated['status']);
 
-        return redirect()->back()->with('success', 'Status feedback diperbarui.');
+        return redirect()->back()->with('success', __('Status masukan diperbarui.'));
     }
 
     private function notifyAdmins(Feedback $feedback): void
@@ -244,12 +245,17 @@ class FeedbackController extends Controller
         $admins = User::role(['admin', 'finance manager'])->memberOfCurrentCompany()->get();
 
         foreach ($admins as $admin) {
-            AppNotification::notify(
+            AppNotification::notifyTerjemahan(
                 $admin->id,
                 'feedback_submitted',
-                'Feedback Baru',
-                $feedback->user->name.' mengirim '.$feedback->type_label.': '.$feedback->title,
-                ['feedback_id' => $feedback->id, 'url' => route('feedbacks.index')]
+                __('Masukan Baru', [], 'id'),
+                __(':nama mengirim :jenis: :judul', [], 'id'),
+                [
+                    'nama' => $feedback->user->name,
+                    'jenis' => ['trans' => 'feedback.type_'.$feedback->type],
+                    'judul' => $feedback->title,
+                ],
+                ['feedback_id' => $feedback->id, 'url' => route('feedbacks.index')],
             );
         }
     }

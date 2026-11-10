@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 /*
@@ -30,7 +31,7 @@ interface Layer {
     ready: boolean;
 }
 
-export function InvoicePaper({ src, zoom = 'fit', stale, title = 'Pratinjau invoice', className }: InvoicePaperProps) {
+export function InvoicePaper({ src, zoom = 'fit', stale, title, className }: InvoicePaperProps) {
     const boxRef = React.useRef<HTMLDivElement>(null);
     const [width, setWidth] = React.useState(620);
     const [layers, setLayers] = React.useState<Layer[]>([]);
@@ -67,7 +68,7 @@ export function InvoicePaper({ src, zoom = 'fit', stale, title = 'Pratinjau invo
             {layers.map((layer, i) => (
                 <iframe
                     key={`${layer.src}${hash}`}
-                    title={title}
+                    title={title ?? t('Pratinjau invoice')}
                     src={layer.src + hash}
                     onLoad={() => onLoad(layer.src)}
                     tabIndex={i === layers.length - 1 ? 0 : -1}

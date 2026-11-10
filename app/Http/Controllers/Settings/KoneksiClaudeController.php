@@ -87,7 +87,7 @@ class KoneksiClaudeController extends Controller
         $tokenUser()->where('revoked', false)->update(['revoked' => true]);
 
         return redirect()->route('settings.claude')
-            ->with('success', 'Sambungan Claude dicabut. Claude harus login dan meminta izin lagi.');
+            ->with('success', __('Sambungan Claude dicabut. Claude harus masuk dan meminta izin lagi.'));
     }
 
     /**

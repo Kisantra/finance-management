@@ -27,8 +27,7 @@ class BulkDestroyBankTransactionRequest extends FormRequest
 
         // Pokok utang/piutang dikelola modul Utang/Piutang: satu saja di seleksi, seluruhnya ditolak.
         if ($transactions->contains(fn (BankTransaction $t): bool => $t->moduleLockMessage() !== null)) {
-            $this->pesanKunci = 'Seleksi berisi pokok utang/piutang yang dicatat otomatis oleh modul Utang/Piutang. '
-                .'Transaksi itu tidak bisa dihapus dari sini; kelola lewat menu Utang atau Piutang.';
+            $this->pesanKunci = __('Seleksi berisi pokok utang/piutang yang dicatat otomatis oleh modul Utang/Piutang. Transaksi itu tidak bisa dihapus dari sini; kelola lewat menu Utang atau Piutang.');
 
             return false;
         }
@@ -47,7 +46,7 @@ class BulkDestroyBankTransactionRequest extends FormRequest
 
     protected function failedAuthorization(): void
     {
-        throw new AuthorizationException($this->pesanKunci ?? 'This action is unauthorized.');
+        throw new AuthorizationException($this->pesanKunci ?? __('Tindakan ini tidak diizinkan.'));
     }
 
     public function rules(): array

@@ -35,7 +35,7 @@ class UpdateBankTransactionRequest extends FormRequest
         $transaction = $this->route('bankTransaction');
         $pesan = $transaction instanceof BankTransaction ? $transaction->moduleLockMessage() : null;
 
-        throw new AuthorizationException($pesan ?? 'This action is unauthorized.');
+        throw new AuthorizationException($pesan ?? __('Tindakan ini tidak diizinkan.'));
     }
 
     public function rules(): array

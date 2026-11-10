@@ -54,26 +54,26 @@ class StoreBankAccountRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'type.required' => 'Pilih jenis akun: Bank atau Kas.',
-            'type.in' => 'Jenis akun harus Bank atau Kas.',
-            'account_name.required' => 'Nama akun wajib diisi.',
-            'account_name.string' => 'Nama akun harus berupa teks.',
-            'account_name.max' => 'Nama akun maksimal 255 karakter.',
-            'account_number.required' => 'Nomor rekening wajib diisi untuk rekening bank.',
-            'account_number.string' => 'Nomor rekening harus berupa teks.',
-            'account_number.max' => 'Nomor rekening maksimal 255 karakter.',
-            'account_number.unique' => 'Nomor rekening ini sudah dipakai akun lain.',
-            'bank_name.required' => 'Nama bank wajib diisi untuk rekening bank.',
-            'bank_name.string' => 'Nama bank harus berupa teks.',
-            'bank_name.max' => 'Nama bank maksimal 255 karakter.',
-            'branch.string' => 'Cabang harus berupa teks.',
-            'branch.max' => 'Cabang maksimal 255 karakter.',
-            'initial_balance.required' => 'Saldo awal wajib diisi (boleh 0).',
-            'initial_balance.integer' => 'Saldo awal harus berupa angka rupiah tanpa desimal.',
-            'initial_balance.min' => 'Saldo awal tidak boleh negatif.',
-            'custodian_id.integer' => 'Penanggung jawab tidak dikenal.',
-            'cash_limit.integer' => 'Plafon harus berupa angka rupiah tanpa desimal.',
-            'cash_limit.min' => 'Plafon tidak boleh negatif.',
+            'type.required' => __('Pilih jenis akun: Bank atau Kas.'),
+            'type.in' => __('Jenis akun harus Bank atau Kas.'),
+            'account_name.required' => __('Nama akun wajib diisi.'),
+            'account_name.string' => __('Nama akun harus berupa teks.'),
+            'account_name.max' => __('Nama akun maksimal 255 karakter.'),
+            'account_number.required' => __('Nomor rekening wajib diisi untuk rekening bank.'),
+            'account_number.string' => __('Nomor rekening harus berupa teks.'),
+            'account_number.max' => __('Nomor rekening maksimal 255 karakter.'),
+            'account_number.unique' => __('Nomor rekening ini sudah dipakai akun lain.'),
+            'bank_name.required' => __('Nama bank wajib diisi untuk rekening bank.'),
+            'bank_name.string' => __('Nama bank harus berupa teks.'),
+            'bank_name.max' => __('Nama bank maksimal 255 karakter.'),
+            'branch.string' => __('Cabang harus berupa teks.'),
+            'branch.max' => __('Cabang maksimal 255 karakter.'),
+            'initial_balance.required' => __('Saldo awal wajib diisi (boleh 0).'),
+            'initial_balance.integer' => __('Saldo awal harus berupa angka rupiah tanpa desimal.'),
+            'initial_balance.min' => __('Saldo awal tidak boleh negatif.'),
+            'custodian_id.integer' => __('Penanggung jawab tidak dikenal.'),
+            'cash_limit.integer' => __('Plafon harus berupa angka rupiah tanpa desimal.'),
+            'cash_limit.min' => __('Plafon tidak boleh negatif.'),
         ];
     }
 
@@ -92,7 +92,7 @@ class StoreBankAccountRequest extends FormRequest
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
             if (! User::query()->memberOfCurrentCompany()->whereKey($value)->exists()) {
-                $fail('Penanggung jawab harus anggota perusahaan ini.');
+                $fail(__('Penanggung jawab harus anggota perusahaan ini.'));
             }
         };
     }

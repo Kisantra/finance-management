@@ -103,8 +103,10 @@
 }
 
 @theme {
-    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    /* Fallback CJK (tampilan Mandarin, <html lang="zh-CN">): huruf Han tidak ada di Plus Jakarta Sans,
+       jadi browser mengambilnya dari font aksara sederhana per platform (macOS · Windows · Linux/Android). */
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans CJK SC', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Noto Sans CJK SC', sans-serif;
 
     /* =========================================================================
        Archipelago Design System - Professional Blue Theme

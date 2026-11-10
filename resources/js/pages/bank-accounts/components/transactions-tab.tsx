@@ -20,6 +20,7 @@ import * as bankAccountsRoutes from '@/routes/bank-accounts';
 import * as bankTransactionsRoutes from '@/routes/bank-transactions';
 import { TransactionDetailDialog, type TransactionDialogData } from '../../cash-flow/components/transaction-detail-dialog';
 import type { CategoryOption, PaginatedResponse, TransactionRow } from '../types';
+import { t, Trans } from '@/i18n';
 
 /** Resolve which cash-flow feature a row belongs to for delete gating. */
 function featureOf(row: TransactionRow): 'income' | 'expense' | 'transfer' {
@@ -160,12 +161,12 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
         setDeleteProcessing(true);
         try {
             await axios.delete(bankTransactionsRoutes.destroy.url({ bankTransaction: deleteId }));
-            toast.success('Transaksi berhasil dihapus');
+            toast.success(t('Transaksi berhasil dihapus'));
             setDeleteId(null);
             // Refresh by re-setting filters
             setFilters((p) => ({ ...p }));
         } catch {
-            toast.error('Gagal menghapus transaksi');
+            toast.error(t('Gagal menghapus transaksi'));
         } finally {
             setDeleteProcessing(false);
         }
@@ -175,12 +176,12 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
         setDeleteProcessing(true);
         try {
             await axios.post(bankTransactionsRoutes.bulkDestroy.url(), { ids: selected });
-            toast.success(`${selected.length} transaksi berhasil dihapus`);
+            toast.success(t('{{count}} transaksi berhasil dihapus', { count: selected.length }));
             setSelected([]);
             setBulkDeleteOpen(false);
             setFilters((p) => ({ ...p }));
         } catch {
-            toast.error('Gagal menghapus transaksi');
+            toast.error(t('Gagal menghapus transaksi'));
         } finally {
             setDeleteProcessing(false);
         }
@@ -197,26 +198,26 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <Combobox
                         options={[
-                            { label: 'Semua jenis', value: '' },
-                            { label: '↓ Pemasukan (credit)', value: 'credit' },
-                            { label: '↑ Pengeluaran (debit)', value: 'debit' },
+                            { label: t('Semua jenis'), value: '' },
+                            { label: t('↓ Uang masuk'), value: 'credit' },
+                            { label: t('↑ Uang keluar'), value: 'debit' },
                         ]}
                         value={filters.transaction_type}
                         onChange={(v) => setFilters((p) => ({ ...p, transaction_type: (v as 'credit' | 'debit' | '') ?? '', page: 1 }))}
-                        placeholder="Semua jenis"
+                        placeholder={t('Semua jenis')}
                         clearable={false}
                     />
                     <Combobox
                         options={withFinancingGroup(categories)}
                         value={filters.category_id ?? undefined}
                         onChange={(v) => setFilters((p) => ({ ...p, category_id: v ? Number(v) : null, page: 1 }))}
-                        placeholder="Semua kategori"
+                        placeholder={t('Semua kategori')}
                     />
                     <DatePicker
                         mode="month"
                         value={filters.month || null}
                         onChange={(m) => setFilters((p) => ({ ...p, month: m ?? '', page: 1 }))}
-                        placeholder="Semua bulan"
+                        placeholder={t('Semua bulan')}
                         clearable
                     />
                 </div>
@@ -228,7 +229,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                 icon={<Search className="w-4 h-4" />}
                                 value={filters.search}
                                 onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value, page: 1 }))}
-                                placeholder="Cari deskripsi atau referensi..."
+                                placeholder={t('Cari deskripsi atau referensi...')}
                                 className="h-9"
                             />
                         </div>
@@ -236,15 +237,24 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="w-3 h-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <div className="text-sm text-dark-500 dark:text-dark-400">
-                                <span className="hidden sm:inline">Menampilkan </span>
-                                <span className="tabular-nums">{rows.length}</span>
-                                {data && data.total !== rows.length && (
-                                    <span className="hidden sm:inline"> dari <span className="tabular-nums">{data.total}</span></span>
-                                )}{' '}hasil
+                                {data && data.total !== rows.length ? (
+                                    <Trans
+                                        i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil"
+                                        count={data.total}
+                                        values={{ shown: rows.length }}
+                                        components={{ b: <span className="tabular-nums" /> }}
+                                    />
+                                ) : (
+                                    <Trans
+                                        i18nKey="Menampilkan <b>{{count}}</b> hasil"
+                                        count={rows.length}
+                                        components={{ b: <span className="tabular-nums" /> }}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>
@@ -256,7 +266,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                             className="text-xs text-dark-500"
                         >
                             <X className="w-3.5 h-3.5" />
-                            Reset
+                            {t('Hapus filter')}
                         </Button>
                     )}
                 </div>
@@ -269,8 +279,8 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                 ) : rows.length === 0 ? (
                     <EmptyState
                         icon={<ArrowUpDown className="w-7 h-7" />}
-                        title="Belum ada transaksi"
-                        description="Catat transaksi pertama Anda dengan tombol Pemasukan atau Pengeluaran di atas."
+                        title={t('Belum ada transaksi')}
+                        description={t('Catat transaksi pertama Anda dengan tombol Pemasukan atau Pengeluaran di atas.')}
                     />
                 ) : (
                     <div className="overflow-x-auto">
@@ -283,17 +293,17 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                         )}
                                     </th>
                                     <SortableHeader
-                                        label="Transaksi"
+                                        label={t('Transaksi')}
                                         column="description"
                                         current={filters.sort}
                                         direction={filters.direction}
                                         onSort={onSort}
                                     />
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 hidden md:table-cell">
-                                        Kategori
+                                        {t('Kategori')}
                                     </th>
                                     <SortableHeader
-                                        label="Tanggal"
+                                        label={t('Tanggal')}
                                         column="transaction_date"
                                         current={filters.sort}
                                         direction={filters.direction}
@@ -301,7 +311,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                         className="hidden sm:table-cell"
                                     />
                                     <SortableHeader
-                                        label="Jumlah"
+                                        label={t('Jumlah')}
                                         column="amount"
                                         current={filters.sort}
                                         direction={filters.direction}
@@ -336,7 +346,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                                 <div className="min-w-0">
                                                     <button type="button" onClick={() => openDetail(row)} className="block max-w-70 truncate rounded-md text-left font-medium text-dark-900 dark:text-dark-50 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill">
                                                         {row.description}
-                                                        <span className="sr-only"> — lihat rincian dan jurnal</span>
+                                                        <span className="sr-only"> — {t('lihat rincian dan jurnal')}</span>
                                                     </button>
                                                     {row.managed_by && <ManagedByNote managedBy={row.managed_by} className="mt-0.5" />}
                                                     <div className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-2 mt-0.5">
@@ -391,7 +401,7 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                                                 <button
                                                     onClick={() => setDeleteId(row.id)}
                                                     className="p-1.5 rounded-lg text-dark-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                    title="Hapus"
+                                                    title={t('Hapus')}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
@@ -421,16 +431,16 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
                         <div className="flex items-center gap-2">
                             <Badge variant="default">{selected.length}</Badge>
                             <span className="text-sm font-medium text-dark-900 dark:text-dark-50">
-                                transaksi dipilih
+                                {t('transaksi dipilih', { count: selected.length })}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="zinc" size="sm" onClick={() => setSelected([])}>
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button variant="red" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                                 <Trash2 className="w-3.5 h-3.5" />
-                                Hapus
+                                {t('Hapus')}
                             </Button>
                         </div>
                     </div>
@@ -448,18 +458,18 @@ export function TransactionsTab({ accountId, refreshKey }: Props) {
             <ConfirmDialog
                 open={deleteId !== null}
                 onOpenChange={(open) => !open && setDeleteId(null)}
-                title="Hapus transaksi?"
-                description="Tindakan ini tidak dapat dibatalkan. Transaksi terkait transfer akan ikut dihapus."
-                confirmLabel="Hapus"
+                title={t('Hapus transaksi?')}
+                description={t('Tindakan ini tidak dapat dibatalkan. Transaksi terkait transfer akan ikut dihapus.')}
+                confirmLabel={t('Hapus')}
                 loading={deleteProcessing}
                 onConfirm={handleDelete}
             />
             <ConfirmDialog
                 open={bulkDeleteOpen}
                 onOpenChange={setBulkDeleteOpen}
-                title={`Hapus ${selected.length} transaksi?`}
-                description="Tindakan ini tidak dapat dibatalkan. Transaksi terkait transfer akan ikut dihapus."
-                confirmLabel={`Hapus ${selected.length}`}
+                title={t('Hapus {{count}} transaksi?', { count: selected.length })}
+                description={t('Tindakan ini tidak dapat dibatalkan. Transaksi terkait transfer akan ikut dihapus.')}
+                confirmLabel={t('Hapus {{n}}', { n: selected.length })}
                 loading={deleteProcessing}
                 onConfirm={handleBulkDelete}
             />

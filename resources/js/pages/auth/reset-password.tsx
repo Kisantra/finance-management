@@ -5,6 +5,7 @@ import { AuthLink, PasswordInput } from '@/components/auth/auth-form';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import AuthLayout from '@/layouts/auth-layout';
 
 interface Props {
@@ -29,13 +30,13 @@ export default function ResetPassword({ token, email }: Props) {
 
     return (
         <>
-            <Head title="Atur Ulang Kata Sandi" />
+            <Head title={t('Atur Ulang Kata Sandi')} />
 
-            <PageHeader title="Atur ulang kata sandi" description="Buat kata sandi baru yang kuat untuk akun Anda." />
+            <PageHeader title={t('Atur ulang kata sandi')} description={t('Buat kata sandi baru yang kuat untuk akun Anda.')} />
 
             <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
                 <Input
-                    label="Alamat email"
+                    label={t('Alamat email')}
                     type="email"
                     value={data.email}
                     onChange={(e) => setData('email', e.target.value)}
@@ -45,7 +46,7 @@ export default function ResetPassword({ token, email }: Props) {
                 />
 
                 <PasswordInput
-                    label="Kata sandi baru"
+                    label={t('Kata sandi baru')}
                     placeholder="••••••••"
                     value={data.password}
                     onChange={(e) => setData('password', e.target.value)}
@@ -55,7 +56,7 @@ export default function ResetPassword({ token, email }: Props) {
                 />
 
                 <PasswordInput
-                    label="Konfirmasi kata sandi"
+                    label={t('Konfirmasi kata sandi')}
                     placeholder="••••••••"
                     value={data.password_confirmation}
                     onChange={(e) => setData('password_confirmation', e.target.value)}
@@ -65,14 +66,14 @@ export default function ResetPassword({ token, email }: Props) {
                 />
 
                 <Button type="submit" variant="primary" size="lg" loading={processing} className="mt-1 w-full">
-                    Simpan Kata Sandi Baru
+                    {t('Simpan Kata Sandi Baru')}
                 </Button>
             </form>
 
             <div className="mt-6 flex justify-center">
                 <AuthLink href="/login" className="inline-flex items-center gap-1.5 text-[13px] text-ob-ink-2 hover:text-ob-ink">
                     <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5" />
-                    Kembali ke halaman masuk
+                    {t('Kembali ke halaman masuk')}
                 </AuthLink>
             </div>
         </>

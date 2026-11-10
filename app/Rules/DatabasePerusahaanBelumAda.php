@@ -18,7 +18,7 @@ class DatabasePerusahaanBelumAda implements ValidationRule
         $nama = config('tenancy.database.prefix').$value;
 
         if (DB::selectOne('SELECT 1 FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [$nama]) !== null) {
-            $fail('Database untuk kode URL ini sudah ada di server MySQL (mungkin milik instalasi lain). Pilih kode lain.');
+            $fail(__('Database untuk kode URL ini sudah ada di server MySQL (mungkin milik instalasi lain). Pilih kode lain.'));
         }
     }
 }

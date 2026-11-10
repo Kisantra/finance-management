@@ -19,11 +19,14 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
-     * Determines the current asset version.
+     * Versi aset + bahasa tampilan. Kunjungan Inertia (GET) yang bahasanya berbeda dari halaman yang
+     * sedang terbuka — sesudah masuk/keluar, atau bahasa diganti di tab lain — dijawab Inertia dengan 409
+     * + muat ulang penuh, sehingga kamus bahasa baru dimuat sebelum render (resources/js/i18n.ts).
+     * Bahasa dibaca SETELAH controller berjalan (rute dokumen sudah memulihkan bahasa tampilan).
      */
-    public function version(Request $request): ?string
+    public function version(Request $request): string
     {
-        return parent::version($request);
+        return parent::version($request).'|'.app()->getLocale();
     }
 
     /**
@@ -65,6 +68,7 @@ class HandleInertiaRequests extends Middleware
                     ])->values()->toArray()
                 : [],
             'locale' => app()->getLocale(),
+            'timezone' => config('app.timezone'),
             'flash' => [
                 'success' => session('success'),
                 'error' => session('error'),
@@ -122,8 +126,7 @@ class HandleInertiaRequests extends Middleware
             ->map(fn (AppNotification $n) => [
                 'id' => $n->id,
                 'type' => $n->type,
-                'title' => $n->title,
-                'message' => $n->message,
+                ...$n->teksTampil(),
                 'data' => $n->data,
                 'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at?->toIso8601String(),

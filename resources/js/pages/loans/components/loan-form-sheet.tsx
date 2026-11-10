@@ -15,6 +15,7 @@ import { cn, toLocalIso } from '@/lib/utils';
 import { BTN, FIELD, SURFACE } from '@/pages/invoices/components/ob';
 import * as loanRoutes from '@/routes/loans';
 import type { FilterOption, LoanRow } from '../types';
+import { t } from '@/i18n';
 
 /* Form tambah/edit pinjaman. Satu komponen untuk keduanya; bedanya field terkunci & endpoint. */
 
@@ -27,9 +28,9 @@ interface Props {
     bankAccountOptions: FilterOption[];
 }
 
-const TIPE_BUNGA: SegmentedOption<'percentage' | 'fixed'>[] = [
-    { value: 'percentage', label: 'Persentase (% per tahun)' },
-    { value: 'fixed', label: 'Nominal tetap' },
+const tipeBunga = (): SegmentedOption<'percentage' | 'fixed'>[] => [
+    { value: 'percentage', label: t('Persentase (% per tahun)') },
+    { value: 'fixed', label: t('Nominal tetap') },
 ];
 
 const isoOrEmpty = (d: Date | null | undefined): string => (d ? toLocalIso(d) : '');
@@ -107,10 +108,10 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(isEdit ? 'Utang diperbarui' : 'Utang dicatat');
+                toast.success(isEdit ? t('Utang diperbarui') : t('Utang dicatat'));
                 onOpenChange(false);
             },
-            onError: () => toast.error('Utang gagal disimpan'),
+            onError: () => toast.error(t('Utang gagal disimpan')),
         });
     };
 
@@ -121,12 +122,12 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
             <SheetContent hideClose className={cn(SURFACE, 'ob-motion max-w-[560px] rounded-l-3xl border-l')} onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                     <div className="min-w-0 flex-1">
-                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? 'Edit utang' : 'Tambah utang'}</SheetTitle>
+                        <SheetTitle className="pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">{isEdit ? t('Ubah utang') : t('Tambah utang')}</SheetTitle>
                         <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
-                            {isEdit ? `${row!.loan_number} · nomor dan rekening pencairan tidak bisa diubah.` : 'Pencairannya langsung dicatat sebagai pemasukan di rekening yang dipilih.'}
+                            {isEdit ? t('{{number}} · nomor dan rekening pencairan tidak bisa diubah.', { number: row!.loan_number }) : t('Pencairannya langsung dicatat sebagai pemasukan di rekening yang dipilih.')}
                         </SheetDescription>
                     </div>
-                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label="Tutup form" disabled={processing}>
+                    <Button variant="outline" className={BTN.icon} onClick={() => onOpenChange(false)} aria-label={t('Tutup form')} disabled={processing}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
@@ -136,7 +137,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                     <div className={cn(FIELD, 'flex flex-col gap-5')}>
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <Input
-                                label="Nomor utang"
+                                label={t('Nomor utang')}
                                 value={data.loan_number}
                                 onChange={(e) => setData('loan_number', e.target.value)}
                                 error={errors.loan_number}
@@ -144,28 +145,28 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                                 readOnly={isEdit}
                             />
                             <Input
-                                label="Pemberi pinjaman"
+                                label={t('Pemberi pinjaman')}
                                 value={data.lender_name}
                                 onChange={(e) => setData('lender_name', e.target.value)}
                                 error={errors.lender_name}
-                                placeholder="Nama bank, lembaga, atau orang"
+                                placeholder={t('Nama bank, lembaga, atau orang')}
                             />
                         </div>
 
-                        <CurrencyInput label="Jumlah pokok" value={data.principal_amount} onChange={(v) => setData('principal_amount', v)} error={errors.principal_amount} />
+                        <CurrencyInput label={t('Jumlah pokok')} value={data.principal_amount} onChange={(v) => setData('principal_amount', v)} error={errors.principal_amount} />
                     </div>
 
                     {/* Di LUAR pembungkus FIELD, mengikuti pola halaman Obsidian lain: FIELD memaksa
                         `bg-ob-inner` ke setiap <button> di dalamnya, yang menimpa pil aktif sehingga
                         pilihan yang sedang aktif tidak terlihat sama sekali. Label ditata di sini. */}
                     <SegmentedControl
-                        options={TIPE_BUNGA}
+                        options={tipeBunga()}
                         value={data.interest_type}
                         onChange={(v) => setData('interest_type', v)}
                         columns={2}
                         layout="inline"
                         variant="pill"
-                        label="Cara hitung bunga"
+                        label={t('Cara hitung bunga')}
                         error={errors.interest_type}
                         className="[&>label]:mb-1.5 [&>label]:text-[13px] [&>label]:font-medium [&>label]:text-ob-ink-2"
                     />
@@ -174,7 +175,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             {data.interest_type === 'percentage' ? (
                                 <Input
-                                    label="Suku bunga (% per tahun)"
+                                    label={t('Suku bunga (% per tahun)')}
                                     type="number"
                                     step="0.01"
                                     min="0"
@@ -182,20 +183,20 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                                     value={data.interest_rate as string}
                                     onChange={(e) => setData('interest_rate', e.target.value)}
                                     error={errors.interest_rate}
-                                    hint="Diprorata per bulan sesuai tenor."
+                                    hint={t('Diprorata per bulan sesuai tenor.')}
                                     placeholder="0,00"
                                 />
                             ) : (
                                 <CurrencyInput
-                                    label="Jumlah bunga"
+                                    label={t('Jumlah bunga')}
                                     value={data.interest_amount}
                                     onChange={(v) => setData('interest_amount', v)}
                                     error={errors.interest_amount}
-                                    hint="Total bunga untuk seluruh tenor."
+                                    hint={t('Total bunga untuk seluruh tenor.')}
                                 />
                             )}
                             <Input
-                                label="Tenor (bulan)"
+                                label={t('Tenor (bulan)')}
                                 type="number"
                                 min="1"
                                 value={data.term_months as string}
@@ -210,7 +211,7 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <DatePicker
-                                label="Tanggal mulai"
+                                label={t('Tanggal mulai')}
                                 error={errors.start_date}
                                 value={data.start_date ? new Date(data.start_date) : null}
                                 onChange={(d) => {
@@ -220,8 +221,8 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
                                 }}
                             />
                             <DatePicker
-                                label="Jatuh tempo"
-                                hint="Terisi sendiri dari tenor, boleh diubah."
+                                label={t('Jatuh tempo')}
+                                hint={t('Terisi sendiri dari tenor, boleh diubah.')}
                                 error={errors.maturity_date}
                                 value={data.maturity_date ? new Date(data.maturity_date) : null}
                                 onChange={(d) => setData('maturity_date', isoOrEmpty(d))}
@@ -230,35 +231,35 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
 
                         {!isEdit && (
                             <Combobox
-                                label="Rekening penerima pencairan"
+                                label={t('Rekening penerima pencairan')}
                                 error={errors.bank_account_id}
                                 options={bankAccountOptions}
                                 value={data.bank_account_id ?? ''}
                                 onChange={(v) => setData('bank_account_id', v as number)}
-                                placeholder="Pilih rekening…"
-                                searchPlaceholder="Cari rekening…"
-                                emptyText="Rekening tidak ditemukan"
+                                placeholder={t('Pilih rekening…')}
+                                searchPlaceholder={t('Cari rekening…')}
+                                emptyText={t('Rekening tidak ditemukan')}
                             />
                         )}
 
                         <Textarea
-                            label="Tujuan pinjaman"
+                            label={t('Tujuan pinjaman')}
                             value={data.purpose}
                             onChange={(e) => setData('purpose', e.target.value)}
                             error={errors.purpose}
-                            placeholder="Opsional: dipakai apa dananya"
+                            placeholder={t('Opsional: dipakai apa dananya')}
                             rows={3}
                         />
                     </div>
 
                     <FileUpload
-                        label="Dokumen kontrak"
+                        label={t('Dokumen kontrak')}
                         value={data.contract_attachment}
                         onChange={(f) => setData('contract_attachment', f)}
                         accept={['.jpg', '.jpeg', '.png', '.pdf']}
                         maxSizeMb={5}
                         error={errors.contract_attachment}
-                        existingFileName={adaLampiran ? 'Kontrak tersimpan' : null}
+                        existingFileName={adaLampiran ? t('Kontrak tersimpan') : null}
                         existingFileUrl={adaLampiran ? row!.contract_attachment_url : null}
                         onRemoveExisting={() => setData('remove_attachment', true)}
                     />
@@ -266,10 +267,10 @@ export function LoanFormSheet({ open, onOpenChange, row, nextLoanNumber, bankAcc
 
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-ob-line px-6 py-4">
                     <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)} disabled={processing}>
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <Button type="submit" form="loan-form" className={BTN.primary} loading={processing} disabled={processing}>
-                        {isEdit ? 'Simpan perubahan' : 'Simpan utang'}
+                        {isEdit ? t('Simpan perubahan') : t('Simpan utang')}
                     </Button>
                 </div>
             </SheetContent>

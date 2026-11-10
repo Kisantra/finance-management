@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { t, Trans } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 interface PaginationMeta {
@@ -58,13 +59,18 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
         >
             <p className="text-[13px] text-ob-ink-3 order-2 sm:order-1">
                 {from != null && to != null ? (
-                    <>
-                        Menampilkan <span className="font-medium text-ob-ink-2">{from}</span>–
-                        <span className="font-medium text-ob-ink-2">{to}</span> dari{' '}
-                        <span className="font-medium text-ob-ink-2">{total}</span> data
-                    </>
+                    <Trans
+                        i18nKey="Menampilkan <b>{{from}}</b>–<b>{{to}}</b> dari <b>{{count}}</b> data"
+                        count={total}
+                        values={{ from, to }}
+                        components={{ b: <span className="font-medium text-ob-ink-2" /> }}
+                    />
                 ) : (
-                    <>Total <span className="font-medium text-ob-ink-2">{total}</span> data</>
+                    <Trans
+                        i18nKey="Total <b>{{count}}</b> data"
+                        count={total}
+                        components={{ b: <span className="font-medium text-ob-ink-2" /> }}
+                    />
                 )}
             </p>
 
@@ -73,7 +79,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     onClick={() => onPageChange(1)}
                     disabled={current_page === 1}
                     className={cn(btnBase, btnDefault)}
-                    aria-label="Halaman pertama"
+                    aria-label={t('Halaman pertama')}
                 >
                     <ChevronsLeft className="h-4 w-4" />
                 </button>
@@ -81,7 +87,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     onClick={() => onPageChange(current_page - 1)}
                     disabled={current_page === 1}
                     className={cn(btnBase, btnDefault)}
-                    aria-label="Halaman sebelumnya"
+                    aria-label={t('Halaman sebelumnya')}
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -113,7 +119,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     onClick={() => onPageChange(current_page + 1)}
                     disabled={current_page === last_page}
                     className={cn(btnBase, btnDefault)}
-                    aria-label="Halaman berikutnya"
+                    aria-label={t('Halaman berikutnya')}
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>
@@ -121,7 +127,7 @@ export function Pagination({ meta, onPageChange, className }: PaginationProps) {
                     onClick={() => onPageChange(last_page)}
                     disabled={current_page === last_page}
                     className={cn(btnBase, btnDefault)}
-                    aria-label="Halaman terakhir"
+                    aria-label={t('Halaman terakhir')}
                 >
                     <ChevronsRight className="h-4 w-4" />
                 </button>

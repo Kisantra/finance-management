@@ -34,14 +34,15 @@ class StorePaymentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'bank_account_id.required' => 'Rekening tujuan wajib dipilih.',
-            'bank_account_id.exists' => 'Rekening yang dipilih tidak valid.',
+            'bank_account_id.required' => __('Rekening tujuan wajib dipilih.'),
+            'bank_account_id.exists' => __('Rekening yang dipilih tidak valid.'),
             // Sebutkan sisanya dan apa yang harus dilakukan. Pesan generik memaksa
             // user menebak berapa yang boleh dibayar, lalu mencoba berkali-kali.
             // Kalimat ini sama dengan yang dipakai PaymentController::exceedsRemaining()
             // pada jalur update, supaya user melihat kalimat yang sama di dua tempat.
-            'amount.max' => 'Melebihi sisa tagihan Rp '.number_format((int) $this->sisaTagihan(), 0, ',', '.')
-                .'. Catat kelebihan sebagai transaksi terpisah.',
+            'amount.max' => __('Melebihi sisa tagihan Rp :sisa. Catat kelebihan sebagai transaksi terpisah.', [
+                'sisa' => number_format((int) $this->sisaTagihan(), 0, ',', '.'),
+            ]),
         ];
     }
 

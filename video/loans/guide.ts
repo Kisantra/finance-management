@@ -72,7 +72,7 @@ export const guide: ModuleGuide = {
             title: 'Mengubah atau menghapus utang',
             role: ROLES.fm,
             steps: [
-                'Buka panel rincian dengan mengklik baris utangnya. Tombol **Edit** hanya ada selama utang **Aktif**; nomor utang dan rekening penerima tidak bisa diubah.',
+                'Buka panel rincian dengan mengklik baris utangnya. Tombol **Ubah** hanya ada selama utang **Aktif**; nomor utang dan rekening penerima tidak bisa diubah.',
                 'Tombol **Hapus** hanya muncul bila belum ada pokok yang dibayar, dan penghapusan ditolak bila sudah ada pembayaran apa pun.',
                 'Mengubah atau menghapus utang **tidak** mengoreksi transaksi dana masuk yang sudah tercatat di rekening.',
             ],
@@ -130,7 +130,7 @@ export const guide: ModuleGuide = {
     ],
     warnings: [
         {
-            title: 'Edit & hapus tidak mengoreksi rekening',
+            title: 'Ubah & hapus tidak mengoreksi rekening',
             body: 'Mengubah Jumlah Pokok / Tanggal Mulai atau menghapus utang tidak mengubah transaksi dana masuk yang sudah tercatat. Koreksi manual di Rekening Bank. Status juga tidak dihitung ulang saat Jumlah Pokok diubah.',
         },
         {

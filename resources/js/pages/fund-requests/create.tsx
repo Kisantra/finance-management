@@ -15,6 +15,7 @@ import { AppLayout } from '@/layouts/app-layout';
 import { formatCurrency, toLocalIso } from '@/lib/utils';
 import * as fundRequestRoutes from '@/routes/fund-requests';
 import type { FilterOption, FundRequestItem } from './types';
+import { t, tk } from '@/i18n';
 
 interface Props {
     categories: FilterOption[];
@@ -22,10 +23,10 @@ interface Props {
 }
 
 const PRIORITY_OPTIONS = [
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'High', value: 'high' },
-    { label: 'Urgent', value: 'urgent' },
+    { label: tk('Rendah'), value: 'low' },
+    { label: tk('Sedang'), value: 'medium' },
+    { label: tk('Tinggi'), value: 'high' },
+    { label: tk('Mendesak'), value: 'urgent' },
 ];
 
 const EMPTY_ITEM = (): FundRequestItem => ({
@@ -86,7 +87,7 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
 
     return (
         <AppLayout>
-            <Head title="Buat Permintaan Dana" />
+            <Head title={t('Buat Pengajuan Dana')} />
 
             <div className="space-y-6 max-w-4xl mx-auto">
                 <div className="flex items-center gap-3">
@@ -94,55 +95,55 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
                     <PageHeader
-                        title="Buat Permintaan Dana"
-                        description="Ajukan pencairan dana operasional."
+                        title={t('Buat Pengajuan Dana')}
+                        description={t('Ajukan pencairan dana operasional.')}
                     />
                 </div>
 
                 <div className="bg-white dark:bg-dark-700 rounded-xl border border-secondary-200 dark:border-dark-600 p-6 space-y-6">
-                    <FormSection title="Informasi Permintaan" description="Header dari pengajuan dana." />
+                    <FormSection title={t('Informasi Pengajuan')} description={t('Data utama pengajuan dana.')} />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
-                            label="Nomor Permintaan *"
+                            label={t('Nomor Pengajuan *')}
                             value={data.request_number}
                             onChange={(e) => setData('request_number', e.target.value)}
                             error={errors.request_number}
-                            hint="Auto-generate, dapat diubah"
+                            hint={t('Auto-generate, dapat diubah')}
                         />
                         <Combobox
-                            label="Prioritas *"
-                            options={PRIORITY_OPTIONS}
+                            label={t('Prioritas *')}
+                            options={PRIORITY_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
                             value={data.priority || null}
                             onChange={(v) => setData('priority', v ? String(v) : 'medium')}
                             error={errors.priority}
                         />
                         <Input
-                            label="Judul *"
+                            label={t('Judul *')}
                             value={data.title}
                             onChange={(e) => setData('title', e.target.value)}
                             error={errors.title}
-                            placeholder="cth: Pembelian ATK Kantor..."
+                            placeholder={t('cth: Pembelian ATK Kantor...')}
                         />
                         <DatePicker
-                            label="Dibutuhkan Sebelum *"
+                            label={t('Dibutuhkan Sebelum *')}
                             value={data.needed_by_date ? new Date(data.needed_by_date) : null}
                             onChange={(d) => setData('needed_by_date', d ? toLocalIso(d) : '')}
                             error={errors.needed_by_date}
                         />
                         <div className="sm:col-span-2">
                             <Textarea
-                                label="Tujuan / Keterangan *"
+                                label={t('Tujuan / Keterangan *')}
                                 value={data.purpose}
                                 onChange={(e) => setData('purpose', e.target.value)}
                                 error={errors.purpose}
-                                placeholder="Jelaskan tujuan penggunaan dana..."
+                                placeholder={t('Jelaskan tujuan penggunaan dana...')}
                                 rows={3}
                             />
                         </div>
                         <div className="sm:col-span-2">
                             <FileUpload
-                                label="Lampiran (opsional)"
+                                label={t('Lampiran (opsional)')}
                                 value={data.attachment}
                                 onChange={(file) => setData('attachment', file)}
                                 accept={['.jpg', '.jpeg', '.png', '.pdf']}
@@ -157,16 +158,16 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
                 <div className="bg-white dark:bg-dark-700 rounded-xl border border-secondary-200 dark:border-dark-600 overflow-hidden">
                     <div className="px-6 py-4 border-b border-secondary-200 dark:border-dark-600 flex items-center justify-between">
                         <div>
-                            <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">Item Biaya</h3>
-                            <p className="text-xs text-dark-500 dark:text-dark-400 mt-0.5">Rincian pengeluaran yang diajukan</p>
+                            <h3 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t('Item Biaya')}</h3>
+                            <p className="text-xs text-dark-500 dark:text-dark-400 mt-0.5">{t('Rincian pengeluaran yang diajukan')}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <Badge variant="blue" className="tabular-nums">
-                                Total: {formatCurrency(totalAmount)}
+                                {t('Total: {{amount}}', { amount: formatCurrency(totalAmount) })}
                             </Badge>
                             <Button variant="outline" size="sm" onClick={addItem}>
                                 <Plus className="w-3.5 h-3.5" />
-                                Tambah Item
+                                {t('Tambah Item')}
                             </Button>
                         </div>
                     </div>
@@ -190,7 +191,7 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
                     </div>
 
                     <div className="px-6 py-3 bg-secondary-50/50 dark:bg-dark-800/50 border-t border-secondary-200 dark:border-dark-600 text-right">
-                        <span className="text-sm text-dark-500 dark:text-dark-400">Total Pengajuan: </span>
+                        <span className="text-sm text-dark-500 dark:text-dark-400">{t('Total Pengajuan:')} </span>
                         <span className="text-base font-bold text-dark-900 dark:text-dark-50 tabular-nums">
                             {formatCurrency(totalAmount)}
                         </span>
@@ -199,7 +200,7 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
 
                 <div className="flex items-center justify-between">
                     <Button variant="zinc" onClick={() => router.visit(fundRequestRoutes.index.url())}>
-                        Batal
+                        {t('Batal')}
                     </Button>
                     <div className="flex gap-2">
                         <Button
@@ -207,14 +208,14 @@ export default function FundRequestsCreate({ categories, nextNumber }: Props) {
                             onClick={() => submit('draft')}
                             disabled={processing}
                         >
-                            Simpan Draft
+                            {t('Simpan Draft')}
                         </Button>
                         <Button
                             variant="primary"
                             onClick={() => submit('submit')}
                             disabled={processing}
                         >
-                            Ajukan untuk Persetujuan
+                            {t('Ajukan untuk Persetujuan')}
                         </Button>
                     </div>
                 </div>
@@ -240,7 +241,7 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
     return (
         <div className="px-6 py-4 space-y-3">
             <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400">Item #{index + 1}</span>
+                <span className="text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Item #{{n}}', { n: index + 1 })}</span>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-dark-900 dark:text-dark-50 tabular-nums">
                         {formatCurrency(itemTotal)}
@@ -260,26 +261,26 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="sm:col-span-2">
                     <Input
-                        label="Nama Item *"
+                        label={t('Nama Item *')}
                         value={item.description}
                         onChange={(e) => onChange(index, 'description', e.target.value)}
                         error={errors[`items.${index}.description`]}
-                        placeholder="cth: Kertas A4 rim..."
+                        placeholder={t('cth: Kertas A4 rim...')}
                     />
                 </div>
                 <div className="sm:col-span-2">
                     <Combobox
-                        label="Kategori *"
+                        label={t('Kategori *')}
                         options={categories}
                         value={item.category_id}
                         onChange={(v) => onChange(index, 'category_id', v ? Number(v) : null)}
                         error={errors[`items.${index}.category_id`]}
-                        placeholder="Pilih kategori"
+                        placeholder={t('Pilih kategori')}
                     />
                 </div>
                 <div>
                     <Input
-                        label="Qty *"
+                        label={t('Qty *')}
                         type="number"
                         min={1}
                         value={item.quantity}
@@ -289,7 +290,7 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
                 </div>
                 <div>
                     <CurrencyInput
-                        label="Harga Satuan *"
+                        label={t('Harga Satuan *')}
                         value={item.unit_price}
                         onChange={(v) => onChange(index, 'unit_price', v)}
                         error={errors[`items.${index}.unit_price`]}
@@ -297,10 +298,10 @@ function ItemRow({ index, item, categories, errors, onChange, onRemove }: ItemRo
                 </div>
                 <div className="sm:col-span-2">
                     <Input
-                        label="Catatan"
+                        label={t('Catatan')}
                         value={item.notes}
                         onChange={(e) => onChange(index, 'notes', e.target.value)}
-                        placeholder="Catatan tambahan (opsional)..."
+                        placeholder={t('Catatan tambahan (opsional)...')}
                     />
                 </div>
             </div>

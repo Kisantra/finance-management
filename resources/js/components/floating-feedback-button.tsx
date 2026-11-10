@@ -15,6 +15,7 @@ import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmente
 import { Textarea } from '@/components/ui/textarea';
 import { FileUpload } from '@/components/shared/file-upload';
 import { FormSection } from '@/components/shared/form-section';
+import { t, tk } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { currentPageUrl, watchpostTrail } from '@/lib/watchpost';
 import { cn } from '@/lib/utils';
@@ -31,18 +32,22 @@ const TONE_ACTIVE = {
     neutral: 'border-ob-line-strong bg-ob-chip font-semibold text-ob-ink',
 };
 
+/* Label = kunci terjemahan (tk), diterjemahkan saat render lewat terjemahkanOpsi(); value = kode yang disimpan. */
 const TYPE_OPTIONS: SegmentedOption<'bug' | 'feature' | 'feedback'>[] = [
-    { value: 'bug', label: 'Bug', icon: <Bug className="w-5 h-5" />, activeClassName: TONE_ACTIVE.late },
-    { value: 'feature', label: 'Fitur', icon: <Lightbulb className="w-5 h-5" />, activeClassName: TONE_ACTIVE.act },
-    { value: 'feedback', label: 'Saran', icon: <MessageCircle className="w-5 h-5" />, activeClassName: TONE_ACTIVE.neutral },
+    { value: 'bug', label: tk('Bug'), icon: <Bug className="w-5 h-5" />, activeClassName: TONE_ACTIVE.late },
+    { value: 'feature', label: tk('Fitur'), icon: <Lightbulb className="w-5 h-5" />, activeClassName: TONE_ACTIVE.act },
+    { value: 'feedback', label: tk('Saran'), icon: <MessageCircle className="w-5 h-5" />, activeClassName: TONE_ACTIVE.neutral },
 ];
 
 const PRIORITY_OPTIONS: SegmentedOption<'low' | 'medium' | 'high' | 'critical'>[] = [
-    { value: 'low', label: 'Rendah', activeClassName: TONE_ACTIVE.neutral },
-    { value: 'medium', label: 'Sedang', activeClassName: TONE_ACTIVE.act },
-    { value: 'high', label: 'Tinggi', activeClassName: TONE_ACTIVE.wait },
-    { value: 'critical', label: 'Kritis', activeClassName: TONE_ACTIVE.late },
+    { value: 'low', label: tk('Rendah'), activeClassName: TONE_ACTIVE.neutral },
+    { value: 'medium', label: tk('Sedang'), activeClassName: TONE_ACTIVE.act },
+    { value: 'high', label: tk('Tinggi'), activeClassName: TONE_ACTIVE.wait },
+    { value: 'critical', label: tk('Kritis'), activeClassName: TONE_ACTIVE.late },
 ];
+
+const terjemahkanOpsi = <T extends string>(opsi: SegmentedOption<T>[]): SegmentedOption<T>[] =>
+    opsi.map((o) => ({ ...o, label: t(o.label) }));
 
 interface FormData {
     title: string;
@@ -83,11 +88,11 @@ export function FloatingFeedbackButton() {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => {
-                toast.success('Feedback berhasil dikirim. Terima kasih atas masukannya!');
+                toast.success(t('Masukan berhasil dikirim. Terima kasih!'));
                 setOpen(false);
                 reset();
             },
-            onError: () => toast.error('Periksa kembali isian form.'),
+            onError: () => toast.error(t('Periksa kembali isian form.')),
         });
     };
 
@@ -99,8 +104,8 @@ export function FloatingFeedbackButton() {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 className="fixed bottom-6 right-6 z-40 h-12 rounded-full bg-ob-act-fill text-white shadow-xl shadow-black/20 hover:bg-ob-act-fill/90 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill focus-visible:ring-offset-2 focus-visible:ring-offset-ob-page flex items-center justify-center pl-3.5 pr-4 gap-2 group"
-                title="Kirim Feedback"
-                aria-label="Kirim Feedback"
+                title={t('Kirim Masukan')}
+                aria-label={t('Kirim Masukan')}
             >
                 <MessageSquare className="w-5 h-5 shrink-0" />
                 <span
@@ -109,7 +114,7 @@ export function FloatingFeedbackButton() {
                         hovered ? 'max-w-32 opacity-100' : 'max-w-0 opacity-0',
                     )}
                 >
-                    Feedback
+                    {t('Masukan')}
                 </span>
             </button>
 
@@ -123,57 +128,57 @@ export function FloatingFeedbackButton() {
                                 </div>
                                 <div>
                                     <DialogTitle>
-                                        Kirim Feedback
+                                        {t('Kirim Masukan')}
                                     </DialogTitle>
                                     <p className="text-sm text-ob-ink-2">
-                                        Laporkan bug, ajukan fitur, atau berikan saran
+                                        {t('Laporkan bug, ajukan fitur, atau berikan saran')}
                                     </p>
                                 </div>
                             </div>
                         </DialogHeader>
 
                         <div className="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-5">
-                            <FormSection title="Detail" description="Apa yang ingin Anda sampaikan?">
+                            <FormSection title={t('Detail')} description={t('Apa yang ingin Anda sampaikan?')}>
                                 <SegmentedControl
-                                    label="Tipe *"
+                                    label={t('Tipe *')}
                                     layout="stack"
                                     columns={3}
                                     value={data.type}
                                     onChange={(v) => setData('type', v)}
-                                    options={TYPE_OPTIONS}
+                                    options={terjemahkanOpsi(TYPE_OPTIONS)}
                                     error={errors.type}
                                 />
 
                                 <Input
-                                    label="Judul *"
+                                    label={t('Judul *')}
                                     value={data.title}
                                     onChange={(e) => setData('title', e.target.value)}
                                     error={errors.title}
-                                    placeholder="Ringkasan singkat"
+                                    placeholder={t('Ringkasan singkat')}
                                     autoFocus
                                 />
 
                                 <Textarea
-                                    label="Deskripsi *"
+                                    label={t('Deskripsi *')}
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     error={errors.description}
                                     rows={4}
-                                    placeholder="Jelaskan lebih detail..."
+                                    placeholder={t('Jelaskan lebih detail...')}
                                 />
 
                                 <SegmentedControl
-                                    label="Prioritas *"
+                                    label={t('Prioritas *')}
                                     layout="inline"
                                     columns={4}
                                     value={data.priority}
                                     onChange={(v) => setData('priority', v)}
-                                    options={PRIORITY_OPTIONS}
+                                    options={terjemahkanOpsi(PRIORITY_OPTIONS)}
                                     error={errors.priority}
                                 />
                             </FormSection>
 
-                            <FormSection title="Lampiran (opsional)" description="Screenshot atau dokumen pendukung">
+                            <FormSection title={t('Lampiran (opsional)')} description={t('Tangkapan layar atau dokumen pendukung')}>
                                 <FileUpload
                                     value={data.attachment}
                                     onChange={(file) => setData('attachment', file)}
@@ -186,11 +191,11 @@ export function FloatingFeedbackButton() {
 
                         <DialogFooter>
                             <Button type="button" variant="zinc" onClick={() => setOpen(false)} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                                Batal
+                                {t('Batal')}
                             </Button>
                             <Button type="submit" variant="primary" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
                                 <Send className="w-4 h-4" />
-                                Kirim Feedback
+                                {t('Kirim Masukan')}
                             </Button>
                         </DialogFooter>
                     </form>

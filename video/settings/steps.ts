@@ -125,7 +125,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-numbering'),
         focus: S['fm-numbering'].pattern,
         zoom: 1.8,
-        caption: 'Pola nomor saat ini. Nomor baru diberikan saat invoice dikirim, bukan saat draft dibuat.',
+        caption: 'Pola nomor saat ini. Nomor baru diberikan saat invoice diterbitkan, bukan saat draft dibuat.',
     },
     {
         src: img('fm-numbering'),
@@ -173,7 +173,7 @@ export const FM_STEPS: Step[] = [
         focus: around(S['fm-numbering-save'].note, S['fm-numbering-save'].save),
         cursor: S['fm-numbering-save'].save,
         zoom: 1.7,
-        caption: 'Simpan berlaku untuk invoice yang dikirim sesudahnya. Kembalikan default mengisi ulang pola bawaan (tetap perlu Simpan).',
+        caption: 'Simpan berlaku untuk invoice yang diterbitkan sesudahnya. Kembalikan bawaan mengisi ulang pola bawaan (tetap perlu Simpan).',
         duration: 130,
     },
     {
@@ -278,7 +278,7 @@ export const ADMIN_TEMPLATE_STEPS: Step[] = brisk([
         cursor: S['admin-editor-saved'].save,
         click: true,
         zoom: 1.8,
-        caption: 'Klik Simpan. PDF dan Pratinjau membuka layout yang tersimpan; Preview menampilkan token terisi di kanvas.',
+        caption: 'Klik Simpan. PDF dan Pratinjau PDF (menu) membuka layout yang tersimpan; tombol Pratinjau (ikon mata) menampilkan token terisi di kanvas.',
         chime: true,
         duration: 130,
     },
@@ -288,13 +288,13 @@ export const ADMIN_TEMPLATE_STEPS: Step[] = brisk([
         cursor: S['admin-template-menu'].setDefault,
         click: true,
         zoom: 1.8,
-        caption: 'Di daftar, menu ••• berisi Ubah Nama, Jadikan Default, Duplikat, dan Hapus.',
+        caption: 'Di daftar, menu ••• berisi Ubah Nama, Jadikan Bawaan, Duplikat, dan Hapus.',
     },
     {
         src: img('admin-template-default'),
         focus: S['admin-template-default'].row,
         zoom: 1.5,
-        caption: 'Template bertanda Default tampil paling depan di antara template buatan saat mencetak.',
+        caption: 'Template bertanda Bawaan tampil paling depan di antara template buatan saat mencetak.',
         duration: 110,
     },
 ]);

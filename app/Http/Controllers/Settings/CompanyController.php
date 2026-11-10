@@ -97,10 +97,10 @@ class CompanyController extends Controller
         tenant()?->update(['name' => $company->name, 'abbreviation' => $company->abbreviation]);
 
         if ($belumLengkap) {
-            return redirect()->route('dashboard')->with('success', 'Profil perusahaan lengkap. Selamat bekerja.');
+            return redirect()->route('dashboard')->with('success', __('Profil perusahaan lengkap. Selamat bekerja.'));
         }
 
-        return redirect()->back()->with('success', 'Profil perusahaan berhasil diperbarui.');
+        return redirect()->back()->with('success', __('Profil perusahaan berhasil diperbarui.'));
     }
 
     public function deleteAsset(Request $request, string $asset): RedirectResponse
@@ -123,7 +123,7 @@ class CompanyController extends Controller
         $company->{$column} = null;
         $company->save();
 
-        return redirect()->back()->with('success', 'File berhasil dihapus.');
+        return redirect()->back()->with('success', __('File berhasil dihapus.'));
     }
 
     private function replaceFile(CompanyProfile $company, string $column, $file, string $baseName): void

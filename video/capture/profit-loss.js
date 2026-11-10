@@ -21,7 +21,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -29,7 +29,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     await p.waitForLoadState('networkidle');
     return p;
@@ -86,7 +86,7 @@ async (page) => {
       revenueSection: up(doc(m).getByText('Pendapatan dari Invoice (kas)', { exact: true }), 2),
       invoiceRevenue: line(m, 'Pendapatan dari Invoice (kas)'),
       totalRevenue: line(m, 'Total Pendapatan'),
-      cogsInvoice: line(m, 'HPP Invoice (cost-recovery)'),
+      cogsInvoice: line(m, 'HPP Invoice (pemulihan biaya)'),
       card: card(),
     });
 
@@ -144,7 +144,7 @@ async (page) => {
     await snap(a, 'admin-pl-top', {
       ...header(a),
       invoiceRevenue: line(a, 'Pendapatan dari Invoice (kas)'),
-      cogsInvoice: line(a, 'HPP Invoice (cost-recovery)'),
+      cogsInvoice: line(a, 'HPP Invoice (pemulihan biaya)'),
       totalRevenue: line(a, 'Total Pendapatan'),
     });
 

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { usePage } from '@inertiajs/react';
 import { Toaster, toast } from 'sonner';
+import { t } from '@/i18n';
 import { toastError } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { FloatingFeedbackButton } from '@/components/floating-feedback-button';
@@ -103,7 +104,13 @@ export function AppLayout({ children, contentClassName }: AppLayoutProps) {
             <FloatingFeedbackButton />
             <ResourceModalHost />
 
-            <Toaster richColors position="top-right" />
+            {/* Label aria bawaan Sonner berbahasa Inggris ("Notifications", "Close toast"): diterjemahkan. */}
+            <Toaster
+                richColors
+                position="top-right"
+                containerAriaLabel={t('Notifikasi')}
+                toastOptions={{ closeButtonAriaLabel: t('Tutup notifikasi') }}
+            />
         </div>
     );
 }

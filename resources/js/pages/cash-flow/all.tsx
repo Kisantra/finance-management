@@ -25,8 +25,9 @@ import {
     type CashFlowDialogData,
 } from './components/transaction-detail-dialog';
 import { TransactionFormDialog } from '../bank-accounts/components/transaction-form-dialog';
-import type { AccountPickerItem } from '../bank-accounts/types';
+import { bankNameLabel, type AccountPickerItem } from '../bank-accounts/types';
 import type { CombinedFilters, CombinedRow, CombinedStats, FilterOption, PaginationMeta } from './types';
+import { t, Trans } from '@/i18n';
 
 interface Props {
     rows: CombinedRow[];
@@ -116,10 +117,10 @@ export default function CashFlowAll({
     const netWithoutFinancing = stats.net - (stats.financing_in - stats.financing_out);
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== (filters.search ?? '')) apply({ search, page: 1 });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -180,33 +181,33 @@ export default function CashFlowAll({
     const periodLabel =
         filters.date_from && filters.date_to
             ? `${formatDate(filters.date_from)} – ${formatDate(filters.date_to)}`
-            : 'Semua waktu';
+            : t('Semua waktu');
 
     return (
         <AppLayout>
-            <Head title="Pemasukan & Pengeluaran" />
+            <Head title={t('Pemasukan & Pengeluaran', { context: 'menu' })} />
 
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title="Pemasukan & Pengeluaran"
-                    description="Pemasukan (pembayaran invoice & transaksi langsung) dan pengeluaran dalam satu daftar, termasuk pendanaan yang ditandai dan tidak masuk Laba Rugi. Transfer antar rekening tidak termasuk."
+                    title={t('Pemasukan & Pengeluaran', { context: 'menu' })}
+                    description={t('Pemasukan (pembayaran invoice & transaksi langsung) dan pengeluaran dalam satu daftar, termasuk pendanaan yang ditandai dan tidak masuk Laba Rugi. Transfer antar rekening tidak termasuk.')}
                     action={
                         <div className="flex flex-wrap items-center gap-2">
                             <TutorialButton slug="cash-flow" />
                             <Button variant="outline" size="md" onClick={exportExcel}>
                                 <FileSpreadsheet className="h-4 w-4" />
-                                Export Excel
+                                {t('Ekspor Excel')}
                             </Button>
                             {canCreateIncome && (
                                 <Button variant="green" size="md" onClick={() => setCreateType('credit')}>
                                     <Plus className="h-4 w-4" />
-                                    Input Pemasukan
+                                    {t('Catat Pemasukan')}
                                 </Button>
                             )}
                             {canCreateExpense && (
                                 <Button variant="red" size="md" onClick={() => setCreateType('debit')}>
                                     <Plus className="h-4 w-4" />
-                                    Input Pengeluaran
+                                    {t('Catat Pengeluaran')}
                                 </Button>
                             )}
                         </div>
@@ -218,70 +219,70 @@ export default function CashFlowAll({
                 {/* Total memuat pendanaan (tidak masuk Laba Rugi); porsinya selalu disebut di bawah angka. */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <StatsCard
-                        label="Total masuk"
+                        label={t('Total masuk')}
                         value={formatCurrency(stats.total_in)}
                         icon={<ArrowDownLeft />}
                         color="green"
-                        hint={`Termasuk pendanaan ${formatCurrency(stats.financing_in)}`}
+                        hint={t('Termasuk pendanaan {{amount}}', { amount: formatCurrency(stats.financing_in) })}
                     />
                     <StatsCard
-                        label="Total keluar"
+                        label={t('Total keluar')}
                         value={formatCurrency(stats.total_out)}
                         icon={<ArrowUpRight />}
                         color="orange"
-                        hint={`Termasuk pendanaan ${formatCurrency(stats.financing_out)}`}
+                        hint={t('Termasuk pendanaan {{amount}}', { amount: formatCurrency(stats.financing_out) })}
                     />
                     <StatsCard
-                        label="Selisih"
+                        label={t('Selisih')}
                         value={signedCurrency(stats.net)}
                         icon={<Scale />}
                         color={stats.net < 0 ? 'orange' : 'green'}
-                        hint={`Tanpa pendanaan: ${signedCurrency(netWithoutFinancing)}`}
+                        hint={t('Tanpa pendanaan: {{amount}}', { amount: signedCurrency(netWithoutFinancing) })}
                     />
                 </div>
 
-                <section aria-label="Daftar pemasukan dan pengeluaran" className={LIST_CARD}>
+                <section aria-label={t('Daftar pemasukan dan pengeluaran')} className={LIST_CARD}>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         <DatePicker
                             mode="range"
-                            label="Rentang Tanggal"
+                            label={t('Rentang Tanggal')}
                             value={{ from: parseIso(filters.date_from), to: parseIso(filters.date_to) }}
                             onChange={(r) => apply({ date_from: isoOrNull(r.from), date_to: isoOrNull(r.to), page: 1 })}
-                            placeholder="Pilih rentang"
+                            placeholder={t('Pilih rentang')}
                             clearable
                         />
                         <Combobox
-                            label="Rekening"
+                            label={t('Rekening')}
                             options={bankAccountOptions}
                             value={filters.bank_accounts[0] ?? null}
                             onChange={(v) => apply({ bank_accounts: v ? [Number(v)] : [], page: 1 })}
-                            placeholder="Semua rekening"
+                            placeholder={t('Semua rekening')}
                             clearable
                         />
                         <Combobox
-                            label="Kategori"
+                            label={t('Kategori')}
                             options={categoryOptions}
                             value={filters.categories[0] ?? null}
                             onChange={(v) => apply({ categories: v ? [Number(v)] : [], page: 1 })}
-                            placeholder="Semua kategori"
-                            hint={filters.categories.length > 0 ? 'Pembayaran invoice tidak berkategori, jadi ikut tersembunyi.' : undefined}
+                            placeholder={t('Semua kategori')}
+                            hint={filters.categories.length > 0 ? t('Pembayaran invoice tidak berkategori, jadi ikut tersembunyi.') : undefined}
                             clearable
                         />
                         <Combobox
-                            label="Diinput oleh"
+                            label={t('Diinput oleh')}
                             options={inputByOptions}
                             value={filters.input_by}
                             onChange={(v) => apply({ input_by: v ? Number(v) : null, page: 1 })}
-                            placeholder="Semua pengguna"
-                            emptyText="Belum ada pencatat."
+                            placeholder={t('Semua pengguna')}
+                            emptyText={t('Belum ada pencatat.')}
                             clearable
                         />
                         <Input
-                            label="Cari"
+                            label={t('Cari')}
                             icon={<Search className="h-4 w-4" />}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Invoice, klien, deskripsi..."
+                            placeholder={t('Invoice, klien, deskripsi...')}
                         />
                     </div>
 
@@ -290,18 +291,22 @@ export default function CashFlowAll({
                             {activeFilterCount > 0 && (
                                 <Badge variant="default" className="gap-1">
                                     <Filter className="h-3 w-3" />
-                                    {activeFilterCount} filter aktif
+                                    {t('{{count}} filter aktif', { count: activeFilterCount })}
                                 </Badge>
                             )}
                             <span className="text-[13px] text-ob-ink-2">
-                                Menampilkan <span className="tabular-nums">{rows.length}</span> dari{' '}
-                                <span className="tabular-nums">{pagination.total}</span> hasil · {periodLabel}
+                                <Trans
+                                    i18nKey="Menampilkan <b>{{shown}}</b> dari <b>{{count}}</b> hasil · {{period}}"
+                                    count={pagination.total}
+                                    values={{ shown: rows.length, period: periodLabel }}
+                                    components={{ b: <span className="tabular-nums" /> }}
+                                />
                             </span>
                         </div>
                         {activeFilterCount > 0 && (
                             <Button variant="ghost" size="sm" onClick={reset}>
                                 <X className="h-3.5 w-3.5" />
-                                Reset
+                                {t('Hapus filter')}
                             </Button>
                         )}
                     </div>
@@ -309,11 +314,11 @@ export default function CashFlowAll({
                     {rows.length === 0 ? (
                         <EmptyState
                             icon={<Scale className="h-7 w-7" />}
-                            title="Tidak ada transaksi"
+                            title={t('Tidak ada transaksi')}
                             description={
                                 activeFilterCount > 0
-                                    ? 'Coba sesuaikan filter atau periode pencarian.'
-                                    : 'Pemasukan dan pengeluaran yang dicatat akan tampil di sini.'
+                                    ? t('Coba sesuaikan filter atau periode pencarian.')
+                                    : t('Pemasukan dan pengeluaran yang dicatat akan tampil di sini.')
                             }
                         />
                     ) : (
@@ -322,19 +327,19 @@ export default function CashFlowAll({
                                 <thead>
                                     <tr className={HEAD_ROW}>
                                         <SortableTh
-                                            label="Tanggal"
+                                            label={t('Tanggal')}
                                             column="date"
                                             current={filters.sort}
                                             direction={filters.direction}
                                             onSort={onSort}
                                             className="hidden sm:table-cell"
                                         />
-                                        <th scope="col" className={cn(TH, 'hidden md:table-cell')}>Jenis</th>
-                                        <th scope="col" className={TH}>Keterangan</th>
-                                        <th scope="col" className={cn(TH, 'hidden xl:table-cell')}>Kategori</th>
-                                        <th scope="col" className={cn(TH, 'hidden lg:table-cell')}>Diinput oleh</th>
+                                        <th scope="col" className={cn(TH, 'hidden md:table-cell')}>{t('Jenis')}</th>
+                                        <th scope="col" className={TH}>{t('Keterangan')}</th>
+                                        <th scope="col" className={cn(TH, 'hidden xl:table-cell')}>{t('Kategori')}</th>
+                                        <th scope="col" className={cn(TH, 'hidden lg:table-cell')}>{t('Diinput oleh')}</th>
                                         <SortableTh
-                                            label="Jumlah"
+                                            label={t('Jumlah')}
                                             column="amount"
                                             current={filters.sort}
                                             direction={filters.direction}
@@ -360,7 +365,7 @@ export default function CashFlowAll({
                                                 </td>
                                                 <td className="hidden px-3 py-3 align-top md:table-cell">
                                                     <div className="flex flex-col items-start gap-1">
-                                                        <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? 'Masuk' : 'Keluar'}</Badge>
+                                                        <Badge variant={masuk ? 'green' : 'orange'}>{masuk ? t('Masuk', { context: 'arah' }) : t('Keluar', { context: 'arah' })}</Badge>
                                                         {row.is_financing && <FinancingBadge className="xl:hidden" />}
                                                     </div>
                                                 </td>
@@ -382,12 +387,12 @@ export default function CashFlowAll({
                                                         <span className="truncate">
                                                             {isPayment ? (
                                                                 <>
-                                                                    <span className="font-mono">{row.invoice_number ?? 'Pembayaran invoice'}</span>
+                                                                    <span className="font-mono">{row.invoice_number ?? t('Pembayaran invoice')}</span>
                                                                     {' · '}
-                                                                    {row.bank_name}
+                                                                    {bankNameLabel(row.bank_name, row.account_type)}
                                                                 </>
                                                             ) : (
-                                                                row.bank_name
+                                                                bankNameLabel(row.bank_name, row.account_type)
                                                             )}
                                                         </span>
                                                     </span>
@@ -414,7 +419,7 @@ export default function CashFlowAll({
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-3 text-right align-top">
                                                     <span className={cn('font-semibold tabular-nums', masuk ? 'text-ob-pos' : 'text-ob-neg')}>
-                                                        <span className="sr-only">{masuk ? 'masuk ' : 'keluar '}</span>
+                                                        <span className="sr-only">{(masuk ? t('masuk') : t('keluar')) + ' '}</span>
                                                         {masuk ? '+' : '−'}
                                                         {formatCurrency(row.amount)}
                                                     </span>
