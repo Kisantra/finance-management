@@ -37,7 +37,7 @@ export const guide: ModuleGuide = {
                 'Buka **Master Data › Klien**, lalu klik **Tambah Klien**.',
                 'Isi **Nama Klien** (wajib), pilih **Tipe Klien** (Individu atau Perusahaan) dan **Status** (Aktif atau Tidak Aktif).',
                 'Isi **Email** (tidak boleh sama dengan klien lain) dan **Alamat**.',
-                'Di **Data Pajak & Kontak**, isi **NPWP**, **KPP**, dan **EFIN** (masing-masing maksimal 20 karakter), lalu **PIC (Person in Charge)**, **Account Representative**, dan **No. HP AR**. Semua opsional.',
+                'Di **Data Pajak & Kontak**, isi **NPWP**, **KPP**, dan **EFIN** (masing-masing maksimal 20 karakter), lalu **PIC (Penanggung Jawab)**, **Account Representative**, dan **No. HP AR**. Semua opsional.',
                 'Klik **Simpan Klien**. Klien Aktif langsung bisa dipilih saat membuat invoice.',
             ],
         },
@@ -54,7 +54,7 @@ export const guide: ModuleGuide = {
             title: 'Mengubah data atau menonaktifkan klien',
             role: ROLES.staff,
             steps: [
-                'Klik ikon pensil pada baris klien. Dialog **Edit Klien** terbuka.',
+                'Klik ikon pensil pada baris klien. Dialog **Ubah Klien** terbuka.',
                 'Ubah datanya, lalu klik **Perbarui Klien**.',
                 'Pilih **Tidak Aktif** untuk klien yang sudah tidak dilayani: klien tidak muncul lagi di pilihan invoice baru, tetapi invoice lamanya tetap ada.',
             ],
@@ -74,7 +74,7 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 'Klien **Aktif** bisa dipilih di invoice dan invoice berulang; klien **Perusahaan** yang aktif juga menjadi pilihan debitur di Piutang.',
-                '**Alias** klien (mis. SMA) menjadi bagian nomor invoice saat invoice dikirim (token {KLIEN}); bila kosong dipakai inisial nama klien. Mengubah alias tidak mengubah nomor yang sudah terbit.',
+                '**Alias** klien (mis. SMA) menjadi bagian nomor invoice saat invoice diterbitkan (token {KLIEN}); bila kosong dipakai inisial nama klien. Mengubah alias tidak mengubah nomor yang sudah terbit.',
                 'Invoice lama ikut menampilkan data klien terbaru (detail & PDF), tetapi nomor invoice yang sudah terbit tidak berubah.',
                 '**Tidak Aktif** hanya menyembunyikan klien dari pilihan; invoice, pembayaran, dan laporannya tetap.',
             ],

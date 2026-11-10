@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { t, tk } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
@@ -30,9 +31,9 @@ interface Props {
 /* Warna strip mini = aksen masing-masing template PDF, supaya kartu mudah dikenali. */
 const BUILTIN = [
     { value: 'kisantra-invoice', label: 'Kisantra', accent: '#42b2cc' },
-    { value: 'semesta-invoice', label: 'Semesta', accent: '#1f2937' },
-    { value: 'agsa-invoice', label: 'AGSA', accent: '#c2410c' },
-    { value: 'invoice', label: 'Generik', accent: '#64748b' },
+    { value: 'semesta-invoice', label: 'Semesta', accent: '#1f2937' }, // i18n-abaikan: nama template
+    { value: 'agsa-invoice', label: 'AGSA', accent: '#c2410c' }, // i18n-abaikan: nama template
+    { value: 'invoice', label: tk('Generik'), accent: '#64748b' },
 ];
 
 export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [] }: Props) {
@@ -52,7 +53,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
         }
     }, [open, settlementAvailable]);
 
-    const dpError = printType === 'dp' && (dpAmount <= 0 || dpAmount > totalAmount) ? 'Isi nominal DP lebih dari 0 dan tidak melebihi total.' : null;
+    const dpError = printType === 'dp' && (dpAmount <= 0 || dpAmount > totalAmount) ? t('Isi nominal DP lebih dari 0 dan tidak melebihi total.') : null;
 
     const query = React.useMemo(() => {
         const params = new URLSearchParams({ template });
@@ -63,21 +64,21 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
 
 
     const typeOptions = [
-        { value: 'full' as const, label: 'Penuh' },
-        { value: 'dp' as const, label: 'Uang muka' },
-        ...(settlementAvailable ? [{ value: 'pelunasan' as const, label: 'Pelunasan' }] : []),
+        { value: 'full' as const, label: t('Penuh') },
+        { value: 'dp' as const, label: t('Uang muka') },
+        ...(settlementAvailable ? [{ value: 'pelunasan' as const, label: t('Pelunasan') }] : []),
     ];
 
     const templates = [
         ...BUILTIN,
-        ...customTemplates.map((t) => ({ value: `builder:${t.id}`, label: t.name, accent: '#7c3aed' })),
+        ...customTemplates.map((tpl) => ({ value: `builder:${tpl.id}`, label: tpl.name, accent: '#7c3aed' })),
     ];
 
     // Nominal DP diketik per digit: tunda render PDF sampai ketikan berhenti.
     const [debouncedQuery, setDebouncedQuery] = React.useState(query);
     React.useEffect(() => {
-        const t = window.setTimeout(() => setDebouncedQuery(query), 400);
-        return () => window.clearTimeout(t);
+        const timer = window.setTimeout(() => setDebouncedQuery(query), 400);
+        return () => window.clearTimeout(timer);
     }, [query]);
 
     const download = () => {
@@ -95,17 +96,17 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                     <div className="flex flex-col gap-5 p-6">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                                <DialogTitle className="text-xl font-semibold text-ob-ink dark:text-ob-ink">Cetak invoice</DialogTitle>
-                                <DialogDescription className="mt-1 font-mono text-[13px] text-ob-ink-2 dark:text-ob-ink-2">{invoiceNumber ?? 'Draft'}</DialogDescription>
+                                <DialogTitle className="text-xl font-semibold text-ob-ink dark:text-ob-ink">{t('Cetak invoice')}</DialogTitle>
+                                <DialogDescription className="mt-1 font-mono text-[13px] text-ob-ink-2 dark:text-ob-ink-2">{invoiceNumber ?? t('Draft')}</DialogDescription>
                             </div>
-                            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={() => onOpenChange(false)} aria-label="Tutup">
+                            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={() => onOpenChange(false)} aria-label={t('Tutup')}>
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
 
                         <SegmentedControl
                             variant="pill"
-                            label="Jenis tagihan"
+                            label={t('Jenis tagihan')}
                             options={typeOptions}
                             value={printType}
                             onChange={setPrintType}
@@ -113,36 +114,36 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                         />
 
                         <div className="flex flex-col gap-1.5 rounded-2xl border border-ob-line bg-ob-inner p-4">
-                            <SumRow label="Total invoice" value={rp(totalAmount)} />
+                            <SumRow label={t('Total invoice')} value={rp(totalAmount)} />
                             {printType === 'dp' && (
                                 <>
                                     <div className={cn(FIELD, 'my-1')}>
-                                        <CurrencyInput label="Nominal uang muka" value={dpAmount} onChange={setDpAmount} error={dpAmount > 0 ? dpError ?? undefined : undefined} />
+                                        <CurrencyInput label={t('Nominal uang muka')} value={dpAmount} onChange={setDpAmount} error={dpAmount > 0 ? dpError ?? undefined : undefined} />
                                     </div>
-                                    <SumRow label="Sisa setelah DP" value={rp(Math.max(totalAmount - dpAmount, 0))} />
+                                    <SumRow label={t('Sisa setelah DP')} value={rp(Math.max(totalAmount - dpAmount, 0))} />
                                 </>
                             )}
                             {printType === 'pelunasan' && (
                                 <>
-                                    <SumRow label="Sudah dibayar" value={rp(amountPaid)} />
-                                    <SumRow label="Tagihan pelunasan" value={rp(remaining)} strong />
+                                    <SumRow label={t('Sudah dibayar')} value={rp(amountPaid)} />
+                                    <SumRow label={t('Tagihan pelunasan')} value={rp(remaining)} strong />
                                 </>
                             )}
                         </div>
-                        {printType === 'dp' && <p className="-mt-3 text-[13px] text-ob-ink-2">Uang muka: isi nominal DP (lebih dari 0, tidak melebihi total).</p>}
+                        {printType === 'dp' && <p className="-mt-3 text-[13px] text-ob-ink-2">{t('Uang muka: isi nominal DP (lebih dari 0, tidak melebihi total).')}</p>}
 
                         <div>
-                            <p className="mb-2 text-[13px] font-medium text-ob-ink-2">Template</p>
-                            <div role="radiogroup" aria-label="Template" className="grid grid-cols-4 gap-2.5">
-                                {templates.map((t) => {
-                                    const on = template === t.value;
+                            <p className="mb-2 text-[13px] font-medium text-ob-ink-2">{t('Template')}</p>
+                            <div role="radiogroup" aria-label={t('Template')} className="grid grid-cols-4 gap-2.5">
+                                {templates.map((tpl) => {
+                                    const on = template === tpl.value;
                                     return (
                                         <button
-                                            key={t.value}
+                                            key={tpl.value}
                                             type="button"
                                             role="radio"
                                             aria-checked={on}
-                                            onClick={() => setTemplate(t.value)}
+                                            onClick={() => setTemplate(tpl.value)}
                                             className="group flex flex-col items-center gap-1.5 focus-visible:outline-none"
                                         >
                                             <span
@@ -151,12 +152,12 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                                                     on ? 'border-ob-act-fill' : 'border-ob-line hover:border-ob-line-strong',
                                                 )}
                                             >
-                                                <span className="h-1.5 rounded-sm" style={{ background: t.accent }} />
+                                                <span className="h-1.5 rounded-sm" style={{ background: tpl.accent }} />
                                                 <span className="h-1 w-2/3 rounded-sm bg-slate-200" />
                                                 <span className="mt-1 flex-1 rounded-sm bg-slate-100" />
-                                                <span className="ml-auto h-1.5 w-1/2 rounded-sm" style={{ background: t.accent }} />
+                                                <span className="ml-auto h-1.5 w-1/2 rounded-sm" style={{ background: tpl.accent }} />
                                             </span>
-                                            <span className={cn('max-w-full truncate text-xs', on ? 'font-semibold text-ob-ink' : 'text-ob-ink-2')}>{t.label}</span>
+                                            <span className={cn('max-w-full truncate text-xs', on ? 'font-semibold text-ob-ink' : 'text-ob-ink-2')}>{tpl.value === 'invoice' ? t(tpl.label) : tpl.label}</span>
                                         </button>
                                     );
                                 })}
@@ -166,25 +167,25 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                         <div className="mt-auto flex flex-wrap justify-end gap-2">
                             <Button asChild variant="outline" className={BTN.secondary}>
                                 <a href={companyUrl(`/invoice/${invoiceId}/preview?${query}`)} target="_blank" rel="noreferrer" aria-disabled={!!dpError} onClick={(e) => dpError && e.preventDefault()}>
-                                    <ExternalLink className="h-4 w-4" /> Buka PDF
+                                    <ExternalLink className="h-4 w-4" /> {t('Buka PDF')}
                                 </a>
                             </Button>
                             <Button className={BTN.primary} onClick={download} disabled={!!dpError} icon={<Download className="h-4 w-4" />}>
-                                Unduh PDF
+                                {t('Unduh PDF')}
                             </Button>
                         </div>
                     </div>
 
                     <div className="flex min-h-[420px] flex-col gap-3 border-t border-ob-line bg-ob-inner p-5 lg:rounded-r-3xl lg:border-l lg:border-t-0">
                         <div className="flex items-center justify-between text-[13px] text-ob-ink-2">
-                            <span>{printType === 'pelunasan' ? 'Pratinjau pelunasan' : printType === 'dp' ? 'Pratinjau uang muka' : 'Pratinjau'}</span>
-                            <SegmentedControl variant="pill" label="Zoom kertas" options={[{ value: 'fit' as const, label: 'Pas lebar' }, { value: 'actual' as const, label: '100%' }]} value={zoom} onChange={setZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
+                            <span>{printType === 'pelunasan' ? t('Pratinjau pelunasan') : printType === 'dp' ? t('Pratinjau uang muka') : t('Pratinjau')}</span>
+                            <SegmentedControl variant="pill" label={t('Perbesaran kertas')} options={[{ value: 'fit' as const, label: t('Pas lebar') }, { value: 'actual' as const, label: '100%' }]} value={zoom} onChange={setZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
                         </div>
                         <div className="max-h-[70vh] min-h-0 flex-1 overflow-y-auto">
                             {dpError ? (
-                                <p className="flex h-full min-h-[320px] items-center justify-center text-center text-[13px] text-ob-ink-2">Isi nominal uang muka untuk melihat pratinjau.</p>
+                                <p className="flex h-full min-h-[320px] items-center justify-center text-center text-[13px] text-ob-ink-2">{t('Isi nominal uang muka untuk melihat pratinjau.')}</p>
                             ) : (
-                                <InvoicePaper src={open ? companyUrl(`/invoice/${invoiceId}/preview?${debouncedQuery}`) : null} zoom={zoom} title="Pratinjau cetak" />
+                                <InvoicePaper src={open ? companyUrl(`/invoice/${invoiceId}/preview?${debouncedQuery}`) : null} zoom={zoom} title={t('Pratinjau cetak')} />
                             )}
                         </div>
                     </div>

@@ -114,7 +114,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-list-pending'),
         focus: S['staff-list-pending'].row,
         zoom: 1.3,
-        caption: 'Status menjadi Menunggu. Finance manager akan menyetujui atau menolaknya.',
+        caption: 'Status menjadi Menunggu persetujuan. Finance manager akan menyetujui atau menolaknya.',
         chime: true,
         duration: 110,
     },
@@ -134,7 +134,7 @@ export const REJECT_STAFF_STEPS: Step[] = [
         focus: around(S['staff-detail-rejected'].reason, S['staff-detail-rejected'].edit),
         cursor: S['staff-detail-rejected'].edit,
         zoom: 1.4,
-        caption: 'Ikon Edit memang tampil, tetapi Staff tidak berizin mengedit (ditolak sistem). Minta Finance manager merevisi, atau buat pengajuan baru.',
+        caption: 'Ikon Ubah memang tampil, tetapi Staff tidak berizin mengubah (ditolak sistem). Minta Finance manager merevisi, atau buat pengajuan baru.',
         duration: 150,
     },
 ];
@@ -145,7 +145,7 @@ export const FM_STEPS: Step[] = [
         src: img('fm-list-pending'),
         focus: S['fm-list-pending'].filter,
         zoom: 1.6,
-        caption: 'Pilih filter Menunggu Persetujuan untuk melihat antrean pengajuan.',
+        caption: 'Pilih filter Menunggu persetujuan untuk melihat antrean pengajuan.',
     },
     {
         src: img('fm-list-pending'),
@@ -309,7 +309,7 @@ export const REJECT_FM_STEPS: Step[] = [
         cursor: S['fm-reject'].confirm,
         click: true,
         zoom: 1.8,
-        caption: 'Klik Tolak. Untuk merevisi, klik ikon Edit; setelah disimpan statusnya kembali Draft dan bisa diajukan ulang.',
+        caption: 'Klik Tolak. Untuk merevisi, klik ikon Ubah; setelah disimpan statusnya kembali Draft dan bisa diajukan ulang.',
         duration: 150,
     },
 ];

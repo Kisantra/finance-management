@@ -16,6 +16,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/shared/currency-input';
+import { t, tk } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
@@ -65,10 +66,10 @@ interface EditProps extends SharedProps {
 /* ─────────────────────────────────── constants ─── */
 
 const FREQUENCY_OPTIONS = [
-    { value: 'monthly', label: 'Bulanan' },
-    { value: 'quarterly', label: 'Triwulanan (3 bln)' },
-    { value: 'semi_annual', label: 'Semesteran (6 bln)' },
-    { value: 'annual', label: 'Tahunan' },
+    { value: 'monthly', label: tk('Bulanan') },
+    { value: 'quarterly', label: tk('Triwulanan (3 bln)') },
+    { value: 'semi_annual', label: tk('Semesteran (6 bln)') },
+    { value: 'annual', label: tk('Tahunan') },
 ];
 
 const COMMON_UNITS = [
@@ -189,7 +190,7 @@ export function TemplateForm({
             items: d.items.map((item) => ({ ...item, quantity: parseQty(String(item.quantity)) })),
         }));
         const options = {
-            onSuccess: () => toast.success(isEdit ? 'Template berhasil diperbarui.' : 'Template berhasil dibuat.'),
+            onSuccess: () => toast.success(isEdit ? t('Template berhasil diperbarui.') : t('Template berhasil dibuat.')),
             onError: (errs: Record<string, string>) => toastErrors(errs, isEdit ? 'UpdateTemplate' : 'CreateTemplate'),
         };
         if (method === 'put') put(submitUrl, options);
@@ -212,8 +213,8 @@ export function TemplateForm({
                                 <FileText className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                             </div>
                             <div>
-                                <h2 className="text-sm font-semibold text-dark-900 dark:text-dark-50">Detail Template</h2>
-                                <p className="text-xs text-dark-500 dark:text-dark-400">Nama, klien, periode, dan frekuensi tagihan</p>
+                                <h2 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t('Detail Template')}</h2>
+                                <p className="text-xs text-dark-500 dark:text-dark-400">{t('Nama, klien, periode, dan frekuensi tagihan')}</p>
                             </div>
                         </div>
                         <div className="p-4 sm:p-6 space-y-5">
@@ -221,18 +222,18 @@ export function TemplateForm({
                             {/* Row 1: Template Name + Client */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <Input
-                                    label="Nama Template *"
+                                    label={t('Nama Template *')}
                                     value={data.template_name}
                                     onChange={(e) => setData('template_name', e.target.value)}
-                                    placeholder="Contoh: Monthly Retainer"
+                                    placeholder={t('Contoh: Retainer Bulanan')}
                                     error={errors.template_name}
                                 />
                                 <Combobox
-                                    label="Klien *"
+                                    label={t('Klien *')}
                                     options={clientOptions}
                                     value={data.client_id}
                                     onChange={handleClientChange}
-                                    placeholder="Pilih klien..."
+                                    placeholder={t('Pilih klien...')}
                                     error={errors.client_id}
                                 />
                             </div>
@@ -240,13 +241,13 @@ export function TemplateForm({
                             {/* Row 2: Start + End Date */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <DatePicker
-                                    label="Tanggal Mulai *"
+                                    label={t('Tanggal Mulai *')}
                                     value={data.start_date ? new Date(data.start_date + 'T00:00:00') : null}
                                     onChange={(d) => setData('start_date', d ? format(d, 'yyyy-MM-dd') : '')}
                                     error={errors.start_date}
                                 />
                                 <DatePicker
-                                    label="Tanggal Berakhir *"
+                                    label={t('Tanggal Berakhir *')}
                                     value={data.end_date ? new Date(data.end_date + 'T00:00:00') : null}
                                     onChange={(d) => setData('end_date', d ? format(d, 'yyyy-MM-dd') : '')}
                                     minDate={data.start_date ? new Date(data.start_date + 'T00:00:00') : undefined}
@@ -257,7 +258,7 @@ export function TemplateForm({
                             {/* Frequency */}
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                    Frekuensi *
+                                    {t('Frekuensi *')}
                                 </label>
                                 <div className="flex flex-wrap gap-2">
                                     {FREQUENCY_OPTIONS.map((f) => (
@@ -272,7 +273,7 @@ export function TemplateForm({
                                                     : 'border-secondary-200 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:border-primary-400 dark:hover:border-primary-600',
                                             )}
                                         >
-                                            {f.label}
+                                            {t(f.label)}
                                         </button>
                                     ))}
                                 </div>
@@ -289,11 +290,11 @@ export function TemplateForm({
                                     <List className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h2 className="text-sm font-semibold text-dark-900 dark:text-dark-50">Item Invoice</h2>
+                                    <h2 className="text-sm font-semibold text-dark-900 dark:text-dark-50">{t('Item Invoice')}</h2>
                                     <p className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-1">
                                         <Info className="w-3 h-3 shrink-0" />
-                                        <span className="hidden sm:inline">Item akan digunakan setiap kali invoice di-generate</span>
-                                        <span className="sm:hidden">Item per generate</span>
+                                        <span className="hidden sm:inline">{t('Item dipakai setiap kali draft invoice dibuat')}</span>
+                                        <span className="sm:hidden">{t('Item per draft')}</span>
                                     </p>
                                 </div>
                             </div>
@@ -302,12 +303,12 @@ export function TemplateForm({
                                     type="button"
                                     onClick={resetWidths}
                                     className="hidden sm:block text-xs text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors"
-                                    title="Reset lebar kolom ke default"
+                                    title={t('Kembalikan lebar kolom bawaan')}
                                 >
-                                    Reset Ukuran Kolom
+                                    {t('Kembalikan Ukuran Kolom')}
                                 </button>
                                 <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                                    <Plus className="w-3.5 h-3.5 mr-1" /> Tambah Item
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> {t('Tambah Item')}
                                 </Button>
                             </div>
                         </div>
@@ -321,29 +322,29 @@ export function TemplateForm({
                                 <thead>
                                     <tr className="bg-secondary-50 dark:bg-dark-800 border-b border-secondary-200 dark:border-dark-600">
                                         <ResizableTh width={widths.no} onResizeStart={(e) => onMouseDown('no', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-400 dark:text-dark-500 text-left">#</ResizableTh>
-                                        <ResizableTh width={widths.client} onResizeStart={(e) => onMouseDown('client', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Klien</ResizableTh>
-                                        <ResizableTh width={widths.service} onResizeStart={(e) => onMouseDown('service', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Nama Layanan</ResizableTh>
+                                        <ResizableTh width={widths.client} onResizeStart={(e) => onMouseDown('client', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Klien')}</ResizableTh>
+                                        <ResizableTh width={widths.service} onResizeStart={(e) => onMouseDown('service', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Nama Layanan')}</ResizableTh>
                                         <ResizableTh width={widths.qty} onResizeStart={(e) => onMouseDown('qty', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">
                                             <TooltipProvider delayDuration={0}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <span className="inline-flex items-center gap-1 cursor-default">
-                                                            Qty
+                                                            {t('Qty')}
                                                             <Info className="w-3 h-3 text-primary-400 dark:text-primary-500" />
                                                         </span>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="max-w-48 text-center leading-relaxed">
-                                                        Gunakan titik atau koma sebagai pemisah desimal.<br />
-                                                        Contoh: <span className="font-mono">1.5</span>, <span className="font-mono">5.000,25</span>
+                                                        {t('Gunakan titik atau koma sebagai pemisah desimal.')}<br />
+                                                        {t('Contoh:')} <span className="font-mono">1.5</span>, <span className="font-mono">5.000,25</span>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </ResizableTh>
-                                        <ResizableTh width={widths.unit} onResizeStart={(e) => onMouseDown('unit', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Satuan</ResizableTh>
-                                        <ResizableTh width={widths.price} onResizeStart={(e) => onMouseDown('price', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Harga Sat.</ResizableTh>
-                                        <ResizableTh width={widths.hpp} onResizeStart={(e) => onMouseDown('hpp', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">HPP</ResizableTh>
-                                        <ResizableTh width={widths.pph} onResizeStart={(e) => onMouseDown('pph', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left" title="Titipan Pajak (PPh)">PPh</ResizableTh>
-                                        <ResizableTh width={widths.subtotal} onResizeStart={(e) => onMouseDown('subtotal', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">Subtotal</ResizableTh>
+                                        <ResizableTh width={widths.unit} onResizeStart={(e) => onMouseDown('unit', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Satuan')}</ResizableTh>
+                                        <ResizableTh width={widths.price} onResizeStart={(e) => onMouseDown('price', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Harga Sat.')}</ResizableTh>
+                                        <ResizableTh width={widths.hpp} onResizeStart={(e) => onMouseDown('hpp', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('HPP')}</ResizableTh>
+                                        <ResizableTh width={widths.pph} onResizeStart={(e) => onMouseDown('pph', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left" title={t('Titipan Pajak (PPh)')}>{t('PPh')}</ResizableTh>
+                                        <ResizableTh width={widths.subtotal} onResizeStart={(e) => onMouseDown('subtotal', e)} className="px-2 py-2.5 text-xs font-semibold text-dark-600 dark:text-dark-400 text-left">{t('Subtotal')}</ResizableTh>
                                         <th style={{ width: widths.del, minWidth: widths.del }} />
                                     </tr>
                                 </thead>
@@ -358,7 +359,7 @@ export function TemplateForm({
                                                     options={clientOptions}
                                                     value={item.client_id}
                                                     onChange={(v) => updateItem(idx, 'client_id', v ? Number(v) : null)}
-                                                    placeholder="Pilih klien..."
+                                                    placeholder={t('Pilih klien...')}
                                                     clearable
                                                     popoverWidth="w-56"
                                                     className="w-full [&_button]:h-8 [&_button]:text-xs [&_button]:px-2 [&_button]:rounded-md [&_button]:ring-0 [&_button]:shadow-none"
@@ -370,7 +371,7 @@ export function TemplateForm({
                                                         <Input
                                                             value={item.service_name}
                                                             onChange={(e) => handleServiceNameChange(idx, e.target.value)}
-                                                            placeholder="Nama layanan..."
+                                                            placeholder={t('Nama layanan...')}
                                                             error={errors[`items.${idx}.service_name` as keyof typeof errors]}
                                                             className={cellCls}
                                                         />
@@ -396,7 +397,7 @@ export function TemplateForm({
                                                     list={`unit-list-${idx}`}
                                                     value={item.unit}
                                                     onChange={(e) => updateItem(idx, 'unit', e.target.value)}
-                                                    placeholder="satuan"
+                                                    placeholder={t('satuan')}
                                                     className={cellCls}
                                                 />
                                                 <datalist id={`unit-list-${idx}`}>
@@ -413,7 +414,7 @@ export function TemplateForm({
                                                 <button
                                                     type="button"
                                                     onClick={() => updateItem(idx, 'is_tax_deposit', !item.is_tax_deposit)}
-                                                    title={item.is_tax_deposit ? 'Titipan pajak: aktif' : 'Titipan pajak: nonaktif'}
+                                                    title={item.is_tax_deposit ? t('Titipan pajak: aktif') : t('Titipan pajak: nonaktif')}
                                                     className={cn(
                                                         'h-5 w-5 rounded inline-flex items-center justify-center border text-xs font-bold transition-colors',
                                                         item.is_tax_deposit
@@ -444,9 +445,9 @@ export function TemplateForm({
                                 <tfoot>
                                     <tr className="bg-secondary-50/60 dark:bg-dark-800/60 border-t border-secondary-200 dark:border-dark-600">
                                         <td colSpan={8} className="px-3 py-2 text-xs text-dark-500 dark:text-dark-400 overflow-hidden">
-                                            <span className="font-medium text-dark-700 dark:text-dark-300">{data.items.length} item</span>
+                                            <span className="font-medium text-dark-700 dark:text-dark-300">{t('{{count}} item', { count: data.items.length })}</span>
                                             <span className="mx-1">·</span>
-                                            <span>HPP total:</span>
+                                            <span>{t('HPP total:')}</span>
                                             <span className="font-medium text-dark-700 dark:text-dark-300 ml-1">{formatCurrency(totalCogs)}</span>
                                         </td>
                                         <td className="px-2 py-2 text-xs font-bold text-dark-900 dark:text-dark-50 text-right overflow-hidden">
@@ -467,13 +468,13 @@ export function TemplateForm({
                         {/* Summary rows */}
                         <div className="divide-y divide-secondary-100 dark:divide-dark-600">
                             <div className="flex items-center justify-between px-4 py-3">
-                                <span className="text-xs text-dark-500 dark:text-dark-400">Subtotal</span>
+                                <span className="text-xs text-dark-500 dark:text-dark-400">{t('Subtotal')}</span>
                                 <span className="text-xs font-semibold text-dark-900 dark:text-dark-50 tabular-nums">{formatCurrency(subtotal)}</span>
                             </div>
 
                             {totalTaxDeposits > 0 && (
                                 <div className="flex items-center justify-between px-4 py-3">
-                                    <span className="text-xs text-dark-500 dark:text-dark-400">Titipan Pajak</span>
+                                    <span className="text-xs text-dark-500 dark:text-dark-400">{t('Titipan Pajak')}</span>
                                     <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 tabular-nums">{formatCurrency(totalTaxDeposits)}</span>
                                 </div>
                             )}
@@ -481,7 +482,7 @@ export function TemplateForm({
                             {discountAmount > 0 && (
                                 <div className="flex items-center justify-between px-4 py-3">
                                     <span className="text-xs text-dark-500 dark:text-dark-400">
-                                        Diskon{data.discount_type === 'percentage' ? ` (${data.discount_value}%)` : ''}
+                                        {data.discount_type === 'percentage' ? t('Diskon ({{value}}%)', { value: data.discount_value }) : t('Diskon')}
                                     </span>
                                     <span className="text-xs font-semibold text-red-500 tabular-nums">− {formatCurrency(discountAmount)}</span>
                                 </div>
@@ -489,20 +490,20 @@ export function TemplateForm({
 
                             <div className="px-4 py-4 bg-secondary-50 dark:bg-dark-900/40">
                                 <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wide">Total</span>
+                                    <span className="text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wide">{t('Total')}</span>
                                     <span className="text-2xl font-bold text-primary-600 dark:text-primary-400 tabular-nums">{formatCurrency(totalAmount)}</span>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 divide-x divide-secondary-100 dark:divide-dark-600">
                                 <div className="px-4 py-3">
-                                    <p className="text-[10px] text-dark-400 dark:text-dark-500 mb-0.5">Laba Kotor</p>
+                                    <p className="text-[10px] text-dark-400 dark:text-dark-500 mb-0.5">{t('Laba Kotor')}</p>
                                     <p className={cn('text-xs font-bold tabular-nums', grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
                                         {formatCurrency(grossProfit)}
                                     </p>
                                 </div>
                                 <div className="px-4 py-3">
-                                    <p className="text-[10px] text-dark-400 dark:text-dark-500 mb-0.5">Est. PPh 0.5%</p>
+                                    <p className="text-[10px] text-dark-400 dark:text-dark-500 mb-0.5">{t('Est. PPh final 0,5%')}</p>
                                     <p className="text-xs font-bold text-orange-600 dark:text-orange-400 tabular-nums">{formatCurrency(pph05)}</p>
                                 </div>
                             </div>
@@ -515,7 +516,7 @@ export function TemplateForm({
                                 onClick={() => setDiscountOpen(!discountOpen)}
                                 className="w-full flex items-center justify-between px-4 py-3 border-t border-secondary-200 dark:border-dark-600 text-xs text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200 hover:bg-secondary-50 dark:hover:bg-dark-700/40 transition-colors"
                             >
-                                <span className="font-medium">Diskon</span>
+                                <span className="font-medium">{t('Diskon')}</span>
                                 <div className="flex items-center gap-1.5">
                                     {discountAmount > 0 && (
                                         <span className="text-[10px] font-semibold text-red-500">− {formatCurrency(discountAmount)}</span>
@@ -538,7 +539,7 @@ export function TemplateForm({
                                                         : 'bg-white dark:bg-dark-800 text-dark-600 dark:text-dark-400 border-secondary-200 dark:border-dark-600 hover:bg-secondary-50 dark:hover:bg-dark-700',
                                                 )}
                                             >
-                                                {type === 'fixed' ? 'Nominal' : '%'}
+                                                {type === 'fixed' ? t('Nominal') : '%'}
                                             </button>
                                         ))}
                                     </div>
@@ -565,7 +566,7 @@ export function TemplateForm({
                                     <Input
                                         value={data.discount_reason}
                                         onChange={(e) => setData('discount_reason', e.target.value)}
-                                        placeholder="Alasan diskon (opsional)..."
+                                        placeholder={t('Alasan diskon (opsional)...')}
                                     />
                                 </div>
                             )}
@@ -588,7 +589,7 @@ export function TemplateForm({
                                     variant="zinc"
                                     className="w-full"
                                 >
-                                    Batal
+                                    {t('Batal')}
                                 </Button>
                             </Link>
                         </div>
@@ -605,7 +606,7 @@ export function TemplateForm({
 function CreateTemplatePage({ clients, services }: Props) {
     return (
         <>
-            <Head title="Buat Template Recurring" />
+            <Head title={t('Buat Template')} />
             <div className="space-y-6">
                 <div className="flex items-center gap-3">
                     <Link
@@ -616,10 +617,10 @@ function CreateTemplatePage({ clients, services }: Props) {
                     </Link>
                     <div>
                         <h1 className="text-2xl sm:text-4xl font-bold bg-linear-to-r from-gray-900 via-blue-800 to-indigo-800 dark:from-white dark:via-blue-200 dark:to-indigo-200 bg-clip-text text-transparent">
-                            Buat Template Recurring
+                            {t('Buat Template')}
                         </h1>
                         <p className="text-gray-600 dark:text-zinc-400 text-sm sm:text-lg">
-                            Template invoice yang akan di-generate secara periodik
+                            {t('Template invoice yang dibuat ulang secara berkala')}
                         </p>
                     </div>
                 </div>
@@ -629,7 +630,7 @@ function CreateTemplatePage({ clients, services }: Props) {
                     services={services}
                     submitUrl={companyUrl('/recurring-invoices/templates')}
                     method="post"
-                    submitLabel="Simpan Template"
+                    submitLabel={t('Simpan Template')}
                 />
             </div>
         </>

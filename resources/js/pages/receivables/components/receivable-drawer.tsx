@@ -2,6 +2,7 @@ import { Banknote, FileText, Pencil, Send, Trash2, X } from 'lucide-react';
 import { JadwalAngsuran } from '@/components/jadwal-angsuran';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { BTN, SURFACE, longDate, rp } from '@/pages/invoices/components/ob';
 import { ReceivableStatusPill, TYPE_LABEL, interestLabel, totalInterest } from './ptg';
@@ -65,14 +66,14 @@ function Isi({
             <div className="flex shrink-0 items-start gap-3 px-6 pb-4 pt-5">
                 <div className="min-w-0 flex-1">
                     <SheetTitle className="flex flex-wrap items-center gap-2 pr-0 text-xl font-semibold text-ob-ink dark:text-ob-ink">
-                        <span className="truncate">{row.debtor_name ?? 'Peminjam tidak diketahui'}</span>
+                        <span className="truncate">{row.debtor_name ?? t('Peminjam tidak diketahui')}</span>
                         <ReceivableStatusPill status={row.status} />
                     </SheetTitle>
                     <SheetDescription className="mt-1 text-[13px] text-ob-ink-2 dark:text-ob-ink-2">
-                        {row.receivable_number} · {TYPE_LABEL[row.type]} · {longDate(row.loan_date)} sampai {longDate(row.due_date)}
+                        {t('{{number}} · {{type}} · {{from}} sampai {{to}}', { number: row.receivable_number, type: t(TYPE_LABEL[row.type]), from: longDate(row.loan_date), to: longDate(row.due_date) })}
                     </SheetDescription>
                 </div>
-                <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label="Tutup rincian">
+                <Button variant="outline" className={BTN.icon} onClick={onClose} aria-label={t('Tutup rincian')}>
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -81,21 +82,21 @@ function Isi({
                 {/* Yang ditolak: alasannya didahulukan, karena itulah yang harus diperbaiki. */}
                 {row.status === 'rejected' && row.rejection_reason && (
                     <div role="alert" className="flex flex-col gap-1 rounded-2xl border border-ob-late/35 bg-ob-late/8 p-4">
-                        <span className="text-[13px] font-semibold text-ob-late">Alasan penolakan</span>
+                        <span className="text-[13px] font-semibold text-ob-late">{t('Alasan penolakan')}</span>
                         <p className="text-[13px] leading-relaxed text-ob-ink">{row.rejection_reason}</p>
                     </div>
                 )}
 
                 <div className="grid grid-cols-1 gap-3 divide-y divide-ob-line rounded-2xl bg-ob-inner p-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-y-0">
-                    <Fakta label="Pokok" value={rp(row.principal_amount)} />
-                    <Fakta label="Bunga" value={bunga > 0 ? rp(bunga) : 'tanpa bunga'} sub={bunga > 0 ? interestLabel(row) : undefined} />
-                    <Fakta label="Cicilan / bulan" value={rp(row.installment_amount)} sub={`${row.installment_months} bulan`} />
+                    <Fakta label={t('Pokok')} value={rp(row.principal_amount)} />
+                    <Fakta label={t('Bunga')} value={bunga > 0 ? rp(bunga) : t('tanpa bunga')} sub={bunga > 0 ? interestLabel(row) : undefined} />
+                    <Fakta label={t('Cicilan / bulan')} value={rp(row.installment_amount)} sub={t('{{count}} bulan', { count: row.installment_months })} />
                 </div>
 
                 {sudahBerjalan && (
-                    <section aria-label="Progres pengembalian pokok" className="flex flex-col gap-2">
+                    <section aria-label={t('Progres pengembalian pokok')} className="flex flex-col gap-2">
                         <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                            <span className="font-semibold text-ob-ink">Pengembalian pokok</span>
+                            <span className="font-semibold text-ob-ink">{t('Pengembalian pokok')}</span>
                             <span className="tabular-nums text-ob-ink-2">{persenTerbayar}%</span>
                         </div>
                         <div
@@ -104,24 +105,24 @@ function Isi({
                             aria-valuenow={persenTerbayar}
                             aria-valuemin={0}
                             aria-valuemax={100}
-                            aria-label="Persentase pokok yang sudah kembali"
+                            aria-label={t('Persentase pokok yang sudah kembali')}
                         >
                             <div className="h-full rounded-full bg-ob-act-fill" style={{ width: `${persenTerbayar}%` }} />
                         </div>
                         <div className="flex flex-wrap justify-between gap-2 text-xs text-ob-ink-2">
                             <span>
-                                Sudah kembali <span className="tabular-nums text-ob-ink">{rp(row.paid_principal)}</span>
+                                {t('Sudah kembali')} <span className="tabular-nums text-ob-ink">{rp(row.paid_principal)}</span>
                                 {row.paid_interest > 0 && (
                                     <>
                                         {' '}
-                                        · bunga <span className="tabular-nums text-ob-ink">{rp(row.paid_interest)}</span>
+                                        · {t('bunga')} <span className="tabular-nums text-ob-ink">{rp(row.paid_interest)}</span>
                                     </>
                                 )}
                             </span>
                             <span>
-                                Belum kembali{' '}
+                                {t('Belum kembali')}{' '}
                                 <span className={cn('tabular-nums', row.remaining_principal > 0 ? 'text-ob-neg' : 'text-ob-pos')}>
-                                    {row.remaining_principal > 0 ? rp(row.remaining_principal) : 'lunas'}
+                                    {row.remaining_principal > 0 ? rp(row.remaining_principal) : t('lunas')}
                                 </span>
                             </span>
                         </div>
@@ -130,19 +131,19 @@ function Isi({
 
                 {/* Jadwal tetap ditampilkan sebelum disetujui: itulah yang dinilai penyetuju. */}
                 {row.status !== 'rejected' && (
-                    <section aria-label="Jadwal angsuran" className="flex flex-col gap-3 border-t border-ob-line pt-5">
-                        <h3 className="text-base font-semibold text-ob-ink">Jadwal angsuran</h3>
-                        {!sudahBerjalan && <p className="text-xs leading-relaxed text-ob-ink-2">Piutang ini belum berjalan, jadi tabel di bawah adalah rencana yang akan berlaku setelah disetujui.</p>}
-                        <JadwalAngsuran path={`/receivables/${row.id}/schedule`} label={`Jadwal angsuran piutang ${row.receivable_number}`} tandaiBerikutnya={sudahBerjalan} />
+                    <section aria-label={t('Jadwal angsuran')} className="flex flex-col gap-3 border-t border-ob-line pt-5">
+                        <h3 className="text-base font-semibold text-ob-ink">{t('Jadwal angsuran')}</h3>
+                        {!sudahBerjalan && <p className="text-xs leading-relaxed text-ob-ink-2">{t('Piutang ini belum berjalan, jadi tabel di bawah adalah rencana yang akan berlaku setelah disetujui.')}</p>}
+                        <JadwalAngsuran path={`/receivables/${row.id}/schedule`} label={t('Jadwal angsuran piutang {{number}}', { number: row.receivable_number })} tandaiBerikutnya={sudahBerjalan} />
                     </section>
                 )}
 
-                <section aria-label="Keterangan" className="flex flex-col gap-3 border-t border-ob-line pt-5">
-                    <Keterangan label="Tujuan" isi={row.purpose} />
-                    <Keterangan label="Pencairan lewat" isi={row.disbursement_account} />
-                    <Keterangan label="Catatan" isi={row.notes} />
-                    {row.approved_by_name && <Keterangan label="Disetujui" isi={`${row.approved_by_name}${row.approved_at ? ` · ${longDate(row.approved_at)}` : ''}`} />}
-                    <Keterangan label="Catatan peninjau" isi={row.review_notes} />
+                <section aria-label={t('Keterangan')} className="flex flex-col gap-3 border-t border-ob-line pt-5">
+                    <Keterangan label={t('Tujuan')} isi={row.purpose} />
+                    <Keterangan label={t('Pencairan lewat')} isi={row.disbursement_account} />
+                    <Keterangan label={t('Catatan')} isi={row.notes} />
+                    {row.approved_by_name && <Keterangan label={t('Disetujui')} isi={`${row.approved_by_name}${row.approved_at ? ` · ${longDate(row.approved_at)}` : ''}`} />}
+                    <Keterangan label={t('Catatan peninjau')} isi={row.review_notes} />
                     {row.contract_attachment_url && (
                         <a
                             href={row.contract_attachment_url}
@@ -151,7 +152,7 @@ function Isi({
                             className="flex items-center gap-2 rounded-xl border border-ob-line px-3 py-2.5 text-[13px] font-semibold text-ob-ink hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                         >
                             <FileText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />
-                            {row.contract_attachment_name ?? 'Buka dokumen kontrak'}
+                            {row.contract_attachment_name ?? t('Buka dokumen kontrak')}
                         </a>
                     )}
                 </section>
@@ -160,27 +161,27 @@ function Isi({
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-ob-line px-6 py-4">
                 {row.can_delete && (
                     <Button variant="ghost" className={cn(BTN.ghost, 'mr-auto text-ob-late hover:text-ob-late')} onClick={() => onDelete(row)} icon={<Trash2 className="h-4 w-4" />}>
-                        Hapus
+                        {t('Hapus')}
                     </Button>
                 )}
                 {row.can_edit && (
                     <Button variant="outline" className={BTN.secondary} onClick={() => onEdit(row)} icon={<Pencil className="h-4 w-4" />}>
-                        Edit
+                        {t('Ubah')}
                     </Button>
                 )}
                 {row.can_submit && (
                     <Button className={BTN.primary} onClick={() => onSubmit(row)} icon={<Send className="h-4 w-4" />}>
-                        Ajukan persetujuan
+                        {t('Ajukan untuk persetujuan')}
                     </Button>
                 )}
                 {row.can_approve && (
                     <Button className={BTN.primary} onClick={() => onApprove(row)}>
-                        Proses pengajuan
+                        {t('Proses pengajuan')}
                     </Button>
                 )}
                 {row.can_pay && (
                     <Button className={BTN.primary} onClick={() => onPay(row)} icon={<Banknote className="h-4 w-4" />}>
-                        Catat pembayaran
+                        {t('Catat pembayaran')}
                     </Button>
                 )}
             </div>

@@ -13,7 +13,7 @@
 | Dokumen | Cakupan | Route utama |
 |---------|---------|-------------|
 | [invoices.md](invoices.md) | Invoice, item, diskon, pembayaran, PDF/Excel | `/invoices`, `/payments`, `/invoice/{id}` |
-| [recurring-invoices.md](recurring-invoices.md) | Template recurring, generate bulanan, publish | `/recurring-invoices` |
+| [recurring-invoices.md](recurring-invoices.md) | Template invoice berulang, buat draft bulanan, jadikan invoice | `/recurring-invoices` |
 | [clients.md](clients.md) | Master data klien (individu/perusahaan, NPWP) | `/clients` |
 | [services.md](services.md) | Master data layanan | `/services` |
 | [bank-accounts.md](bank-accounts.md) | Kas & Bank: rekening bank + kas tunai/kas kecil (penanggung jawab, plafon, isi ulang), logo bank & saran Nama Bank, saldo terhitung, transaksi | `/bank-accounts` |

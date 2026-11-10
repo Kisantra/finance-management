@@ -2,10 +2,10 @@ import { Check, Clock } from 'lucide-react';
 import * as React from 'react';
 import { StatusPill } from '@/components/dashboard/widget';
 import { Skeleton } from '@/components/ui/skeleton';
-import { t, tk } from '@/i18n';
+import { formatTanggal, t, tk } from '@/i18n';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { daysFromToday, longDate, rp } from '@/pages/invoices/components/ob';
+import { daysFromToday, rp } from '@/pages/invoices/components/ob';
 
 /*
  * Jadwal angsuran — dipakai Pinjaman dan Piutang.
@@ -58,6 +58,8 @@ interface Props {
 }
 
 type Muat = { state: 'memuat' } | { state: 'gagal' } | { state: 'siap'; rows: BarisJadwal[]; summary: RingkasanJadwal };
+
+const TANGGAL_TERMIN: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
 /** Dasar `summary` supaya ringkasan tetap bisa dirender kalau satu field hilang dari respons. */
 const KOSONG: RingkasanJadwal = {
@@ -170,7 +172,7 @@ export function JadwalAngsuran({ path, label, tandaiBerikutnya = true }: Props) 
                 <span className="text-[13px] font-semibold text-ob-ink">{t('Jadwal belum bisa disusun')}</span>
                 <span className="max-w-[340px] text-xs leading-relaxed text-ob-ink-2">
                     {summary.terms > 0 ? t('Tanggal mulai belum terisi.') : t('Tenor masih 0 bulan.')}{' '}
-                    {t('Lengkapi datanya lewat Edit, lalu jadwalnya muncul sendiri.')}
+                    {t('Lengkapi datanya lewat Ubah, lalu jadwalnya muncul sendiri.')}
                 </span>
             </div>
         );
@@ -199,7 +201,7 @@ export function JadwalAngsuran({ path, label, tandaiBerikutnya = true }: Props) 
                             <span className="flex min-w-0 items-center gap-2.5">
                                 <TileTermin nomor={row.termin} berikut={i === indeksBerikut} />
                                 <span className="flex min-w-0 flex-col">
-                                    <span className="text-[13px] font-semibold text-ob-ink">{longDate(row.jatuh_tempo)}</span>
+                                    <span className="text-[13px] font-semibold text-ob-ink">{formatTanggal(row.jatuh_tempo, TANGGAL_TERMIN)}</span>
                                     <span className="text-xs tabular-nums text-ob-ink-2">
                                         {t('pokok {{principal}} · bunga {{interest}}', { principal: rp(row.pokok), interest: rp(row.bunga) })}
                                     </span>
@@ -241,7 +243,7 @@ export function JadwalAngsuran({ path, label, tandaiBerikutnya = true }: Props) 
                                 </td>
                                 <td className="py-2.5 pr-4">
                                     <span className="flex flex-wrap items-center gap-1.5">
-                                        <span className="text-ob-ink">{longDate(row.jatuh_tempo)}</span>
+                                        <span className="text-ob-ink">{formatTanggal(row.jatuh_tempo, TANGGAL_TERMIN)}</span>
                                         {row.terlambat && <PenandaTerlambat iso={row.jatuh_tempo} />}
                                     </span>
                                 </td>

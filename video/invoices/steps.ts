@@ -97,7 +97,7 @@ export const STAFF_STEPS: Step[] = [
         cursor: S['staff-create-item2'].draft,
         click: true,
         zoom: 1.7,
-        caption: 'Simpan draft agar diperiksa dulu, atau Simpan & terbitkan untuk langsung memberi nomor (nomornya dikonfirmasi dulu di dialog). Setelah tersimpan, Staff tidak bisa mengeditnya.',
+        caption: 'Simpan draft agar diperiksa dulu, atau Simpan & terbitkan untuk langsung memberi nomor (nomornya dikonfirmasi dulu di dialog). Setelah tersimpan, Staff tidak bisa mengubahnya.',
         duration: 150,
     },
     {
@@ -167,7 +167,7 @@ export const FM_SEND_STEPS: Step[] = [
         src: img('fm-drawer-draft'),
         focus: S['fm-drawer-draft'].items,
         zoom: 1.4,
-        caption: 'Periksa item, harga, dan HPP. Ada yang salah? Perbaiki lewat menu ••• › Edit invoice.',
+        caption: 'Periksa item, harga, dan HPP. Ada yang salah? Perbaiki lewat menu ••• › Ubah invoice.',
         duration: 130,
     },
     {
@@ -176,7 +176,7 @@ export const FM_SEND_STEPS: Step[] = [
         cursor: S['fm-drawer-draft'].send,
         click: true,
         zoom: 1.9,
-        caption: 'Sudah benar? Klik Kirim invoice.',
+        caption: 'Sudah benar? Klik Terbitkan invoice.',
         duration: 90,
     },
     {
@@ -193,14 +193,14 @@ export const FM_SEND_STEPS: Step[] = [
         cursor: S['fm-send'].confirm,
         click: true,
         zoom: 1.8,
-        caption: 'Klik Kirim invoice. Klien tidak menerima email otomatis: unduh PDF setelah terbit.',
+        caption: 'Klik Terbitkan invoice. Klien tidak menerima email otomatis: unduh PDF setelah terbit.',
         duration: 110,
     },
     {
         src: img('fm-drawer-sent'),
         focus: around(S['fm-drawer-sent'].number, S['fm-drawer-sent'].status),
         zoom: 2,
-        caption: 'Invoice terbit dengan nomor 001/INV/KSN-GSP/X/2026 dan status Terkirim.',
+        caption: 'Invoice terbit dengan nomor 001/INV/KSN-GSP/X/2026 dan status Terbit.',
         chime: true,
         duration: 110,
     },
@@ -360,7 +360,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-pl'),
         focus: around(S['admin-pl'].cogs, S['admin-pl'].gross),
         zoom: 1.6,
-        caption: 'HPP ditutup lebih dulu (cost-recovery): seluruh HPP Rp 2.100.000 diakui sekarang, laba kotor Rp 600.000. Pelunasan nanti jadi laba penuh.',
+        caption: 'HPP ditutup lebih dulu (pemulihan biaya): seluruh HPP Rp 2.100.000 diakui sekarang, laba kotor Rp 600.000. Pelunasan nanti jadi laba penuh.',
         duration: 160,
     },
 ];

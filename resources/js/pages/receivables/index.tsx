@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Pagination } from '@/components/shared/pagination';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { t, tk, Trans } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { BTN, CARD, FIELD, daysFromToday, longDate, rp } from '@/pages/invoices/components/ob';
@@ -48,7 +49,7 @@ interface Props {
 }
 
 const TAB_STATUS: { value: '' | ReceivableStatus; label: string }[] = [
-    { value: '', label: 'Semua' },
+    { value: '', label: tk('Semua') },
     { value: 'pending_approval', label: STATUS_LABEL.pending_approval },
     { value: 'active', label: STATUS_LABEL.active },
     { value: 'paid_off', label: STATUS_LABEL.paid_off },
@@ -57,8 +58,8 @@ const TAB_STATUS: { value: '' | ReceivableStatus; label: string }[] = [
 ];
 
 const TIPE_OPTIONS: FilterOption[] = [
-    { label: 'Karyawan', value: 'employee_loan' },
-    { label: 'Perusahaan', value: 'company_loan' },
+    { label: tk('Karyawan'), value: 'employee_loan' },
+    { label: tk('Perusahaan'), value: 'company_loan' },
 ];
 
 const PILL =
@@ -109,10 +110,10 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
     };
 
     React.useEffect(() => {
-        const t = setTimeout(() => {
+        const timer = setTimeout(() => {
             if (search !== terkirim.current) navigate({ search });
         }, 350);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search]);
 
@@ -130,11 +131,11 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
             {
                 preserveScroll: true,
                 onSuccess: () => {
-                    toast.success('Piutang diajukan untuk persetujuan');
+                    toast.success(t('Piutang diajukan untuk persetujuan'));
                     setSubmitRow(null);
                     setDetailRow(null);
                 },
-                onError: () => toast.error('Pengajuan gagal dikirim'),
+                onError: () => toast.error(t('Pengajuan gagal dikirim')),
                 onFinish: () => setSubmitting(false),
             },
         );
@@ -146,11 +147,11 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
         router.delete(receivableRoutes.destroy.url({ receivable: deleteRow.id }), {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success('Piutang dihapus');
+                toast.success(t('Piutang dihapus'));
                 setDeleteRow(null);
                 setDetailRow(null);
             },
-            onError: () => toast.error('Piutang gagal dihapus'),
+            onError: () => toast.error(t('Piutang gagal dihapus')),
             onFinish: () => setDeleting(false),
         });
     };
@@ -166,68 +167,68 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
 
     return (
         <>
-            <Head title="Piutang" />
+            <Head title={t('Piutang', { context: 'menu' })} />
             <div className="ob-motion flex flex-col gap-6 pt-1">
                 {/* ── judul ── */}
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">Piutang</h1>
-                        <p className="text-[13px] text-ob-ink-2">Uang perusahaan yang dipinjam karyawan atau perusahaan lain · {stats.total} piutang</p>
+                        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{t('Piutang', { context: 'menu' })}</h1>
+                        <p className="text-[13px] text-ob-ink-2">{t('Uang perusahaan yang dipinjam karyawan atau perusahaan lain · {{count}} piutang', { count: stats.total })}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <TutorialButton slug="receivables" />
                         <Button className={BTN.primary} onClick={() => bukaForm(null)} icon={<Plus className="h-4 w-4" />}>
-                            Tambah piutang
+                            {t('Tambah piutang')}
                         </Button>
                     </div>
                 </div>
 
                 {/* ── ringkasan ── */}
                 {/* Satu kolom di bawah sm: nominal 26 px tidak muat di separuh layar 360 px. */}
-                <section aria-label="Ringkasan piutang" className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
+                <section aria-label={t('Ringkasan piutang')} className={cn(CARD, 'grid grid-cols-1 gap-y-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-ob-line')}>
                     <StatBlock
-                        label="Belum kembali"
+                        label={t('Belum kembali')}
                         value={rp(stats.outstanding_principal)}
-                        sub={stats.active_count > 0 ? `${stats.active_count} piutang aktif · dari ${rp(stats.total_principal_active)}` : 'tidak ada piutang aktif'}
+                        sub={stats.active_count > 0 ? t('{{count}} piutang aktif · dari {{amount}}', { count: stats.active_count, amount: rp(stats.total_principal_active) }) : t('tidak ada piutang aktif')}
                         onClick={stats.active_count > 0 ? () => navigate({ status: 'active' }) : undefined}
                     />
                     {/* Satu-satunya angka berwarna di baris ini: risiko yang tidak kita kendalikan. */}
                     <StatBlock
-                        label="Lewat tempo"
+                        label={t('Lewat jatuh tempo')}
                         value={rp(stats.overdue_amount)}
                         valueClass={stats.overdue_count > 0 ? 'text-ob-late' : 'text-ob-pos'}
-                        sub={stats.overdue_count > 0 ? `${stats.overdue_count} piutang sudah lewat jatuh tempo` : 'tidak ada yang lewat tempo'}
+                        sub={stats.overdue_count > 0 ? t('{{count}} piutang sudah lewat jatuh tempo', { count: stats.overdue_count }) : t('tidak ada yang lewat jatuh tempo')}
                         onClick={stats.overdue_count > 0 ? () => navigate({ status: 'active' }) : undefined}
                     />
                     <StatBlock
-                        label="Menunggu persetujuan"
+                        label={t('Menunggu persetujuan')}
                         value={rp(stats.pending_amount)}
-                        sub={stats.pending_count > 0 ? `${stats.pending_count} pengajuan perlu diputuskan` : 'tidak ada pengajuan tertunda'}
+                        sub={stats.pending_count > 0 ? t('{{count}} pengajuan perlu diputuskan', { count: stats.pending_count }) : t('tidak ada pengajuan tertunda')}
                         onClick={stats.pending_count > 0 ? () => navigate({ status: 'pending_approval' }) : undefined}
                     />
                     <JatuhTempoBlock iso={stats.next_due} />
                 </section>
 
                 {/* ── daftar ── */}
-                <section aria-label="Daftar piutang" className={cn(CARD, 'flex flex-col gap-4')}>
+                <section aria-label={t('Daftar piutang')} className={cn(CARD, 'flex flex-col gap-4')}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div
                             role="group"
-                            aria-label="Filter status"
+                            aria-label={t('Filter status')}
                             className="ob-no-scrollbar flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-ob-line bg-ob-rail p-[3px]"
                         >
-                            {TAB_STATUS.map((t) => {
-                                const on = (filters.status ?? '') === t.value;
-                                const hitungan = t.value ? statusCounts[t.value] : semuaHitungan;
+                            {TAB_STATUS.map((tab) => {
+                                const on = (filters.status ?? '') === tab.value;
+                                const hitungan = tab.value ? statusCounts[tab.value] : semuaHitungan;
                                 return (
                                     <button
-                                        key={t.value || 'all'}
+                                        key={tab.value || 'all'}
                                         type="button"
                                         aria-pressed={on}
-                                        onClick={() => !on && navigate({ status: t.value || null })}
+                                        onClick={() => !on && navigate({ status: tab.value || null })}
                                         className={cn(PILL, on ? 'bg-ob-invert font-semibold text-ob-invert-ink' : 'font-medium text-ob-ink-2 hover:text-ob-ink')}
                                     >
-                                        {t.label}
+                                        {t(tab.label)}
                                         <span className={cn('text-xs', on ? 'opacity-70' : 'text-ob-ink-3')}>{hitungan}</span>
                                     </button>
                                 );
@@ -238,18 +239,18 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Cari nomor atau tujuan…"
+                                    placeholder={t('Cari nomor atau tujuan…')}
                                     icon={<Search className="h-4 w-4" />}
-                                    aria-label="Cari piutang"
+                                    aria-label={t('Cari piutang')}
                                 />
                             </div>
                             <div className="w-full sm:w-44">
                                 <Combobox
-                                    options={TIPE_OPTIONS}
+                                    options={TIPE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
                                     value={filters.type ?? ''}
                                     onChange={(v) => navigate({ type: v ? String(v) : null })}
-                                    placeholder="Semua peminjam"
-                                    emptyText="Tipe tidak ditemukan"
+                                    placeholder={t('Semua peminjam')}
+                                    emptyText={t('Tipe tidak ditemukan')}
                                     clearable
                                 />
                             </div>
@@ -280,8 +281,8 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                                           </span>
                                           <span className="flex items-center justify-between gap-3">
                                               <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-ob-ink-2">
-                                                  {row.receivable_number} · {TYPE_LABEL[row.type]}
-                                                  {row.contract_attachment_url && <Paperclip className="h-3 w-3 shrink-0" aria-label="Ada kontrak" />}
+                                                  {row.receivable_number} · {t(TYPE_LABEL[row.type])}
+                                                  {row.contract_attachment_url && <Paperclip className="h-3 w-3 shrink-0" aria-label={t('Ada kontrak')} />}
                                               </span>
                                               <ReceivableStatusPill status={row.status} />
                                           </span>
@@ -296,14 +297,14 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                         <table className="w-full min-w-[800px] text-sm">
                             <thead>
                                 <tr className="border-b border-ob-line text-left text-xs font-medium text-ob-ink-3">
-                                    <th className="py-2.5 pl-3 font-medium">Peminjam</th>
-                                    <th className="py-2.5 pr-4 text-right font-medium">Pokok</th>
-                                    <th className="py-2.5 pr-4 font-medium">Cicilan</th>
-                                    <th className="py-2.5 pr-4 font-medium">Jatuh tempo</th>
-                                    <th className="py-2.5 pr-6 text-right font-medium">Belum kembali</th>
-                                    <th className="py-2.5 font-medium">Status</th>
+                                    <th className="py-2.5 pl-3 font-medium">{t('Peminjam')}</th>
+                                    <th className="py-2.5 pr-4 text-right font-medium">{t('Pokok')}</th>
+                                    <th className="py-2.5 pr-4 font-medium">{t('Cicilan')}</th>
+                                    <th className="py-2.5 pr-4 font-medium">{t('Jatuh tempo')}</th>
+                                    <th className="py-2.5 pr-6 text-right font-medium">{t('Belum kembali')}</th>
+                                    <th className="py-2.5 font-medium">{t('Status')}</th>
                                     <th className="w-10 py-2.5">
-                                        <span className="sr-only">Buka rincian</span>
+                                        <span className="sr-only">{t('Buka rincian')}</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -343,20 +344,20 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                                                           {row.debtor_name ?? '—'}
                                                       </button>
                                                       <span className="flex items-center gap-1.5 text-xs text-ob-ink-2">
-                                                          {row.receivable_number} · {TYPE_LABEL[row.type]}
-                                                          {row.contract_attachment_url && <Paperclip className="h-3 w-3" aria-label="Ada kontrak" />}
+                                                          {row.receivable_number} · {t(TYPE_LABEL[row.type])}
+                                                          {row.contract_attachment_url && <Paperclip className="h-3 w-3" aria-label={t('Ada kontrak')} />}
                                                       </span>
                                                   </td>
                                                   <td className="whitespace-nowrap py-3 pr-4 text-right tabular-nums text-ob-ink">{rp(row.principal_amount)}</td>
                                                   <td className="whitespace-nowrap py-3 pr-4 text-ob-ink-2">
                                                       <span className="block tabular-nums">{rp(row.installment_amount)}</span>
-                                                      <span className="block text-xs text-ob-ink-3">{row.installment_months} bulan</span>
+                                                      <span className="block text-xs text-ob-ink-3">{t('{{count}} bulan', { count: row.installment_months })}</span>
                                                   </td>
                                                   <td className="whitespace-nowrap py-3 pr-4">
                                                       <span className="block text-ob-ink-2">{longDate(row.due_date)}</span>
                                                       {(lewat || dekat) && (
                                                           <span className={cn('block text-xs font-semibold', lewat ? 'text-ob-late' : 'text-ob-neg')}>
-                                                              {lewat ? `lewat ${-sisaHari} hari` : `${sisaHari} hari lagi`}
+                                                              {lewat ? t('lewat {{count}} hari', { count: -sisaHari }) : t('{{count}} hari lagi', { count: sisaHari })}
                                                           </span>
                                                       )}
                                                   </td>
@@ -367,7 +368,7 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                                                                   dan merah di kolom ini bersaing dengan penanda "lewat N hari" di kolom jatuh tempo.
                                                                   Satu halaman, satu makna merah. */}
                                                               <span className={cn('block font-semibold tabular-nums', row.remaining_principal > 0 ? 'text-ob-ink' : 'text-ob-pos')}>
-                                                                  {row.remaining_principal > 0 ? rp(row.remaining_principal) : 'lunas'}
+                                                                  {row.remaining_principal > 0 ? rp(row.remaining_principal) : t('lunas')}
                                                               </span>
                                                               <span
                                                                   className="mt-1 ml-auto block h-1 w-20 overflow-hidden rounded-full bg-ob-chip"
@@ -375,14 +376,14 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                                                                   aria-valuenow={pct}
                                                                   aria-valuemin={0}
                                                                   aria-valuemax={100}
-                                                                  aria-label={`Pokok sudah kembali ${pct} persen`}
+                                                                  aria-label={t('Pokok sudah kembali {{percent}} persen', { percent: pct })}
                                                               >
                                                                   <span className="block h-full rounded-full bg-ob-act-fill" style={{ width: `${pct}%` }} />
                                                               </span>
                                                           </>
                                                       ) : (
                                                           /* Belum berjalan: tidak ada yang bisa kembali, jadi angkanya tidak dikarang. */
-                                                          <span className="text-ob-ink-3">belum berjalan</span>
+                                                          <span className="text-ob-ink-3">{t('belum berjalan')}</span>
                                                       )}
                                                   </td>
                                                   <td className="py-3">
@@ -400,20 +401,20 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
 
                     {!loading && rows.length === 0 && (
                         <div className="my-2 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-6 py-10 text-center">
-                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? 'Tidak ada piutang yang cocok' : 'Belum ada piutang'}</span>
+                            <span className="text-sm font-semibold text-ob-ink">{terfilter ? t('Tidak ada piutang yang cocok') : t('Belum ada piutang')}</span>
                             <span className="max-w-[380px] text-[13px] text-ob-ink-2">
                                 {terfilter
-                                    ? 'Ubah atau hapus filter untuk melihat piutang lain.'
-                                    : 'Catat uang yang dipinjam karyawan atau perusahaan lain, lalu angsurannya bisa dilacak per termin di sini.'}
+                                    ? t('Ubah atau hapus filter untuk melihat piutang lain.')
+                                    : t('Catat uang yang dipinjam karyawan atau perusahaan lain, lalu angsurannya bisa dilacak per termin di sini.')}
                             </span>
                             <Button variant="outline" className={BTN.small} onClick={terfilter ? resetFilters : () => bukaForm(null)}>
-                                {terfilter ? 'Hapus filter' : 'Tambah piutang'}
+                                {terfilter ? t('Hapus filter') : t('Tambah piutang')}
                             </Button>
                         </div>
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ob-line pt-4 text-[13px] text-ob-ink-2">
-                        <span>{pagination.total} piutang · terbaru lebih dulu</span>
+                        <span>{t('{{count}} piutang · terbaru lebih dulu', { count: pagination.total })}</span>
                         {pagination.last_page > 1 && <Pagination meta={pagination} onPageChange={(page) => navigate({ page })} />}
                     </div>
                 </section>
@@ -453,12 +454,12 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                 onOpenChange={(o) => !o && setSubmitRow(null)}
                 onConfirm={ajukan}
                 loading={submitting}
-                title="Ajukan piutang ini?"
-                description={`${submitRow?.receivable_number} dikirim ke penyetuju. Selama menunggu keputusan, isinya tidak bisa diubah lagi.`}
+                title={t('Ajukan piutang ini?')}
+                description={t('{{number}} dikirim ke penyetuju. Selama menunggu keputusan, isinya tidak bisa diubah lagi.', { number: submitRow?.receivable_number })}
                 variant="warning"
                 // WAJIB diisi: ConfirmDialog default-nya confirmLabel='Hapus', sehingga dialog
                 // pengajuan ini bertombol "Hapus" dan mengajak pengguna mengira ia menghapus.
-                confirmLabel="Ajukan"
+                confirmLabel={t('Ajukan')}
             />
 
             <ConfirmDialog
@@ -466,10 +467,10 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
                 onOpenChange={(o) => !o && setDeleteRow(null)}
                 onConfirm={hapus}
                 loading={deleting}
-                title="Hapus piutang ini?"
-                description={`${deleteRow?.receivable_number} atas nama ${deleteRow?.debtor_name ?? 'peminjam'} akan dihapus permanen.`}
+                title={t('Hapus piutang ini?')}
+                description={t('{{number}} atas nama {{name}} akan dihapus permanen.', { number: deleteRow?.receivable_number, name: deleteRow?.debtor_name ?? t('peminjam') })}
                 variant="danger"
-                confirmLabel="Hapus piutang"
+                confirmLabel={t('Hapus piutang')}
             />
         </>
     );
@@ -480,16 +481,18 @@ export default function ReceivablesIndex({ rows, pagination, stats, statusCounts
 /** Baris sisa pada daftar ponsel; piutang yang belum berjalan tidak punya sisa untuk ditampilkan. */
 function SisaBaris({ row }: { row: ReceivableRow }) {
     if (row.status !== 'active' && row.status !== 'paid_off') {
-        return <span className="text-xs text-ob-ink-3">belum berjalan · jatuh tempo {longDate(row.due_date)}</span>;
+        return <span className="text-xs text-ob-ink-3">{t('belum berjalan · jatuh tempo {{date}}', { date: longDate(row.due_date) })}</span>;
     }
     return (
         <span className="text-xs text-ob-ink-2">
             {row.remaining_principal > 0 ? (
-                <>
-                    belum kembali <span className="tabular-nums text-ob-neg">{rp(row.remaining_principal)}</span> · jatuh tempo {longDate(row.due_date)}
-                </>
+                <Trans
+                    i18nKey="belum kembali <b>{{amount}}</b> · jatuh tempo {{date}}"
+                    values={{ amount: rp(row.remaining_principal), date: longDate(row.due_date) }}
+                    components={{ b: <span className="tabular-nums text-ob-neg" /> }}
+                />
             ) : (
-                <>pokok sudah kembali · {longDate(row.due_date)}</>
+                <>{t('pokok sudah kembali · {{date}}', { date: longDate(row.due_date) })}</>
             )}
         </span>
     );
@@ -518,9 +521,9 @@ function JatuhTempoBlock({ iso }: { iso: string | null }) {
     if (!iso) {
         return (
             <div className="flex min-w-0 flex-col gap-1 px-0 lg:px-6">
-                <span className="text-[13px] text-ob-ink-2">Jatuh tempo terdekat</span>
+                <span className="text-[13px] text-ob-ink-2">{t('Jatuh tempo terdekat')}</span>
                 <span className="whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink sm:text-[26px]">—</span>
-                <span className="text-xs text-ob-ink-2">tidak ada piutang berjalan</span>
+                <span className="text-xs text-ob-ink-2">{t('tidak ada piutang berjalan')}</span>
             </div>
         );
     }
@@ -528,9 +531,9 @@ function JatuhTempoBlock({ iso }: { iso: string | null }) {
     const hari = daysFromToday(iso);
     return (
         <div className="flex min-w-0 flex-col gap-1 px-0 lg:px-6">
-            <span className="text-[13px] text-ob-ink-2">Jatuh tempo terdekat</span>
+            <span className="text-[13px] text-ob-ink-2">{t('Jatuh tempo terdekat')}</span>
             <span className={cn('whitespace-nowrap text-[22px] font-semibold leading-tight tracking-[-0.01em] sm:text-[26px]', hari < 0 ? 'text-ob-late' : 'text-ob-ink')}>{longDate(iso)}</span>
-            <span className="text-xs text-ob-ink-2">{hari < 0 ? `lewat ${-hari} hari` : hari === 0 ? 'hari ini' : `${hari} hari lagi`}</span>
+            <span className="text-xs text-ob-ink-2">{hari < 0 ? t('lewat {{count}} hari', { count: -hari }) : hari === 0 ? t('hari ini') : t('{{count}} hari lagi', { count: hari })}</span>
         </div>
     );
 }

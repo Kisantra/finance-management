@@ -15,8 +15,8 @@ export const TUTORIALS: Tutorials = {
         { id: 'intro', frames: 105, node: <Intro module={guide.title} role={ROLES.fm} title="Menagih klien rutin tanpa mengetik ulang" summary="Susun template sekali, generate setiap bulan, lalu publish menjadi invoice." />, chapter: 'Pengantar' },
         flowScene,
         walk('walk-template', TEMPLATE_STEPS, ROLES.fm, 'Membuat template'),
-        walk('walk-monthly', MONTHLY_STEPS, ROLES.fm, 'Generate bulanan'),
-        walk('walk-publish', PUBLISH_STEPS, ROLES.fm, 'Publish & analitik'),
+        walk('walk-monthly', MONTHLY_STEPS, ROLES.fm, 'Buat draft bulanan'),
+        walk('walk-publish', PUBLISH_STEPS, ROLES.fm, 'Jadikan invoice & analitik'),
         outro,
     ]),
     admin: buildTutorial('RecurringInvoicesAdmin', ROLES.admin, [

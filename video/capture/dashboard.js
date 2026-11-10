@@ -22,7 +22,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -30,7 +30,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard|cash-flow/);
     return p;
   };

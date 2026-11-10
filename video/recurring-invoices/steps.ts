@@ -10,7 +10,7 @@ export const TEMPLATE_STEPS: Step[] = [
         src: img('fm-index'),
         focus: S['fm-index'].tabs,
         zoom: 1.7,
-        caption: 'Keuangan › Invoice Berulang punya tiga tab: Templates (tagihan rutin), Bulanan (draft per bulan), dan Analitik.',
+        caption: 'Keuangan › Invoice Berulang punya tiga tab: Template (tagihan rutin), Bulanan (draft per bulan), dan Analitik.',
         duration: 130,
     },
     {
@@ -19,7 +19,7 @@ export const TEMPLATE_STEPS: Step[] = [
         cursor: S['fm-index'].create,
         click: true,
         zoom: 2,
-        caption: 'Mulai dari tab Templates: klik Buat Template.',
+        caption: 'Mulai dari tab Template: klik Buat Template.',
         duration: 90,
     },
     {
@@ -113,7 +113,7 @@ export const TEMPLATE_STEPS: Step[] = [
     },
 ];
 
-/** Generate & menyesuaikan draft bulanan. */
+/** Membuat & menyesuaikan draft bulanan. */
 export const MONTHLY_STEPS: Step[] = [
     {
         src: img('fm-monthly-empty'),
@@ -128,7 +128,7 @@ export const MONTHLY_STEPS: Step[] = [
         cursor: S['fm-monthly-empty'].generate,
         click: true,
         zoom: 2,
-        caption: 'Klik Generate Otomatis setiap awal bulan. Sistem tidak menjalankannya sendiri.',
+        caption: 'Klik Buat Draft Otomatis setiap awal bulan. Sistem tidak menjalankannya sendiri.',
         duration: 110,
     },
     {
@@ -137,7 +137,7 @@ export const MONTHLY_STEPS: Step[] = [
         cursor: S['fm-generate'].confirm,
         click: true,
         zoom: 1.5,
-        caption: 'Isi Tanggal Terbit dan Jatuh Tempo untuk semua draft, lalu klik Generate Sekarang.',
+        caption: 'Isi Tanggal Invoice dan Jatuh Tempo untuk semua draft, lalu klik Buat Sekarang.',
         duration: 120,
     },
     {
@@ -152,7 +152,7 @@ export const MONTHLY_STEPS: Step[] = [
         src: img('fm-monthly'),
         focus: S['fm-monthly'].stats,
         zoom: 1.3,
-        caption: 'Ringkasan bulan ini: revenue, profit (revenue − HPP), margin, dan profit dari draft yang belum dipublish.',
+        caption: 'Ringkasan bulan ini: pendapatan, laba (pendapatan − HPP), margin, dan laba dari draft yang belum dijadikan invoice.',
         duration: 130,
     },
     {
@@ -173,7 +173,7 @@ export const MONTHLY_STEPS: Step[] = [
     },
 ];
 
-/** Publish & analitik. */
+/** Menjadikan invoice & analitik. */
 export const PUBLISH_STEPS: Step[] = [
     {
         src: img('fm-monthly'),
@@ -181,7 +181,7 @@ export const PUBLISH_STEPS: Step[] = [
         cursor: S['fm-monthly'].publish,
         click: true,
         zoom: 2.4,
-        caption: 'Sudah benar? Klik ikon kirim (Publish) pada baris draft.',
+        caption: 'Sudah benar? Klik ikon kirim (Jadikan Invoice) pada baris draft.',
         duration: 100,
     },
     {
@@ -190,14 +190,14 @@ export const PUBLISH_STEPS: Step[] = [
         cursor: S['fm-publish'].confirm,
         click: true,
         zoom: 1.6,
-        caption: 'Periksa Tanggal Terbit dan Jatuh Tempo, lalu klik Publish. Baris yang sudah dipublish tidak bisa diedit lagi.',
+        caption: 'Periksa Tanggal Invoice dan Jatuh Tempo, lalu klik Jadikan Invoice. Baris yang sudah dijadikan invoice tidak bisa diubah lagi.',
         duration: 140,
     },
     {
         src: img('fm-published'),
         focus: S['fm-published'].row,
         zoom: 1.4,
-        caption: 'Status menjadi Published, dan sebuah invoice draft dibuat di menu Invoice.',
+        caption: 'Status menjadi Dijadikan invoice, dan sebuah invoice draft dibuat di menu Invoice.',
         chime: true,
         duration: 110,
     },
@@ -206,7 +206,7 @@ export const PUBLISH_STEPS: Step[] = [
         focus: S['fm-published'].link,
         cursor: S['fm-published'].link,
         zoom: 2.4,
-        caption: 'Tautan "Draft · belum dikirim" membuka invoice itu. Klik Kirim invoice di sana agar mendapat nomor resmi.',
+        caption: 'Tautan "Draft · belum terbit" membuka invoice itu. Klik Terbitkan invoice di sana agar mendapat nomor resmi.',
         duration: 140,
     },
     {
@@ -215,19 +215,19 @@ export const PUBLISH_STEPS: Step[] = [
         cursor: S['fm-bulk'].checkbox,
         click: true,
         zoom: 1.3,
-        caption: 'Banyak draft? Centang barisnya, lalu pakai Publish atau Hapus di bilah bawah. Hapus di sini langsung jalan tanpa konfirmasi.',
+        caption: 'Banyak draft? Centang barisnya, lalu pakai Jadikan Invoice atau Hapus di bilah bawah. Hapus di sini langsung jalan tanpa konfirmasi.',
         duration: 150,
     },
     {
         src: img('fm-analytics'),
         focus: around(S['fm-analytics'].kpi, S['fm-analytics'].chart),
         zoom: 1.05,
-        caption: 'Tab Analitik: revenue per bulan atau triwulan. Angkanya dari draft & published, bukan dari pembayaran yang diterima.',
+        caption: 'Tab Analitik: pendapatan per bulan atau triwulan. Angkanya dari draft & invoice hasil draft, bukan dari pembayaran yang diterima.',
         duration: 130,
     },
 ];
 
-/** Admin: jejak publish di menu Invoice. */
+/** Admin: jejak draft yang dijadikan invoice di menu Invoice. */
 export const ADMIN_IMPACT_STEPS: Step[] = [
     {
         src: img('fm-published'),
@@ -235,14 +235,14 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         cursor: S['fm-published'].link,
         click: true,
         zoom: 2.4,
-        caption: 'Jejak publish: tautan di baris Bulanan membuka invoice yang dibuat.',
+        caption: 'Jejak draft: tautan di baris Bulanan membuka invoice yang dibuat.',
         duration: 100,
     },
     {
         src: img('admin-invoice-drawer'),
         focus: S['admin-invoice-drawer'].header,
         zoom: 2.2,
-        caption: 'Invoicenya berstatus Draft dan belum bernomor. Nomor resmi baru diberikan saat Kirim invoice.',
+        caption: 'Invoicenya berstatus Draft dan belum bernomor. Nomor resmi baru diberikan saat Terbitkan invoice.',
         duration: 130,
     },
     {
@@ -270,7 +270,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         src: img('admin-invoices'),
         focus: S['admin-invoices'].summary,
         zoom: 1.25,
-        caption: 'Invoice draft belum dihitung di Total ditagih. Angkanya baru masuk setelah invoice dikirim.',
+        caption: 'Invoice draft belum dihitung di Total ditagih. Angkanya baru masuk setelah invoice diterbitkan.',
         duration: 130,
     },
     {
@@ -278,7 +278,7 @@ export const ADMIN_IMPACT_STEPS: Step[] = [
         focus: S['admin-invoice-drawer'].send,
         cursor: S['admin-invoice-drawer'].send,
         zoom: 2.2,
-        caption: 'Setelah dikirim, pembayaran dicatat di menu Invoice seperti invoice lain; pembayaran itulah yang menambah saldo rekening dan Arus Kas.',
+        caption: 'Setelah diterbitkan, pembayaran dicatat di menu Invoice seperti invoice lain; pembayaran itulah yang menambah saldo rekening dan Arus Kas.',
         duration: 150,
     },
 ];
@@ -298,14 +298,14 @@ export const ADMIN_STEPS: Step[] = [
         src: img('admin-archive'),
         focus: S['admin-archive'].dialog,
         zoom: 1.8,
-        caption: 'Sudah punya invoice terpublish: template hanya diarsipkan dan tidak di-generate lagi. Invoice yang sudah dibuat tetap ada.',
+        caption: 'Sudah menghasilkan invoice: template hanya diarsipkan dan tidak dibuatkan draft lagi. Invoice yang sudah dibuat tetap ada.',
         duration: 150,
     },
     {
         src: img('admin-delete-template'),
         focus: S['admin-delete-template'].dialog,
         zoom: 1.8,
-        caption: 'Belum ada yang terpublish: template dihapus permanen beserta semua draft-nya.',
+        caption: 'Belum menghasilkan invoice: template dihapus permanen beserta semua draft-nya.',
         duration: 130,
     },
 ];

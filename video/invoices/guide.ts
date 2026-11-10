@@ -20,15 +20,15 @@ export const guide: ModuleGuide = {
                 'Membuat invoice: **Simpan draft** atau **Simpan & terbitkan**',
                 'Mencatat pembayaran pada invoice yang sudah terbit',
             ],
-            cannot: ['Tidak bisa mengedit, menerbitkan draft yang sudah tersimpan, atau menghapus invoice', 'Tidak bisa mengubah / menghapus pembayaran'],
+            cannot: ['Tidak bisa mengubah, menerbitkan draft yang sudah tersimpan, atau menghapus invoice', 'Tidak bisa mengubah / menghapus pembayaran'],
         },
         {
             role: ROLES.fm,
             who: 'Penerbit & penagih',
             can: [
                 'Semua yang bisa dilakukan Staff',
-                'Menerbitkan draft (**Kirim invoice**) dan mengembalikannya ke draft',
-                'Mengedit invoice (juga yang sudah dibayar) dan menghapus invoice yang belum dibayar',
+                'Menerbitkan draft (**Terbitkan invoice**) dan mengembalikannya ke draft',
+                'Mengubah invoice (juga yang sudah dibayar) dan menghapus invoice yang belum dibayar',
                 'Mengubah / menghapus pembayaran',
             ],
         },
@@ -41,7 +41,7 @@ export const guide: ModuleGuide = {
     flow: {
         steps: [
             { label: 'Draft', tone: 'neutral', role: ROLES.staff, what: 'Menyusun item, Simpan draft' },
-            { label: 'Terkirim', tone: 'act', role: ROLES.fm, what: 'Kirim invoice: dapat nomor resmi' },
+            { label: 'Terbit', tone: 'act', role: ROLES.fm, what: 'Terbitkan invoice: dapat nomor resmi' },
             { label: 'Sebagian', tone: 'wait', role: ROLES.fm, what: 'Catat pembayaran pertama' },
             { label: 'Lunas', tone: 'pos', role: ROLES.fm, what: 'Pembayaran menutup sisa' },
         ],
@@ -51,9 +51,9 @@ export const guide: ModuleGuide = {
             tone: 'neutral',
             title: 'Nomor dibatalkan',
             down: 'Kembalikan ke draft: hanya nomor urut terakhir & belum ada pembayaran',
-            up: 'Diperbaiki, lalu dikirim lagi',
+            up: 'Diperbaiki, lalu diterbitkan lagi',
         },
-        note: '**Perlu ditagih** bukan status: invoice Terkirim / Sebagian yang lewat jatuh tempo.',
+        note: '**Perlu ditagih** bukan status: invoice Terbit / Sebagian yang lewat jatuh tempo.',
     },
     tasks: [
         {
@@ -66,8 +66,8 @@ export const guide: ModuleGuide = {
                 'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
                 'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
-                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
-                'Staff tidak bisa mengedit invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
+                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh final 0,5%** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
+                'Staff tidak bisa mengubah invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
             ],
         },
         {
@@ -88,7 +88,7 @@ export const guide: ModuleGuide = {
             title: 'Mencatat pembayaran',
             role: ROLES.staff,
             steps: [
-                'Buka invoice berstatus **Terkirim** atau **Sebagian**, lalu klik **Catat pembayaran**.',
+                'Buka invoice berstatus **Terbit** atau **Sebagian**, lalu klik **Catat pembayaran**.',
                 '**Jumlah** terisi sisa tagihan. Pilih **Sisa penuh**, **50%**, atau **Nominal lain**; tidak boleh melebihi sisa.',
                 'Isi **Tanggal** uang diterima, pilih **Rekening tujuan** (wajib) dan **Metode** (**Transfer bank** / **Tunai**).',
                 'Kotak **Jurnal · Pratinjau** menunjukkan pembagiannya: rekening didebit penuh; kreditnya menutup **Titipan Pajak Klien** dulu, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — sama dengan cara Laba Rugi mengakui pendapatan. Uang muka kecil bisa seluruhnya masuk titipan.',
@@ -100,8 +100,8 @@ export const guide: ModuleGuide = {
             title: 'Mengekspor rekap',
             role: ROLES.staff,
             steps: [
-                'Atur filter (status, klien, bulan, atau rentang tanggal), lalu klik **Ekspor** dan pilih **Rekap Excel · Default**, **Rekap Excel · JSM**, atau **Rekap PDF**.',
-                '**Default** & **PDF** memuat omzet (tanpa PPN), PPN, HPP, profit, PPh final 0,5%, terbayar, dan sisa (termasuk PPN). **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (nilai PPN invoice; invoice sebelum fitur PPN memakai rumus yang bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
+                'Atur filter (status, klien, bulan, atau rentang tanggal), lalu klik **Ekspor** dan pilih **Rekap Excel · Bawaan**, **Rekap Excel · JSM**, atau **Rekap PDF**.',
+                '**Bawaan** & **PDF** memuat omzet (tanpa PPN), PPN, HPP, profit, PPh final 0,5%, terbayar, dan sisa (termasuk PPN). **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (nilai PPN invoice; invoice sebelum fitur PPN memakai rumus yang bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
                 'Semua rekap mengikuti filter aktif dan tidak memuat draft. Untuk rekap setahun, pakai rentang tanggal 1 Januari – 31 Desember.',
             ],
         },
@@ -110,15 +110,15 @@ export const guide: ModuleGuide = {
             role: ROLES.fm,
             steps: [
                 'Klik pil **Draft** di daftar, lalu buka invoice yang akan diterbitkan.',
-                'Klik **Kirim invoice**. **Nomor invoice** terisi otomatis sesuai format di **Pengaturan › Penomoran invoice**; boleh diubah, tetapi harus unik.',
-                'Klik **Kirim invoice**. Status menjadi **Terkirim**. Aplikasi tidak mengirim email ke klien: unduh PDF lalu kirimkan sendiri.',
+                'Klik **Terbitkan invoice**. **Nomor invoice** terisi otomatis sesuai format di **Pengaturan › Penomoran invoice**; boleh diubah, tetapi harus unik.',
+                'Klik **Terbitkan invoice**. Status menjadi **Terbit**. Aplikasi tidak mengirim email ke klien: unduh PDF lalu kirimkan sendiri.',
             ],
         },
         {
             title: 'Membatalkan nomor (kembalikan ke draft)',
             role: ROLES.fm,
             steps: [
-                'Buka invoice **Terkirim**, klik menu **•••**, lalu **Kembalikan ke draft**.',
+                'Buka invoice **Terbit**, klik menu **•••**, lalu **Kembalikan ke draft**.',
                 'Menu ini hanya muncul untuk invoice bernomor urut terakhir di periodenya dan belum dibayar, agar urutan nomor tidak berlubang. Nomor yang diketik manual di luar format penomoran tidak bisa dibatalkan.',
             ],
         },
@@ -166,7 +166,7 @@ export const guide: ModuleGuide = {
             items: [
                 'Hapus pembayaran: saldo turun, pemasukan & laba rugi berkurang, status dihitung ulang.',
                 'Invoice dengan pembayaran tidak bisa dihapus.',
-                'Mengedit item invoice yang sudah dibayar mengubah laba rugi periode lalu.',
+                'Mengubah item invoice yang sudah dibayar mengubah laba rugi periode lalu.',
             ],
         },
     ],
@@ -181,13 +181,13 @@ export const guide: ModuleGuide = {
                 { label: 'Rekening', value: 'BCA - Operasional', source: 'Dialog Catat pembayaran', tone: 'pos' },
                 { label: 'Metode · Ref', value: 'Transfer bank · TRF-GSP-1012', source: 'Dialog Catat pembayaran', tone: 'pos' },
                 { label: 'Kategori', value: '— (pemasukan invoice tidak berkategori)', source: 'Otomatis', tone: 'neutral' },
-                { label: 'Status invoice', value: 'Terkirim → Sebagian', source: 'Otomatis', tone: 'act' },
+                { label: 'Status invoice', value: 'Terbit → Sebagian', source: 'Otomatis', tone: 'act' },
             ],
             note: 'Tidak ada transaksi bank terpisah: saldo rekening dan Arus Kas membaca **langsung** dari data pembayaran ini.',
         },
         {
             title: 'Masuk ke Laba Rugi Oktober',
-            subtitle: 'Basis kas + cost-recovery: uang masuk menutup HPP dulu, baru sisanya laba.',
+            subtitle: 'Basis kas + pemulihan biaya: uang masuk menutup HPP dulu, baru sisanya laba.',
             rows: [
                 { label: 'Pendapatan', value: 'Rp 2.700.000 (dari invoice, kas)', source: 'Pembayaran', tone: 'pos' },
                 { label: 'HPP', value: 'Rp 2.100.000 (seluruh HPP baris tertutup)', source: 'HPP baris', tone: 'act' },
@@ -205,7 +205,7 @@ export const guide: ModuleGuide = {
             body: 'Menghapus baris pembayaran invoice lewat **Arus Kas › Pemasukan** tidak menghitung ulang status: invoice tetap Lunas / Sebagian padahal uangnya hilang dari saldo.',
         },
         {
-            title: 'Edit setelah dibayar tidak mengubah status',
+            title: 'Mengubah invoice setelah dibayar tidak mengubah status',
             body: 'Mengubah total invoice yang sudah dibayar tidak menghitung ulang status. Mis. total dinaikkan setelah Lunas: tetap Lunas walau ada sisa.',
         },
         {
@@ -222,19 +222,19 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Pengingat jatuh tempo terbatas',
-            body: 'Notifikasi H-3 dan hari-H (penjadwal pukul 08.00) hanya untuk invoice **Draft** dan **Sebagian**. Invoice Terkirim yang belum dibayar tidak diingatkan: pantau pil **Perlu ditagih**.',
+            body: 'Notifikasi H-3 dan hari-H (penjadwal pukul 08.00) hanya untuk invoice **Draft** dan **Sebagian**. Invoice Terbit yang belum dibayar tidak diingatkan: pantau pil **Perlu ditagih**.',
         },
         {
             title: 'Staff melihat tombol yang tidak bisa dipakai',
-            body: 'Tombol Kirim invoice, Edit invoice, Hapus invoice, serta ikon ubah / hapus pembayaran tetap tampil untuk Staff, tetapi ditolak server. Draft dari Staff diterbitkan oleh Finance manager / Admin.',
+            body: 'Tombol Terbitkan invoice, Ubah invoice, Hapus invoice, serta ikon ubah / hapus pembayaran tetap tampil untuk Staff, tetapi ditolak server. Draft dari Staff diterbitkan oleh Finance manager / Admin.',
         },
     ],
     matrixRoles: [ROLES.staff, ROLES.fm, ROLES.admin],
     matrix: [
         { action: 'Melihat, mencetak PDF & ekspor rekap', cells: [true, true, true] },
         { action: 'Membuat (simpan draft / terbitkan)', cells: [true, true, true] },
-        { action: 'Menerbitkan draft tersimpan & rollback', cells: [false, true, true] },
-        { action: 'Mengedit invoice', cells: [false, true, true] },
+        { action: 'Menerbitkan draft tersimpan & mengembalikannya ke draft', cells: [false, true, true] },
+        { action: 'Mengubah invoice', cells: [false, true, true] },
         { action: 'Mencatat pembayaran', cells: [true, true, true] },
         { action: 'Mengubah / menghapus pembayaran', cells: [false, true, true] },
         { action: 'Menghapus invoice', cells: [false, 'Belum dibayar', 'Belum dibayar'] },

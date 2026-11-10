@@ -109,7 +109,7 @@ export const STAFF_STEPS: Step[] = [
         src: img('staff-mid'),
         focus: S['staff-mid'].invoices,
         zoom: 1.3,
-        caption: 'Invoice Belum Dibayar: invoice terkirim yang belum lunas. Yang jatuh temponya paling awal ada di atas.',
+        caption: 'Invoice Belum Dibayar: invoice terbit yang belum lunas. Yang jatuh temponya paling awal ada di atas.',
         duration: 130,
     },
     {

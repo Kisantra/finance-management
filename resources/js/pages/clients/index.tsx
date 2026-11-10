@@ -31,6 +31,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { StatsCard } from '@/components/shared/stats-card';
 import { TutorialButton } from '@/components/tutorial/tutorial-button';
+import { t } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency, toastErrors } from '@/lib/utils';
@@ -139,7 +140,7 @@ function ClientForm({
                             {title}
                         </DialogTitle>
                         <p className="text-sm text-dark-500 dark:text-dark-400">
-                            Informasi klien dan kontak
+                            {t('Informasi klien dan kontak')}
                         </p>
                     </div>
                 </div>
@@ -148,44 +149,44 @@ function ClientForm({
             <div className="px-6 py-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left column */}
-                    <FormSection title="Informasi Dasar">
+                    <FormSection title={t('Informasi Dasar')}>
                         <Input
-                            label="Nama Klien *"
+                            label={t('Nama Klien *')}
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
                             error={errors.name}
-                            placeholder="PT. Nama Perusahaan / Nama Individu"
+                            placeholder={t('PT. Nama Perusahaan / Nama Individu')}
                         />
 
                         <Input
-                            label="Alias"
+                            label={t('Alias')}
                             value={data.alias}
                             onChange={(e) => setData('alias', e.target.value.toUpperCase())}
                             error={errors.alias}
                             maxLength={10}
-                            placeholder="Mis. SMA"
-                            hint="Kode klien di nomor invoice, mis. 001/INV/KSN-SMA/I/2026. Huruf dan angka, maks. 10. Kosongkan untuk memakai inisial nama."
+                            placeholder={t('Mis. SMA')}
+                            hint={t('Kode klien di nomor invoice, mis. 001/INV/KSN-SMA/I/2026. Huruf dan angka, maks. 10. Kosongkan untuk memakai inisial nama.')}
                         />
 
                         <div className="space-y-1.5">
                             <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                Tipe Klien *
+                                {t('Tipe Klien *')}
                             </label>
                             <div className="flex gap-3">
-                                {(['individual', 'company'] as const).map((t) => (
+                                {(['individual', 'company'] as const).map((kind) => (
                                     <button
-                                        key={t}
+                                        key={kind}
                                         type="button"
-                                        onClick={() => setData('type', t)}
+                                        onClick={() => setData('type', kind)}
                                         className={cn(
                                             'flex-1 flex items-center justify-center gap-2 h-9 rounded-lg border text-sm font-medium transition-colors',
-                                            data.type === t
+                                            data.type === kind
                                                 ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-500 text-primary-700 dark:text-primary-300'
                                                 : 'border-secondary-300 dark:border-dark-600 text-dark-600 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700',
                                         )}
                                     >
-                                        {t === 'individual' ? <User className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
-                                        {t === 'individual' ? 'Individu' : 'Perusahaan'}
+                                        {kind === 'individual' ? <User className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+                                        {kind === 'individual' ? t('Individu') : t('Perusahaan')}
                                     </button>
                                 ))}
                             </div>
@@ -194,7 +195,7 @@ function ClientForm({
 
                         <div className="space-y-1.5">
                             <label className="block text-sm font-medium text-dark-900 dark:text-dark-300">
-                                Status *
+                                {t('Status *')}
                             </label>
                             <div className="flex gap-3">
                                 {(['Active', 'Inactive'] as const).map((s) => (
@@ -211,14 +212,14 @@ function ClientForm({
                                                 : 'border-secondary-300 dark:border-dark-600 text-dark-600 dark:text-dark-400 hover:bg-zinc-50 dark:hover:bg-dark-700',
                                         )}
                                     >
-                                        {s === 'Active' ? 'Aktif' : 'Tidak Aktif'}
+                                        {s === 'Active' ? t('Aktif') : t('Tidak Aktif')}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         <Input
-                            label="Email"
+                            label={t('Email')}
                             type="email"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
@@ -228,19 +229,19 @@ function ClientForm({
                         />
 
                         <Input
-                            label="Alamat"
+                            label={t('Alamat')}
                             value={data.address}
                             onChange={(e) => setData('address', e.target.value)}
                             error={errors.address}
                             icon={<MapPin className="h-4 w-4" />}
-                            placeholder="Alamat lengkap"
+                            placeholder={t('Alamat lengkap')}
                         />
                     </FormSection>
 
                     {/* Right column */}
-                    <FormSection title="Data Pajak & Kontak">
+                    <FormSection title={t('Data Pajak & Kontak')}>
                         <Input
-                            label="NPWP"
+                            label={t('NPWP')}
                             value={data.NPWP}
                             onChange={(e) => setData('NPWP', e.target.value)}
                             error={errors.NPWP}
@@ -248,39 +249,39 @@ function ClientForm({
                         />
 
                         <Input
-                            label="KPP"
+                            label={t('KPP')}
                             value={data.KPP}
                             onChange={(e) => setData('KPP', e.target.value)}
                             error={errors.KPP}
-                            placeholder="Kode KPP"
+                            placeholder={t('Kode KPP')}
                         />
 
                         <Input
-                            label="EFIN"
+                            label={t('EFIN')}
                             value={data.EFIN}
                             onChange={(e) => setData('EFIN', e.target.value)}
                             error={errors.EFIN}
-                            placeholder="Electronic Filing Identification Number"
+                            placeholder={t('Electronic Filing Identification Number')}
                         />
 
                         <Input
-                            label="PIC (Person in Charge)"
+                            label={t('PIC (Penanggung Jawab)')}
                             value={data.person_in_charge}
                             onChange={(e) => setData('person_in_charge', e.target.value)}
                             error={errors.person_in_charge}
-                            placeholder="Nama PIC"
+                            placeholder={t('Nama PIC')}
                         />
 
                         <Input
-                            label="Account Representative"
+                            label={t('Account Representative')}
                             value={data.account_representative}
                             onChange={(e) => setData('account_representative', e.target.value)}
                             error={errors.account_representative}
-                            placeholder="Nama AR"
+                            placeholder={t('Nama AR')}
                         />
 
                         <Input
-                            label="No. HP AR"
+                            label={t('No. HP AR')}
                             value={data.ar_phone_number}
                             onChange={(e) => setData('ar_phone_number', e.target.value)}
                             error={errors.ar_phone_number}
@@ -293,7 +294,7 @@ function ClientForm({
 
             <DialogFooter>
                 <Button variant="zinc" onClick={onCancel} disabled={processing} className="w-full sm:w-auto order-2 sm:order-1">
-                    Batal
+                    {t('Batal')}
                 </Button>
                 <Button type="submit" variant="primary" loading={processing} className="w-full sm:w-auto order-1 sm:order-2">
                     {submitLabel}
@@ -320,8 +321,8 @@ export default function ClientsIndex() {
     const isMounted = React.useRef(false);
     React.useEffect(() => {
         if (!isMounted.current) { isMounted.current = true; return; }
-        const t = setTimeout(() => applyFilters(), 300);
-        return () => clearTimeout(t);
+        const timer = setTimeout(() => applyFilters(), 300);
+        return () => clearTimeout(timer);
     }, [search]);
 
     function applyFilters(overrides: Partial<Filters> = {}) {
@@ -349,7 +350,7 @@ export default function ClientsIndex() {
     function submitCreate(e: React.FormEvent) {
         e.preventDefault();
         createForm.post(companyUrl('/clients'), {
-            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success('Klien berhasil ditambahkan.'); },
+            onSuccess: () => { setCreateOpen(false); createForm.reset(); toast.success(t('Klien berhasil ditambahkan.')); },
             onError: (errs) => toastErrors(errs, 'CreateClient'),
         });
     }
@@ -379,7 +380,7 @@ export default function ClientsIndex() {
         e.preventDefault();
         if (!editTarget) return;
         editForm.put(companyUrl(`/clients/${editTarget.id}`), {
-            onSuccess: () => { setEditTarget(null); toast.success('Klien berhasil diperbarui.'); },
+            onSuccess: () => { setEditTarget(null); toast.success(t('Klien berhasil diperbarui.')); },
             onError: (errs) => toastErrors(errs, 'UpdateClient'),
         });
     }
@@ -390,7 +391,7 @@ export default function ClientsIndex() {
     function confirmDelete() {
         if (!deleteTarget) return;
         deleteForm.delete(companyUrl(`/clients/${deleteTarget.id}`), {
-            onSuccess: () => { setDeleteTarget(null); toast.success('Klien berhasil dihapus.'); },
+            onSuccess: () => { setDeleteTarget(null); toast.success(t('Klien berhasil dihapus.')); },
             onError: (errs) => toastErrors(errs, 'DeleteClient'),
         });
     }
@@ -399,18 +400,18 @@ export default function ClientsIndex() {
 
     return (
         <>
-            <Head title="Klien" />
+            <Head title={t('Klien', { context: 'menu' })} />
 
             <div className="space-y-6">
                 {/* Header */}
                 <PageHeader
-                    title="Klien"
-                    description="Kelola data klien dan informasi kontak"
+                    title={t('Klien', { context: 'menu' })}
+                    description={t('Kelola data klien dan informasi kontak')}
                     action={
                         <div className="flex items-center gap-2">
                             <TutorialButton slug="clients" />
                             <Button variant="primary" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setCreateOpen(true)}>
-                                Tambah Klien
+                                {t('Tambah Klien')}
                             </Button>
                         </div>
                     }
@@ -418,10 +419,10 @@ export default function ClientsIndex() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <StatsCard label="Total Klien" value={stats.total} icon={<Users className="w-6 h-6" />} color="blue" />
-                    <StatsCard label="Klien Aktif" value={stats.active} icon={<User className="w-6 h-6" />} color="green" />
-                    <StatsCard label="Individu" value={stats.individual} icon={<User className="w-6 h-6" />} color="purple" />
-                    <StatsCard label="Perusahaan" value={stats.company} icon={<Building2 className="w-6 h-6" />} color="indigo" />
+                    <StatsCard label={t('Total Klien')} value={stats.total} icon={<Users className="w-6 h-6" />} color="blue" />
+                    <StatsCard label={t('Klien Aktif')} value={stats.active} icon={<User className="w-6 h-6" />} color="green" />
+                    <StatsCard label={t('Individu')} value={stats.individual} icon={<User className="w-6 h-6" />} color="purple" />
+                    <StatsCard label={t('Perusahaan')} value={stats.company} icon={<Building2 className="w-6 h-6" />} color="indigo" />
                 </div>
 
                 {/* Filters */}
@@ -431,7 +432,7 @@ export default function ClientsIndex() {
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari nama, email, NPWP..."
+                                placeholder={t('Cari nama, email, NPWP...')}
                                 icon={<Search className="h-4 w-4" />}
                                 className={search ? 'pr-8' : ''}
                             />
@@ -448,38 +449,38 @@ export default function ClientsIndex() {
 
                         <Combobox
                             options={[
-                                { value: 'individual', label: 'Individu' },
-                                { value: 'company', label: 'Perusahaan' },
+                                { value: 'individual', label: t('Individu') },
+                                { value: 'company', label: t('Perusahaan') },
                             ]}
                             value={typeFilter || null}
                             onChange={(v) => handleTypeFilter(v ? String(v) : '')}
-                            placeholder="Semua Tipe"
+                            placeholder={t('Semua Tipe')}
                         />
 
                         <Combobox
                             options={[
-                                { value: 'Active', label: 'Aktif' },
-                                { value: 'Inactive', label: 'Tidak Aktif' },
+                                { value: 'Active', label: t('Aktif') },
+                                { value: 'Inactive', label: t('Tidak Aktif') },
                             ]}
                             value={statusFilter || null}
                             onChange={(v) => handleStatusFilter(v ? String(v) : '')}
-                            placeholder="Semua Status"
+                            placeholder={t('Semua Status')}
                         />
                     </div>
 
                     <div className="flex items-center gap-3">
                         {activeFilters > 0 && (
-                            <Badge variant="blue">{activeFilters} filter aktif</Badge>
+                            <Badge variant="blue">{t('{{count}} filter aktif', { count: activeFilters })}</Badge>
                         )}
                         <span className="text-sm text-dark-500 dark:text-dark-400">
-                            {clients.from ?? 0}–{clients.to ?? 0} dari {clients.total} klien
+                            {t('{{from}}–{{to}} dari {{count}} klien', { from: clients.from ?? 0, to: clients.to ?? 0, count: clients.total })}
                         </span>
                         {activeFilters > 0 && (
                             <button
                                 onClick={() => { setSearch(''); setTypeFilter(''); setStatusFilter(''); applyFilters({ search: '', type: '', status: '' }); }}
                                 className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
                             >
-                                Reset filter
+                                {t('Hapus filter')}
                             </button>
                         )}
                     </div>
@@ -491,13 +492,13 @@ export default function ClientsIndex() {
                         <table className="w-full text-sm">
                             <thead className="bg-secondary-50/60 dark:bg-dark-800/60 border-b border-secondary-200 dark:border-dark-600">
                                 <tr>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Nama</th>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Tipe</th>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Kontak</th>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Status</th>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Invoice</th>
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">Finansial</th>
-                                    <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">Aksi</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Nama')}</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Tipe')}</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Kontak')}</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Status')}</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Invoice')}</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Finansial')}</th>
+                                    <th className="px-3 py-3 text-right text-xs font-semibold text-dark-500 dark:text-dark-400">{t('Aksi')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-secondary-100 dark:divide-dark-600">
@@ -505,7 +506,7 @@ export default function ClientsIndex() {
                                     <tr>
                                         <td colSpan={7} className="px-4 py-12 text-center text-dark-400 dark:text-dark-500">
                                             <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                                            <p>Belum ada klien</p>
+                                            <p>{t('Belum ada klien')}</p>
                                         </td>
                                     </tr>
                                 ) : (
@@ -517,7 +518,7 @@ export default function ClientsIndex() {
                                                 <div className="font-medium text-dark-900 dark:text-dark-50 wrap-break-word">
                                                     {client.name}
                                                     <span className="ml-2 rounded bg-secondary-100 px-1.5 py-0.5 align-middle font-mono text-[11px] font-normal text-dark-500 dark:bg-dark-700 dark:text-dark-300">
-                                                        <span className="sr-only">{client.alias ? 'Alias di nomor invoice: ' : 'Inisial di nomor invoice: '}</span>
+                                                        <span className="sr-only">{client.alias ? t('Alias di nomor invoice:') : t('Inisial di nomor invoice:')}{' '}</span>
                                                         {client.invoice_code}
                                                     </span>
                                                 </div>
@@ -525,7 +526,7 @@ export default function ClientsIndex() {
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 <Badge variant={client.type === 'company' ? 'purple' : 'blue'}>
-                                                    {client.type === 'company' ? 'Perusahaan' : 'Individu'}
+                                                    {client.type === 'company' ? t('Perusahaan') : t('Individu')}
                                                 </Badge>
                                             </td>
                                             <td className="px-3 py-3 align-middle text-dark-600 dark:text-dark-400">
@@ -534,16 +535,16 @@ export default function ClientsIndex() {
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 <Badge variant={client.status === 'Active' ? 'green' : 'zinc'}>
-                                                    {client.status === 'Active' ? 'Aktif' : 'Tidak Aktif'}
+                                                    {client.status === 'Active' ? t('Aktif') : t('Tidak Aktif')}
                                                 </Badge>
                                             </td>
                                             <td className="px-3 py-3 align-middle text-dark-600 dark:text-dark-400">
                                                 {client.invoices_count}
                                             </td>
                                             <td className="px-3 py-3 align-middle">
-                                                <div className="text-xs text-dark-400 dark:text-dark-500">Total</div>
+                                                <div className="text-xs text-dark-400 dark:text-dark-500">{t('Total')}</div>
                                                 <div className="font-medium text-dark-900 dark:text-dark-50 text-xs">{formatCurrency(client.total_invoice_amount)}</div>
-                                                <div className="text-xs text-red-500">{formatCurrency(client.total_invoice_amount - client.paid_invoice_amount)} outstanding</div>
+                                                <div className="text-xs text-red-500">{t('Sisa tagihan {{amount}}', { amount: formatCurrency(client.total_invoice_amount - client.paid_invoice_amount) })}</div>
                                             </td>
                                             <td className="px-3 py-3 align-middle">
                                                 <div className="flex items-center justify-end gap-1">
@@ -585,8 +586,8 @@ export default function ClientsIndex() {
                             errors={createForm.errors}
                             processing={createForm.processing}
                             onCancel={() => { setCreateOpen(false); createForm.reset(); }}
-                            title="Tambah Klien"
-                            submitLabel="Simpan Klien"
+                            title={t('Tambah Klien')}
+                            submitLabel={t('Simpan Klien')}
                         />
                     </form>
                 </DialogContent>
@@ -602,8 +603,8 @@ export default function ClientsIndex() {
                             errors={editForm.errors}
                             processing={editForm.processing}
                             onCancel={() => setEditTarget(null)}
-                            title="Edit Klien"
-                            submitLabel="Perbarui Klien"
+                            title={t('Ubah Klien')}
+                            submitLabel={t('Perbarui Klien')}
                         />
                     </form>
                 </DialogContent>
@@ -613,18 +614,18 @@ export default function ClientsIndex() {
             <ConfirmDialog
                 open={!!deleteTarget}
                 onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-                title="Hapus Klien"
+                title={t('Hapus Klien')}
                 description={
                     deleteTarget
                         ? deleteTarget.invoices_count > 0
                             // Penghapusan klien yang masih punya invoice DITOLAK server.
                             // Teks lama ("semua invoice terkait akan ikut dihapus")
                             // menjanjikan perilaku destruktif yang sudah tidak berlaku.
-                            ? `"${deleteTarget.name}" masih memiliki ${deleteTarget.invoices_count} invoice. Klien tidak dapat dihapus selama datanya masih terkait — hapus atau alihkan invoice tersebut terlebih dahulu.`
-                            : `Apakah Anda yakin ingin menghapus "${deleteTarget.name}"?`
+                            ? t('"{{name}}" masih memiliki {{count}} invoice. Klien tidak dapat dihapus selama datanya masih terkait — hapus atau alihkan invoice tersebut terlebih dahulu.', { name: deleteTarget.name, count: deleteTarget.invoices_count })
+                            : t('Apakah Anda yakin ingin menghapus "{{name}}"?', { name: deleteTarget.name })
                         : ''
                 }
-                confirmLabel="Hapus Klien"
+                confirmLabel={t('Hapus Klien')}
                 loading={deleteForm.processing}
                 onConfirm={confirmDelete}
             />

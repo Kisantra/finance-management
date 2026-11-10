@@ -1,6 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { endOfMonth, endOfYear, format as formatDateFns, startOfMonth, startOfYear, subMonths, subYears } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
 import { CheckCircle2, Download, FileBarChart, TriangleAlert } from 'lucide-react';
 import * as React from 'react';
 
@@ -11,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
+import { formatTanggal, t, tk, Trans } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { companyUrl } from '@/lib/company';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -54,23 +54,31 @@ interface Props extends SharedProps {
 
 const PL_GROUP_OPTIONS: Record<'income' | 'expense', { value: string; label: string }[]> = {
     income: [
-        { value: 'revenue', label: 'Pendapatan Usaha' },
-        { value: 'other_income', label: 'Pendapatan Lain' },
+        { value: 'revenue', label: tk('Pendapatan Usaha') },
+        { value: 'other_income', label: tk('Pendapatan Lain') },
     ],
     expense: [
-        { value: 'cogs', label: 'Harga Pokok (HPP)' },
-        { value: 'opex', label: 'Beban Operasional' },
-        { value: 'other_expense', label: 'Beban Lain' },
-        { value: 'tax', label: 'Pajak Perusahaan' },
+        { value: 'cogs', label: tk('Harga Pokok Penjualan (HPP)') },
+        { value: 'opex', label: tk('Beban Operasional') },
+        { value: 'other_expense', label: tk('Beban Lain') },
+        { value: 'tax', label: tk('Pajak Perusahaan') },
     ],
 };
 
 /* ─────────────────────────────────────────────────────────────── helpers ── */
 
 function fmtPeriod(start: string, end: string): string {
-    const s = new Date(start + 'T00:00:00');
-    const e = new Date(end + 'T00:00:00');
-    return `${formatDateFns(s, 'd MMMM yyyy', { locale: idLocale })} — ${formatDateFns(e, 'd MMMM yyyy', { locale: idLocale })}`;
+    return `${formatTanggal(start, 'panjang')} — ${formatTanggal(end, 'panjang')}`;
+}
+
+/** Zona waktu aplikasi (config/app.php 'timezone'). Label zona (WITA/GMT+8) diturunkan dari sini, bukan dipatok "WIB". */
+const ZONA_APLIKASI = 'Asia/Makassar';
+
+/** "10 November 2026 16.05 WITA" menurut bahasa aktif, dalam zona waktu aplikasi. */
+function stempelWaktu(nilai: Date): string {
+    const tanggal = formatTanggal(nilai, { day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_APLIKASI });
+    const jam = formatTanggal(nilai, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: ZONA_APLIKASI, timeZoneName: 'short' });
+    return `${tanggal} ${jam}`;
 }
 
 type PresetKey = 'this_month' | 'last_month' | 'ytd' | 'last_year';
@@ -162,13 +170,13 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
             {/* Document header */}
             <header className="text-center pb-5 mb-7 border-b-2 border-zinc-900">
                 <div className="text-base font-bold uppercase tracking-[0.18em] text-zinc-900">
-                    {company?.name ?? 'Perusahaan'}
+                    {company?.name ?? t('Perusahaan')}
                 </div>
                 {company && (company.address || company.npwp) && (
                     <div className="mt-1.5 text-[11px] text-zinc-500">
                         {company.address}
                         {company.address && company.npwp ? <span className="mx-2">·</span> : null}
-                        {company.npwp ? <>NPWP: {company.npwp}</> : null}
+                        {company.npwp ? <>{t('NPWP: {{npwp}}', { npwp: company.npwp })}</> : null}
                     </div>
                 )}
             </header>
@@ -176,47 +184,47 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
             {/* Title block */}
             <div className="text-center mb-8">
                 <h1 className="text-base font-bold uppercase tracking-[0.35em] text-zinc-900">
-                    Laporan Laba Rugi
+                    {t('Laporan Laba Rugi')}
                 </h1>
                 <div className="mt-1.5 text-xs italic text-zinc-600">
-                    Periode: {fmtPeriod(report.period.start, report.period.end)}
+                    {t('Periode: {{period}}', { period: fmtPeriod(report.period.start, report.period.end) })}
                 </div>
             </div>
 
             {/* Body */}
             <div className="text-[13px] leading-relaxed">
 
-                <DocSectionTitle>Pendapatan</DocSectionTitle>
-                <DocRow indent label="Pendapatan dari Invoice (kas)" amount={report.revenue.invoice} />
+                <DocSectionTitle>{t('Pendapatan')}</DocSectionTitle>
+                <DocRow indent label={t('Pendapatan dari Invoice (kas)')} amount={report.revenue.invoice} />
                 {report.revenue.non_invoice_by_category.map((r) => (
                     <DocRow key={`rev-${r.category_id}`} indent label={r.category_label} amount={r.amount} />
                 ))}
-                <DocRow label="Total Pendapatan" amount={report.revenue.total} weight="medium" rule="top" />
+                <DocRow label={t('Total Pendapatan')} amount={report.revenue.total} weight="medium" rule="top" />
 
-                <DocSectionTitle>Harga Pokok Penjualan (HPP)</DocSectionTitle>
-                <DocRow indent label="HPP Invoice (cost-recovery)" amount={report.cogs.invoice} />
+                <DocSectionTitle>{t('Harga Pokok Penjualan (HPP)')}</DocSectionTitle>
+                <DocRow indent label={t('HPP Invoice (pemulihan biaya)')} amount={report.cogs.invoice} />
                 {report.cogs.manual_by_category.map((r) => (
                     <DocRow key={`cogs-${r.category_id}`} indent label={r.category_label} amount={r.amount} />
                 ))}
-                <DocRow label="Total HPP" amount={report.cogs.total} weight="medium" rule="top" />
+                <DocRow label={t('Total HPP')} amount={report.cogs.total} weight="medium" rule="top" />
 
-                <DocRow label="Laba Kotor" amount={report.gross_profit} weight="bold" rule="top-double" />
+                <DocRow label={t('Laba Kotor')} amount={report.gross_profit} weight="bold" rule="top-double" />
 
-                <DocSectionTitle>Beban Operasional</DocSectionTitle>
+                <DocSectionTitle>{t('Beban Operasional')}</DocSectionTitle>
                 {report.opex.by_category.length === 0 ? (
-                    <DocRow indent label="(tidak ada)" amount={0} muted />
+                    <DocRow indent label={t('(tidak ada)')} amount={0} muted />
                 ) : (
                     report.opex.by_category.map((r) => (
                         <DocRow key={`opex-${r.category_id}`} indent label={r.category_label} amount={r.amount} />
                     ))
                 )}
-                <DocRow label="Total Beban Operasional" amount={report.opex.total} weight="medium" rule="top" />
+                <DocRow label={t('Total Beban Operasional')} amount={report.opex.total} weight="medium" rule="top" />
 
-                <DocRow label="Laba Usaha" amount={report.operating_profit} weight="bold" rule="top-double" />
+                <DocRow label={t('Laba Usaha')} amount={report.operating_profit} weight="bold" rule="top-double" />
 
                 {(report.other_income.total > 0 || report.other_expense.total > 0) && (
                     <>
-                        <DocSectionTitle>Pendapatan &amp; Beban Lain</DocSectionTitle>
+                        <DocSectionTitle>{t('Pendapatan & Beban Lain')}</DocSectionTitle>
                         {report.other_income.by_category.map((r) => (
                             <DocRow key={`oi-${r.category_id}`} indent label={r.category_label} amount={r.amount} />
                         ))}
@@ -224,7 +232,7 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
                             <DocRow key={`oe-${r.category_id}`} indent label={r.category_label} amount={r.amount} parens />
                         ))}
                         <DocRow
-                            label="Total Pendapatan/Beban Lain (netto)"
+                            label={t('Total Pendapatan/Beban Lain (netto)')}
                             amount={report.other_income.total - report.other_expense.total}
                             weight="medium"
                             rule="top"
@@ -232,32 +240,32 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
                     </>
                 )}
 
-                <DocRow label="Laba Sebelum Pajak" amount={report.pre_tax_profit} weight="bold" rule="top-double" />
+                <DocRow label={t('Laba Sebelum Pajak')} amount={report.pre_tax_profit} weight="bold" rule="top-double" />
 
                 {report.tax.total > 0 && (
                     <>
-                        <DocSectionTitle>Pajak Perusahaan</DocSectionTitle>
+                        <DocSectionTitle>{t('Pajak Perusahaan')}</DocSectionTitle>
                         {report.tax.by_category.map((r) => (
                             <DocRow key={`tax-${r.category_id}`} indent label={r.category_label} amount={r.amount} />
                         ))}
-                        <DocRow label="Total Pajak Perusahaan" amount={report.tax.total} weight="medium" rule="top" />
+                        <DocRow label={t('Total Pajak Perusahaan')} amount={report.tax.total} weight="medium" rule="top" />
                     </>
                 )}
 
-                <DocRow label="Laba Bersih" amount={report.net_profit} weight="bold" rule="top-double" />
+                <DocRow label={t('Laba Bersih')} amount={report.net_profit} weight="bold" rule="top-double" />
 
                 {report.ppn_output > 0 && (
                     <>
-                        <DocSectionTitle>Catatan</DocSectionTitle>
-                        <DocRow indent label="PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)" amount={report.ppn_output} />
+                        <DocSectionTitle>{t('Catatan')}</DocSectionTitle>
+                        <DocRow indent label={t('PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)')} amount={report.ppn_output} />
                     </>
                 )}
             </div>
 
             {/* Document footer */}
             <footer className="mt-10 pt-3 border-t border-zinc-200 flex justify-between text-[10px] text-zinc-400">
-                <span>Dicetak: {formatDateFns(new Date(), 'd MMMM yyyy HH:mm', { locale: idLocale })} WIB</span>
-                <span>Basis: Kas · Cost-Recovery HPP</span>
+                <span>{t('Dicetak: {{time}}', { time: stempelWaktu(new Date()) })}</span>
+                <span>{t('Basis: kas · HPP pemulihan biaya')}</span>
             </footer>
         </article>
     );
@@ -282,13 +290,16 @@ function UncatRow({ row, type, onSelect, processing }: UncatRowProps) {
                     <span className="tabular-nums text-sm text-dark-700 dark:text-dark-300">{formatCurrency(row.amount)}</span>
                 </div>
                 <p className="text-[11px] text-dark-500 dark:text-dark-400">
-                    Transaksi tanpa kategori — beri kategori lewat halaman <a href={companyUrl('/bank-accounts')} className="underline">Transaksi</a>.
+                    <Trans
+                        i18nKey="Transaksi tanpa kategori — beri kategori lewat halaman <tautan>Transaksi</tautan>."
+                        components={{ tautan: <a href={companyUrl('/bank-accounts')} className="underline" /> }}
+                    />
                 </p>
             </div>
         );
     }
 
-    const options = PL_GROUP_OPTIONS[type];
+    const options = PL_GROUP_OPTIONS[type].map((o) => ({ ...o, label: t(o.label) }));
 
     return (
         <div className="rounded-lg border border-secondary-200 dark:border-dark-600 bg-white dark:bg-dark-800 p-3 space-y-2.5 transition-shadow hover:shadow-sm">
@@ -298,7 +309,7 @@ function UncatRow({ row, type, onSelect, processing }: UncatRowProps) {
                         {row.category_label}
                     </div>
                     <Badge variant={type === 'income' ? 'green' : 'red'} className="mt-1 text-[10px]">
-                        {type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+                        {type === 'income' ? t('Pemasukan') : t('Pengeluaran')}
                     </Badge>
                 </div>
                 <span className="tabular-nums text-sm font-medium text-dark-700 dark:text-dark-300 shrink-0">
@@ -309,7 +320,7 @@ function UncatRow({ row, type, onSelect, processing }: UncatRowProps) {
                 options={options}
                 value={null}
                 onChange={(v) => v && onSelect(row.category_id!, String(v))}
-                placeholder={processing ? 'Menyimpan...' : 'Pilih grup L/R →'}
+                placeholder={processing ? t('Menyimpan...') : t('Pilih grup L/R →')}
                 disabled={processing}
             />
         </div>
@@ -345,9 +356,9 @@ function UncategorizedPanel({
             <Card className="border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20">
                 <CardContent className="p-5 text-center">
                     <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
-                    <h3 className="mt-3 font-semibold text-emerald-900 dark:text-emerald-200">Semua sudah diklasifikasi</h3>
+                    <h3 className="mt-3 font-semibold text-emerald-900 dark:text-emerald-200">{t('Semua sudah diklasifikasi')}</h3>
                     <p className="mt-1 text-xs text-emerald-800/80 dark:text-emerald-300/80">
-                        Tidak ada transaksi yang terlewat dari Laba Rugi pada periode ini.
+                        {t('Tidak ada transaksi yang terlewat dari Laba Rugi pada periode ini.')}
                     </p>
                 </CardContent>
             </Card>
@@ -363,17 +374,21 @@ function UncategorizedPanel({
                     </div>
                     <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-orange-900 dark:text-orange-200">
-                            Perlu Diklasifikasi <span className="text-orange-600 dark:text-orange-400">({totalCount})</span>
+                            {t('Perlu Diklasifikasi')} <span className="text-orange-600 dark:text-orange-400">({totalCount})</span>
                         </h3>
                         <p className="mt-0.5 text-xs text-orange-800/80 dark:text-orange-300/80">
-                            Total <span className="font-medium tabular-nums">{formatCurrency(totalAmount)}</span> belum masuk laporan. Pilih grup L/R untuk masing-masing kategori.
+                            <Trans
+                                i18nKey="Total <b>{{amount}}</b> belum masuk laporan. Pilih grup L/R untuk masing-masing kategori."
+                                values={{ amount: formatCurrency(totalAmount) }}
+                                components={{ b: <span className="font-medium tabular-nums" /> }}
+                            />
                         </p>
                     </div>
                 </div>
 
                 {incomeRows.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400/80">Pemasukan</h4>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400/80">{t('Pemasukan')}</h4>
                         {incomeRows.map((r) => (
                             <UncatRow
                                 key={`ui-${r.category_id ?? 'orphan'}`}
@@ -388,7 +403,7 @@ function UncategorizedPanel({
 
                 {expenseRows.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400/80">Pengeluaran</h4>
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-400/80">{t('Pengeluaran')}</h4>
                         {expenseRows.map((r) => (
                             <UncatRow
                                 key={`ue-${r.category_id ?? 'orphan'}`}
@@ -432,28 +447,28 @@ export default function ProfitLossIndex() {
     const pdfUrl = companyUrl(`/reports/profit-loss/pdf?start_date=${filters.start_date}&end_date=${filters.end_date}`);
 
     const presets: { key: PresetKey; label: string }[] = [
-        { key: 'this_month', label: 'Bulan ini' },
-        { key: 'last_month', label: 'Bulan lalu' },
-        { key: 'ytd', label: 'Tahun berjalan' },
-        { key: 'last_year', label: 'Tahun lalu' },
+        { key: 'this_month', label: t('Bulan ini') },
+        { key: 'last_month', label: t('Bulan lalu') },
+        { key: 'ytd', label: t('Tahun berjalan') },
+        { key: 'last_year', label: t('Tahun lalu') },
     ];
 
     return (
         <>
-            <Head title="Laporan Laba Rugi" />
+            <Head title={t('Laporan Laba Rugi', { context: 'menu' })} />
 
             <div className="space-y-6">
                 {/* Header */}
                 <div className="print:hidden">
                     <PageHeader
-                        title="Laporan Laba Rugi"
-                        description="Ringkasan pendapatan, modal, beban, dan laba bersih perusahaan"
+                        title={t('Laporan Laba Rugi', { context: 'menu' })}
+                        description={t('Ringkasan pendapatan, modal, beban, dan laba bersih perusahaan')}
                         action={(
                             <div className="flex items-center gap-2">
                                 <TutorialButton slug="profit-loss" />
                                 <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
                                     <Button variant="primary" size="sm" icon={<Download className="h-4 w-4" />}>
-                                        Unduh PDF
+                                        {t('Unduh PDF')}
                                     </Button>
                                 </a>
                             </div>
@@ -476,7 +491,7 @@ export default function ProfitLossIndex() {
                                 </Button>
                             ))}
                             {activePreset === null && (
-                                <Badge variant="blue" className="text-[10px]">Periode khusus</Badge>
+                                <Badge variant="blue" className="text-[10px]">{t('Periode khusus')}</Badge>
                             )}
                         </div>
 
@@ -496,7 +511,7 @@ export default function ProfitLossIndex() {
                                 />
                             </div>
                             <Button variant="primary" size="sm" onClick={() => navigate(start, end)}>
-                                Terapkan
+                                {t('Terapkan')}
                             </Button>
                         </div>
                     </CardContent>
@@ -518,10 +533,14 @@ export default function ProfitLossIndex() {
                             <CardContent className="p-4 space-y-2 text-xs text-dark-600 dark:text-dark-400">
                                 <div className="flex items-center gap-2 text-dark-900 dark:text-dark-50">
                                     <FileBarChart className="w-4 h-4 text-primary-500" />
-                                    <span className="font-medium">Tentang laporan ini</span>
+                                    <span className="font-medium">{t('Tentang laporan ini')}</span>
                                 </div>
-                                <p>Basis <strong>kas</strong>: pendapatan dihitung saat uang masuk.</p>
-                                <p>HPP dari invoice pakai metode <strong>cost-recovery</strong> — uang masuk menutup modal dulu, baru sisanya jadi laba.</p>
+                                <p>
+                                    <Trans i18nKey="Basis <b>kas</b>: pendapatan dihitung saat uang masuk." components={{ b: <strong /> }} />
+                                </p>
+                                <p>
+                                    <Trans i18nKey="HPP dari invoice pakai metode <b>pemulihan biaya</b> — uang masuk menutup modal dulu, baru sisanya jadi laba." components={{ b: <strong /> }} />
+                                </p>
                             </CardContent>
                         </Card>
                     </aside>

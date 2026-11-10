@@ -21,7 +21,7 @@ async (page) => {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -29,7 +29,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/);
     return p;
   };
@@ -84,18 +84,18 @@ async (page) => {
       confirm: conf.getByRole('button', { name: 'Hapus' }),
     });
     await conf.getByRole('button', { name: 'Hapus' }).click();
-    await draftRow.getByText('Menunggu', { exact: true }).waitFor();
+    await draftRow.getByText('Menunggu persetujuan', { exact: true }).waitFor();
     await s.waitForTimeout(800);
     await snap(s, 'staff-list-pending', {
       row: draftRow,
-      status: draftRow.getByText('Menunggu', { exact: true }),
+      status: draftRow.getByText('Menunggu persetujuan', { exact: true }),
     });
 
     const row2 = s.getByRole('row', { name: /Staf Uji.*15\.000\.000/ });
     await row2.getByTitle('Ajukan').click();
     await top(s).getByText('Ajukan Piutang?').waitFor();
     await top(s).getByRole('button', { name: 'Hapus' }).click();
-    await row2.getByText('Menunggu', { exact: true }).waitFor();
+    await row2.getByText('Menunggu persetujuan', { exact: true }).waitFor();
 
     /* ── Finance manager: tinjau ── */
     const m = await open('fm@qc.test');
@@ -103,7 +103,7 @@ async (page) => {
     const mRow = m.getByRole('row', { name: /Staf Uji.*6\.000\.000/ });
     await mRow.first().waitFor();
     await snap(m, 'fm-list-pending', {
-      filter: m.getByRole('button', { name: /Menunggu Persetujuan/ }),
+      filter: m.getByRole('button', { name: /Menunggu persetujuan/ }),
       stats: parentOf(parentOf(parentOf(parentOf(m.getByText('Total Piutang', { exact: true }))))),
       row: mRow,
       process: mRow.getByTitle('Proses Persetujuan'),

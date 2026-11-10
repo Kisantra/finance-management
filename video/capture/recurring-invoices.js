@@ -4,7 +4,7 @@
  * 2. Jalankan video/capture/services.js dulu (butuh layanan "Pembukuan & Lapor Pajak Bulanan" dan "Kelola Media Sosial Bulanan").
  * 3. Jalankan file ini lewat Playwright MCP (browser_run_code_unsafe, filename: video/capture/recurring-invoices.js).
  * 4. python video/capture/to-webp.py recurring-invoices, lalu salin koordinat dari hasilnya ke video/recurring-invoices/shots.ts.
- * Skrip ini membuat 2 template (bulanan & triwulanan), men-generate draft Oktober 2026, dan mem-publish satu draft
+ * Skrip ini membuat 2 template (bulanan & triwulanan), membuat draft Oktober 2026, dan menjadikan satu draft invoice
  * (= 1 invoice draft baru di modul Invoice). Untuk mengulang, hapus dulu data itu dari DB QC. Jangan jalankan di DB utama.
  */
 async (page) => {
@@ -33,7 +33,7 @@ async (page) => {
       window.WebSocket = FakeWS;
       document.addEventListener('DOMContentLoaded', () => {
         const s = document.createElement('style');
-        s.textContent = 'button[aria-label="Kirim Feedback"]{display:none!important}';
+        s.textContent = 'button[aria-label="Kirim Masukan"]{display:none!important}';
         document.head.appendChild(s);
       });
     });
@@ -41,7 +41,7 @@ async (page) => {
     await p.goto(BASE + '/login');
     await p.locator('input[type=email]').fill(email);
     await p.locator('input[type=password]').fill('password');
-    await p.getByRole('button', { name: 'Masuk ke Dasbor' }).click();
+    await p.getByRole('button', { name: 'Masuk', exact: true }).click();
     await p.waitForURL(/dashboard/, { timeout: 90000 });
     return p;
   };
@@ -183,22 +183,22 @@ async (page) => {
 
   /* ── Finance manager: bulanan ── */
   await m.goto(MONTHLY);
-  await m.getByRole('button', { name: 'Generate Otomatis' }).waitFor();
+  await m.getByRole('button', { name: 'Buat Draft Otomatis' }).waitFor();
   await snap(m, 'fm-monthly-empty', {
     month: m.getByText('Oktober 2026', { exact: true }).locator('xpath=..'),
-    generate: m.getByRole('button', { name: 'Generate Otomatis' }),
+    generate: m.getByRole('button', { name: 'Buat Draft Otomatis' }),
     manual: m.getByRole('button', { name: 'Buat Manual' }).first(),
-    stats: m.getByText('Total Revenue', { exact: true }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
+    stats: m.getByText('Total Pendapatan', { exact: true }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
   });
-  await m.getByRole('button', { name: 'Generate Otomatis' }).click();
-  await top(m).getByRole('button', { name: 'Generate Sekarang' }).waitFor();
+  await m.getByRole('button', { name: 'Buat Draft Otomatis' }).click();
+  await top(m).getByRole('button', { name: 'Buat Sekarang' }).waitFor();
   await snap(m, 'fm-generate', {
     dialog: top(m),
-    issue: top(m).getByRole('button', { name: /^Tanggal Terbit/ }),
+    issue: top(m).getByRole('button', { name: /^Tanggal Invoice/ }),
     due: top(m).getByRole('button', { name: /^Jatuh Tempo/ }),
-    confirm: top(m).getByRole('button', { name: 'Generate Sekarang' }),
+    confirm: top(m).getByRole('button', { name: 'Buat Sekarang' }),
   });
-  await top(m).getByRole('button', { name: 'Generate Sekarang' }).click();
+  await top(m).getByRole('button', { name: 'Buat Sekarang' }).click();
   const rowOf = (p, name) => p.getByRole('row', { name: new RegExp(name) });
   await rowOf(m, 'Retainer Pembukuan Bulanan').waitFor();
   await m.waitForTimeout(400);
@@ -206,14 +206,14 @@ async (page) => {
     table: m.locator('table'),
     row: rowOf(m, 'Retainer Pembukuan Bulanan'),
     row2: rowOf(m, 'Kelola Media Sosial Triwulanan'),
-    publish: rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Publish'),
-    edit: rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Edit'),
+    publish: rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Jadikan Invoice'),
+    edit: rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Ubah'),
     remove: rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Hapus'),
-    stats: m.getByText('Total Revenue', { exact: true }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
+    stats: m.getByText('Total Pendapatan', { exact: true }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
     toast: m.locator('[data-sonner-toast]'),
   });
 
-  await rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Edit').click();
+  await rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Ubah').click();
   await top(m).getByRole('button', { name: 'Simpan Perubahan' }).waitFor();
   await snap(m, 'fm-monthly-edit', {
     dialog: top(m),
@@ -224,23 +224,23 @@ async (page) => {
   await top(m).getByRole('button', { name: 'Batal' }).click();
   await m.waitForTimeout(500);
 
-  await rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Publish').click();
-  await top(m).getByRole('button', { name: 'Publish', exact: true }).waitFor();
+  await rowOf(m, 'Retainer Pembukuan Bulanan').getByTitle('Jadikan Invoice').click();
+  await top(m).getByRole('button', { name: 'Jadikan Invoice', exact: true }).waitFor();
   await snap(m, 'fm-publish', {
     dialog: top(m),
     note: top(m).getByText(/menjadi invoice permanen/),
-    issue: top(m).getByRole('button', { name: /^Tanggal Terbit/ }),
+    issue: top(m).getByRole('button', { name: /^Tanggal Invoice/ }),
     due: top(m).getByRole('button', { name: /^Jatuh Tempo/ }),
-    confirm: top(m).getByRole('button', { name: 'Publish', exact: true }),
+    confirm: top(m).getByRole('button', { name: 'Jadikan Invoice', exact: true }),
   });
-  await top(m).getByRole('button', { name: 'Publish', exact: true }).click();
+  await top(m).getByRole('button', { name: 'Jadikan Invoice', exact: true }).click();
   const link = rowOf(m, 'Retainer Pembukuan Bulanan').getByRole('link');
   await link.waitFor();
   const invoiceId = Number((await link.getAttribute('href')).match(/invoice\/(\d+)/)[1]);
   await m.waitForTimeout(400);
   await snap(m, 'fm-published', {
     row: rowOf(m, 'Retainer Pembukuan Bulanan'),
-    status: rowOf(m, 'Retainer Pembukuan Bulanan').getByText('Published', { exact: true }),
+    status: rowOf(m, 'Retainer Pembukuan Bulanan').getByText('Dijadikan invoice', { exact: true }),
     link,
     toast: m.locator('[data-sonner-toast]'),
   });
@@ -257,9 +257,9 @@ async (page) => {
   await m.waitForTimeout(1500);
   await snap(m, 'fm-analytics', {
     kpi: m.getByText('Pertumbuhan', { exact: true }).locator('xpath=ancestor::div[contains(@class,"grid")][1]'),
-    chart: m.getByText(/^Revenue Bulanan/).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
+    chart: m.getByText(/^Pendapatan Bulanan/).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
     performance: m.getByText('Performa Template', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
-    breakdown: m.getByText('Breakdown Status', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
+    breakdown: m.getByText('Rincian Status', { exact: true }).locator('xpath=ancestor::div[contains(@class,"rounded")][1]'),
   });
 
   /* ── Admin: jejak di modul Invoice + arsip/hapus ── */
@@ -269,7 +269,7 @@ async (page) => {
   await snap(a, 'admin-invoice-drawer', {
     drawer: a.getByRole('dialog').first(),
     status: a.getByRole('dialog').first().getByText('Draft', { exact: true }).first(),
-    send: a.getByRole('dialog').first().getByRole('button', { name: /Kirim invoice/ }).first(),
+    send: a.getByRole('dialog').first().getByRole('button', { name: /Terbitkan invoice/ }).first(),
     history: parentOf(a.getByRole('heading', { name: 'Riwayat' })),
   });
 

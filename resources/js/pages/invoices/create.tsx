@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AppLink } from '@/components/app-link';
 import { useCan } from '@/hooks/use-can';
+import { t, Trans } from '@/i18n';
 import { AppLayout } from '@/layouts/app-layout';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
@@ -85,17 +86,22 @@ interface EditorProps {
 
 const COMMON_UNITS = ['jam', 'hari', 'minggu', 'bulan', 'tahun', 'project', 'paket', 'set', 'lot', 'kali', 'pcs', 'unit', 'lembar', 'kg', 'ton', 'm²', 'm³'];
 
-const TEMPLATES = [
-    { value: 'kisantra-invoice', label: 'Kisantra' },
-    { value: 'semesta-invoice', label: 'Semesta' },
-    { value: 'agsa-invoice', label: 'AGSA' },
-    { value: 'invoice', label: 'Generik' },
-];
+/** Nama template = nama merek (tetap); hanya "Generik" yang diterjemahkan saat render. */
+function templateOptions() {
+    return [
+        { value: 'kisantra-invoice', label: 'Kisantra' },
+        { value: 'semesta-invoice', label: 'Semesta' }, // i18n-abaikan: nama template
+        { value: 'agsa-invoice', label: 'AGSA' }, // i18n-abaikan: nama template
+        { value: 'invoice', label: t('Generik') },
+    ];
+}
 
-const ZOOM_OPTIONS = [
-    { value: 'fit' as const, label: 'Pas lebar' },
-    { value: 'actual' as const, label: '100%' },
-];
+function zoomOptions() {
+    return [
+        { value: 'fit' as const, label: t('Pas lebar') },
+        { value: 'actual' as const, label: '100%' },
+    ];
+}
 
 function emptyItem(): ItemRow {
     return { client_id: null, service_name: '', quantity: '1', unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
@@ -172,7 +178,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
                 });
                 if (!res.ok) {
                     const data = await res.json().catch(() => null);
-                    throw new Error(data?.message ?? `Server membalas ${res.status}.`);
+                    throw new Error(data?.message ?? t('Server membalas {{status}}.', { status: res.status }));
                 }
                 const url = URL.createObjectURL(await res.blob());
                 setState((prev) => {
@@ -186,7 +192,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
             } catch (e) {
                 if (controller.signal.aborted) return;
                 console.error('[InvoicePreview]', e);
-                setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : 'Pratinjau gagal dimuat.' }));
+                setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : t('Pratinjau gagal dimuat.') }));
             }
         }, 350);
         return () => {
@@ -274,7 +280,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                 preserveState: true,
                 only: ['defaultDueDays'],
                 onStart: () => setSavingTerm(true),
-                onSuccess: () => toast.success(`Termin bawaan disimpan: ${validTerm} hari`),
+                onSuccess: () => toast.success(t('Termin bawaan disimpan: {{count}} hari', { count: validTerm })),
                 onError: (e) => toastErrors(e),
                 onFinish: () => setSavingTerm(false),
             },
@@ -313,7 +319,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
 
     /* ── simpan ── */
     // "Simpan & terbitkan" lewat dialog berisi nomor berikutnya (dihitung server untuk klien &
-    // tanggal ini). Memilih nomor sendiri butuh `edit invoices`, sama dengan "Kirim invoice".
+    // tanggal ini). Memilih nomor sendiri butuh `edit invoices`, sama dengan "Terbitkan invoice".
     const [publishOpen, setPublishOpen] = React.useState(false);
     const [suggestedNumber, setSuggestedNumber] = React.useState('');
     const [loadingNumber, setLoadingNumber] = React.useState(false);
@@ -328,7 +334,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             onSuccess: (page) => {
                 setPublishOpen(false);
                 const message = (page.props.flash as { success?: string } | undefined)?.success;
-                toast.success(message ?? (publish ? 'Invoice diterbitkan.' : 'Invoice disimpan.'));
+                toast.success(message ?? (publish ? t('Invoice diterbitkan.') : t('Invoice disimpan.')));
             },
             onError: (errs) => {
                 const e = errs as Record<string, string>;
@@ -358,11 +364,11 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             const params = new URLSearchParams({ client_id: String(data.client_id), issue_date: data.issue_date });
             const res = await api(`/invoices/next-number?${params}`);
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message ?? 'Nomor berikutnya gagal dihitung.');
+            if (!res.ok) throw new Error(json.message ?? t('Nomor berikutnya gagal dihitung.'));
             setSuggestedNumber(json.number);
         } catch (err) {
             setPublishOpen(false);
-            toastError(err instanceof Error ? err.message : 'Nomor berikutnya gagal dihitung.');
+            toastError(err instanceof Error ? err.message : t('Nomor berikutnya gagal dihitung.'));
         } finally {
             setLoadingNumber(false);
         }
@@ -396,9 +402,9 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             preview={preview}
             activeRow={activeRow}
             template={template}
-            onTemplate={(t) => {
-                setTemplate(t);
-                writePref('invoice.preview.template', t);
+            onTemplate={(value) => {
+                setTemplate(value);
+                writePref('invoice.preview.template', value);
             }}
             zoom={zoom}
             onZoom={setZoom}
@@ -407,7 +413,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
 
     return (
         <>
-            <Head title={isEdit ? 'Edit Invoice' : 'Buat Invoice'} />
+            <Head title={isEdit ? t('Ubah Invoice') : t('Buat Invoice')} />
             <form
                 onSubmit={(e) => {
                     e.preventDefault();
@@ -419,38 +425,38 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-4">
                         <Button asChild variant="outline" className={BTN.icon}>
-                            <AppLink href={isEdit ? `/invoices/${invoice.id}` : '/invoices'} aria-label="Kembali">
+                            <AppLink href={isEdit ? `/invoices/${invoice.id}` : '/invoices'} aria-label={t('Kembali')}>
                                 <ArrowLeft className="h-4 w-4" />
                             </AppLink>
                         </Button>
                         <div className="min-w-0">
                             <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">
-                                {isEdit ? 'Edit Invoice' : 'Buat Invoice'}
+                                {isEdit ? t('Ubah Invoice') : t('Buat Invoice')}
                             </h1>
                             <p className="text-[13px] text-ob-ink-2">
-                                {isDraft ? 'Simpan sebagai draft, atau langsung terbitkan dengan nomor.' : `Perubahan tersimpan pada ${invoice?.invoice_number}.`}
+                                {isDraft ? t('Simpan sebagai draft, atau langsung terbitkan dengan nomor.') : t('Perubahan tersimpan pada {{number}}.', { number: invoice?.invoice_number })}
                             </p>
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button type="button" variant="ghost" className={cn(BTN.ghost, 'hidden min-[1360px]:inline-flex')} onClick={togglePreview} icon={showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}>
-                            {showPreview ? 'Sembunyikan pratinjau' : 'Tampilkan pratinjau'}
+                            {showPreview ? t('Sembunyikan pratinjau') : t('Tampilkan pratinjau')}
                         </Button>
                         <Button type="button" variant="ghost" className={cn(BTN.ghost, 'min-[1360px]:hidden')} onClick={() => setSheetOpen(true)} icon={<Eye className="h-4 w-4" />}>
-                            Pratinjau
+                            {t('Pratinjau')}
                         </Button>
                         {isDraft ? (
                             <>
                                 <Button type="submit" variant="outline" className={BTN.secondary} loading={submitting === 'draft'} disabled={processing}>
-                                    Simpan draft
+                                    {t('Simpan draft')}
                                 </Button>
                                 <Button type="button" variant="primary" className={BTN.primary} loading={submitting === 'publish'} disabled={processing} onClick={openPublish} icon={<Send className="h-4 w-4" />}>
-                                    Simpan &amp; terbitkan
+                                    {t('Simpan & terbitkan')}
                                 </Button>
                             </>
                         ) : (
                             <Button type="submit" variant="primary" className={BTN.primary} loading={processing}>
-                                Simpan perubahan
+                                {t('Simpan perubahan')}
                             </Button>
                         )}
                     </div>
@@ -460,7 +466,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                     <div role="alert" className="flex items-center gap-2 rounded-2xl border border-ob-late/35 bg-ob-late/10 px-4 py-3 text-[13px] text-ob-ink">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ob-late/15 text-xs font-bold text-ob-late">!</span>
                         <span>
-                            <b className="font-semibold text-ob-late">{errorCount} isian perlu diperbaiki</b> sebelum invoice disimpan.
+                            <Trans i18nKey="<b>{{count}} isian perlu diperbaiki</b> sebelum invoice disimpan." count={errorCount} components={{ b: <b className="font-semibold text-ob-late" /> }} />
                         </span>
                     </div>
                 )}
@@ -470,34 +476,34 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                         {/* ── detail ── */}
                         <section aria-labelledby="inv-detail" className={cn(CARD, 'flex flex-col gap-4')}>
                             <div className="flex h-8 items-center justify-between gap-3">
-                                <h2 id="inv-detail" className="text-base font-semibold text-ob-ink">Detail invoice</h2>
+                                <h2 id="inv-detail" className="text-base font-semibold text-ob-ink">{t('Detail invoice')}</h2>
                                 <span className="inline-flex h-8 max-w-full items-center gap-2 truncate rounded-full border border-ob-line bg-ob-inner px-3 font-mono text-xs text-ob-ink">
-                                    {number ?? 'nomor diberikan saat terbit'}
-                                    {isDraft && number && <span className="font-sans text-ob-ink-3">perkiraan</span>}
+                                    {number ?? t('nomor diberikan saat terbit')}
+                                    {isDraft && number && <span className="font-sans text-ob-ink-3">{t('perkiraan')}</span>}
                                 </span>
                             </div>
                             <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]')}>
                                 <Combobox
                                     className="sm:col-span-3"
-                                    label="Klien"
+                                    label={t('Klien')}
                                     options={clientOptions}
                                     value={data.client_id}
                                     onChange={(v) => setData('client_id', v ? Number(v) : null)}
-                                    placeholder="Pilih klien"
-                                    searchPlaceholder="Cari klien..."
-                                    emptyText="Klien tidak ditemukan"
+                                    placeholder={t('Pilih klien')}
+                                    searchPlaceholder={t('Cari klien...')}
+                                    emptyText={t('Klien tidak ditemukan')}
                                     clearable={false}
                                     error={errors.client_id}
                                 />
                                 <DatePicker
-                                    label="Tanggal invoice"
+                                    label={t('Tanggal invoice')}
                                     value={toDate(data.issue_date)}
                                     onChange={(d) => d && setIssueDate(format(d, 'yyyy-MM-dd'))}
                                     clearable={false}
                                     error={errors.issue_date}
                                 />
                                 <DatePicker
-                                    label="Jatuh tempo"
+                                    label={t('Jatuh tempo')}
                                     value={toDate(data.due_date)}
                                     onChange={(d) => setData('due_date', d ? format(d, 'yyyy-MM-dd') : '')}
                                     minDate={toDate(data.issue_date) ?? undefined}
@@ -505,7 +511,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                     error={errors.due_date}
                                 />
                                 <Input
-                                    label="Termin (hari)"
+                                    label={t('Termin (hari)')}
                                     type="number"
                                     inputMode="numeric"
                                     min={0}
@@ -520,21 +526,21 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                             </div>
                             {canSetDefaultTerm && (
                                 <p id="inv-term-default" className="-mt-1 flex flex-wrap items-center justify-end gap-x-2 text-[13px] text-ob-ink-2">
-                                    Termin bawaan {defaultDueDays} hari.
+                                    {t('Termin bawaan {{count}} hari.', { count: defaultDueDays })}
                                     <Button type="button" variant="link" size="sm" onClick={saveDefaultTerm} disabled={savingTerm}>
-                                        Jadikan {validTerm} hari bawaan
+                                        {t('Jadikan {{count}} hari bawaan', { count: validTerm })}
                                     </Button>
                                 </p>
                             )}
                             <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-ob-ink-2">
                                 <span className="min-w-0 truncate">
                                     {selectedClient
-                                        ? [selectedClient.email, selectedClient.npwp && `NPWP ${selectedClient.npwp}`].filter(Boolean).join(' · ') || 'Klien belum punya email atau NPWP'
-                                        : 'Email dan NPWP klien tampil di sini.'}
+                                        ? [selectedClient.email, selectedClient.npwp && t('NPWP {{npwp}}', { npwp: selectedClient.npwp })].filter(Boolean).join(' · ') || t('Klien belum punya email atau NPWP')
+                                        : t('Email dan NPWP klien tampil di sini.')}
                                 </span>
                                 <label className="inline-flex cursor-pointer items-center gap-2.5 text-ob-ink">
                                     <Switch checked={multiClient} onCheckedChange={toggleMultiClient} />
-                                    Tagih ke beberapa klien
+                                    {t('Tagih ke beberapa klien')}
                                 </label>
                             </div>
                         </section>
@@ -543,29 +549,29 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                         <section aria-labelledby="inv-items" className={cn(CARD, 'flex flex-col gap-3')}>
                             <div className="flex h-8 items-center">
                                 <h2 id="inv-items" className="flex items-baseline gap-2 text-base font-semibold text-ob-ink">
-                                    Item <span className="text-[13px] font-medium text-ob-ink-2">{data.items.length} item</span>
+                                    {t('Item')} <span className="text-[13px] font-medium text-ob-ink-2">{t('{{count}} item', { count: data.items.length })}</span>
                                 </h2>
                             </div>
                             {errors.items && <p className="text-xs text-ob-late">{errors.items}</p>}
 
                             {data.items.length === 0 ? (
                                 <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ob-line-strong px-4 py-8 text-center">
-                                    <span className="text-[13px] font-semibold text-ob-ink">Belum ada item</span>
+                                    <span className="text-[13px] font-semibold text-ob-ink">{t('Belum ada item')}</span>
                                     <span className="max-w-[320px] text-xs leading-relaxed text-ob-ink-2">
-                                        Tambah baris, lalu pilih layanan dari katalog atau ketik nama layanan sendiri.
+                                        {t('Tambah baris, lalu pilih layanan dari katalog atau ketik nama layanan sendiri.')}
                                     </span>
                                     <Button type="button" variant="outline" className={BTN.small} onClick={() => addItem()} icon={<Plus className="h-3.5 w-3.5" />}>
-                                        Tambah baris
+                                        {t('Tambah baris')}
                                     </Button>
                                 </div>
                             ) : (
                                 <>
                                     <div aria-hidden="true" className="hidden grid-cols-[20px_minmax(0,1fr)_56px_132px_108px] gap-2 px-3 text-xs font-medium text-ob-ink-3 sm:grid">
                                         <span />
-                                        <span>Layanan</span>
-                                        <span className="text-right">Qty</span>
-                                        <span className="text-right">Harga satuan</span>
-                                        <span className="text-right">Subtotal</span>
+                                        <span>{t('Layanan')}</span>
+                                        <span className="text-right">{t('Qty')}</span>
+                                        <span className="text-right">{t('Harga satuan')}</span>
+                                        <span className="text-right">{t('Subtotal')}</span>
                                     </div>
                                     <ol className="flex flex-col gap-2.5">
                                         {data.items.map((item, idx) => (
@@ -593,7 +599,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                         onClick={() => addItem()}
                                         className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-dashed border-ob-line-strong text-[13px] font-semibold text-ob-ink hover:bg-ob-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill"
                                     >
-                                        <Plus className="h-4 w-4" /> Tambah baris
+                                        <Plus className="h-4 w-4" /> {t('Tambah baris')}
                                         <kbd className="font-sans text-xs font-medium text-ob-ink-3">Ctrl+Enter</kbd>
                                     </button>
                                 </>
@@ -601,18 +607,18 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                         </section>
 
                         {/* ── penyesuaian + total ── */}
-                        <section aria-label="Penyesuaian dan total" className={cn(CARD, 'grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
+                        <section aria-label={t('Penyesuaian dan total')} className={cn(CARD, 'grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
                             <div className="flex flex-col gap-3">
-                                <span className="text-[13px] font-semibold text-ob-ink-2">Penyesuaian</span>
+                                <span className="text-[13px] font-semibold text-ob-ink-2">{t('Penyesuaian')}</span>
                                 {discountOpen ? (
                                     <div className="flex flex-col gap-2.5">
                                         <div className="flex items-center gap-2">
                                             <SegmentedControl
                                                 variant="pill"
-                                                label="Jenis diskon"
+                                                label={t('Jenis diskon')}
                                                 options={[
-                                                    { value: 'fixed', label: 'Nominal' },
-                                                    { value: 'percentage', label: 'Persen' },
+                                                    { value: 'fixed', label: t('Nominal') },
+                                                    { value: 'percentage', label: t('Persen') },
                                                 ]}
                                                 value={data.discount_type}
                                                 onChange={(v) => setData((d) => ({ ...d, discount_type: v, discount_value: 0 }))}
@@ -622,7 +628,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                                 type="button"
                                                 variant="ghost"
                                                 className="h-8 w-8 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover"
-                                                aria-label="Hapus diskon"
+                                                aria-label={t('Hapus diskon')}
                                                 onClick={() => {
                                                     setData((d) => ({ ...d, discount_value: 0, discount_reason: '' }));
                                                     setDiscountOpen(false);
@@ -642,14 +648,14 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                                 placeholder="0"
                                                 iconRight={<span className="text-xs">%</span>}
                                                 error={errors.discount_value}
-                                                aria-label="Persen diskon"
+                                                aria-label={t('Persen diskon')}
                                             />
                                         )}
                                         <Input
                                             value={data.discount_reason}
                                             onChange={(e) => setData('discount_reason', e.target.value)}
-                                            placeholder="Alasan diskon (tercetak di invoice)"
-                                            aria-label="Alasan diskon"
+                                            placeholder={t('Alasan diskon (tercetak di invoice)')}
+                                            aria-label={t('Alasan diskon')}
                                             error={errors.discount_reason}
                                         />
                                         </div>
@@ -657,27 +663,27 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                 ) : (
                                     <button type="button" onClick={() => setDiscountOpen(true)} className="flex flex-col items-start gap-1.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill">
                                         <span className="inline-flex items-center gap-2 text-sm font-semibold text-ob-ink">
-                                            <Tag className="h-4 w-4" /> Tambah diskon
+                                            <Tag className="h-4 w-4" /> {t('Tambah diskon')}
                                         </span>
-                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.</span>
+                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">{t('Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.')}</span>
                                     </button>
                                 )}
                                 {ppnRate > 0 && (
                                     <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
                                         <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
                                             <Switch checked={data.apply_ppn} onCheckedChange={(on) => setData((d) => ({ ...d, apply_ppn: on, faktur: on ? d.faktur : '' }))} />
-                                            Tagih PPN {ppnRate.toLocaleString('id-ID')}%
+                                            {t('Tagih PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })}
                                         </label>
                                         <span className="text-[13px] leading-relaxed text-ob-ink-2">
-                                            Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.
+                                            {t('Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.')}
                                         </span>
                                         {data.apply_ppn && (
                                             <div className={FIELD_SM}>
                                                 <Input
                                                     value={data.faktur}
                                                     onChange={(e) => setData('faktur', e.target.value)}
-                                                    placeholder="No. faktur pajak (opsional)"
-                                                    aria-label="Nomor faktur pajak"
+                                                    placeholder={t('No. faktur pajak (opsional)')}
+                                                    aria-label={t('Nomor faktur pajak')}
                                                     maxLength={50}
                                                     error={errors.faktur}
                                                 />
@@ -687,16 +693,16 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                 )}
                             </div>
                             <div className="flex flex-col gap-1.5 sm:border-l sm:border-ob-line sm:pl-6">
-                                <SumRow label="Subtotal layanan" value={rp(subtotal - deposits)} />
-                                {deposits > 0 && <SumRow label="Titipan pajak" value={rp(deposits)} />}
-                                <SumRow label={data.discount_type === 'percentage' && data.discount_value ? `Diskon ${data.discount_value}%` : 'Diskon'} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
-                                {ppnAmount > 0 && <SumRow label={`PPN ${ppnRate.toLocaleString('id-ID')}%`} value={rp(ppnAmount)} />}
+                                <SumRow label={t('Subtotal layanan')} value={rp(subtotal - deposits)} />
+                                {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                                <SumRow label={data.discount_type === 'percentage' && data.discount_value ? t('Diskon {{value}}%', { value: data.discount_value }) : t('Diskon')} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
+                                {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
                                 <div className="my-1.5 border-t border-ob-line" />
-                                <SumRow label="Total" value={rp(total)} strong />
+                                <SumRow label={t('Total')} value={rp(total)} strong />
                                 <p className="text-[13px] text-ob-ink-2">
-                                    Laba kotor <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
+                                    {t('Laba kotor')} <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
                                     <span className="mx-1.5 text-ob-ink-3">·</span>
-                                    Est. PPh <b className="font-semibold text-ob-ink">{rp(pph)}</b>
+                                    {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pph)}</b>
                                 </p>
                             </div>
                         </section>
@@ -709,8 +715,8 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                 <SheetContent size="3xl" hideClose className={cn(SURFACE, 'overflow-y-auto p-4 sm:p-6')}>
                     <div className="mb-3 flex items-center justify-between">
-                        <SheetTitle className="text-base font-semibold text-ob-ink dark:text-ob-ink">Pratinjau cetak</SheetTitle>
-                        <Button type="button" variant="outline" className={BTN.icon} aria-label="Tutup pratinjau" onClick={() => setSheetOpen(false)}>
+                        <SheetTitle className="text-base font-semibold text-ob-ink dark:text-ob-ink">{t('Pratinjau cetak')}</SheetTitle>
+                        <Button type="button" variant="outline" className={BTN.icon} aria-label={t('Tutup pratinjau')} onClick={() => setSheetOpen(false)}>
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -724,9 +730,9 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                     setPublishOpen(open);
                     if (!open) setNumberError(null);
                 }}
-                title="Simpan & terbitkan"
-                sub="Invoice disimpan, diberi nomor, dan berstatus Terkirim. Klien tidak menerima email otomatis; unduh PDF setelah terbit."
-                confirmLabel="Terbitkan"
+                title={t('Simpan & terbitkan')}
+                sub={t('Invoice disimpan, diberi nomor, dan berstatus Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')}
+                confirmLabel={t('Terbitkan')}
                 suggested={suggestedNumber}
                 loading={loadingNumber}
                 editable={canChooseNumber}
@@ -795,15 +801,15 @@ function ItemEditorRow({
                         list={listId}
                         value={item.service_name}
                         onChange={(e) => onServiceName(e.target.value)}
-                        placeholder="Nama layanan"
-                        aria-label={`Layanan baris ${index + 1}`}
+                        placeholder={t('Nama layanan')}
+                        aria-label={t('Layanan baris {{n}}', { n: index + 1 })}
                         aria-invalid={!!error('service_name')}
                         icon={item.is_tax_deposit ? <ReceiptText className="h-4 w-4" /> : undefined}
                         className={cn('bg-ob-card', error('service_name') && 'border-ob-late')}
                     />
                     <CatalogPicker
                         services={services}
-                        label={`Pilih layanan baris ${index + 1} dari katalog`}
+                        label={t('Pilih layanan baris {{n}} dari katalog', { n: index + 1 })}
                         onPick={(svc) => onChange({ service_name: svc.name, unit_price: svc.price })}
                     />
                 </div>
@@ -817,8 +823,8 @@ function ItemEditorRow({
                     value={item.quantity}
                     onChange={(e) => onChange({ quantity: e.target.value })}
                     placeholder="1"
-                    aria-label={`Qty baris ${index + 1}`}
-                    title="Pemisah desimal titik atau koma, mis. 1,5"
+                    aria-label={t('Qty baris {{n}}', { n: index + 1 })}
+                    title={t('Pemisah desimal titik atau koma, mis. 1,5')}
                     className={cn('bg-ob-card text-right', error('quantity') && 'border-ob-late')}
                 />
                 <div className="col-span-2 col-start-2 sm:col-span-1 sm:col-start-auto">
@@ -829,9 +835,9 @@ function ItemEditorRow({
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-7 text-[13px] text-ob-ink-2">
                 <label className="inline-flex items-center gap-2">
-                    Satuan
+                    {t('Satuan')}
                     <span className={cn(FIELD_SM, 'w-24')}>
-                        <Input list={unitListId} value={item.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="—" className="bg-ob-card" aria-label={`Satuan baris ${index + 1}`} />
+                        <Input list={unitListId} value={item.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="—" className="bg-ob-card" aria-label={t('Satuan baris {{n}}', { n: index + 1 })} />
                     </span>
                     <datalist id={unitListId}>
                         {COMMON_UNITS.map((u) => (
@@ -840,8 +846,8 @@ function ItemEditorRow({
                     </datalist>
                 </label>
                 {!item.is_tax_deposit && (
-                    <label className="inline-flex items-center gap-2" title="HPP untuk seluruh baris ini, bukan per unit">
-                        HPP baris
+                    <label className="inline-flex items-center gap-2" title={t('HPP untuk seluruh baris ini, bukan per unit')}>
+                        {t('HPP baris')}
                         <span className={cn(FIELD_SM, 'w-36')}>
                             <CurrencyInput value={item.cogs_amount} onChange={(v) => onChange({ cogs_amount: v })} className="w-full min-w-0 bg-ob-card" id={`cogs-${index}`} />
                         </span>
@@ -853,8 +859,8 @@ function ItemEditorRow({
                             options={clientOptions}
                             value={item.client_id}
                             onChange={(v) => onChange({ client_id: v ? Number(v) : null })}
-                            placeholder="Klien baris ini"
-                            searchPlaceholder="Cari klien..."
+                            placeholder={t('Klien baris ini')}
+                            searchPlaceholder={t('Cari klien...')}
                             clearable={false}
                             popoverWidth="w-64"
                         />
@@ -863,14 +869,14 @@ function ItemEditorRow({
                 <span className="ml-auto inline-flex items-center gap-3">
                     <label className="inline-flex cursor-pointer items-center gap-2 text-ob-ink">
                         <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
-                        Titipan pajak
+                        {t('Titipan pajak')}
                     </label>
                     {canRemove && (
                         <Button
                             type="button"
                             variant="ghost"
                             onClick={onRemove}
-                            aria-label={`Hapus baris ${index + 1}`}
+                            aria-label={t('Hapus baris {{n}}', { n: index + 1 })}
                             className="h-8 w-8 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10"
                         >
                             <Trash2 className="h-4 w-4" />
@@ -879,7 +885,7 @@ function ItemEditorRow({
                 </span>
             </div>
 
-            {item.is_tax_deposit && <p className="pl-7 text-[13px] text-ob-ink-2">Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.</p>}
+            {item.is_tax_deposit && <p className="pl-7 text-[13px] text-ob-ink-2">{t('Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.')}</p>}
             {messages.length > 0 && (
                 <ul className="pl-7 text-xs text-ob-late">
                     {messages.map((m) => (
@@ -906,7 +912,7 @@ function CatalogPicker({ services, label, onPick }: { services: ServiceOption[];
                     type="button"
                     variant="outline"
                     aria-label={label}
-                    title="Dari katalog"
+                    title={t('Dari katalog')}
                     className="w-[34px] shrink-0 rounded-xl p-0 text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover"
                 >
                     <Search className="h-4 w-4" />
@@ -914,11 +920,11 @@ function CatalogPicker({ services, label, onPick }: { services: ServiceOption[];
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 overflow-hidden rounded-2xl border-ob-line bg-ob-card p-0 dark:border-ob-line dark:bg-ob-card">
                 <div className={cn(FIELD_SM, 'border-b border-ob-line p-2')}>
-                    <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari layanan..." icon={<Search className="h-3.5 w-3.5" />} aria-label="Cari layanan" />
+                    <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Cari layanan...')} icon={<Search className="h-3.5 w-3.5" />} aria-label={t('Cari layanan')} />
                 </div>
                 <div className="max-h-64 overflow-y-auto p-1.5">
                     {list.length === 0 ? (
-                        <p className="py-6 text-center text-[13px] text-ob-ink-2">Layanan tidak ditemukan</p>
+                        <p className="py-6 text-center text-[13px] text-ob-ink-2">{t('Layanan tidak ditemukan')}</p>
                     ) : (
                         list.map((svc) => (
                             <button
@@ -955,34 +961,34 @@ function PreviewPanel({
     preview: PreviewState & { retry: () => void };
     activeRow: number | null;
     template: string;
-    onTemplate: (t: string) => void;
+    onTemplate: (value: string) => void;
     zoom: PaperZoom;
     onZoom: (z: PaperZoom) => void;
 }) {
     return (
-        <section aria-label="Pratinjau cetak" className="flex max-h-[calc(100vh-7rem)] flex-col gap-3 rounded-3xl border border-ob-line bg-ob-card p-[18px]">
+        <section aria-label={t('Pratinjau cetak')} className="flex max-h-[calc(100vh-7rem)] flex-col gap-3 rounded-3xl border border-ob-line bg-ob-card p-[18px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="flex items-center gap-2 text-sm font-semibold text-ob-ink">
-                    Pratinjau cetak
+                    {t('Pratinjau cetak')}
                     <span aria-live="polite" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ob-ink-2">
                         <span className={cn('h-1.5 w-1.5 rounded-full', preview.error ? 'bg-ob-late' : preview.loading ? 'bg-ob-ink-3' : 'bg-ob-pos')} />
-                        {preview.error ? 'gagal dimuat' : preview.loading ? 'memperbarui…' : activeRow != null ? `baris ${activeRow + 1} disorot` : 'terbaru'}
+                        {preview.error ? t('gagal dimuat') : preview.loading ? t('memperbarui…') : activeRow != null ? t('baris {{n}} disorot', { n: activeRow + 1 }) : t('terbaru')}
                     </span>
                 </p>
                 <div className="flex items-center gap-2">
                     <div className={cn(FIELD_SM, 'w-32')}>
-                        <Combobox options={TEMPLATES} value={template} onChange={(v) => v && onTemplate(String(v))} clearable={false} popoverWidth="w-44" />
+                        <Combobox options={templateOptions()} value={template} onChange={(v) => v && onTemplate(String(v))} clearable={false} popoverWidth="w-44" />
                     </div>
-                    <SegmentedControl variant="pill" label="Zoom kertas" options={ZOOM_OPTIONS} value={zoom} onChange={onZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
+                    <SegmentedControl variant="pill" label={t('Perbesaran kertas')} options={zoomOptions()} value={zoom} onChange={onZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
                 </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-ob-inner p-3">
                 {preview.error && !preview.url ? (
                     <div role="alert" className="flex min-h-[320px] flex-col items-center justify-center gap-2 text-center">
-                        <span className="text-[13px] font-semibold text-ob-ink">Pratinjau tidak dapat dimuat</span>
+                        <span className="text-[13px] font-semibold text-ob-ink">{t('Pratinjau tidak dapat dimuat')}</span>
                         <span className="max-w-[280px] text-xs text-ob-ink-2">{preview.error}</span>
                         <Button type="button" variant="outline" className={BTN.small} onClick={preview.retry}>
-                            Coba lagi
+                            {t('Coba lagi')}
                         </Button>
                     </div>
                 ) : (
@@ -990,7 +996,8 @@ function PreviewPanel({
                 )}
             </div>
             <p className="text-xs leading-relaxed text-ob-ink-2">
-                Ini PDF yang sama persis dengan hasil unduhan{activeRow != null ? '; sorotan biru hanya ada di pratinjau' : ''}.{preview.error && preview.url ? ` Pembaruan terakhir gagal: ${preview.error}` : ''}
+                {activeRow != null ? t('Ini PDF yang sama persis dengan hasil unduhan; sorotan biru hanya ada di pratinjau.') : t('Ini PDF yang sama persis dengan hasil unduhan.')}
+                {preview.error && preview.url ? ` ${t('Pembaruan terakhir gagal: {{error}}', { error: preview.error })}` : ''}
             </p>
         </section>
     );

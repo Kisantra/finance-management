@@ -59,7 +59,7 @@ PENDAPATAN USAHA  = invoice (basis kas, titipan-dulu: titipan pajak lalu PPN) + 
 + ppn_output (memo "PPN Keluaran diterima") — TERPISAH, TIDAK masuk total mana pun
 ```
 
-**Pendapatan & HPP invoice — "titipan dulu" + cost recovery** (`invoiceContributions()`). Untuk setiap invoice yang menerima pembayaran dalam periode:
+**Pendapatan & HPP invoice — "titipan dulu" + pemulihan biaya (cost recovery)** (`invoiceContributions()`). Untuk setiap invoice yang menerima pembayaran dalam periode:
 
 ```php
 // app/Services/ProfitLossService.php — alokasi lewat SATU rumus, Invoice::allocatePayments()
@@ -76,7 +76,7 @@ if ($invoiceCogs > 0) {
 
 `Invoice::allocatePayments(int $paid, int $taxDeposit, int $ppn)` (`app/Models/Invoice.php`) adalah **satu-satunya** rumus "titipan dulu": dari jumlah yang sudah dibayar (kumulatif) → `{tax_deposit: min(paid, titipan), ppn: min(max(0, paid − titipan), ppn), revenue: max(0, paid − titipan − ppn)}`, ketiganya selalu berjumlah `paid`. Diekstrak tanpa mengubah hasil (tes Laba Rugi `ProfitLossServiceTest` & `InvoicePpnTest` lolos tanpa diubah) agar fitur lain yang membagi pembayaran invoice memakai rumus yang sama, bukan salinannya — yaitu **jurnal tampilan pembayaran invoice** ([cash-flow.md › Jurnal tampilan](cash-flow.md#jurnal-tampilan-cara-a--debitkredit-dari-rekening--kategori)): satu pembayaran dikredit ke Titipan Pajak Klien / PPN Keluaran / Pendapatan dari Invoice sebesar alokasi kumulatif sesudah − sebelum pembayaran itu (urut `payment_date`, `id`). Konsekuensinya (dites `JurnalTest::test_jurnal_pembayaran_periode_sama_dengan_laba_rugi`): Σ kredit "Pendapatan dari Invoice" atas pembayaran sebuah periode = `revenue.invoice`, dan Σ kredit "PPN Keluaran" = `ppn_output`. Jurnal tidak memuat HPP (cost recovery bukan gerakan kas) dan tidak dibaca laporan ini.
 - **Titipan dulu**: uang masuk menutup Σ item `is_tax_deposit=true` lebih dahulu (passthrough pajak klien, bukan pendapatan konsultan), lalu `invoices.ppn_amount` (PPN Keluaran perusahaan PKP, sejak 2026-10-13), sisanya baru diakui pendapatan. PPN yang tertutup dalam periode dilaporkan sebagai `ppn_output` — memo "Catatan: PPN Keluaran diterima" di bawah Laba Bersih (halaman & PDF, hanya bila > 0), bukan pendapatan dan tidak masuk total mana pun. Setoran PPN ke negara dicatat sebagai transaksi berkategori `financing` agar tidak menjadi beban.
-- **Cost recovery ("tutup modal dulu")**: porsi pendapatan menutup `total_cogs` invoice dulu sampai penuh; HPP periode = selisih kumulatif `MIN(pendapatan_kumulatif, total_cogs)` di batas akhir vs batas awal periode. Invoice lunas sebelum periode otomatis berkontribusi 0 (delta kolaps).
+- **Pemulihan biaya / cost recovery ("tutup modal dulu")**: porsi pendapatan menutup `total_cogs` invoice dulu sampai penuh; HPP periode = selisih kumulatif `MIN(pendapatan_kumulatif, total_cogs)` di batas akhir vs batas awal periode. Invoice lunas sebelum periode otomatis berkontribusi 0 (delta kolaps).
 
 **Baris berbasis kategori** (`transactionsByGroup()`, baris 164-188): join `bank_transactions × transaction_categories`, filter `pl_group` + arah (`credit`/`debit`) + rentang `transaction_date`, group by kategori → `{by_category: [{category_id, category_label, amount}], total}`.
 
@@ -122,6 +122,8 @@ $filename = sprintf('laporan-laba-rugi-%s-%s.pdf', $start->toDateString(), $end-
 return $pdf->download($filename);
 ```
 4. Template Blade `resources/views/pdf/profit-loss.blade.php` (Blade hanya dipakai untuk PDF di project ini).
+
+**Kertas di layar (multi bahasa):** periode memakai `formatTanggal(…, 'panjang')` dan stempel "Dicetak" ditulis dalam zona waktu aplikasi (`Asia/Makassar`, label zona dari `Intl` — WITA di Indonesia, GMT+8 di EN/ZH), bukan lagi dipatok "WIB". PDF-nya sendiri tetap Bahasa Indonesia (K2) dan masih bertuliskan "WIB" di `profit-loss.blade.php` — bagian server.
 
 ### Panduan & video tutorial (tombol **Tutorial** di header laporan)
 

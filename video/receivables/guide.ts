@@ -15,7 +15,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             who: 'Pemohon',
             can: ['Membuat pengajuan pinjaman (draft)', 'Mengajukan draft untuk disetujui', 'Melihat status & alasan penolakan'],
-            cannot: ['Tidak bisa mengedit atau menghapus (ikonnya tampil, tetapi ditolak sistem)', 'Tidak bisa menyetujui atau mencatat cicilan'],
+            cannot: ['Tidak bisa mengubah atau menghapus (ikonnya tampil, tetapi ditolak sistem)', 'Tidak bisa menyetujui atau mencatat cicilan'],
         },
         {
             role: ROLES.fm,
@@ -36,7 +36,7 @@ export const guide: ModuleGuide = {
     flow: {
         steps: [
             { label: 'Draft', tone: 'neutral', role: ROLES.staff, what: 'Mengisi pengajuan, Simpan Draft' },
-            { label: 'Menunggu', tone: 'wait', role: ROLES.staff, what: 'Mengajukan' },
+            { label: 'Menunggu persetujuan', tone: 'wait', role: ROLES.staff, what: 'Mengajukan' },
             { label: 'Aktif', tone: 'act', role: ROLES.fm, what: 'Setujui & cairkan dari rekening' },
             { label: 'Lunas', tone: 'pos', role: ROLES.fm, what: 'Mencatat cicilan sampai pokok habis' },
         ],
@@ -44,7 +44,7 @@ export const guide: ModuleGuide = {
             from: 1,
             label: 'Ditolak',
             tone: 'late',
-            title: 'Kembali ke pengaju',
+            title: 'Kembali ke pemohon',
             down: 'Finance manager menolak dengan alasan',
             up: 'Finance manager / Admin merevisi → Draft, lalu diajukan ulang',
         },
@@ -67,19 +67,19 @@ export const guide: ModuleGuide = {
             title: 'Mengajukan draft',
             role: ROLES.staff,
             steps: [
-                'Klik baris berstatus **Draft** untuk membuka panel rincian, periksa jadwal angsurannya, lalu klik **Ajukan persetujuan**.',
+                'Klik baris berstatus **Draft** untuk membuka panel rincian, periksa jadwal angsurannya, lalu klik **Ajukan untuk persetujuan**.',
                 'Di dialog **Ajukan piutang ini?**, klik **Ajukan**. Setelah diajukan, isinya tidak bisa diubah lagi selama menunggu keputusan.',
-                'Status berubah menjadi **Menunggu**. Bila ditolak, buka piutangnya: **Alasan penolakan** tampil paling atas di panel. Staff tidak bisa mengedit, jadi minta Finance manager merevisi atau buat pengajuan baru.',
+                'Status berubah menjadi **Menunggu persetujuan**. Bila ditolak, buka piutangnya: **Alasan penolakan** tampil paling atas di panel. Staff tidak bisa mengubah, jadi minta Finance manager merevisi atau buat pengajuan baru.',
             ],
         },
         {
             title: 'Menyetujui atau menolak',
             role: ROLES.fm,
             steps: [
-                'Klik pil **Menunggu** di atas tabel (angkanya menunjukkan berapa yang perlu diputuskan), lalu klik piutangnya untuk membuka panel rincian.',
+                'Klik pil **Menunggu persetujuan** di atas tabel (angkanya menunjukkan berapa yang perlu diputuskan), lalu klik piutangnya untuk membuka panel rincian.',
                 'Periksa jadwal angsuran yang diusulkan di panel, lalu klik **Proses pengajuan**.',
                 'Pilih **Setujui**, tentukan **Rekening pencairan** (sumber dana, wajib — saldonya langsung berkurang), isi catatan bila perlu, lalu klik **Setujui & cairkan**. Status menjadi **Aktif**.',
-                'Atau pilih **Tolak**, tulis **Alasan penolakan** (dibaca pengaju saat memperbaiki pengajuannya), lalu klik **Tolak pengajuan**.',
+                'Atau pilih **Tolak**, tulis **Alasan penolakan** (dibaca pemohon saat memperbaiki pengajuannya), lalu klik **Tolak pengajuan**.',
             ],
         },
         {
@@ -106,8 +106,8 @@ export const guide: ModuleGuide = {
             title: 'Merevisi, menghapus, dan piutang perusahaan',
             role: ROLES.fm,
             steps: [
-                'Ikon **Edit** untuk piutang **Draft** atau **Ditolak**. Setelah **Simpan Perubahan**, statusnya kembali **Draft** dan alasan penolakan dihapus; ajukan ulang.',
-                'Ikon **Hapus** hanya untuk **Draft**. Pengajuan **Ditolak** tidak bisa langsung dihapus: Edit dulu (statusnya kembali Draft), baru hapus.',
+                'Ikon **Ubah** untuk piutang **Draft** atau **Ditolak**. Setelah **Simpan Perubahan**, statusnya kembali **Draft** dan alasan penolakan dihapus; ajukan ulang.',
+                'Ikon **Hapus** hanya untuk **Draft**. Pengajuan **Ditolak** tidak bisa langsung dihapus: Ubah dulu (statusnya kembali Draft), baru hapus.',
                 'Untuk pinjaman ke klien, pilih **Pinjaman Perusahaan** lalu pilih di **Perusahaan** (klien bertipe perusahaan yang aktif).',
             ],
         },
@@ -147,7 +147,7 @@ export const guide: ModuleGuide = {
             title: 'Transaksi bank saat piutang dicairkan',
             subtitle: 'Contoh dari kasbon RCV-00003 tadi, beserta asal setiap datanya.',
             rows: [
-                { label: 'Jenis', value: 'Keluar (debit)', source: 'Otomatis', tone: 'neutral' },
+                { label: 'Jenis', value: 'Uang keluar', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Rekening', value: 'BCA - Operasional', source: 'Rekening Pencairan', tone: 'pos' },
                 { label: 'Tanggal', value: '12 Okt 2026', source: 'Hari disetujui', tone: 'neutral' },
                 { label: 'Jumlah', value: '−Rp 6.000.000', source: 'Jumlah Pokok', tone: 'act' },

@@ -167,7 +167,7 @@ export const ADMIN_TRACE_STEPS: Step[] = [
         src: img('admin-categories'),
         focus: S['admin-categories'].unclassified,
         zoom: 1.8,
-        caption: 'Kartu Belum Diklasifikasi menghitung kategori pemasukan/pengeluaran tanpa grup, termasuk yang belum dipakai.',
+        caption: 'Kartu Belum diklasifikasi menghitung kategori pemasukan/pengeluaran tanpa grup, termasuk yang belum dipakai.',
         duration: 150,
     },
 ];

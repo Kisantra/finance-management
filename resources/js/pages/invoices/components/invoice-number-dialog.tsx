@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { BTN, FIELD, rp, SURFACE } from './ob';
 
@@ -15,7 +16,7 @@ export function DialogHead({ title, sub, onClose }: { title: string; sub?: React
                 <DialogTitle className="text-xl font-semibold text-ob-ink dark:text-ob-ink">{title}</DialogTitle>
                 {sub ? <DialogDescription className="mt-1 text-[13px] leading-relaxed text-ob-ink-2 dark:text-ob-ink-2">{sub}</DialogDescription> : <DialogDescription className="sr-only">{title}</DialogDescription>}
             </div>
-            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={onClose} aria-label="Tutup">
+            <Button variant="outline" className={cn(BTN.icon, 'h-8 w-8 shrink-0')} onClick={onClose} aria-label={t('Tutup')}>
                 <X className="h-4 w-4" />
             </Button>
         </div>
@@ -24,7 +25,7 @@ export function DialogHead({ title, sub, onClose }: { title: string; sub?: React
 
 /**
  * Nomor invoice sebelum terbit: terisi nomor berikutnya sesuai format Pengaturan › Penomoran
- * invoice dan tetap bisa diubah. Dipakai "Kirim invoice" (drawer draft) dan "Simpan & terbitkan"
+ * invoice dan tetap bisa diubah. Dipakai "Terbitkan invoice" (drawer draft) dan "Simpan & terbitkan"
  * (editor). Pengirimannya diurus pemanggil; galat nomor dari server dikembalikan lewat `error`.
  */
 export function InvoiceNumberDialog({
@@ -79,9 +80,9 @@ export function InvoiceNumberDialog({
                 >
                     <div className={FIELD}>
                         <Input
-                            label="Nomor invoice"
+                            label={t('Nomor invoice')}
                             value={loading ? '' : number}
-                            placeholder={loading ? 'Menghitung nomor berikutnya…' : undefined}
+                            placeholder={loading ? t('Menghitung nomor berikutnya…') : undefined}
                             onChange={(e) => {
                                 setNumber(e.target.value);
                                 onClearError();
@@ -92,8 +93,8 @@ export function InvoiceNumberDialog({
                             error={error ?? undefined}
                             hint={
                                 editable
-                                    ? 'Nomor berikutnya sesuai format di Pengaturan › Penomoran invoice. Boleh diubah selama belum dipakai. Bisa dibatalkan (rollback) selama ini nomor urut terakhir di periodenya.'
-                                    : 'Nomor diberikan otomatis sesuai format di Pengaturan › Penomoran invoice.'
+                                    ? t('Nomor berikutnya sesuai format di Pengaturan › Penomoran invoice. Boleh diubah selama belum dipakai. Bisa dikembalikan ke draft selama ini nomor urut terakhir di periodenya.')
+                                    : t('Nomor diberikan otomatis sesuai format di Pengaturan › Penomoran invoice.')
                             }
                             autoFocus={editable}
                         />
@@ -107,7 +108,7 @@ export function InvoiceNumberDialog({
                             }}
                             className="-mt-2 self-start text-[13px] font-semibold text-ob-act hover:underline"
                         >
-                            Pakai nomor yang disarankan
+                            {t('Pakai nomor yang disarankan')}
                         </button>
                     )}
                     <div className="flex items-center justify-between gap-3 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-sm">
@@ -116,7 +117,7 @@ export function InvoiceNumberDialog({
                     </div>
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)}>
-                            Batal
+                            {t('Batal')}
                         </Button>
                         <Button type="submit" className={BTN.primary} loading={submitting} disabled={loading || !number.trim()} icon={<Send className="h-4 w-4" />}>
                             {confirmLabel}
