@@ -97,7 +97,7 @@ class CompanyController extends Controller
         tenant()?->update(['name' => $company->name, 'abbreviation' => $company->abbreviation]);
 
         if ($belumLengkap) {
-            return redirect()->route(__('dashboard'))->with('success', __('Profil perusahaan lengkap. Selamat bekerja.'));
+            return redirect()->route('dashboard')->with('success', __('Profil perusahaan lengkap. Selamat bekerja.'));
         }
 
         return redirect()->back()->with('success', __('Profil perusahaan berhasil diperbarui.'));

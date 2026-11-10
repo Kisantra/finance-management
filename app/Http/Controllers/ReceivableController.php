@@ -247,7 +247,7 @@ class ReceivableController extends Controller
 
     public function update(UpdateReceivableRequest $request, Receivable $receivable): RedirectResponse
     {
-        abort_if(! in_array($receivable->status, ['draft', __('rejected')]), 403, __('Piutang ini tidak dapat diubah'));
+        abort_if(! in_array($receivable->status, ['draft', 'rejected']), 403, __('Piutang ini tidak dapat diubah'));
 
         $validated = $request->validated();
 
