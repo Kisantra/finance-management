@@ -18,6 +18,12 @@ export interface CustomTemplate {
     isDefault: boolean;
 }
 
+/** Template statis milik perusahaan aktif (CompanyInvoiceTemplate::option); label = nama perusahaan. */
+export interface CompanyTemplate {
+    value: string;
+    label: string;
+}
+
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -26,6 +32,8 @@ interface Props {
     totalAmount: number;
     amountPaid: number;
     customTemplates?: CustomTemplate[];
+    /** Ada = perusahaan ini punya template sendiri; template bawaan perusahaan lain tidak ditawarkan. */
+    companyTemplate?: CompanyTemplate | null;
 }
 
 /* Warna strip mini = aksen masing-masing template PDF, supaya kartu mudah dikenali. */
@@ -36,22 +44,23 @@ const BUILTIN = [
     { value: 'invoice', label: tk('Generik'), accent: '#64748b' },
 ];
 
-export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [] }: Props) {
+export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [], companyTemplate = null }: Props) {
     const remaining = totalAmount - amountPaid;
     const settlementAvailable = amountPaid > 0 && remaining > 0;
 
     const [printType, setPrintType] = React.useState<PrintType>('full');
     const [dpAmount, setDpAmount] = React.useState(0);
-    const [template, setTemplate] = React.useState('kisantra-invoice');
+    const defaultTemplate = companyTemplate?.value ?? 'kisantra-invoice';
+    const [template, setTemplate] = React.useState(defaultTemplate);
     const [zoom, setZoom] = React.useState<PaperZoom>('fit');
 
     React.useEffect(() => {
         if (open) {
             setPrintType(settlementAvailable ? 'pelunasan' : 'full');
             setDpAmount(0);
-            setTemplate('kisantra-invoice');
+            setTemplate(defaultTemplate);
         }
-    }, [open, settlementAvailable]);
+    }, [open, settlementAvailable, defaultTemplate]);
 
     const dpError = printType === 'dp' && (dpAmount <= 0 || dpAmount > totalAmount) ? t('Isi nominal DP lebih dari 0 dan tidak melebihi total.') : null;
 
@@ -70,7 +79,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
     ];
 
     const templates = [
-        ...BUILTIN,
+        ...(companyTemplate ? [{ ...companyTemplate, accent: '#c00000' }] : BUILTIN),
         ...customTemplates.map((tpl) => ({ value: `builder:${tpl.id}`, label: tpl.name, accent: '#7c3aed' })),
     ];
 

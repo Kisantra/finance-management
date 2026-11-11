@@ -406,5 +406,7 @@
     "Tata letak tersimpan.": "Layout saved.",
     "Aplikasi belum dipasang. Selesaikan langkah pemasangan di /setup.": "The app hasn't been installed yet. Finish the setup steps at /setup.",
     "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori transfer.": "A Profit & Loss group only applies to income and expense categories, not transfer categories.",
-    "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori pendanaan.": "A Profit & Loss group only applies to income and expense categories, not financing categories."
+    "Grup Laba Rugi hanya berlaku untuk kategori pemasukan dan pengeluaran, bukan kategori pendanaan.": "A Profit & Loss group only applies to income and expense categories, not financing categories.",
+    "Perihal maksimal 255 karakter.": "The subject may be at most 255 characters.",
+    "Keterangan baris :position maksimal 2000 karakter.": "The notes in row :position may be at most 2000 characters."
 }

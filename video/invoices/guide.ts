@@ -62,7 +62,7 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Keuangan › Invoice**, lalu klik **Buat Invoice**.',
                 'Pilih **Klien**. **Tanggal invoice** terisi hari ini; **Jatuh tempo** dihitung dari **Termin (hari)** di sampingnya. Ubah termin dan jatuh tempo ikut bergeser, atau pilih tanggalnya langsung (tidak boleh sebelum tanggal invoice). Finance manager & admin bisa menekan **Jadikan N hari bawaan** agar invoice berikutnya memakai termin itu.',
-                'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty**, **Harga satuan**, dan **Satuan**.',
+                'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty**, **Harga satuan**, dan **Satuan**. Rincian di bawah nama layanan (mis. pelabuhan muat atau rincian jam) diisi lewat **Tambah keterangan**; **Perihal** (opsional) diisi di bawah Klien. Keduanya tercetak bila desain invoice perusahaan memakainya.',
                 'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
                 'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
@@ -81,7 +81,7 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka invoice yang sudah bernomor, lalu klik **Cetak**.',
                 'Pilih **Jenis tagihan**: **Penuh**, **Uang muka** (isi nominal DP), atau **Pelunasan** (hanya muncul bila sudah dibayar sebagian; menagih sisanya).',
-                'Pilih **Template**, periksa pratinjau di kanan (PDF yang sama persis dengan unduhan), lalu klik **Unduh PDF** atau **Buka PDF**.',
+                'Pilih **Template**, periksa pratinjau di kanan (PDF yang sama persis dengan unduhan), lalu klik **Unduh PDF** atau **Buka PDF**. Perusahaan yang punya desain invoice sendiri hanya melihat template perusahaannya.',
             ],
         },
         {

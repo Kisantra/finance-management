@@ -33,21 +33,36 @@ class InvoicePrintService
      */
     public function renderPdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', ?int $highlightRow = null): \Barryvdh\DomPDF\PDF
     {
-        $html = view('pdf.'.$template, $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
+        $html = view(CompanyInvoiceTemplate::viewFor($template), $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
 
         if ($highlightRow !== null) {
             $style = '<style>.items-table tbody tr:nth-child('.($highlightRow + 1).') td{background-color:#dbeafe !important;}</style>';
             $html = str_replace('</head>', $style.'</head>', $html);
         }
 
+        $options = [
+            'dpi' => 150,
+            'defaultFont' => 'DejaVu Sans',
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+        ];
+
+        if ($template === CompanyInvoiceTemplate::KEY) {
+            // Template perusahaan boleh membawa font dari foldernya (mis. Carlito di template SLU).
+            // setOptions() tanpa config membuat chroot DomPDF = folder paket vendor, sehingga berkas
+            // font di resources/ ditolak diam-diam; cache font juga harus di storage, bukan vendor/.
+            // Subsetting: sematkan hanya huruf yang dipakai, bukan seluruh berkas font.
+            $options += [
+                'chroot' => config('dompdf.options.chroot'),
+                'fontDir' => config('dompdf.options.font_dir'),
+                'fontCache' => config('dompdf.options.font_cache'),
+                'isFontSubsettingEnabled' => true,
+            ];
+        }
+
         return Pdf::loadHTML($html)
             ->setPaper('A4', 'portrait')
-            ->setOptions([
-                'dpi' => 150,
-                'defaultFont' => 'DejaVu Sans',
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-            ]);
+            ->setOptions($options);
     }
 
     /**
@@ -120,6 +135,11 @@ class InvoicePrintService
             'pph22_amount' => $pph22Amount,
             'grand_total' => $grandTotal,
             'total_paid' => $invoice->payments->sum('amount'),
+            // Template perusahaan: gambar statis dari foldernya (logo), sedangkan tanda tangan & stempel
+            // dari upload Profil perusahaan (tidak disimpan di repo). Dibaca lewat disk tenant.
+            'aset' => fn (string $file): string => CompanyInvoiceTemplate::asset($file),
+            'tanda_tangan' => $company?->signature_base64 ?? '',
+            'stempel' => $company?->stamp_base64 ?? '',
             'financial_summary' => [
                 'net_revenue' => $netRevenue,
                 'total_cogs' => $totalCogs,

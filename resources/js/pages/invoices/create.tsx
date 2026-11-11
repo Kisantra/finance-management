@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
+import { AlignLeft, ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { AppLink } from '@/components/app-link';
 import { useCan } from '@/hooks/use-can';
@@ -22,6 +23,7 @@ import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { InvoiceNumberDialog } from './components/invoice-number-dialog';
 import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
+import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { parseQty } from './components/item-table-helpers';
 import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE } from './components/ob';
 
@@ -45,6 +47,8 @@ export interface ServiceOption {
 interface ItemRow {
     client_id: number | null;
     service_name: string;
+    /** Keterangan tambahan di bawah nama layanan (boleh beberapa baris); tercetak bila template memakainya. */
+    description: string;
     quantity: string;
     unit: string;
     unit_price: number;
@@ -54,6 +58,8 @@ interface ItemRow {
 
 export interface InvoiceFormData {
     client_id: number | null;
+    /** Perihal invoice; tercetak bila template perusahaan memakainya. */
+    subject: string;
     issue_date: string;
     due_date: string;
     discount_type: 'fixed' | 'percentage';
@@ -77,6 +83,8 @@ interface EditorProps {
     ppn: PpnOption;
     /** Termin jatuh tempo bawaan perusahaan (hari setelah tanggal invoice). */
     defaultDueDays: number;
+    /** Ada = perusahaan ini punya template sendiri; pratinjau hanya memakai template itu. */
+    companyTemplate?: CompanyTemplate | null;
     /** Ada = mode edit. `ppn_rate` = tarif tersimpan bila invoice sudah ber-PPN. */
     invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null };
     initialData?: InvoiceFormData;
@@ -87,7 +95,8 @@ interface EditorProps {
 const COMMON_UNITS = ['jam', 'hari', 'minggu', 'bulan', 'tahun', 'project', 'paket', 'set', 'lot', 'kali', 'pcs', 'unit', 'lembar', 'kg', 'ton', 'm²', 'm³'];
 
 /** Nama template = nama merek (tetap); hanya "Generik" yang diterjemahkan saat render. */
-function templateOptions() {
+function templateOptions(companyTemplate: CompanyTemplate | null) {
+    if (companyTemplate) return [companyTemplate];
     return [
         { value: 'kisantra-invoice', label: 'Kisantra' },
         { value: 'semesta-invoice', label: 'Semesta' }, // i18n-abaikan: nama template
@@ -104,7 +113,7 @@ function zoomOptions() {
 }
 
 function emptyItem(): ItemRow {
-    return { client_id: null, service_name: '', quantity: '1', unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
+    return { client_id: null, service_name: '', description: '', quantity: '1', unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
 }
 
 function addDays(iso: string, days: number): string {
@@ -206,7 +215,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -217,6 +226,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             ? { ...initialData, items: initialData.items.map((i) => ({ ...i, client_id: i.client_id ?? initialData.client_id })) }
             : initialData) ?? {
             client_id: null,
+            subject: '',
             issue_date: today,
             due_date: addDays(today, defaultDueDays),
             discount_type: 'fixed',
@@ -234,7 +244,12 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
     const [multiClient, setMultiClient] = React.useState(initialMulti);
     const [discountOpen, setDiscountOpen] = React.useState((initialData?.discount_value ?? 0) > 0);
     const [activeRow, setActiveRow] = React.useState<number | null>(null);
-    const [template, setTemplate] = React.useState<string>(() => readPref('invoice.preview.template', 'kisantra-invoice'));
+    // Template perusahaan selalu menang atas pilihan tersimpan (pilihan itu bisa berasal dari perusahaan lain).
+    const [template, setTemplate] = React.useState<string>(() => {
+        if (companyTemplate) return companyTemplate.value;
+        const saved: string = readPref('invoice.preview.template', 'kisantra-invoice');
+        return saved === 'perusahaan' ? 'kisantra-invoice' : saved;
+    });
     const [zoom, setZoom] = React.useState<PaperZoom>('fit');
     const [showPreview, setShowPreview] = React.useState(() => readPref('invoice.preview.visible', '1') === '1');
     const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -402,6 +417,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
             preview={preview}
             activeRow={activeRow}
             template={template}
+            templates={templateOptions(companyTemplate)}
             onTemplate={(value) => {
                 setTemplate(value);
                 writePref('invoice.preview.template', value);
@@ -495,6 +511,17 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, invoice,
                                     clearable={false}
                                     error={errors.client_id}
                                 />
+                                {/* Input meneruskan className ke <input>, bukan pembungkusnya: bentang kolom di div. */}
+                                <div className="sm:col-span-3">
+                                    <Input
+                                        label={t('Perihal')}
+                                        value={data.subject}
+                                        onChange={(e) => setData('subject', e.target.value)}
+                                        placeholder={t('Opsional, mis. Invoice final pengapalan Oktober')}
+                                        maxLength={255}
+                                        error={errors.subject}
+                                    />
+                                </div>
                                 <DatePicker
                                     label={t('Tanggal invoice')}
                                     value={toDate(data.issue_date)}
@@ -782,7 +809,9 @@ function ItemEditorRow({
 }) {
     const listId = `svc-list-${index}`;
     const unitListId = `unit-list-${index}`;
-    const messages = [error('service_name'), error('quantity'), error('unit_price'), error('cogs_amount'), error('client_id')].filter(Boolean);
+    const messages = [error('service_name'), error('description'), error('quantity'), error('unit_price'), error('cogs_amount'), error('client_id')].filter(Boolean);
+    const [noteOpen, setNoteOpen] = React.useState(item.description !== '');
+    const showNote = noteOpen || item.description !== '';
 
     return (
         <li
@@ -866,6 +895,11 @@ function ItemEditorRow({
                         />
                     </span>
                 )}
+                {!showNote && (
+                    <Button type="button" variant="link" size="sm" onClick={() => setNoteOpen(true)} icon={<AlignLeft className="h-3.5 w-3.5" />}>
+                        {t('Tambah keterangan')}
+                    </Button>
+                )}
                 <span className="ml-auto inline-flex items-center gap-3">
                     <label className="inline-flex cursor-pointer items-center gap-2 text-ob-ink">
                         <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
@@ -885,6 +919,21 @@ function ItemEditorRow({
                 </span>
             </div>
 
+            {showNote && (
+                <div className={cn(FIELD_SM, 'pl-7')}>
+                    <Textarea
+                        value={item.description}
+                        onChange={(e) => onChange({ description: e.target.value })}
+                        onBlur={() => item.description === '' && setNoteOpen(false)}
+                        autoFocus={noteOpen && item.description === ''}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder={t('Keterangan di bawah nama layanan, mis. pelabuhan muat atau rincian jam. Enter = baris baru.')}
+                        aria-label={t('Keterangan baris {{n}}', { n: index + 1 })}
+                        className={cn('min-h-16 bg-ob-card', error('description') && 'border-ob-late')}
+                    />
+                </div>
+            )}
             {item.is_tax_deposit && <p className="pl-7 text-[13px] text-ob-ink-2">{t('Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.')}</p>}
             {messages.length > 0 && (
                 <ul className="pl-7 text-xs text-ob-late">
@@ -954,6 +1003,7 @@ function PreviewPanel({
     preview,
     activeRow,
     template,
+    templates,
     onTemplate,
     zoom,
     onZoom,
@@ -961,6 +1011,7 @@ function PreviewPanel({
     preview: PreviewState & { retry: () => void };
     activeRow: number | null;
     template: string;
+    templates: { value: string; label: string }[];
     onTemplate: (value: string) => void;
     zoom: PaperZoom;
     onZoom: (z: PaperZoom) => void;
@@ -977,7 +1028,7 @@ function PreviewPanel({
                 </p>
                 <div className="flex items-center gap-2">
                     <div className={cn(FIELD_SM, 'w-32')}>
-                        <Combobox options={templateOptions()} value={template} onChange={(v) => v && onTemplate(String(v))} clearable={false} popoverWidth="w-44" />
+                        <Combobox options={templates} value={template} onChange={(v) => v && onTemplate(String(v))} clearable={false} popoverWidth="w-44" />
                     </div>
                     <SegmentedControl variant="pill" label={t('Perbesaran kertas')} options={zoomOptions()} value={zoom} onChange={onZoom} className="w-auto [&>label]:sr-only [&_button]:h-7 [&_button]:text-xs" />
                 </div>
@@ -1005,8 +1056,14 @@ function PreviewPanel({
 
 /* ─────────────────────────────────── halaman ─── */
 
-function CreateInvoicePage({ clients, services, ppn, defaultDueDays }: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; defaultDueDays: number }) {
-    return <InvoiceEditor clients={clients} services={services} ppn={ppn} defaultDueDays={defaultDueDays} />;
+function CreateInvoicePage({
+    clients,
+    services,
+    ppn,
+    defaultDueDays,
+    companyTemplate,
+}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
+    return <InvoiceEditor clients={clients} services={services} ppn={ppn} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

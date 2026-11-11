@@ -14,12 +14,13 @@ class InvoiceItem extends Model
         'invoice_id',
         'client_id',
         'service_name',
+        'description',
         'quantity',
         'unit',
         'unit_price',
         'amount',
         'cogs_amount',
-        'is_tax_deposit'
+        'is_tax_deposit',
     ];
 
     protected $casts = [

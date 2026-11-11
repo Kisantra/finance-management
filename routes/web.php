@@ -43,6 +43,7 @@ use App\Models\Invoice;
 use App\Models\PdfTemplate;
 use App\Models\TransactionCategory;
 use App\Services\BuilderInvoicePrinter;
+use App\Services\CompanyInvoiceTemplate;
 use App\Services\FundRequestExportService;
 use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
@@ -260,7 +261,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/{invoice}/download', function (Invoice $invoice, Request $request) {
             $dpAmount = $request->query('dp_amount') ? (int) $request->query('dp_amount') : null;
             $pelunasanAmount = $request->query('pelunasan_amount') ? (int) $request->query('pelunasan_amount') : null;
-            $template = $request->query('template', 'kisantra-invoice');
+            $template = $request->query('template', CompanyInvoiceTemplate::defaultTemplate());
 
             // Builder template: template=builder:{id}
             if (str_starts_with((string) $template, 'builder:')) {
@@ -270,7 +271,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
                 $filename = $printer->filename($invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, __('Template PDF tidak dikenal.'));
+                abort_unless(in_array($template, CompanyInvoiceTemplate::allowed(), true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
@@ -288,7 +289,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         Route::get('/{invoice}/preview', function (Invoice $invoice, Request $request) {
             $dpAmount = $request->query('dp_amount') ? (int) $request->query('dp_amount') : null;
             $pelunasanAmount = $request->query('pelunasan_amount') ? (int) $request->query('pelunasan_amount') : null;
-            $template = $request->query('template', 'kisantra-invoice');
+            $template = $request->query('template', CompanyInvoiceTemplate::defaultTemplate());
 
             // Builder template: template=builder:{id}
             if (str_starts_with((string) $template, 'builder:')) {
@@ -297,7 +298,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $printer = new BuilderInvoicePrinter;
                 $pdf = $printer->render($pdfTemplate, $invoice, $dpAmount, $pelunasanAmount);
             } else {
-                abort_unless(in_array($template, InvoicePrintService::BLADE_TEMPLATES, true), 404, __('Template PDF tidak dikenal.'));
+                abort_unless(in_array($template, CompanyInvoiceTemplate::allowed(), true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
             }

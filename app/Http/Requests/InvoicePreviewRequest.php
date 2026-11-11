@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Services\InvoicePrintService;
+use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Isian editor saat masih diketik: semua boleh kosong karena pratinjau PDF dirender setiap perubahan.
@@ -23,13 +24,15 @@ class InvoicePreviewRequest extends FormRequest
         return [
             'invoice_id' => ['nullable', 'integer'],
             'highlight' => ['nullable', 'integer', 'min:0'],
-            'template' => ['nullable', 'in:'.implode(',', InvoicePrintService::BLADE_TEMPLATES)],
+            'template' => ['nullable', Rule::in(CompanyInvoiceTemplate::allowed())],
             'client_id' => ['nullable', 'integer'],
             'issue_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
+            'subject' => ['nullable', 'string', 'max:255'],
             'items' => ['nullable', 'array', 'max:200'],
             'items.*.client_id' => ['nullable', 'integer'],
             'items.*.service_name' => ['nullable', 'string', 'max:255'],
+            'items.*.description' => ['nullable', 'string', 'max:2000'],
             'items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['nullable', 'integer', 'min:0'],
