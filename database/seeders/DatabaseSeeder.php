@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
                 BankAccountSeeder::class,
                 InvoiceSeeder::class,
                 BankTransactionSeeder::class,
+                KasBankSeeder::class,
             ]);
         });
     }
@@ -57,8 +58,12 @@ class DatabaseSeeder extends Seeder
 
         // Dev only: migrate:fresh menghapus central, tapi database tenant lama
         // tertinggal — bersihkan supaya pipeline CreateDatabase tidak bentrok.
-        DB::statement('DROP DATABASE IF EXISTS `tenant_kisantra`');
-        DB::statement('DROP DATABASE IF EXISTS `tenant_semesta`');
+        // Nama mengikuti TENANCY_DB_PREFIX (JANGAN mematok tenant_): instalasi lain
+        // di server yang sama memakai prefix berbeda dan tidak boleh ikut terhapus.
+        foreach (['kisantra', 'semesta'] as $slug) {
+            $database = config('tenancy.database.prefix').$slug.config('tenancy.database.suffix');
+            DB::statement("DROP DATABASE IF EXISTS `{$database}`");
+        }
 
         $kisantra = Company::create([
             'id' => 'kisantra',
