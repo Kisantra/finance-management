@@ -16,6 +16,7 @@ use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\PdfTemplate;
 use App\Models\Service;
+use App\Services\CompanyInvoiceTemplate;
 use App\Services\InvoiceNumberService;
 use App\Services\InvoicePrintService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -200,6 +201,7 @@ class InvoiceController extends Controller
             'ppnEnabled' => (bool) CompanyProfile::current()?->is_pkp,
             'clients' => $clients,
             'customTemplates' => $customTemplates,
+            'companyTemplate' => CompanyInvoiceTemplate::option(),
             'selectedInvoiceId' => $selectedInvoiceId,
             'filters' => [
                 'search' => $search,
@@ -461,9 +463,11 @@ class InvoiceController extends Controller
             // Pratinjau jurnal pembayaran ("titipan dulu", Invoice::allocatePayments): Σ item titipan pajak.
             'tax_deposit_total' => (int) $invoice->items->where('is_tax_deposit', true)->sum('amount'),
             'faktur' => $invoice->faktur,
+            'subject' => $invoice->subject,
             'rollbackable' => $invoice->status === 'sent' && Invoice::isLatestInNumberingPeriod($invoice),
             'custom_templates' => PdfTemplate::query()->orderByDesc('is_default')->orderBy('name')->get()
                 ->map(fn (PdfTemplate $t) => ['id' => $t->id, 'name' => $t->name, 'isDefault' => (bool) $t->is_default]),
+            'company_template' => CompanyInvoiceTemplate::option(),
             'created_at' => $invoice->created_at?->toIso8601String(),
             'updated_at' => $invoice->updated_at?->toIso8601String(),
             'client' => [
@@ -479,6 +483,7 @@ class InvoiceController extends Controller
                 'client_id' => $item->client_id,
                 'client_name' => $item->client?->name,
                 'service_name' => $item->service_name,
+                'description' => $item->description,
                 'quantity' => (float) $item->quantity,
                 'unit' => $item->unit,
                 'unit_price' => $item->unit_price,
@@ -525,6 +530,8 @@ class InvoiceController extends Controller
             ],
             // Termin jatuh tempo bawaan; pemegang `manage invoice settings` bisa menggantinya dari form ini.
             'defaultDueDays' => (int) ($company?->default_due_days ?? 14),
+            // Perusahaan bertemplate sendiri: editor hanya menawarkan template itu (CompanyInvoiceTemplate).
+            'companyTemplate' => CompanyInvoiceTemplate::option(),
             'clients' => Client::where('status', Client::STATUS_ACTIVE)
                 ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
                 ->orderBy('name')
@@ -585,6 +592,7 @@ class InvoiceController extends Controller
             $items[] = [
                 'client_id' => $item['client_id'] ?? $validated['client_id'] ?? null,
                 'service_name' => $item['service_name'] ?? '',
+                'description' => trim((string) ($item['description'] ?? '')) ?: null,
                 'quantity' => $quantity,
                 'unit' => $item['unit'] ?? 'pcs',
                 'unit_price' => $unitPrice,
@@ -612,6 +620,7 @@ class InvoiceController extends Controller
         return [
             'attributes' => [
                 'billed_to_id' => $validated['client_id'] ?? null,
+                'subject' => trim((string) ($validated['subject'] ?? '')) ?: null,
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'discount_type' => $discountType,
@@ -710,7 +719,7 @@ class InvoiceController extends Controller
             $invoice,
             null,
             null,
-            $validated['template'] ?? 'kisantra-invoice',
+            $validated['template'] ?? CompanyInvoiceTemplate::defaultTemplate(),
             isset($validated['highlight']) ? (int) $validated['highlight'] : null,
         );
 
@@ -739,9 +748,11 @@ class InvoiceController extends Controller
                 'discount_reason' => $invoice->discount_reason,
                 'ppn_rate' => (float) $invoice->ppn_rate > 0 ? (float) $invoice->ppn_rate : null,
                 'faktur' => $invoice->faktur,
+                'subject' => $invoice->subject,
                 'items' => $invoice->items->map(fn ($item) => [
                     'client_id' => $item->client_id,
                     'service_name' => $item->service_name,
+                    'description' => $item->description,
                     'quantity' => (float) $item->quantity,
                     'unit' => $item->unit,
                     'unit_price' => $item->unit_price,

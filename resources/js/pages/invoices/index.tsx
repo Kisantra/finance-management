@@ -19,7 +19,7 @@ import { openResource, parseResource, resourceHref, showResource, useResource } 
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { Avatar, BTN, CARD, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus } from './components/ob';
-import { PrintInvoiceDialog, type CustomTemplate } from './components/print-invoice-dialog';
+import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -80,6 +80,7 @@ interface Props extends SharedProps {
     stats: Stats;
     clients: { label: string; value: number }[];
     customTemplates: CustomTemplate[];
+    companyTemplate: CompanyTemplate | null;
     selectedInvoiceId: number | null;
     filters: Filters;
     /** Perusahaan PKP (Pengaturan › Profil perusahaan). */
@@ -128,7 +129,7 @@ const PILL =
 
 /* ─────────────────────────────────── halaman ─── */
 
-function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoiceId, filters, ppnEnabled }: Props) {
+function InvoicesPage({ invoices, stats, clients, customTemplates, companyTemplate, selectedInvoiceId, filters, ppnEnabled }: Props) {
     const f = {
         search: filters.search ?? '',
         status: filters.status ?? '',
@@ -457,6 +458,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, selectedInvoi
                     totalAmount={printRow.total_amount}
                     amountPaid={printRow.amount_paid}
                     customTemplates={customTemplates}
+                    companyTemplate={companyTemplate}
                 />
             )}
 

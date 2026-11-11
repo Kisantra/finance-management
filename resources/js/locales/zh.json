@@ -2187,5 +2187,10 @@
     "Generik": "通用",
     "Grafik batang pendapatan invoice berulang": "定期账单收入柱状图",
     "Halaman": "页面",
-    "Diperbarui": "更新时间"
+    "Diperbarui": "更新时间",
+    "Perihal": "事由",
+    "Opsional, mis. Invoice final pengapalan Oktober": "可选，例如：10 月装运最终账单",
+    "Tambah keterangan": "添加说明",
+    "Keterangan di bawah nama layanan, mis. pelabuhan muat atau rincian jam. Enter = baris baru.": "服务名称下方的说明，例如装货港或工时明细。Enter = 换行。",
+    "Keterangan baris {{n}}": "第 {{n}} 行说明"
 }

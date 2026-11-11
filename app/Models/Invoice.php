@@ -16,6 +16,7 @@ class Invoice extends Model
     protected $fillable = [
         'invoice_number',
         'billed_to_id',
+        'subject',
         'subtotal',
         'discount_amount',
         'discount_type',

@@ -2283,5 +2283,10 @@
     "Generik": "Generic",
     "Grafik batang pendapatan invoice berulang": "Bar chart of recurring invoice revenue",
     "Halaman": "Page",
-    "Diperbarui": "Updated"
+    "Diperbarui": "Updated",
+    "Perihal": "Subject",
+    "Opsional, mis. Invoice final pengapalan Oktober": "Optional, e.g. Final invoice for the October shipment",
+    "Tambah keterangan": "Add notes",
+    "Keterangan di bawah nama layanan, mis. pelabuhan muat atau rincian jam. Enter = baris baru.": "Notes under the service name, e.g. loading port or hour details. Enter = new line.",
+    "Keterangan baris {{n}}": "Notes for row {{n}}"
 }

@@ -426,5 +426,7 @@
     "CSRF token mismatch.": "页面会话已过期，请刷新页面后重试。",
     "User does not have the right permissions.": "您的账户无权执行此操作。",
     "User does not have the right roles.": "您的账户角色无权执行此操作。",
-    "User is not logged in.": "您尚未登录，请先登录。"
+    "User is not logged in.": "您尚未登录，请先登录。",
+    "Perihal maksimal 255 karakter.": "事由最多 255 个字符。",
+    "Keterangan baris :position maksimal 2000 karakter.": "第 :position 行的说明最多 2000 个字符。"
 }

@@ -25,7 +25,7 @@ import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
 import { BTN, dateTime, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
 import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
-import { PrintInvoiceDialog, type CustomTemplate } from './print-invoice-dialog';
+import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -67,6 +67,7 @@ export interface InvoiceDetail {
     updated_at: string | null;
     rollbackable: boolean;
     custom_templates: CustomTemplate[];
+    company_template: CompanyTemplate | null;
     client: { id: number; name: string; type: string; email: string | null; NPWP: string | null; address: string | null };
     items: Array<{
         id: number;
@@ -315,6 +316,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                         totalAmount={detail.total_amount}
                         amountPaid={detail.amount_paid}
                         customTemplates={detail.custom_templates}
+                        companyTemplate={detail.company_template}
                     />
                     <ConfirmDialog
                         open={dialog === 'delete'}

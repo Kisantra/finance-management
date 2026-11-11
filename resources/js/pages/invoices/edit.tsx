@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
+import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { type ClientOption, InvoiceEditor, type PpnOption, type ServiceOption } from './create';
 
 interface InvoiceData {
@@ -15,9 +16,11 @@ interface InvoiceData {
     discount_reason: string | null;
     ppn_rate: number | null;
     faktur: string | null;
+    subject: string | null;
     items: Array<{
         client_id: number | null;
         service_name: string;
+        description: string | null;
         quantity: number;
         unit: string | null;
         unit_price: number;
@@ -32,18 +35,21 @@ interface Props extends SharedProps {
     services: ServiceOption[];
     ppn: PpnOption;
     defaultDueDays: number;
+    companyTemplate: CompanyTemplate | null;
 }
 
-function EditInvoicePage({ invoice, clients, services, ppn, defaultDueDays }: Props) {
+function EditInvoicePage({ invoice, clients, services, ppn, defaultDueDays, companyTemplate }: Props) {
     return (
         <InvoiceEditor
             clients={clients}
             services={services}
             ppn={ppn}
             defaultDueDays={defaultDueDays}
+            companyTemplate={companyTemplate}
             invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate }}
             initialData={{
                 client_id: invoice.client_id,
+                subject: invoice.subject ?? '',
                 issue_date: invoice.issue_date,
                 due_date: invoice.due_date,
                 discount_type: invoice.discount_type,
@@ -55,6 +61,7 @@ function EditInvoicePage({ invoice, clients, services, ppn, defaultDueDays }: Pr
                     // Klien baris = klien invoice disimpan eksplisit; null-kan agar sakelar "beberapa klien" tetap mati.
                     client_id: item.client_id === invoice.client_id ? null : item.client_id,
                     service_name: item.service_name,
+                    description: item.description ?? '',
                     quantity: String(item.quantity).replace('.', ','),
                     unit: item.unit ?? '',
                     unit_price: item.unit_price,
