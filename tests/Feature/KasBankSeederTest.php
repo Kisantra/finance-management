@@ -70,7 +70,7 @@ class KasBankSeederTest extends TestCase
             ->with('category')
             ->get();
 
-        $this->assertCount(13, $transaksi);
+        $this->assertCount(12, $transaksi);
         foreach ($transaksi as $baris) {
             $this->assertNotNull($baris->category, "Transaksi \"{$baris->description}\" tanpa kategori: label tidak ada di template.");
             $this->assertNotNull($baris->category->parent_id);
