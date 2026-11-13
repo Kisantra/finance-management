@@ -7,6 +7,7 @@ import {
     Mail,
     MapPin,
     Phone,
+    Plus,
     Receipt,
     Stamp,
     Trash2,
@@ -14,6 +15,8 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { BankLogo } from '@/components/shared/bank-logo';
+import { Autocomplete, type AutocompleteOption } from '@/components/ui/autocomplete';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -29,10 +32,18 @@ import { FileUpload } from '@/components/shared/file-upload';
 import { FormSection } from '@/components/shared/form-section';
 import { AppLayout } from '@/layouts/app-layout';
 import { SettingsLayout } from '@/layouts/settings-layout';
+import { BANKS, bankDescription } from '@/lib/banks';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { intlLocale, t, tk, Trans } from '@/i18n';
+
+/** Rekening tujuan transfer yang tercetak di invoice (`company_profiles.bank_accounts`). */
+interface BankAccountRow {
+    bank: string;
+    account_number: string;
+    account_name: string;
+}
 
 interface Company {
     id: number;
@@ -46,7 +57,8 @@ interface Company {
     ppn_rate: number;
     finance_manager_name: string;
     finance_manager_position: string;
-    bank_accounts: unknown[];
+    signature_city: string;
+    bank_accounts: Partial<BankAccountRow>[];
     logo_path: string | null;
     letter_head_path: string | null;
     signature_path: string | null;
@@ -74,6 +86,8 @@ interface CompanyFormData {
     ppn_rate: string;
     finance_manager_name: string;
     finance_manager_position: string;
+    signature_city: string;
+    bank_accounts: BankAccountRow[];
     logo: File | null;
     letter_head: File | null;
     signature: File | null;
@@ -99,6 +113,18 @@ const FIELD_LABEL: Record<string, string> = {
     finance_manager_position: tk('jabatan'),
 };
 
+/** Maksimal rekening di profil; sama dengan validasi server (UpdateCompanyRequest). */
+const MAX_BANK_ACCOUNTS = 5;
+
+/* Saran Nama Bank dari katalog (sama seperti form Kas & Bank); nama di luar daftar tetap boleh diketik. */
+const bankOptions = (): AutocompleteOption[] =>
+    BANKS.map((bank) => ({
+        value: bank.name,
+        description: bankDescription(bank),
+        keywords: bank.aliases,
+        icon: <BankLogo bankName={bank.name} className="h-8 w-8 rounded-lg" />,
+    }));
+
 const COLOR_MAP: Record<string, { bg: string; text: string }> = {
     blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400' },
     purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-600 dark:text-purple-400' },
@@ -120,11 +146,26 @@ export default function CompanySettings() {
         ppn_rate: String(company?.ppn_rate ?? 11),
         finance_manager_name: company?.finance_manager_name ?? '',
         finance_manager_position: company?.finance_manager_position ?? '',
+        signature_city: company?.signature_city ?? '',
+        bank_accounts: (company?.bank_accounts ?? []).map((row) => ({
+            bank: row.bank ?? '',
+            account_number: row.account_number ?? '',
+            account_name: row.account_name ?? '',
+        })),
         logo: null,
         letter_head: null,
         signature: null,
         stamp: null,
     });
+
+    // Galat per baris rekening berkunci `bank_accounts.{i}.{field}`.
+    const fieldErrors = errors as Record<string, string | undefined>;
+
+    const updateBankAccount = (index: number, field: keyof BankAccountRow, value: string) =>
+        setData(
+            'bank_accounts',
+            data.bank_accounts.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+        );
 
     const [previewAsset, setPreviewAsset] = React.useState<AssetKey | null>(null);
     const [deletingAsset, setDeletingAsset] = React.useState<AssetKey | null>(null);
@@ -268,7 +309,88 @@ export default function CompanySettings() {
                                 error={errors.finance_manager_position}
                                 placeholder={t('Misal: Finance Manager')}
                             />
+                            <Input
+                                label={t('Kota Tanda Tangan')}
+                                value={data.signature_city}
+                                onChange={(e) => setData('signature_city', e.target.value)}
+                                error={errors.signature_city}
+                                icon={<MapPin className="w-4 h-4" />}
+                                placeholder={t('mis. Samarinda')}
+                                hint={t('Tercetak sebelum tanggal di bagian tanda tangan invoice. Boleh dikosongkan.')}
+                            />
                         </div>
+                    </FormSection>
+
+                    {/* Section: Rekening pembayaran */}
+                    <FormSection
+                        title={t('Rekening Pembayaran')}
+                        description={t('Rekening tujuan transfer yang tercetak di invoice, sesuai urutan di sini.')}
+                    >
+                        {data.bank_accounts.length === 0 && (
+                            <p className="text-sm text-dark-500 dark:text-dark-400">
+                                {t('Belum ada rekening. Invoice tercetak tanpa rekening tujuan transfer.')}
+                            </p>
+                        )}
+                        {data.bank_accounts.map((row, index) => (
+                            <div
+                                key={index}
+                                className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-3 items-start"
+                            >
+                                <Autocomplete
+                                    label={t('Nama Bank *')}
+                                    value={row.bank}
+                                    onChange={(v) => updateBankAccount(index, 'bank', v)}
+                                    options={bankOptions()}
+                                    placeholder={t('Ketik atau pilih, mis. BCA')}
+                                    icon={
+                                        <BankLogo
+                                            bankName={row.bank}
+                                            className="h-6 w-6 rounded-lg"
+                                            fallback={<Building2 className="h-4 w-4 text-ob-ink-3" />}
+                                        />
+                                    }
+                                    error={fieldErrors[`bank_accounts.${index}.bank`]}
+                                />
+                                <Input
+                                    label={t('Nomor Rekening *')}
+                                    value={row.account_number}
+                                    onChange={(e) => updateBankAccount(index, 'account_number', e.target.value)}
+                                    error={fieldErrors[`bank_accounts.${index}.account_number`]}
+                                    placeholder="1234567890"
+                                />
+                                <Input
+                                    label={t('Atas Nama *')}
+                                    value={row.account_name}
+                                    onChange={(e) => updateBankAccount(index, 'account_name', e.target.value)}
+                                    error={fieldErrors[`bank_accounts.${index}.account_name`]}
+                                    placeholder={t('PT. Nama Perusahaan')}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="sm:mt-6"
+                                    aria-label={t('Hapus rekening')}
+                                    onClick={() => setData('bank_accounts', data.bank_accounts.filter((_, i) => i !== index))}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ))}
+                        {errors.bank_accounts && <p className="text-xs text-red-600 dark:text-red-400">{errors.bank_accounts}</p>}
+                        {data.bank_accounts.length < MAX_BANK_ACCOUNTS && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                icon={<Plus className="w-4 h-4" />}
+                                onClick={() =>
+                                    setData('bank_accounts', [...data.bank_accounts, { bank: '', account_number: '', account_name: '' }])
+                                }
+                            >
+                                {t('Tambah rekening')}
+                            </Button>
+                        )}
                     </FormSection>
 
                     {/* Section: PKP & Pajak */}
