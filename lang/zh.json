@@ -428,5 +428,13 @@
     "User does not have the right roles.": "您的账户角色无权执行此操作。",
     "User is not logged in.": "您尚未登录，请先登录。",
     "Perihal maksimal 255 karakter.": "事由最多 255 个字符。",
-    "Keterangan baris :position maksimal 2000 karakter.": "第 :position 行的说明最多 2000 个字符。"
+    "Keterangan baris :position maksimal 2000 karakter.": "第 :position 行的说明最多 2000 个字符。",
+    "Kota tanda tangan maksimal 100 karakter.": "签署城市最多 100 个字符。",
+    "Maksimal 5 rekening.": "最多 5 个银行账户。",
+    "Nama bank rekening :position wajib diisi.": "第 :position 个账户的银行名称不能为空。",
+    "Nama bank rekening :position maksimal 100 karakter.": "第 :position 个账户的银行名称最多 100 个字符。",
+    "Nomor rekening :position wajib diisi.": "第 :position 个账户的银行账号不能为空。",
+    "Nomor rekening :position maksimal 50 karakter.": "第 :position 个账户的银行账号最多 50 个字符。",
+    "Atas nama rekening :position wajib diisi.": "第 :position 个账户的户名不能为空。",
+    "Atas nama rekening :position maksimal 255 karakter.": "第 :position 个账户的户名最多 255 个字符。"
 }

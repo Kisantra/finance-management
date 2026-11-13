@@ -138,6 +138,8 @@ class InvoicePrintService
             // Template perusahaan: gambar statis dari foldernya (logo), sedangkan tanda tangan & stempel
             // dari upload Profil perusahaan (tidak disimpan di repo). Dibaca lewat disk tenant.
             'aset' => fn (string $file): string => CompanyInvoiceTemplate::asset($file),
+            // Template perusahaan: baris total disusun sistem, template hanya menata tampilannya.
+            'baris_total' => InvoiceTotalRows::for($invoice, $dpAmount, $pelunasanAmount, $dpPercentage),
             'tanda_tangan' => $company?->signature_base64 ?? '',
             'stempel' => $company?->stamp_base64 ?? '',
             'financial_summary' => [
@@ -176,6 +178,7 @@ class InvoicePrintService
             'signature' => [
                 'name' => $company->finance_manager_name,
                 'position' => $company->finance_manager_position,
+                'city' => $company->signature_city,
             ],
             'is_pkp' => $company->is_pkp,
             'npwp' => $company->npwp,
@@ -197,7 +200,7 @@ class InvoicePrintService
             'bank_accounts' => [
                 ['bank' => 'MANDIRI', 'account_number' => '1480045452425', 'account_name' => 'PT. KINARA SADAYATRA NUSANTARA'],
             ],
-            'signature' => ['name' => 'Mohammad Denny Jodysetiawan', 'position' => 'Manajer Keuangan'],
+            'signature' => ['name' => 'Mohammad Denny Jodysetiawan', 'position' => 'Manajer Keuangan', 'city' => null],
             'is_pkp' => false,
             'npwp' => null,
             'ppn_rate' => 11.00,

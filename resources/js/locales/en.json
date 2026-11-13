@@ -2288,5 +2288,14 @@
     "Opsional, mis. Invoice final pengapalan Oktober": "Optional, e.g. Final invoice for the October shipment",
     "Tambah keterangan": "Add notes",
     "Keterangan di bawah nama layanan, mis. pelabuhan muat atau rincian jam. Enter = baris baru.": "Notes under the service name, e.g. loading port or hour details. Enter = new line.",
-    "Keterangan baris {{n}}": "Notes for row {{n}}"
+    "Keterangan baris {{n}}": "Notes for row {{n}}",
+    "Kota Tanda Tangan": "Signing City",
+    "mis. Samarinda": "e.g. Samarinda",
+    "Tercetak sebelum tanggal di bagian tanda tangan invoice. Boleh dikosongkan.": "Printed before the date in the invoice signature block. Optional.",
+    "Rekening Pembayaran": "Payment Accounts",
+    "Rekening tujuan transfer yang tercetak di invoice, sesuai urutan di sini.": "Transfer accounts printed on invoices, in the order shown here.",
+    "Belum ada rekening. Invoice tercetak tanpa rekening tujuan transfer.": "No accounts yet. Invoices are printed without a transfer account.",
+    "Atas Nama *": "Account Holder *",
+    "Hapus rekening": "Remove account",
+    "Tambah rekening": "Add account"
 }

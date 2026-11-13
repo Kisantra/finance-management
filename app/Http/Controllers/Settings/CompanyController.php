@@ -43,6 +43,7 @@ class CompanyController extends Controller
                 'ppn_rate' => $company->ppn_rate,
                 'finance_manager_name' => $isian($company->finance_manager_name),
                 'finance_manager_position' => $isian($company->finance_manager_position),
+                'signature_city' => (string) $company->signature_city,
                 'bank_accounts' => $company->bank_accounts ?? [],
                 'logo_path' => $company->logo_path,
                 'letter_head_path' => $company->letter_head_path,
@@ -73,6 +74,16 @@ class CompanyController extends Controller
             'ppn_rate' => $validated['ppn_rate'],
             'finance_manager_name' => $validated['finance_manager_name'],
             'finance_manager_position' => $validated['finance_manager_position'],
+            'signature_city' => $validated['signature_city'] ?? null,
+            // Rekening yang tercetak di invoice; urutan isian di layar = urutan cetak.
+            'bank_accounts' => collect($validated['bank_accounts'] ?? [])
+                ->map(fn (array $rekening): array => [
+                    'bank' => $rekening['bank'],
+                    'account_number' => $rekening['account_number'],
+                    'account_name' => $rekening['account_name'],
+                ])
+                ->values()
+                ->all() ?: null,
         ]);
 
         $ts = time();
