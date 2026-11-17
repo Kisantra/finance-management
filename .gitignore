@@ -67,3 +67,9 @@ __pycache__/
 /storage/demo/sumber.sql
 /storage/qa-d/server.log
 /storage/qa-d/routes.json
+
+# Data mentah perusahaan (Excel klien) + laporan impornya untuk DataPerusahaanSeeder.
+# Berisi data keuangan asli — repo ini publik, JANGAN PERNAH di-commit. Hanya README
+# folder ini yang ikut repo (petunjuk menaruh berkas).
+/storage/data-mentah/*
+!/storage/data-mentah/README.md
