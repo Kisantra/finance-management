@@ -49,6 +49,9 @@ class ContohInvoiceSluSeederTest extends TestCase
         $this->assertSame('PT. SAMBOJA LAJU UTAMA', $profile->name);
         $this->assertSame('{NO}/{PT}-{KLIEN}/INV/{BLN_ROMAWI}/{THN}', $profile->invoice_number_format);
         $this->assertSame([], $profile->missingFields());
+        // Data yang tercetak di template invoice perusahaan.
+        $this->assertSame('Samarinda', $profile->signature_city);
+        $this->assertSame('148-00-2346343-6', $profile->bank_accounts[0]['account_number']);
         $this->assertFalse($profile->needsInvoiceReview());
 
         // Tanda tangan CONTOH digambar seeder ke disk public perusahaan (bukan berkas asli di repo).

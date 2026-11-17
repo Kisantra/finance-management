@@ -1,10 +1,11 @@
 {{--
     Template invoice PT Samboja Laju Utama (SLU) — desain STATIS, ditiru dari invoice Word perusahaan.
-    Kop, warna, rekening, kota, dan nama penanda tangan sengaja ditulis di sini; yang berubah per
-    invoice hanya datanya (nomor, perihal, klien, item, total).
+    Di sini hanya desainnya (kop, warna, susunan, font). Data perusahaan dibaca dari Pengaturan › Profil
+    perusahaan ($company: nama, alamat, email, telepon, rekening, kota & penanda tangan); baris total
+    disusun sistem ($baris_total, InvoiceTotalRows) dan di sini hanya ditata per jenisnya.
     Logo: logo.jpg di folder ini ($aset('logo.jpg')); font judul: fonts/Carlito-Bold.ttf (OFL).
-    Gambar tanda tangan & stempel TIDAK disimpan di repo (repo publik): diambil dari upload di
-    Pengaturan › Profil perusahaan ($tanda_tangan, $stempel). Kosong = ruang tanda tangan basah.
+    Gambar tanda tangan & stempel dari upload Profil perusahaan ($tanda_tangan, $stempel); tidak
+    disimpan di repo (repo publik). Kosong = ruang tanda tangan basah.
 --}}
 @php
     $rp = fn ($value) => number_format((float) $value, 0, ',', '.');
@@ -15,11 +16,9 @@
     $units = $items->pluck('unit')->filter()->unique()->values();
     $sharedUnit = $units->count() === 1 ? $units->first() : null;
 
-    $discount = (int) $invoice->discount_amount;
-    $ppnAmount = (int) $invoice->ppn_amount;
-    $beforePpn = max(0, (int) $invoice->subtotal - $discount);
-    $nextNo = $items->count() + 1;
-
+    // Nama perusahaan selalu huruf kapital di desain ini, apa pun penulisan di profil.
+    $namaPerusahaan = mb_strtoupper((string) $company['name']);
+    $penandaTangan = $company['signature'];
     $tanggal = $invoice->issue_date?->copy()->locale('id')->translatedFormat('j F Y');
     $fontJudul = \App\Services\CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
 @endphp
@@ -232,14 +231,6 @@
             font-weight: bold;
         }
 
-        .merah {
-            color: #ff0000;
-        }
-
-        .tengah {
-            text-align: center;
-        }
-
         .info {
             width: 100%;
             border-collapse: separate;
@@ -297,6 +288,21 @@
             font-weight: bold;
             text-decoration: underline;
         }
+
+        /* Gaya baris total per jenis (InvoiceTotalRows). */
+        .totals-table tr.baris-dpp td,
+        .totals-table tr.baris-tagihan td,
+        .totals-table tr.baris-total td.label {
+            font-weight: bold;
+        }
+
+        .totals-table tr.baris-tagihan td.label {
+            text-align: center;
+        }
+
+        .totals-table tr.baris-diterima td.c-total {
+            color: #ff0000;
+        }
     </style>
 </head>
 
@@ -310,10 +316,11 @@
                     @endif
                 </td>
                 <td>
-                    <div class="nama">PT. SAMBOJA LAJU UTAMA</div>
-                    <div class="alamat pertama">Alamat : Jalan Raya Balikpapan &ndash; Handil II, Desa/Kelurahan Samboja
-                        Kuala, Kec. Samboja, Kab. Kutai Kartanegara, Provinsi Kalimantan Timur.</div>
-                    <div class="alamat">Email &nbsp;&nbsp;: sambojalajuutama@gmail.com</div>
+                    <div class="nama">{{ $namaPerusahaan }}</div>
+                    <div class="alamat pertama">Alamat : {!! nl2br(e($company['address'])) !!}</div>
+                    @if (filled($company['email']))
+                        <div class="alamat">Email &nbsp;&nbsp;: {{ $company['email'] }}</div>
+                    @endif
                 </td>
             </tr>
         </table>
@@ -399,73 +406,39 @@
             <td class="c-price"></td>
             <td class="c-total"></td>
         </tr>
-        @if ($discount > 0)
-            <tr>
-                <td colspan="4">Discount{{ filled($invoice->discount_reason) ? ' ('.$invoice->discount_reason.')' : '' }}</td>
-                <td class="c-total">{!! $uang($discount) !!}</td>
+        @foreach ($baris_total as $baris)
+            <tr class="baris-{{ $baris['jenis'] }}">
+                @if ($baris['nomor'])
+                    <td class="c-no">{{ $baris['nomor'] }}</td>
+                    <td colspan="3" class="label">{{ $baris['label'] }}</td>
+                @else
+                    <td colspan="4" class="label">{{ $baris['label'] }}</td>
+                @endif
+                <td class="c-total">{!! $uang($baris['jumlah']) !!}</td>
             </tr>
-        @endif
-        @if ($ppnAmount > 0)
-            <tr class="tebal">
-                <td colspan="4">Total Invoice (Sebelum PPN)</td>
-                <td class="c-total">{!! $uang($beforePpn) !!}</td>
-            </tr>
-            <tr>
-                <td class="c-no">{{ $nextNo }}</td>
-                <td colspan="3">PPN {{ rtrim(rtrim(number_format((float) $invoice->ppn_rate, 2, ',', '.'), '0'), ',') }}%</td>
-                <td class="c-total">{!! $uang($ppnAmount) !!}</td>
-            </tr>
-        @endif
-
-        @if ($is_down_payment)
-            <tr>
-                <td colspan="4" class="tebal">Total Invoice</td>
-                <td class="c-total">{!! $uang($invoice->total_amount) !!}</td>
-            </tr>
-            <tr class="tebal">
-                <td colspan="4" class="tengah">TAGIHAN UANG MUKA (DP{{ $dp_percentage ? ' '.$dp_percentage : '' }})</td>
-                <td class="c-total">{!! $uang($dp_amount) !!}</td>
-            </tr>
-        @elseif ($is_pelunasan)
-            <tr>
-                <td colspan="4" class="tebal">Total Invoice</td>
-                <td class="c-total">{!! $uang($invoice->total_amount) !!}</td>
-            </tr>
-            <tr>
-                <td colspan="4">Pembayaran Diterima</td>
-                <td class="c-total merah">{!! $uang($total_paid) !!}</td>
-            </tr>
-            <tr class="tebal">
-                <td colspan="4" class="tengah">TAGIHAN PELUNASAN</td>
-                <td class="c-total">{!! $uang($pelunasan_amount) !!}</td>
-            </tr>
-        @else
-            <tr class="tebal">
-                <td colspan="4" class="tengah">GRAND TOTAL</td>
-                <td class="c-total">{!! $uang($invoice->total_amount) !!}</td>
-            </tr>
-        @endif
+        @endforeach
     </table>
 
     <table class="info">
         <tr>
             <td class="kotak" style="width: 52%;">
-                <div class="besar">PT. SAMBOJA LAJU UTAMA</div>
-                Jalan Raya Balikpapan &ndash; Handil II, Desa/Kelurahan Samboja Kuala, Kec. Samboja, Kab. Kutai
-                Kartanegara, Provinsi Kalimantan Timur.<br>
-                <span class="besar">Telepon: 0811-5513-232</span>
+                <div class="besar">{{ $namaPerusahaan }}</div>
+                {!! nl2br(e($company['address'])) !!}<br>
+                <span class="besar">Telepon: {{ $company['phone'] }}</span>
             </td>
             <td class="sela"></td>
             <td class="kotak" style="width: 44%;">
-                <div class="besar">Bank Mandiri</div>
-                <div class="besar">An. PT. SAMBOJA LAJU UTAMA</div>
-                Nomor rekening bank: 148-00-2346343-6
+                @foreach ($company['bank_accounts'] ?? [] as $rekening)
+                    <div class="besar">{{ $rekening['bank'] }}</div>
+                    <div class="besar">An. {{ $rekening['account_name'] }}</div>
+                    Nomor rekening bank: {{ $rekening['account_number'] }}@if (! $loop->last)<br><br>@endif
+                @endforeach
             </td>
         </tr>
     </table>
 
     <div class="tanda-tangan">
-        <div>Samarinda, {{ $tanggal }}</div>
+        <div>{{ filled($penandaTangan['city'] ?? null) ? $penandaTangan['city'].', ' : '' }}{{ $tanggal }}</div>
         <div class="ttd">
             @if ($tanda_tangan)
                 <img src="{{ $tanda_tangan }}" alt="Tanda tangan">
@@ -474,8 +447,8 @@
                 <img class="stempel" src="{{ $stempel }}" alt="Stempel">
             @endif
         </div>
-        <div class="nama">Salam Ilham</div>
-        <div>Direktur Utama</div>
+        <div class="nama">{{ $penandaTangan['name'] }}</div>
+        <div>{{ $penandaTangan['position'] }}</div>
     </div>
 </body>
 

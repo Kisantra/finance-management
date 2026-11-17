@@ -26,6 +26,7 @@ class CompanyProfile extends Model
         'bank_accounts',
         'finance_manager_name',
         'finance_manager_position',
+        'signature_city',
         'invoice_number_format',
         'invoice_number_padding',
         'invoice_number_reset',

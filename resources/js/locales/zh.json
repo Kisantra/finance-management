@@ -2192,5 +2192,14 @@
     "Opsional, mis. Invoice final pengapalan Oktober": "可选，例如：10 月装运最终账单",
     "Tambah keterangan": "添加说明",
     "Keterangan di bawah nama layanan, mis. pelabuhan muat atau rincian jam. Enter = baris baru.": "服务名称下方的说明，例如装货港或工时明细。Enter = 换行。",
-    "Keterangan baris {{n}}": "第 {{n}} 行说明"
+    "Keterangan baris {{n}}": "第 {{n}} 行说明",
+    "Kota Tanda Tangan": "签署城市",
+    "mis. Samarinda": "例如：Samarinda",
+    "Tercetak sebelum tanggal di bagian tanda tangan invoice. Boleh dikosongkan.": "打印在账单签名处的日期之前。可留空。",
+    "Rekening Pembayaran": "收款账户",
+    "Rekening tujuan transfer yang tercetak di invoice, sesuai urutan di sini.": "打印在账单上的转账收款账户，按此处顺序排列。",
+    "Belum ada rekening. Invoice tercetak tanpa rekening tujuan transfer.": "尚无收款账户。账单打印时不含转账收款账户。",
+    "Atas Nama *": "户名 *",
+    "Hapus rekening": "删除银行账户",
+    "Tambah rekening": "添加银行账户"
 }

@@ -92,7 +92,8 @@ export const guide: ModuleGuide = {
             steps: [
                 'Buka **Pengaturan** › **Profil perusahaan**. Perusahaan baru (atau yang profilnya belum lengkap) membuka halaman ini **otomatis** sesudah masuk: aplikasi belum bisa dipakai siapa pun sampai profil disimpan.',
                 'Isi **Identitas Perusahaan**: nama, **Singkatan** (2-10 huruf, mis. KSN; menjadi kode di nomor invoice), alamat, email, telepon. Bila sudah pernah ada invoice, form menampilkan **nomor invoice terakhir**: samakan kodenya supaya nomor bersambung.',
-                'Isi **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan).',
+                'Isi **Penanggung Jawab Keuangan** (nama & jabatan untuk tanda tangan). **Kota Tanda Tangan** (mis. Samarinda) boleh dikosongkan; bila diisi, tercetak sebelum tanggal di bagian tanda tangan invoice yang memakainya.',
+                'Isi **Rekening Pembayaran**: klik **Tambah rekening**, lalu isi nama bank, nomor rekening, dan atas nama (maks. 5 rekening). Rekening ini tercetak di invoice sebagai tujuan transfer, sesuai urutannya. Baris yang dibiarkan kosong diabaikan.',
                 'Centang **Pengusaha Kena Pajak (PKP)** bila perusahaan PKP; kolom **NPWP** dan **Tarif PPN (%)** baru muncul setelah dicentang. Selama PKP aktif, invoice baru bisa ditagih PPN.',
                 'Unggah **Kop Surat**, **Tanda Tangan**, **Stempel**, dan **Logo** (gambar maks 2 MB), lalu klik **Simpan Perubahan**.',
             ],
@@ -114,6 +115,7 @@ export const guide: ModuleGuide = {
             tone: 'act',
             items: [
                 'Nama perusahaan, **kop surat**, tanda tangan, stempel, serta nama & jabatan penanggung jawab tercetak di **PDF invoice**.',
+                '**Rekening Pembayaran** tercetak di PDF invoice sebagai tujuan transfer. Perusahaan yang punya desain invoice sendiri juga mengambil alamat, telepon, kota tanda tangan, dan penanggung jawab dari halaman ini: mengubahnya di sini langsung mengubah invoice yang dicetak sesudahnya.',
                 'Selama **PKP** aktif, editor invoice menampilkan sakelar **Tagih PPN** (menyala untuk invoice baru) dan invoice berulang yang di-publish ikut diberi PPN. **Tarif PPN** disimpan di setiap invoice saat dibuat.',
                 'Mematikan PKP atau mengubah Tarif PPN hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tidak berubah.',
                 '**Singkatan** menjadi kode **{PT}** di nomor invoice berikutnya & nomor pengajuan dana baru, serta label perusahaan di pemilih perusahaan.',
@@ -157,15 +159,17 @@ export const guide: ModuleGuide = {
             rows: [
                 { label: 'Nama perusahaan', value: 'PDF invoice & laporan', source: 'Identitas', tone: 'act' },
                 { label: 'Singkatan', value: 'Kode {PT} di nomor invoice & pengajuan dana; label di pemilih perusahaan', source: 'Identitas', tone: 'act' },
-                { label: 'Alamat, email, telepon', value: 'Kepala PDF arus kas & pengajuan dana; invoice Semesta & Generik', source: 'Identitas', tone: 'act' },
+                { label: 'Alamat, email, telepon', value: 'Kepala PDF arus kas & pengajuan dana; invoice Semesta, Generik, & desain khusus perusahaan', source: 'Identitas', tone: 'act' },
                 { label: 'Nama & jabatan', value: 'Tanda tangan PDF invoice, arus kas, pengajuan dana', source: 'Penanggung jawab', tone: 'pos' },
+                { label: 'Kota tanda tangan', value: 'Sebelum tanggal tanda tangan di invoice berdesain khusus perusahaan', source: 'Penanggung jawab', tone: 'pos' },
+                { label: 'Rekening pembayaran', value: 'Tujuan transfer di PDF invoice', source: 'Rekening', tone: 'act' },
                 { label: 'PKP & Tarif PPN', value: 'Sakelar Tagih PPN di invoice baru; tarif disimpan per invoice', source: 'Pajak', tone: 'wait' },
                 { label: 'NPWP', value: 'PDF rekap invoice & laba rugi', source: 'Pajak', tone: 'wait' },
                 { label: 'Kop surat', value: 'Kepala PDF invoice (Kisantra, Semesta, AGSA)', source: 'Aset visual', tone: 'neutral' },
                 { label: 'Tanda tangan & stempel', value: 'PDF invoice; tanda tangan juga di arus kas', source: 'Aset visual', tone: 'neutral' },
                 { label: 'Logo', value: 'Kepala PDF laporan arus kas (bukan invoice)', source: 'Aset visual', tone: 'neutral' },
             ],
-            note: 'Rekening tujuan pembayaran yang tercetak di invoice **tidak** diatur di halaman ini. Template PDF buatan Admin hanya memakai data perusahaan yang disisipkan sebagai token.',
+            note: 'Template PDF buatan Admin hanya memakai data perusahaan yang disisipkan sebagai token.',
         },
     ],
     warnings: [
