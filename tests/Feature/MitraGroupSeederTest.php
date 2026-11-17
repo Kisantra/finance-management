@@ -56,6 +56,18 @@ class MitraGroupSeederTest extends TestCase
 
         setPermissionsTeamId('samboja-laju-utama');
         $this->assertFalse($staff->fresh()->hasRole('staff'));
+
+        // Admin & finance manager khusus satu perusahaan
+        foreach (['admin.aoe@mitragroup.id' => 'admin', 'manager.aoe@mitragroup.id' => 'finance manager'] as $email => $role) {
+            $user = User::where('email', $email)->firstOrFail();
+            $this->assertSame(['abdi-ocean-energy'], $user->companies()->pluck('companies.id')->all(), "{$email} hanya anggota AOE");
+
+            setPermissionsTeamId('abdi-ocean-energy');
+            $this->assertTrue($user->unsetRelation('roles')->hasRole($role), "{$email} berperan {$role} di AOE");
+        }
+
+        // 10 perusahaan × (admin, manager, staff) + admin & manager lintas perusahaan
+        $this->assertSame(32, User::where('email', 'like', '%@mitragroup.id')->count());
     }
 
     public function test_seeder_is_idempotent(): void
