@@ -26,7 +26,7 @@ class DetailInvoice extends AlatKeuangan
 
     protected string $name = 'detail-invoice';
 
-    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga, HPP, titipan pajak), diskon, DPP, PPN, faktur, total, pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Draft belum bernomor: pakai id dari daftar-invoice.';
+    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga, HPP, titipan pajak), diskon, DPP, PPN, faktur, total, pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
 
     protected function izin(): string
     {
@@ -85,6 +85,8 @@ class DetailInvoice extends AlatKeuangan
             'invoice' => [
                 'id' => $invoice->id,
                 'nomor' => $invoice->invoice_number,
+                'jenis' => DaftarInvoice::labelJenis($invoice->document_type),
+                'kode_jenis' => $invoice->document_code,
                 'status' => $invoice->status,
                 'status_label' => DaftarInvoice::labelStatus($invoice->status),
                 'terbit' => $invoice->issue_date?->format('Y-m-d'),

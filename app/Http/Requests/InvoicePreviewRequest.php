@@ -29,6 +29,8 @@ class InvoicePreviewRequest extends FormRequest
             'issue_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
             'subject' => ['nullable', 'string', 'max:255'],
+            'document_type' => ['nullable', Rule::in(StoreInvoiceRequest::documentTypes())],
+            'document_code' => StoreInvoiceRequest::documentCodeRules(),
             'items' => ['nullable', 'array', 'max:200'],
             'items.*.client_id' => ['nullable', 'integer'],
             'items.*.service_name' => ['nullable', 'string', 'max:255'],

@@ -77,8 +77,8 @@ class InvoicePpnTest extends TestCase
         $this->assertSame(1_000_000, $invoice->dpp_amount);
         // Total = 1.150.000 − 100.000 + 110.000.
         $this->assertSame(1_160_000, $invoice->total_amount);
-        // Laba kotor tidak memuat PPN: 1.160.000 − 110.000 − 400.000.
-        $this->assertSame(650_000, $invoice->gross_profit);
+        // Laba kotor tidak memuat PPN maupun titipan: 1.160.000 − 110.000 − 50.000 − 400.000.
+        $this->assertSame(600_000, $invoice->gross_profit);
     }
 
     public function test_ppn_can_be_switched_off_per_invoice(): void
@@ -141,7 +141,9 @@ class InvoicePpnTest extends TestCase
             ->where('stats.total_revenue', 1_160_000)
             ->where('stats.total_ppn', 110_000)
             ->where('stats.ppn_invoice_count', 1)
-            ->where('stats.gross_profit', 650_000)
+            // PPN dan titipan pajak ikut ditagih tetapi bukan laba: 1.160.000 − 110.000 − 50.000 − 400.000.
+            ->where('stats.total_tax_deposit', 50_000)
+            ->where('stats.gross_profit', 600_000)
             ->where('ppnEnabled', true));
     }
 
@@ -243,8 +245,8 @@ class InvoicePpnTest extends TestCase
         Excel::assertDownloaded('rekap-invoice-20261020-100000.xlsx', function (InvoiceRecapExport $export) {
             $row = collect($export->array())->first(fn (array $r) => $r[1] === $this->client->name);
 
-            // Omzet tanpa PPN, kolom PPN, HPP, profit, PPh, terbayar, sisa (termasuk PPN).
-            return array_slice($row, 5) === [1_050_000, 110_000, 400_000, 650_000, 5_250, 0, 1_160_000];
+            // Omzet tanpa PPN & titipan pajak, kolom PPN, HPP, profit, PPh, terbayar, sisa (termasuk PPN).
+            return array_slice($row, 5) === [1_000_000, 110_000, 400_000, 600_000, 5_000, 0, 1_160_000];
         });
     }
 
@@ -285,7 +287,7 @@ class InvoicePpnTest extends TestCase
         $invoice->updateStatus();
 
         $this->actingAs($this->admin)->get('/dashboard')->assertInertia(fn ($page) => $page
-            // 1.160.000 masuk − 110.000 PPN − 400.000 HPP.
-            ->where('financialOverview.total_profit', 650_000));
+            // 1.160.000 masuk − 50.000 titipan pajak − 110.000 PPN − 400.000 HPP.
+            ->where('financialOverview.total_profit', 600_000));
     }
 }

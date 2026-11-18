@@ -275,7 +275,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
                 $service = new InvoicePrintService;
                 $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
-                $filename = $invoiceType.'Invoice-'.str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '-', $invoice->invoice_number).'.pdf';
+                $filename = $invoiceType.($invoice->isDebitNote() ? 'Debit-Note-' : 'Invoice-').str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '-', $invoice->invoice_number).'.pdf';
             }
 
             return response()->streamDownload(function () use ($pdf) {

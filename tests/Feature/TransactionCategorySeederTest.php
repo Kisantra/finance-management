@@ -44,7 +44,7 @@ class TransactionCategorySeederTest extends TestCase
         }
 
         // Setoran/Penarikan Modal kini dari template (satu definisi), lengkap dengan sub pendanaannya.
-        foreach (['Setoran Modal' => ['Setoran Modal Pemilik'], 'Penarikan Modal' => ['Prive Pemilik'], 'Pajak Titipan & PPN' => ['Setor PPN', 'Setor Titipan Pajak Klien']] as $label => $sub) {
+        foreach (['Setoran Modal' => ['Setoran Modal Pemilik'], 'Penarikan Modal' => ['Prive Pemilik'], 'Pajak Titipan & PPN' => ['Setor PPN', 'Setor Titipan Pajak Klien'], 'Talangan Klien' => ['Bayar Talangan Klien']] as $label => $sub) {
             $induk = TransactionCategory::whereNull('parent_id')->where('type', 'financing')->where('label', $label)->sole();
             $this->assertNull($induk->system_key);
             $this->assertEqualsCanonicalizing($sub, $induk->children()->where('type', 'financing')->pluck('label')->all(), "Sub {$label} salah.");
@@ -54,10 +54,10 @@ class TransactionCategorySeederTest extends TestCase
         $this->assertSame('transfer', $antarRekening->type);
         $this->assertSame('Transfer Internal', $antarRekening->parent->label);
 
-        // 6 kategori tetap (sistem) + 2 transfer + 74 template (15 induk, 59 sub).
-        $this->assertSame(82, TransactionCategory::count());
+        // 6 kategori tetap (sistem) + 2 transfer + 76 template (16 induk, 60 sub).
+        $this->assertSame(84, TransactionCategory::count());
         $this->assertSame(
-            ['new' => 0, 'existing' => 74, 'skipped' => 0],
+            ['new' => 0, 'existing' => 76, 'skipped' => 0],
             app(CategoryTemplateService::class)->plan()['summary'],
             'Seluruh template harus sudah terpasang dan tidak ada grup yang tertahan penjaga.'
         );
@@ -95,7 +95,7 @@ class TransactionCategorySeederTest extends TestCase
 
         $this->seed(TransactionCategorySeeder::class);
 
-        $this->assertSame(82, TransactionCategory::count());
+        $this->assertSame(84, TransactionCategory::count());
         $this->assertSame('opex', TransactionCategory::findSystem('EXP-INTEREST')->pl_group);
     }
 

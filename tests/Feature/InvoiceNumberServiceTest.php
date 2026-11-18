@@ -59,6 +59,28 @@ class InvoiceNumberServiceTest extends TestCase
         $this->assertSame('006/INV/KSN-SSR/IX/2026', $this->numbers->next(Carbon::parse('2026-09-20'), $this->client->id), 'Alias kosong kembali ke inisial nama.');
     }
 
+    public function test_token_kode_berisi_jenis_dan_kode_dokumen_dan_urutannya_tetap_terbaca(): void
+    {
+        $this->useFormat('{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}', 3, 'yearly');
+        $this->sent('037/KSN-SSR/INV-FINAL/X/2026', '2026-10-10');
+        $this->sent('038/KSN-SSR/DN-PNBP/X/2026', '2026-10-10');
+
+        $this->assertSame(37, $this->numbers->sequenceOf('037/KSN-SSR/INV-FINAL/X/2026'));
+        $this->assertSame('INV-FINAL', $this->numbers->kodeOf('037/KSN-SSR/INV-FINAL/X/2026'));
+        $this->assertSame('DN', $this->numbers->kodeOf('039/KSN-SSR/DN/X/2026'));
+        $this->assertNull($this->numbers->kodeOf('039/INV/KSN-SSR/X/2026'), 'Tidak cocok pola: tanpa kode.');
+
+        // Invoice & Debit Note berbagi satu urutan; kode hanya mengubah segmen {KODE}.
+        $this->assertSame('039/KSN-SSR/INV/XI/2026', $this->numbers->next(Carbon::parse('2026-11-01'), $this->client->id));
+        $this->assertSame('039/KSN-SSR/DN-PNBP/XI/2026', $this->numbers->next(Carbon::parse('2026-11-01'), $this->client->id, Invoice::numberCode(Invoice::TYPE_DEBIT_NOTE, 'PNBP')));
+        $this->assertNull($this->numbers->formatError('{NO}/{KODE}/{THN}', 'yearly'));
+
+        // Pola tanpa {KODE} tidak terpengaruh kode.
+        $this->useFormat(InvoiceNumberService::DEFAULT_FORMAT);
+        $this->assertSame('001/INV/KSN-SSR/XI/2026', $this->numbers->next(Carbon::parse('2026-11-01'), $this->client->id, 'DN-PNBP'));
+        $this->assertNull($this->numbers->kodeOf('001/INV/KSN-SSR/XI/2026'));
+    }
+
     public function test_default_format_matches_the_company_numbering(): void
     {
         $this->sent('015/INV/KSN-SSR/IX/2026', '2026-09-03');

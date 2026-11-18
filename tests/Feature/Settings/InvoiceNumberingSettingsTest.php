@@ -54,7 +54,8 @@ class InvoiceNumberingSettingsTest extends TestCase
                 ->where('settings.reset', 'monthly')
                 ->where('sample.company_initials', 'KSN')
                 ->where('sample.next_sequence.monthly', 1)
-                ->has('tokens', 7));
+                // {NO} {PT} {KLIEN} {KODE} {BLN_ROMAWI} {BLN} {THN} {THN2}
+                ->has('tokens', 8));
     }
 
     public function test_saving_a_new_format_is_used_by_the_next_send(): void

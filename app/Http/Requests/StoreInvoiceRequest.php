@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\Client;
+use App\Models\Invoice;
+use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -24,6 +26,9 @@ class StoreInvoiceRequest extends FormRequest
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
             'subject' => ['nullable', 'string', 'max:255'],
+            // Debit Note hanya untuk perusahaan yang punya template Debit Note.
+            'document_type' => ['nullable', Rule::in(self::documentTypes())],
+            'document_code' => self::documentCodeRules(),
             'items' => ['required', 'array', 'min:1'],
             'items.*.client_id' => ['nullable', Rule::exists('clients', 'id')->where('status', Client::STATUS_ACTIVE)],
             'items.*.service_name' => ['required', 'string', 'max:255'],
@@ -48,12 +53,31 @@ class StoreInvoiceRequest extends FormRequest
         ];
     }
 
+    /** @return list<string> */
+    public static function documentTypes(): array
+    {
+        return CompanyInvoiceTemplate::supportsDebitNote() ? Invoice::TYPES : [Invoice::TYPE_INVOICE];
+    }
+
+    /**
+     * Kode jenis ikut ke nomor ({KODE}), jadi hanya huruf, angka, dan tanda hubung.
+     *
+     * @return list<string>
+     */
+    public static function documentCodeRules(): array
+    {
+        return ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/'];
+    }
+
     /**
      * @return array<string, string>
      */
     public function messages(): array
     {
         return [
+            'document_type.in' => __('Jenis dokumen tidak tersedia untuk perusahaan ini.'),
+            'document_code.regex' => __('Kode jenis hanya boleh huruf, angka, dan tanda hubung, mis. FINAL atau PNBP.'),
+            'document_code.max' => __('Kode jenis maksimal 20 karakter.'),
             'client_id.required' => __('Klien wajib dipilih.'),
             'client_id.exists' => __('Klien tidak ditemukan.'),
             'issue_date.required' => __('Tanggal invoice wajib diisi.'),

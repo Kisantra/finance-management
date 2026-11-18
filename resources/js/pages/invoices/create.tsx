@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { AlignLeft, ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { Autocomplete } from '@/components/ui/autocomplete';
 import { Button } from '@/components/ui/button';
 import { Combobox } from '@/components/ui/combobox';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -25,6 +26,7 @@ import { InvoiceNumberDialog } from './components/invoice-number-dialog';
 import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { parseQty } from './components/item-table-helpers';
+import { QuickClientDialog } from './components/quick-client-dialog';
 import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE } from './components/ob';
 
 /* ─────────────────────────────────── types ─── */
@@ -56,7 +58,23 @@ interface ItemRow {
     is_tax_deposit: boolean;
 }
 
+export type DocumentType = 'invoice' | 'debit_note';
+
+/** Jenis & kode dokumen yang ditawarkan editor (InvoiceController::formOptions). */
+export interface DocumentOptions {
+    /** Perusahaan punya template Debit Note: editor menawarkan jenis dokumen. */
+    debitNote: boolean;
+    /** Format nomor memakai {KODE}: editor menawarkan kode jenis. */
+    code: boolean;
+    /** Kode yang pernah dipakai (paling sering dulu), untuk saran. */
+    codes: Array<{ value: string; type: DocumentType }>;
+}
+
 export interface InvoiceFormData {
+    /** Debit Note = semua item talangan: tanpa PPN, bukan pendapatan. */
+    document_type: DocumentType;
+    /** Kode jenis (FINAL, PNBP, …); ikut ke nomor lewat {KODE}. */
+    document_code: string;
     client_id: number | null;
     /** Perihal invoice; tercetak bila template perusahaan memakainya. */
     subject: string;
@@ -81,6 +99,7 @@ interface EditorProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    documents: DocumentOptions;
     /** Termin jatuh tempo bawaan perusahaan (hari setelah tanggal invoice). */
     defaultDueDays: number;
     /** Ada = perusahaan ini punya template sendiri; pratinjau hanya memakai template itu. */
@@ -91,6 +110,30 @@ interface EditorProps {
 }
 
 /* ─────────────────────────────────── konstanta ─── */
+
+/*
+ * Tata letak baris item mengikuti lebar kartu Item (container query), bukan lebar layar: editor menyempit
+ * saat panel pratinjau terbuka.
+ * - ≥ @2xl: tabel dua tingkat sejajar kepala kolom — layanan · qty · harga satuan · subtotal, di bawahnya
+ *   opsi baris · satuan · HPP · hapus.
+ * - @md–@2xl: layanan selebar baris; qty · satuan × harga = subtotal; opsi baris · HPP · hapus.
+ * - < @md (ponsel): bertumpuk.
+ */
+const ITEM_HEAD = 'hidden gap-2 px-3 text-xs font-medium text-ob-ink-3 @2xl:grid @2xl:grid-cols-[20px_minmax(0,1fr)_76px_132px_108px]';
+const ITEM_GRID =
+    'grid grid-cols-[20px_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2 gap-y-2.5 @md:grid-cols-[20px_72px_76px_minmax(0,1fr)_auto] @2xl:grid-cols-[20px_minmax(0,1fr)_76px_132px_108px]';
+/** Penempatan per tingkat. Kolom memakai `col-[…]` (satu properti grid-column) agar tingkat lebih lebar menimpanya utuh. */
+const ITEM_AT = {
+    number: 'col-[1] row-start-1',
+    service: 'col-[2/span_2] row-start-1 @md:col-[2/span_4] @2xl:col-[2]',
+    qty: 'col-[2] row-start-2 @2xl:col-[3] @2xl:row-start-1',
+    unit: 'col-[3] row-start-2',
+    price: 'col-[2/span_2] row-start-3 @md:col-[4] @md:row-start-2 @2xl:row-start-1',
+    amount: 'col-[2] row-start-4 @md:col-[5] @md:row-start-2 @md:text-right @2xl:row-start-1',
+    options: 'col-[2/span_2] row-start-5 self-start @md:row-start-3 @2xl:col-[2] @2xl:row-start-2',
+    cogs: 'col-[2/span_2] row-start-6 self-start @md:col-[4] @md:row-start-3 @2xl:row-start-2',
+    remove: 'col-[3] row-start-4 justify-self-end @md:col-[5] @md:row-start-3 @md:self-start @2xl:row-start-2',
+};
 
 const COMMON_UNITS = ['jam', 'hari', 'minggu', 'bulan', 'tahun', 'project', 'paket', 'set', 'lot', 'kali', 'pcs', 'unit', 'lembar', 'kg', 'ton', 'm²', 'm³'];
 
@@ -110,6 +153,13 @@ function zoomOptions() {
         { value: 'fit' as const, label: t('Pas lebar') },
         { value: 'actual' as const, label: '100%' },
     ];
+}
+
+/** Cermin Invoice::numberCode() + normalizeDocumentCode(): segmen {KODE} nomor ("INV-FINAL", "DN-PNBP"). */
+function numberCode(type: DocumentType, code: string): string {
+    const prefix = type === 'debit_note' ? 'DN' : 'INV';
+    const clean = code.trim().toUpperCase().replace(/^(INV|DN)-/, '');
+    return clean ? `${prefix}-${clean}` : prefix;
 }
 
 function emptyItem(): ItemRow {
@@ -215,7 +265,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -225,6 +275,8 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
         (initialData && initialMulti
             ? { ...initialData, items: initialData.items.map((i) => ({ ...i, client_id: i.client_id ?? initialData.client_id })) }
             : initialData) ?? {
+            document_type: 'invoice',
+            document_code: '',
             client_id: null,
             subject: '',
             issue_date: today,
@@ -260,19 +312,36 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
     const previewPayload = { ...toPayload(data, multiClient), template, invoice_id: invoice?.id ?? null, highlight: activeRow };
     const preview = useLivePreview(previewPayload, showPreview || sheetOpen);
 
-    const selectedClient = clients.find((c) => c.id === data.client_id);
-    const clientOptions = clients.map((c) => ({ value: c.id, label: c.name }));
+    // Klien yang dibuat lewat pintasan "Buat klien baru" ditambahkan di sini (tanpa memuat ulang halaman).
+    const [addedClients, setAddedClients] = React.useState<ClientOption[]>([]);
+    const [newClientName, setNewClientName] = React.useState<string | null>(null);
+    const canCreateClient = can('create clients') && can('view clients');
+    const allClients = React.useMemo(
+        () => [...clients, ...addedClients.filter((a) => !clients.some((c) => c.id === a.id))].sort((a, b) => a.name.localeCompare(b.name, 'id')),
+        [clients, addedClients],
+    );
+    const selectedClient = allClients.find((c) => c.id === data.client_id);
+    const isDebitNote = data.document_type === 'debit_note';
+    // Jenis & kode membentuk nomor, jadi hanya bisa diganti selama draft (InvoiceController::resolveDocument).
+    const documentLocked = !isDraft;
+    // Saran: kode jenis dokumen yang sedang dipilih lebih dulu (urutan tetap paling sering dipakai).
+    const codeOptions = [...documents.codes]
+        .sort((a, b) => Number(b.type === data.document_type) - Number(a.type === data.document_type))
+        .filter((c, i, all) => all.findIndex((o) => o.value === c.value) === i)
+        .map((c) => ({ value: c.value }));
+    const clientOptions = allClients.map((c) => ({ value: c.id, label: c.name }));
 
     /* ── angka (sama dengan InvoiceController::buildInvoiceData) ── */
     const amounts = data.items.map((i) => Math.round(i.unit_price * parseQty(i.quantity)));
     const subtotal = amounts.reduce((a, b) => a + b, 0);
-    const deposits = data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
+    // Debit Note: semua item talangan (titipan), sama dengan buildInvoiceData.
+    const deposits = isDebitNote ? subtotal : data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
     const discount = data.discount_type === 'percentage' ? Math.round((subtotal * (data.discount_value || 0)) / 100) : data.discount_value || 0;
     // Invoice yang sudah ber-PPN tetap memakai tarif tersimpannya walau PKP dimatikan.
     const ppnRate = invoice?.ppn_rate ?? (ppn.enabled ? ppn.rate : 0);
-    const ppnAmount = data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
+    const ppnAmount = !isDebitNote && data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
     const total = Math.max(0, subtotal - discount) + ppnAmount;
-    const cogs = data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
+    const cogs = isDebitNote ? 0 : data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
     const grossProfit = total - ppnAmount - deposits - cogs;
     const pph = Math.round((total - ppnAmount - deposits) * 0.005);
     const termDays = data.issue_date && data.due_date
@@ -376,7 +445,12 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
         setPublishOpen(true);
         setLoadingNumber(true);
         try {
-            const params = new URLSearchParams({ client_id: String(data.client_id), issue_date: data.issue_date });
+            const params = new URLSearchParams({
+                client_id: String(data.client_id),
+                issue_date: data.issue_date,
+                document_type: data.document_type,
+                document_code: data.document_code,
+            });
             const res = await api(`/invoices/next-number?${params}`);
             const json = await res.json();
             if (!res.ok) throw new Error(json.message ?? t('Nomor berikutnya gagal dihitung.'));
@@ -411,6 +485,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
     };
 
     const number = isEdit && invoice.invoice_number ? invoice.invoice_number : preview.number;
+    const pageTitle = isEdit ? (isDebitNote ? t('Ubah Debit Note') : t('Ubah Invoice')) : isDebitNote ? t('Buat Debit Note') : t('Buat Invoice');
 
     const previewPanel = (
         <PreviewPanel
@@ -429,7 +504,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
 
     return (
         <>
-            <Head title={isEdit ? t('Ubah Invoice') : t('Buat Invoice')} />
+            <Head title={pageTitle} />
             <form
                 onSubmit={(e) => {
                     e.preventDefault();
@@ -446,9 +521,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                             </AppLink>
                         </Button>
                         <div className="min-w-0">
-                            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">
-                                {isEdit ? t('Ubah Invoice') : t('Buat Invoice')}
-                            </h1>
+                            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ob-ink">{pageTitle}</h1>
                             <p className="text-[13px] text-ob-ink-2">
                                 {isDraft ? t('Simpan sebagai draft, atau langsung terbitkan dengan nomor.') : t('Perubahan tersimpan pada {{number}}.', { number: invoice?.invoice_number })}
                             </p>
@@ -498,6 +571,49 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                     {isDraft && number && <span className="font-sans text-ob-ink-3">{t('perkiraan')}</span>}
                                 </span>
                             </div>
+                            {(documents.debitNote || documents.code) && (
+                                <div className="flex flex-col gap-2">
+                                    <div className={cn(FIELD, 'grid items-start gap-3', documents.debitNote && documents.code && 'sm:grid-cols-2')}>
+                                        {documents.debitNote && (
+                                            <SegmentedControl
+                                                variant="pill"
+                                                label={t('Jenis dokumen')}
+                                                options={[
+                                                    { value: 'invoice' as const, label: t('Invoice') },
+                                                    { value: 'debit_note' as const, label: t('Debit Note') },
+                                                ]}
+                                                value={data.document_type}
+                                                onChange={(v) => setData('document_type', v)}
+                                                disabled={documentLocked}
+                                                error={errors.document_type}
+                                                className="[&>label]:text-[13px] [&>label]:text-ob-ink-2 dark:[&>label]:text-ob-ink-2"
+                                            />
+                                        )}
+                                        {documents.code && (
+                                            <Autocomplete
+                                                label={t('Kode jenis')}
+                                                value={data.document_code}
+                                                onChange={(v) => setData('document_code', v.toUpperCase())}
+                                                options={codeOptions}
+                                                placeholder={isDebitNote ? t('Opsional, mis. PNBP') : t('Opsional, mis. FINAL')}
+                                                hint={t('Di nomor: {{code}}', { code: numberCode(data.document_type, data.document_code) })}
+                                                maxLength={20}
+                                                disabled={documentLocked}
+                                                error={errors.document_code}
+                                            />
+                                        )}
+                                    </div>
+                                    {documentLocked && (
+                                        <p className="text-[13px] text-ob-ink-2">{t('Jenis dan kode sudah menjadi bagian nomor yang terbit. Kembalikan ke draft untuk menggantinya.')}</p>
+                                    )}
+                                    {isDebitNote && (
+                                        <p className="flex items-start gap-2 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-[13px] leading-relaxed text-ob-ink-2">
+                                            <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-ob-ink" aria-hidden="true" />
+                                            {t('Debit Note menagih kembali biaya yang sudah dibayar atas nama klien. Semua item dianggap talangan: ditagih tanpa PPN dan tidak dihitung pendapatan, HPP, atau dasar PPh.')}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                             <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]')}>
                                 <Combobox
                                     className="sm:col-span-3"
@@ -510,6 +626,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                     emptyText={t('Klien tidak ditemukan')}
                                     clearable={false}
                                     error={errors.client_id}
+                                    create={canCreateClient ? { label: t('Buat klien baru'), onCreate: (search) => setNewClientName(search) } : undefined}
                                 />
                                 {/* Input meneruskan className ke <input>, bukan pembungkusnya: bentang kolom di div. */}
                                 <div className="sm:col-span-3">
@@ -573,7 +690,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                         </section>
 
                         {/* ── item ── */}
-                        <section aria-labelledby="inv-items" className={cn(CARD, 'flex flex-col gap-3')}>
+                        <section aria-labelledby="inv-items" className={cn(CARD, '@container flex flex-col gap-3')}>
                             <div className="flex h-8 items-center">
                                 <h2 id="inv-items" className="flex items-baseline gap-2 text-base font-semibold text-ob-ink">
                                     {t('Item')} <span className="text-[13px] font-medium text-ob-ink-2">{t('{{count}} item', { count: data.items.length })}</span>
@@ -593,7 +710,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                 </div>
                             ) : (
                                 <>
-                                    <div aria-hidden="true" className="hidden grid-cols-[20px_minmax(0,1fr)_56px_132px_108px] gap-2 px-3 text-xs font-medium text-ob-ink-3 sm:grid">
+                                    <div aria-hidden="true" className={ITEM_HEAD}>
                                         <span />
                                         <span>{t('Layanan')}</span>
                                         <span className="text-right">{t('Qty')}</span>
@@ -608,6 +725,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                                 item={item}
                                                 amount={amounts[idx]}
                                                 active={activeRow === idx}
+                                                debitNote={isDebitNote}
                                                 multiClient={multiClient}
                                                 clientOptions={clientOptions}
                                                 services={services}
@@ -695,7 +813,7 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                         <span className="text-[13px] leading-relaxed text-ob-ink-2">{t('Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.')}</span>
                                     </button>
                                 )}
-                                {ppnRate > 0 && (
+                                {ppnRate > 0 && !isDebitNote && (
                                     <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
                                         <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
                                             <Switch checked={data.apply_ppn} onCheckedChange={(on) => setData((d) => ({ ...d, apply_ppn: on, faktur: on ? d.faktur : '' }))} />
@@ -720,17 +838,27 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                                 )}
                             </div>
                             <div className="flex flex-col gap-1.5 sm:border-l sm:border-ob-line sm:pl-6">
-                                <SumRow label={t('Subtotal layanan')} value={rp(subtotal - deposits)} />
-                                {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                                {isDebitNote ? (
+                                    <SumRow label={t('Talangan')} value={rp(deposits)} />
+                                ) : (
+                                    <>
+                                        <SumRow label={t('Subtotal layanan')} value={rp(subtotal - deposits)} />
+                                        {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                                    </>
+                                )}
                                 <SumRow label={data.discount_type === 'percentage' && data.discount_value ? t('Diskon {{value}}%', { value: data.discount_value }) : t('Diskon')} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
                                 {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
                                 <div className="my-1.5 border-t border-ob-line" />
                                 <SumRow label={t('Total')} value={rp(total)} strong />
-                                <p className="text-[13px] text-ob-ink-2">
-                                    {t('Laba kotor')} <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
-                                    <span className="mx-1.5 text-ob-ink-3">·</span>
-                                    {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pph)}</b>
-                                </p>
+                                {isDebitNote ? (
+                                    <p className="text-[13px] text-ob-ink-2">{t('Talangan diganti klien: bukan pendapatan, tanpa PPN dan PPh final.')}</p>
+                                ) : (
+                                    <p className="text-[13px] text-ob-ink-2">
+                                        {t('Laba kotor')} <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
+                                        <span className="mx-1.5 text-ob-ink-3">·</span>
+                                        {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pph)}</b>
+                                    </p>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -751,6 +879,16 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                 </SheetContent>
             </Sheet>
 
+            <QuickClientDialog
+                open={newClientName !== null}
+                initialName={newClientName ?? ''}
+                onOpenChange={(open) => !open && setNewClientName(null)}
+                onCreated={(client) => {
+                    setAddedClients((list) => [...list, client]);
+                    setData('client_id', client.id);
+                }}
+            />
+
             <InvoiceNumberDialog
                 open={publishOpen}
                 onOpenChange={(open) => {
@@ -758,7 +896,11 @@ export function InvoiceEditor({ clients, services, ppn, defaultDueDays, companyT
                     if (!open) setNumberError(null);
                 }}
                 title={t('Simpan & terbitkan')}
-                sub={t('Invoice disimpan, diberi nomor, dan berstatus Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')}
+                sub={
+                    isDebitNote
+                        ? t('Debit Note disimpan, diberi nomor, dan berstatus Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')
+                        : t('Invoice disimpan, diberi nomor, dan berstatus Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')
+                }
                 confirmLabel={t('Terbitkan')}
                 suggested={suggestedNumber}
                 loading={loadingNumber}
@@ -781,6 +923,7 @@ function ItemEditorRow({
     item,
     amount,
     active,
+    debitNote,
     multiClient,
     clientOptions,
     services,
@@ -796,6 +939,8 @@ function ItemEditorRow({
     item: ItemRow;
     amount: number;
     active: boolean;
+    /** Debit Note: semua item talangan, jadi tanpa HPP dan tanpa sakelar titipan pajak. */
+    debitNote: boolean;
     multiClient: boolean;
     clientOptions: { value: number; label: string }[];
     services: ServiceOption[];
@@ -812,19 +957,21 @@ function ItemEditorRow({
     const messages = [error('service_name'), error('description'), error('quantity'), error('unit_price'), error('cogs_amount'), error('client_id')].filter(Boolean);
     const [noteOpen, setNoteOpen] = React.useState(item.description !== '');
     const showNote = noteOpen || item.description !== '';
+    // Di Debit Note semua baris talangan; penanda per baris hanya untuk titipan pajak di invoice.
+    const taxDeposit = item.is_tax_deposit && !debitNote;
 
     return (
         <li
             onFocusCapture={onFocus}
             className={cn(
                 'flex flex-col gap-2.5 rounded-2xl border bg-ob-inner/60 p-3 transition-colors',
-                item.is_tax_deposit ? 'border-dashed border-ob-line-strong' : 'border-ob-line',
+                taxDeposit ? 'border-dashed border-ob-line-strong' : 'border-ob-line',
                 active && 'border-ob-act-fill/60',
             )}
         >
-            <div className={cn(FIELD_SM, 'grid grid-cols-[20px_minmax(0,1fr)_64px] gap-2 sm:grid-cols-[20px_minmax(0,1fr)_56px_132px_108px] sm:items-center')}>
-                <span className="self-center text-center text-xs font-semibold text-ob-ink-3">{index + 1}</span>
-                <div className="flex min-w-0 items-center gap-1.5">
+            <div className={ITEM_GRID}>
+                <span className={cn(ITEM_AT.number, 'text-center text-xs font-semibold text-ob-ink-3')}>{index + 1}</span>
+                <div className={cn(FIELD_SM, ITEM_AT.service, 'flex min-w-0 items-center gap-1.5')}>
                     <Input
                         ref={inputRef}
                         list={listId}
@@ -833,7 +980,7 @@ function ItemEditorRow({
                         placeholder={t('Nama layanan')}
                         aria-label={t('Layanan baris {{n}}', { n: index + 1 })}
                         aria-invalid={!!error('service_name')}
-                        icon={item.is_tax_deposit ? <ReceiptText className="h-4 w-4" /> : undefined}
+                        icon={taxDeposit ? <ReceiptText className="h-4 w-4" /> : undefined}
                         className={cn('bg-ob-card', error('service_name') && 'border-ob-late')}
                     />
                     <CatalogPicker
@@ -841,82 +988,84 @@ function ItemEditorRow({
                         label={t('Pilih layanan baris {{n}} dari katalog', { n: index + 1 })}
                         onPick={(svc) => onChange({ service_name: svc.name, unit_price: svc.price })}
                     />
+                    <datalist id={listId}>
+                        {services.map((s) => (
+                            <option key={s.id} value={s.name} />
+                        ))}
+                    </datalist>
                 </div>
-                <datalist id={listId}>
-                    {services.map((s) => (
-                        <option key={s.id} value={s.name} />
-                    ))}
-                </datalist>
-                <Input
-                    inputMode="decimal"
-                    value={item.quantity}
-                    onChange={(e) => onChange({ quantity: e.target.value })}
-                    placeholder="1"
-                    aria-label={t('Qty baris {{n}}', { n: index + 1 })}
-                    title={t('Pemisah desimal titik atau koma, mis. 1,5')}
-                    className={cn('bg-ob-card text-right', error('quantity') && 'border-ob-late')}
-                />
-                <div className="col-span-2 col-start-2 sm:col-span-1 sm:col-start-auto">
-                    <CurrencyInput value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
+                <div className={cn(FIELD_SM, ITEM_AT.qty)}>
+                    <Input
+                        inputMode="decimal"
+                        value={item.quantity}
+                        onChange={(e) => onChange({ quantity: e.target.value })}
+                        placeholder="1"
+                        aria-label={t('Qty baris {{n}}', { n: index + 1 })}
+                        title={t('Pemisah desimal titik atau koma, mis. 1,5')}
+                        className={cn('bg-ob-card px-2.5 text-right', error('quantity') && 'border-ob-late')}
+                    />
                 </div>
-                <span className="col-start-2 whitespace-nowrap text-sm font-semibold text-ob-ink sm:col-start-auto sm:text-right">{rp(amount)}</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-7 text-[13px] text-ob-ink-2">
-                <label className="inline-flex items-center gap-2">
-                    {t('Satuan')}
-                    <span className={cn(FIELD_SM, 'w-24')}>
-                        <Input list={unitListId} value={item.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="—" className="bg-ob-card" aria-label={t('Satuan baris {{n}}', { n: index + 1 })} />
-                    </span>
+                <div className={cn(FIELD_SM, ITEM_AT.unit)}>
+                    <Input list={unitListId} value={item.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder={t('satuan')} className="bg-ob-card px-2.5 @2xl:text-right [&::-webkit-calendar-picker-indicator]:hidden!" aria-label={t('Satuan baris {{n}}', { n: index + 1 })} />
                     <datalist id={unitListId}>
                         {COMMON_UNITS.map((u) => (
                             <option key={u} value={u} />
                         ))}
                     </datalist>
-                </label>
-                {!item.is_tax_deposit && (
-                    <label className="inline-flex items-center gap-2" title={t('HPP untuk seluruh baris ini, bukan per unit')}>
-                        {t('HPP baris')}
-                        <span className={cn(FIELD_SM, 'w-36')}>
-                            <CurrencyInput value={item.cogs_amount} onChange={(v) => onChange({ cogs_amount: v })} className="w-full min-w-0 bg-ob-card" id={`cogs-${index}`} />
-                        </span>
+                </div>
+                <div className={cn(FIELD_SM, ITEM_AT.price, 'flex min-w-0 items-center gap-2')}>
+                    <span aria-hidden="true" className="hidden text-sm text-ob-ink-3 @md:inline @2xl:hidden">×</span>
+                    <CurrencyInput value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
+                </div>
+                <span className={cn(ITEM_AT.amount, 'whitespace-nowrap text-sm font-semibold text-ob-ink')}>
+                    <span aria-hidden="true" className="mr-1.5 font-normal text-ob-ink-3 @2xl:hidden">=</span>
+                    {rp(amount)}
+                </span>
+                {(multiClient || !showNote || !debitNote) && (
+                    <div className={cn(ITEM_AT.options, 'flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ob-ink-2')}>
+                        {multiClient && (
+                            <span className={cn(FIELD_SM, 'w-full max-w-56')}>
+                                <Combobox
+                                    options={clientOptions}
+                                    value={item.client_id}
+                                    onChange={(v) => onChange({ client_id: v ? Number(v) : null })}
+                                    placeholder={t('Klien baris ini')}
+                                    searchPlaceholder={t('Cari klien...')}
+                                    clearable={false}
+                                    popoverWidth="w-64"
+                                />
+                            </span>
+                        )}
+                        {!showNote && (
+                            <Button type="button" variant="link" size="sm" className="px-0" onClick={() => setNoteOpen(true)} icon={<AlignLeft className="h-3.5 w-3.5" />}>
+                                {t('Tambah keterangan')}
+                            </Button>
+                        )}
+                        {!debitNote && (
+                            <label className="inline-flex h-8 cursor-pointer items-center gap-2 text-ob-ink">
+                                <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
+                                {t('Titipan pajak')}
+                            </label>
+                        )}
+                    </div>
+                )}
+                {!item.is_tax_deposit && !debitNote && (
+                    <label className={cn(FIELD_SM, ITEM_AT.cogs)} title={t('HPP untuk seluruh baris ini, bukan per unit')}>
+                        <span className="sr-only">{t('HPP baris {{n}}', { n: index + 1 })}</span>
+                        <CurrencyInput prefix={t('HPP', { context: 'prefiks' })} value={item.cogs_amount} onChange={(v) => onChange({ cogs_amount: v })} className="w-full min-w-0 bg-ob-card" id={`cogs-${index}`} />
                     </label>
                 )}
-                {multiClient && (
-                    <span className={cn(FIELD_SM, 'w-48')}>
-                        <Combobox
-                            options={clientOptions}
-                            value={item.client_id}
-                            onChange={(v) => onChange({ client_id: v ? Number(v) : null })}
-                            placeholder={t('Klien baris ini')}
-                            searchPlaceholder={t('Cari klien...')}
-                            clearable={false}
-                            popoverWidth="w-64"
-                        />
-                    </span>
-                )}
-                {!showNote && (
-                    <Button type="button" variant="link" size="sm" onClick={() => setNoteOpen(true)} icon={<AlignLeft className="h-3.5 w-3.5" />}>
-                        {t('Tambah keterangan')}
+                {canRemove && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={onRemove}
+                        aria-label={t('Hapus baris {{n}}', { n: index + 1 })}
+                        className={cn(ITEM_AT.remove, 'h-[34px] w-[34px] rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10')}
+                    >
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
-                <span className="ml-auto inline-flex items-center gap-3">
-                    <label className="inline-flex cursor-pointer items-center gap-2 text-ob-ink">
-                        <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
-                        {t('Titipan pajak')}
-                    </label>
-                    {canRemove && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={onRemove}
-                            aria-label={t('Hapus baris {{n}}', { n: index + 1 })}
-                            className="h-8 w-8 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    )}
-                </span>
             </div>
 
             {showNote && (
@@ -934,7 +1083,7 @@ function ItemEditorRow({
                     />
                 </div>
             )}
-            {item.is_tax_deposit && <p className="pl-7 text-[13px] text-ob-ink-2">{t('Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.')}</p>}
+            {taxDeposit && <p className="pl-7 text-[13px] text-ob-ink-2">{t('Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.')}</p>}
             {messages.length > 0 && (
                 <ul className="pl-7 text-xs text-ob-late">
                     {messages.map((m) => (
@@ -1060,10 +1209,11 @@ function CreateInvoicePage({
     clients,
     services,
     ppn,
+    documents,
     defaultDueDays,
     companyTemplate,
-}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
-    return <InvoiceEditor clients={clients} services={services} ppn={ppn} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
+}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; documents: DocumentOptions; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
+    return <InvoiceEditor clients={clients} services={services} ppn={ppn} documents={documents} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

@@ -52,9 +52,10 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     abstract protected function client(): array;
 
     /**
-     * Invoice contoh; `number` null = draft.
+     * Invoice contoh; `number` null = draft. Opsional: `type` (Invoice::TYPE_DEBIT_NOTE = semua item
+     * talangan, tanpa PPN) dan `code` (kode jenis, mis. FINAL).
      *
-     * @return list<array{number: ?string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
+     * @return list<array{number: ?string, type?: string, code?: string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
      */
     abstract protected function invoices(): array;
 
@@ -123,8 +124,9 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
         $profile = CompanyProfile::current() ?? new CompanyProfile;
 
         $profile->fill($this->profile());
-        // Nomor contoh memakai kode per dokumen (INV-FINAL, INV-DEM, ...) yang belum dikenal
-        // pola penomoran; tandai sudah ditinjau supaya admin tidak dialihkan ke halaman peninjauan.
+        // Nomor contoh memakai kode per dokumen (INV-FINAL, INV-DEM, ...) yang belum tentu dikenal
+        // pola penomoran (hanya pola ber-{KODE}); tandai sudah ditinjau supaya admin tidak dialihkan
+        // ke halaman peninjauan.
         $profile->invoice_legacy_reviewed_at = now();
         // Jangan pernah menimpa tanda tangan yang sudah diunggah.
         $profile->signature_path ??= $this->sampleSignature();
@@ -191,7 +193,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     }
 
     /**
-     * @param  array{number: ?string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
+     * @param  array{number: ?string, type?: string, code?: string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
      */
     private function seedInvoice(Client $client, array $data): void
     {
@@ -203,20 +205,25 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
             return;
         }
 
+        $type = $data['type'] ?? Invoice::TYPE_INVOICE;
+        $isDebitNote = $type === Invoice::TYPE_DEBIT_NOTE;
+
         $items = collect($data['items'])->map(fn (array $item): array => [
             ...$item,
             'client_id' => $client->id,
             'amount' => (int) round($item['unit_price'] * $item['quantity']),
             'cogs_amount' => 0,
-            'is_tax_deposit' => false,
+            'is_tax_deposit' => $isDebitNote,
         ]);
 
-        $ppnRate = (float) $this->profile()['ppn_rate'];
+        $ppnRate = $isDebitNote ? 0.0 : (float) $this->profile()['ppn_rate'];
         $subtotal = (int) $items->sum('amount');
         $ppnAmount = Invoice::ppnFor($subtotal - $data['discount'], $ppnRate);
         $issueDate = Carbon::parse($data['date']);
 
         $invoice = Invoice::create([
+            'document_type' => $type,
+            'document_code' => $data['code'] ?? null,
             'billed_to_id' => $client->id,
             'subject' => $data['subject'],
             'subtotal' => $subtotal,

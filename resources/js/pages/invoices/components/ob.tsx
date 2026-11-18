@@ -1,6 +1,7 @@
-import { Check, Clock } from 'lucide-react';
+import { Check, Clock, ReceiptText } from 'lucide-react';
 import * as React from 'react';
 import { StatusPill } from '@/components/dashboard/widget';
+import { Badge } from '@/components/ui/badge';
 import { formatTanggal, t, tk } from '@/i18n';
 import { cn, formatCurrency } from '@/lib/utils';
 
@@ -30,6 +31,19 @@ export function InvoiceStatusPill({ status, className }: { status: string; class
     if (status === 'partially_paid') return <StatusPill tone="wait" className={className}>{t('Sebagian')}</StatusPill>;
     if (status === 'sent') return <StatusPill tone="act" className={className}>{t('Terbit')}</StatusPill>;
     return <StatusPill tone="neutral" className={className}>{t('Draft')}</StatusPill>;
+}
+
+/**
+ * Penanda dokumen berjenis Debit Note (talangan) di daftar & drawer; invoice tidak diberi penanda.
+ * Bergaris tepi (bukan pil berisi) agar tidak terbaca sebagai status, seperti penanda Pendanaan.
+ */
+export function DebitNoteChip({ className }: { className?: string }) {
+    return (
+        <Badge variant="outline" className={cn('shrink-0 gap-1 whitespace-nowrap', className)}>
+            <ReceiptText className="h-3 w-3" aria-hidden="true" />
+            {t('Debit Note')}
+        </Badge>
+    );
 }
 
 export const rp = (n: number) => formatCurrency(Math.round(n));

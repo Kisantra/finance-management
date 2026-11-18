@@ -6,6 +6,7 @@ use App\Http\Requests\StoreClientRequest;
 use App\Http\Requests\UpdateClientRequest;
 use App\Models\Client;
 use App\Services\InvoiceNumberService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -95,11 +96,29 @@ class ClientController extends Controller
         ]);
     }
 
-    public function store(StoreClientRequest $request): RedirectResponse
+    /**
+     * Halaman Klien memakai kunjungan Inertia (redirect back). Pintasan "Buat klien baru" di editor
+     * invoice memanggil lewat fetch dan butuh klien barunya untuk langsung dipilih: jawaban JSON.
+     */
+    public function store(StoreClientRequest $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validated();
         $nullable = array_map(fn ($v) => $v ?: null, $validated);
-        Client::create(array_merge($nullable, ['name' => $validated['name'], 'type' => $validated['type'], 'status' => $validated['status']]));
+        $client = Client::create(array_merge($nullable, ['name' => $validated['name'], 'type' => $validated['type'], 'status' => $validated['status']]));
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('Klien berhasil ditambahkan.'),
+                // Bentuk opsi klien editor invoice (InvoiceController::formOptions).
+                'client' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'email' => $client->email,
+                    'npwp' => $client->NPWP,
+                    'type' => $client->type,
+                ],
+            ], 201);
+        }
 
         return redirect()->back()->with('success', __('Klien berhasil ditambahkan.'));
     }

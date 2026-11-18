@@ -6,6 +6,7 @@
     Logo: logo.jpg di folder ini ($aset('logo.jpg')); font judul: fonts/Carlito-Bold.ttf (OFL).
     Gambar tanda tangan & stempel dari upload Profil perusahaan ($tanda_tangan, $stempel); tidak
     disimpan di repo (repo publik). Kosong = ruang tanda tangan basah.
+    Dipakai juga oleh debit-note.blade.php, yang hanya mengganti judul ($judul, $lebarJudul, $namaDokumen).
 --}}
 @php
     $rp = fn ($value) => number_format((float) $value, 0, ',', '.');
@@ -21,13 +22,16 @@
     $penandaTangan = $company['signature'];
     $tanggal = $invoice->issue_date?->copy()->locale('id')->translatedFormat('j F Y');
     $fontJudul = \App\Services\CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
+    $judul ??= 'I N V O I C E';
+    $lebarJudul ??= '5.58cm';
+    $namaDokumen ??= 'Invoice';
 @endphp
 <!DOCTYPE html>
 <html lang="id">
 
 <head>
     <meta charset="UTF-8">
-    <title>Invoice {{ $invoice->invoice_number }}</title>
+    <title>{{ $namaDokumen }} {{ $invoice->invoice_number }}</title>
     <style>
         /* Font mengikuti dokumen Word asli: Times New Roman di semua teks (core font "times" DomPDF
            sama ukurannya), judul memakai Calibri → Carlito (OFL, ukuran identik; fonts/). Ukuran:
@@ -104,7 +108,7 @@
 
         /* Judul dalam kotak bergaris, di tengah halaman (tabel melayang "center" di Word). */
         table.judul {
-            width: 5.58cm;
+            width: {{ $lebarJudul }};
             margin: 0 auto 0.45cm;
             border-collapse: collapse;
         }
@@ -328,7 +332,7 @@
 
     <table class="judul">
         <tr>
-            <td>I N V O I C E</td>
+            <td>{!! $judul !!}</td>
         </tr>
     </table>
 

@@ -3,13 +3,14 @@
 namespace Database\Seeders;
 
 use App\Models\Client;
+use App\Models\Invoice;
 
 /**
- * Contoh lokal PT Samboja Laju Utama (SLU) lengkap dengan template invoicenya
+ * Contoh lokal PT Samboja Laju Utama (SLU) lengkap dengan template invoice & Debit Note-nya
  * (resources/views/pdf/perusahaan/samboja-laju-utama): perusahaan SLU saja, akun khusus SLU, profil +
- * format nomor invoice SLU, satu klien, dan tiga invoice yang meniru susunan invoice Word asli (FINAL,
- * DEMMURAGE, WAITING TKBM) ditambah satu draft untuk editor. Semua datanya FIKTIF (lihat
- * ContohInvoicePerusahaanSeeder).
+ * format nomor SLU (dengan {KODE}), satu klien, tiga invoice yang meniru susunan invoice Word asli
+ * (FINAL, DEMMURAGE, WAITING TKBM), satu Debit Note PNBP (talangan), ditambah satu draft untuk editor.
+ * Semua datanya FIKTIF (lihat ContohInvoicePerusahaanSeeder).
  *
  *   php artisan db:seed --class=ContohInvoiceSluSeeder
  *
@@ -46,7 +47,7 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
             'finance_manager_position' => 'Direktur Utama',
             'signature_city' => 'Samarinda',
             'bank_accounts' => [['bank' => 'Bank Mandiri', 'account_number' => '148-00-2346343-6', 'account_name' => 'PT. SAMBOJA LAJU UTAMA']],
-            'invoice_number_format' => '{NO}/{PT}-{KLIEN}/INV/{BLN_ROMAWI}/{THN}',
+            'invoice_number_format' => '{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}',
             'invoice_number_padding' => 3,
             'invoice_number_reset' => 'yearly',
             'default_due_days' => 14,
@@ -72,6 +73,7 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
         return [
             [
                 'number' => '037/SLU-CBN/INV-FINAL/X/2026',
+                'code' => 'FINAL',
                 'date' => '2026-10-10',
                 'subject' => 'Invoice FINAL MV. CONTOH JAYA',
                 'discount' => 0,
@@ -85,6 +87,7 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
             ],
             [
                 'number' => '038/SLU-CBN/INV-DEM/X/2026',
+                'code' => 'DEM',
                 'date' => '2026-10-10',
                 'subject' => 'Invoice DEMMURAGE MV. CONTOH JAYA',
                 'discount' => 0,
@@ -98,6 +101,7 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
             ],
             [
                 'number' => '039/SLU-CBN/INV-TKBM/X/2026',
+                'code' => 'TKBM',
                 'date' => '2026-10-10',
                 'subject' => 'Invoice WAITING TKBM MV. CONTOH JAYA',
                 'discount' => 5000000,
@@ -126,7 +130,25 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
                 ]],
             ],
             [
+                // Debit Note: PNBP yang SLU bayar lebih dulu atas nama klien, ditagih kembali persis
+                // sebesar yang dibayar (talangan, tanpa PPN, bukan pendapatan).
+                'number' => '040/SLU-CBN/DN-PNBP/X/2026',
+                'type' => Invoice::TYPE_DEBIT_NOTE,
+                'code' => 'PNBP',
+                'date' => '2026-10-12',
+                'subject' => 'Debit Note PNBP MV. CONTOH JAYA',
+                'discount' => 0,
+                'items' => [[
+                    'service_name' => 'PNBP Jasa Kepelabuhanan MV. CONTOH JAYA',
+                    'description' => "Loading Port : Muara Jawa\nPenggantian biaya yang dibayar SLU, bukti setor terlampir",
+                    'quantity' => 1,
+                    'unit' => 'LS',
+                    'unit_price' => 24000000,
+                ]],
+            ],
+            [
                 'number' => null,
+                'code' => 'FINAL',
                 'date' => '2026-11-11',
                 'subject' => 'Invoice FINAL MV. CONTOH BAHARI',
                 'discount' => 0,

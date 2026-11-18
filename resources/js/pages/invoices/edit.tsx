@@ -2,12 +2,14 @@ import * as React from 'react';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
-import { type ClientOption, InvoiceEditor, type PpnOption, type ServiceOption } from './create';
+import { type ClientOption, type DocumentOptions, type DocumentType, InvoiceEditor, type PpnOption, type ServiceOption } from './create';
 
 interface InvoiceData {
     id: number;
     invoice_number: string | null;
     status: string;
+    document_type: DocumentType;
+    document_code: string | null;
     client_id: number;
     issue_date: string;
     due_date: string;
@@ -34,20 +36,24 @@ interface Props extends SharedProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    documents: DocumentOptions;
     defaultDueDays: number;
     companyTemplate: CompanyTemplate | null;
 }
 
-function EditInvoicePage({ invoice, clients, services, ppn, defaultDueDays, companyTemplate }: Props) {
+function EditInvoicePage({ invoice, clients, services, ppn, documents, defaultDueDays, companyTemplate }: Props) {
     return (
         <InvoiceEditor
             clients={clients}
             services={services}
             ppn={ppn}
+            documents={documents}
             defaultDueDays={defaultDueDays}
             companyTemplate={companyTemplate}
             invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate }}
             initialData={{
+                document_type: invoice.document_type,
+                document_code: invoice.document_code ?? '',
                 client_id: invoice.client_id,
                 subject: invoice.subject ?? '',
                 issue_date: invoice.issue_date,

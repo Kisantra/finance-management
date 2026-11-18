@@ -123,6 +123,8 @@ export default function InvoiceNumberingSettings({ settings, defaults, tokens, p
         NO: String(sequence).padStart(data.padding, '0'),
         PT: sample.company_initials,
         KLIEN: sample.client_initials,
+        // Contoh invoice tanpa kode jenis; Debit Note / kode jenis menjadi mis. DN-PNBP, INV-FINAL.
+        KODE: 'INV',
         BLN_ROMAWI: ROMAN[date.getMonth()],
         BLN: String(date.getMonth() + 1).padStart(2, '0'),
         THN: String(date.getFullYear()),

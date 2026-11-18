@@ -33,7 +33,7 @@ class InvoicePrintService
      */
     public function renderPdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', ?int $highlightRow = null): \Barryvdh\DomPDF\PDF
     {
-        $html = view(CompanyInvoiceTemplate::viewFor($template), $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
+        $html = view(CompanyInvoiceTemplate::viewFor($template, $invoice), $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
 
         if ($highlightRow !== null) {
             $style = '<style>.items-table tbody tr:nth-child('.($highlightRow + 1).') td{background-color:#dbeafe !important;}</style>';

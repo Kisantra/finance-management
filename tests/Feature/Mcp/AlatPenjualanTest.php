@@ -114,6 +114,7 @@ class AlatPenjualanTest extends TestCase
         $this->assertSame([
             'id' => $sebagian->id,
             'nomor' => '001/INV/UJI/X/2026',
+            'jenis' => 'Invoice',
             'klien_id' => $klien->id,
             'klien' => 'PT Sinar Uji',
             'terbit' => '2026-10-01',
@@ -260,6 +261,8 @@ class AlatPenjualanTest extends TestCase
         $this->assertSame([
             'id' => $invoice->id,
             'nomor' => '007/INV/UJI/X/2026',
+            'jenis' => 'Invoice',
+            'kode_jenis' => null,
             'status' => 'partially_paid',
             'status_label' => 'Dibayar sebagian',
             'terbit' => '2026-10-01',

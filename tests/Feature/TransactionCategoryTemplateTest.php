@@ -52,9 +52,9 @@ class TransactionCategoryTemplateTest extends TestCase
             ->from('/transaction-categories')
             ->post('/transaction-categories/template')
             ->assertRedirect()
-            ->assertSessionHas('success', '74 kategori dibuat, 0 dilewati karena sudah ada.');
+            ->assertSessionHas('success', '76 kategori dibuat, 0 dilewati karena sudah ada.');
 
-        $this->assertSame(74, TransactionCategory::count());
+        $this->assertSame(76, TransactionCategory::count());
         $this->assertSame('opex', TransactionCategory::where('label', 'Gaji Karyawan')->sole()->pl_group);
     }
 
@@ -64,9 +64,9 @@ class TransactionCategoryTemplateTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post('/transaction-categories/template')
-            ->assertSessionHas('success', '0 kategori dibuat, 74 dilewati karena sudah ada.');
+            ->assertSessionHas('success', '0 kategori dibuat, 76 dilewati karena sudah ada.');
 
-        $this->assertSame(74, TransactionCategory::count());
+        $this->assertSame(76, TransactionCategory::count());
     }
 
     public function test_pesan_menyebut_kategori_yang_dilewati_penjaga(): void
@@ -83,7 +83,7 @@ class TransactionCategoryTemplateTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post('/transaction-categories/template')
-            ->assertSessionHas('success', '67 kategori dibuat, 0 dilewati karena sudah ada. 7 lainnya dilewati, alasannya tercantum di pratinjau Pakai Template.');
+            ->assertSessionHas('success', '69 kategori dibuat, 0 dilewati karena sudah ada. 7 lainnya dilewati, alasannya tercantum di pratinjau Pakai Template.');
 
         $this->assertSame(0, $induk->children()->count());
     }
@@ -95,7 +95,7 @@ class TransactionCategoryTemplateTest extends TestCase
         ]);
 
         $this->assertSame(0, TransactionCategory::whereIn('label', ['Kategori Titipan Klien', 'Sisipan'])->count());
-        $this->assertSame(74, TransactionCategory::count());
+        $this->assertSame(76, TransactionCategory::count());
     }
 
     public function test_pengguna_hanya_lihat_ditolak(): void
@@ -118,8 +118,8 @@ class TransactionCategoryTemplateTest extends TestCase
                 ->component('transaction-categories/index')
                 ->missing('templatePreview')
                 ->reloadOnly('templatePreview', fn (Assert $reload) => $reload
-                    ->has('templatePreview.groups', 15)
-                    ->where('templatePreview.summary', ['new' => 73, 'existing' => 1, 'skipped' => 0])
+                    ->has('templatePreview.groups', 16)
+                    ->where('templatePreview.summary', ['new' => 75, 'existing' => 1, 'skipped' => 0])
                     ->where('templatePreview.groups.12.type', 'financing')
                     ->where('templatePreview.groups.12.label', 'Setoran Modal')
                     ->where('templatePreview.groups.12.pl_group', null)

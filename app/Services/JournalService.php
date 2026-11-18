@@ -30,6 +30,12 @@ class JournalService
     /** Akun yang dikredit porsi titipan pajak klien — sama dengan akun lawan "Setor Titipan Pajak Klien". */
     public const TAX_DEPOSIT = 'Titipan Pajak Klien';
 
+    /**
+     * Akun yang dikredit pembayaran Debit Note (itemnya talangan, bukan titipan pajak) — sama dengan
+     * akun lawan "Bayar Talangan Klien", sehingga talangan yang dibayar lalu diganti klien saling menutup.
+     */
+    public const TALANGAN = 'Talangan Biaya Klien';
+
     public const INVOICE_REVENUE = 'Pendapatan dari Invoice';
 
     public const LOAN = 'Utang Pinjaman';
@@ -51,6 +57,7 @@ class JournalService
         return match ($akun) {
             self::PPN_KELUARAN => __('PPN Keluaran'),
             self::TAX_DEPOSIT => __('Titipan Pajak Klien'),
+            self::TALANGAN => __('Talangan Biaya Klien'),
             self::INVOICE_REVENUE => __('Pendapatan dari Invoice'),
             self::LOAN => __('Utang Pinjaman'),
             self::RECEIVABLE => __('Piutang'),
@@ -127,11 +134,12 @@ class JournalService
      * Pembayaran invoice: Debit rekening (penuh) / Kredit dipecah mengikuti "titipan dulu" Laba Rugi
      * (Invoice::allocatePayments): bagian satu pembayaran = alokasi kumulatif SESUDAH pembayaran ini
      * dikurangi alokasi kumulatif SEBELUMNYA (urut payment_date, id) — bukan proporsional. HPP tidak
-     * dijurnal di sini: pengakuan HPP (cost recovery) tidak menggerakkan uang.
+     * dijurnal di sini: pengakuan HPP (cost recovery) tidak menggerakkan uang. Bagian titipan Debit
+     * Note dikredit ke Talangan Biaya Klien ($depositAccount), bukan Titipan Pajak Klien.
      *
      * @return list<array{account: string, side: 'debit'|'credit', amount: int}>
      */
-    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn): array
+    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn, string $depositAccount = self::TAX_DEPOSIT): array
     {
         if ($amount <= 0) {
             return [];
@@ -142,7 +150,7 @@ class JournalService
 
         return self::withoutZero([
             self::line($account, 'debit', $amount),
-            self::line(self::terjemahAkun(self::TAX_DEPOSIT), 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
+            self::line(self::terjemahAkun($depositAccount), 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
             self::line(self::terjemahAkun(self::PPN_KELUARAN), 'credit', $sesudah['ppn'] - $sebelum['ppn']),
             self::line(self::terjemahAkun(self::INVOICE_REVENUE), 'credit', $sesudah['revenue'] - $sebelum['revenue']),
         ]);
@@ -206,7 +214,7 @@ class JournalService
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)
             ->withSum(['items as tax_deposit_total' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
-            ->get(['id', 'ppn_amount'])
+            ->get(['id', 'ppn_amount', 'document_type'])
             ->keyBy('id');
 
         return $rows->map(function (object $row) use ($dibayarSebelum, $invoices): array {
@@ -218,8 +226,15 @@ class JournalService
                 $dibayarSebelum[$row->id] ?? 0,
                 (int) ($invoice->tax_deposit_total ?? 0),
                 (int) ($invoice->ppn_amount ?? 0),
+                self::depositAccountFor($invoice?->document_type),
             );
         })->all();
+    }
+
+    /** Akun bagian titipan pembayaran: talangan untuk Debit Note, titipan pajak untuk invoice. */
+    public static function depositAccountFor(?string $documentType): string
+    {
+        return $documentType === Invoice::TYPE_DEBIT_NOTE ? self::TALANGAN : self::TAX_DEPOSIT;
     }
 
     /**

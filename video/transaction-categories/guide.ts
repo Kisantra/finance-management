@@ -155,14 +155,14 @@ export const guide: ModuleGuide = {
         },
         {
             title: 'Yang dibuat saat Pakai Template',
-            subtitle: 'Template: 15 kategori induk dan 59 subkategori, urut bagan akun (pendapatan, lalu harga pokok dan beban, terakhir pendanaan).',
+            subtitle: 'Template: 16 kategori induk dan 60 subkategori, urut bagan akun (pendapatan, lalu harga pokok dan beban, terakhir pendanaan).',
             rows: [
                 { label: 'Kategori induk baru', value: 'Nama template + Grup Laba Rugi, mis. Beban Karyawan → Beban Operasional', source: 'Pakai Template', tone: 'pos' },
                 { label: 'Subkategori baru', value: 'Di bawah induknya, Grup Laba Rugi sama dengan induk', source: 'Pakai Template', tone: 'pos' },
                 { label: 'Induk lama bernama sama', value: 'Dipakai ulang tanpa diubah; sub baru ditempel ke sana', source: 'Otomatis', tone: 'act' },
                 { label: 'Sub yang sudah ada', value: 'Dilewati, di grup mana pun ia berada', source: 'Otomatis', tone: 'neutral' },
                 { label: 'Induk sistem / dipakai langsung', value: 'Seluruh grupnya dilewati, alasan tercantum', source: 'Otomatis', tone: 'wait' },
-                { label: 'Bagian Pendanaan', value: 'Setoran Modal, Penarikan Modal, Pajak Titipan & PPN — tanpa Grup Laba Rugi', source: 'Pakai Template', tone: 'act' },
+                { label: 'Bagian Pendanaan', value: 'Setoran Modal, Penarikan Modal, Pajak Titipan & PPN, Talangan Klien — tanpa Grup Laba Rugi', source: 'Pakai Template', tone: 'act' },
             ],
             note: 'Nama dibandingkan tanpa membedakan huruf besar/kecil dan spasi berlebih. Perusahaan baru sudah berisi template; menerapkan ulang tidak membuat apa pun.',
         },

@@ -40,7 +40,8 @@ class CategoryTemplateService
      * penjualan lewat invoice sudah dihitung otomatis oleh Laba Rugi, jangan dicatat lagi di sini.
      *
      * Pendanaan (`financing`, `pl_group` null) tidak pernah masuk Laba Rugi: setoran modal, prive,
-     * setor PPN, setor titipan pajak klien (docs/module/profit-loss.md › Invarian). "Setoran Modal"
+     * setor PPN, setor titipan pajak klien, biaya yang ditalangi untuk klien lalu ditagih lewat Debit
+     * Note (docs/module/profit-loss.md › Invarian). "Setoran Modal"
      * dan "Penarikan Modal" dulu diisikan seeder sebagai induk tanpa anak; di perusahaan lama keduanya
      * dicocokkan sebagai "sudah ada" lalu sub barunya ditempel.
      *
@@ -143,6 +144,12 @@ class CategoryTemplateService
             'pl_group' => null,
             'children' => ['Setor PPN', 'Setor Titipan Pajak Klien'],
         ],
+        [
+            'type' => 'financing',
+            'label' => 'Talangan Klien',
+            'pl_group' => null,
+            'children' => ['Bayar Talangan Klien'],
+        ],
     ];
 
     /**
@@ -150,7 +157,9 @@ class CategoryTemplateService
      * bukan label kategorinya. Kunci = label sub persis seperti di TEMPLATE (dites keberadaannya);
      * dicocokkan dengan nama ternormalisasi yang sama dengan Pakai Template (normalize()).
      * "Setor PPN" & "Setor Titipan Pajak Klien" sengaja bernama SAMA dengan akun yang dikredit
-     * pembayaran invoice (JournalService::PPN_KELUARAN / TAX_DEPOSIT), agar kedua sisi saling menutup.
+     * pembayaran invoice (JournalService::PPN_KELUARAN / TAX_DEPOSIT), agar kedua sisi saling menutup;
+     * begitu pula "Bayar Talangan Klien" dengan akun yang dikredit pembayaran Debit Note
+     * (JournalService::TALANGAN).
      * Sub pendanaan lain (buatan pengguna) memakai labelnya sendiri.
      *
      * @var array<string, string>
@@ -160,6 +169,7 @@ class CategoryTemplateService
         'Prive Pemilik' => 'Prive Pemilik',
         'Setor PPN' => JournalService::PPN_KELUARAN,
         'Setor Titipan Pajak Klien' => JournalService::TAX_DEPOSIT,
+        'Bayar Talangan Klien' => JournalService::TALANGAN,
     ];
 
     /** Akun jurnal untuk sub pendanaan bernama $label (cocok nama ternormalisasi), atau null. */

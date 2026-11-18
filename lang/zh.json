@@ -436,5 +436,13 @@
     "Nomor rekening :position wajib diisi.": "第 :position 个账户的银行账号不能为空。",
     "Nomor rekening :position maksimal 50 karakter.": "第 :position 个账户的银行账号最多 50 个字符。",
     "Atas nama rekening :position wajib diisi.": "第 :position 个账户的户名不能为空。",
-    "Atas nama rekening :position maksimal 255 karakter.": "第 :position 个账户的户名最多 255 个字符。"
+    "Atas nama rekening :position maksimal 255 karakter.": "第 :position 个账户的户名最多 255 个字符。",
+    "Jenis & kode dokumen": "单据类型与代码",
+    "Talangan Biaya Klien": "代垫客户费用",
+    "Debit Note diterbitkan: :nomor": "借项通知单已开具：:nomor",
+    "Debit Note disimpan sebagai draft.": "借项通知单已保存为草稿。",
+    "Debit Note berhasil diperbarui.": "借项通知单已更新。",
+    "Jenis dokumen tidak tersedia untuk perusahaan ini.": "该公司不支持此单据类型。",
+    "Kode jenis hanya boleh huruf, angka, dan tanda hubung, mis. FINAL atau PNBP.": "单据代码只能包含字母、数字和连字符，例如 FINAL 或 PNBP。",
+    "Kode jenis maksimal 20 karakter.": "单据代码最多 20 个字符。"
 }

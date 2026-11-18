@@ -90,7 +90,7 @@ class InvoiceRecapJsmExport implements FromArray, WithColumnWidths, WithEvents, 
                     $row['invoice_number'],
                     $row['issue_date'] ? ExcelDate::PHPToExcel(Carbon::parse($row['issue_date'])) : '',
                     $row['client_name'],
-                    (int) $row['total_amount'],
+                    (int) ($row['total_before_ppn'] ?? $row['total_amount']),
                     // Invoice sejak fitur PPN memakai PPN tersimpannya; invoice lama tetap rumus tarif perusahaan.
                     $row['ppn_rate'] === null ? "=F{$r}*{$rate}%" : (int) $row['ppn'],
                     "=SUM(F{$r}:G{$r})",
