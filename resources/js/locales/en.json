@@ -2323,5 +2323,14 @@
     "Tersimpan di Master Data › Klien dan langsung dipilih untuk invoice ini.": "Saved to Master Data › Clients and selected for this invoice right away.",
     "Simpan klien": "Save client",
     "Buat klien baru": "Create new client",
-    "Alias, NPWP, PIC, dan data pajak lain bisa dilengkapi nanti di Master Data › Klien.": "Alias, NPWP, PIC, and other tax details can be filled in later under Master Data › Clients."
+    "Alias, NPWP, PIC, dan data pajak lain bisa dilengkapi nanti di Master Data › Klien.": "Alias, NPWP, PIC, and other tax details can be filled in later under Master Data › Clients.",
+    "PPh 23 Dibayar di Muka": "Prepaid Article 23 income tax (PPh 23)",
+    "PPh 23 dipotong klien {{rate}}%": "Article 23 income tax (PPh 23) withheld by client {{rate}}%",
+    "Dipotong PPh 23 oleh klien": "Client withholds Article 23 income tax (PPh 23)",
+    "Dari layanan setelah diskon, tanpa PPN dan titipan pajak. Total menjadi yang ditransfer klien; potongannya tetap pendapatan (kredit pajak).": "Calculated on services after discount, excluding VAT and tax deposits. The total becomes what the client transfers; the withheld amount is still revenue (a tax credit).",
+    "Tarif PPh 23": "Article 23 income tax rate (PPh 23)",
+    "PPh 23 dipotong klien (kredit pajak, sudah termasuk pendapatan)": "Article 23 income tax withheld by clients (tax credit, already included in revenue)",
+    "Klien memotong <b>PPh 23</b> dari invoice perusahaan ini": "Clients withhold <b>Article 23 income tax (PPh 23)</b> from this company's invoices",
+    "Editor invoice menampilkan sakelar PPh 23 dan memotongnya otomatis; pilihan per klien diingat. Mematikannya tidak mengubah invoice yang sudah dipotong.": "The invoice editor shows the Article 23 income tax switch and applies it automatically; the choice per client is remembered. Turning this off does not change invoices that already have it withheld.",
+    "Tarif PPh 23 bawaan (%) *": "Default Article 23 income tax rate (PPh 23) (%) *"
 }

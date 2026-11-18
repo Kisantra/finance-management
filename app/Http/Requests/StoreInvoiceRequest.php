@@ -47,6 +47,9 @@ class StoreInvoiceRequest extends FormRequest
             'discount_reason' => ['nullable', 'string', 'max:255'],
             'apply_ppn' => ['nullable', 'boolean'],
             'faktur' => ['nullable', 'string', 'max:50'],
+            // Potongan PPh 23 oleh klien: tarif wajib bila dipotong.
+            'apply_pph' => ['nullable', 'boolean'],
+            'pph_rate' => ['nullable', 'required_if_accepted:apply_pph', 'numeric', 'min:0.01', 'max:100'],
             // Nomor dari dialog "Simpan & terbitkan". Dipakai hanya saat publish oleh pemegang
             // `edit invoices` (lihat InvoiceController::store); kosong = nomor otomatis.
             'invoice_number' => ['nullable', 'string', 'max:100', Rule::unique('invoices', 'invoice_number')->ignore($this->route('invoice'))],
@@ -94,6 +97,10 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.unit_price.min' => __('Harga satuan baris :position tidak boleh negatif.'),
             'discount_value.min' => __('Diskon tidak boleh negatif.'),
             'faktur.max' => __('Nomor faktur pajak maksimal 50 karakter.'),
+            'pph_rate.required_if_accepted' => __('Tarif PPh 23 wajib diisi.'),
+            'pph_rate.numeric' => __('Tarif PPh 23 harus berupa angka.'),
+            'pph_rate.min' => __('Tarif PPh 23 harus lebih dari 0%.'),
+            'pph_rate.max' => __('Tarif PPh 23 maksimal 100%.'),
             'invoice_number.unique' => __('Nomor ini sudah dipakai invoice lain.'),
             'invoice_number.max' => __('Nomor invoice maksimal 100 karakter.'),
             'discount_value.integer' => __('Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.'),

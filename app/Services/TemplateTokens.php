@@ -87,6 +87,18 @@ class TemplateTokens
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->ppn_amount ?? 0)),
             ],
             [
+                'path' => 'invoice.pph_rate',
+                'label' => __('Tarif PPh 23'),
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => (float) $inv->pph_rate > 0
+                    ? rtrim(rtrim(number_format((float) $inv->pph_rate, 2, ',', '.'), '0'), ',').'%'
+                    : '',
+            ],
+            [
+                'path' => 'invoice.pph_amount',
+                'label' => __('PPh 23 dipotong klien'),
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->pph_amount ?? 0)),
+            ],
+            [
                 'path' => 'invoice.total_amount',
                 'label' => __('Total'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->total_amount ?? 0)),

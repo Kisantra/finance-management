@@ -76,7 +76,9 @@ class ContohInvoiceSluSeederTest extends TestCase
 
         $final = Invoice::with('items')->where('invoice_number', '037/SLU-CBN/INV-FINAL/X/2026')->sole();
         $this->assertSame('Invoice FINAL MV. CONTOH JAYA', $final->subject);
-        $this->assertSame(532_800_000, (int) $final->total_amount);
+        // 480.000.000 + PPN 52.800.000 − PPh 23 2% 9.600.000.
+        $this->assertSame(9_600_000, (int) $final->pph_amount);
+        $this->assertSame(523_200_000, (int) $final->total_amount);
         $this->assertStringContainsString('Loading Port : Muara Jawa', $final->items->first()->description);
 
         $this->assertSame('Direktur Finance & Accounting', Client::where('name', 'PT. CONTOH BATUBARA NUSANTARA')->value('person_in_charge'));

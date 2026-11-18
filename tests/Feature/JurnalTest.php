@@ -364,7 +364,7 @@ class JurnalTest extends TestCase
             $a = Invoice::allocatePayments($dibayar, 500_000, 1_100_000);
             $this->assertSame($dibayar, $a['tax_deposit'] + $a['ppn'] + $a['revenue'], "dibayar {$dibayar}");
         }
-        $this->assertSame(['tax_deposit' => 500_000, 'ppn' => 500_000, 'revenue' => 0], Invoice::allocatePayments(1_000_000, 500_000, 1_100_000));
+        $this->assertSame(['tax_deposit' => 500_000, 'ppn' => 500_000, 'revenue' => 0, 'pph' => 0], Invoice::allocatePayments(1_000_000, 500_000, 1_100_000));
     }
 
     /**

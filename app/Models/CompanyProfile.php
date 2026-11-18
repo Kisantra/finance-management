@@ -23,6 +23,8 @@ class CompanyProfile extends Model
         'is_pkp',
         'npwp',
         'ppn_rate',
+        'pph_enabled',
+        'pph_rate',
         'bank_accounts',
         'finance_manager_name',
         'finance_manager_position',
@@ -37,6 +39,8 @@ class CompanyProfile extends Model
         'bank_accounts' => 'array',
         'is_pkp' => 'boolean',
         'ppn_rate' => 'decimal:2',
+        'pph_enabled' => 'boolean',
+        'pph_rate' => 'decimal:2',
         'invoice_legacy_reviewed_at' => 'datetime',
         'default_due_days' => 'integer',
     ];

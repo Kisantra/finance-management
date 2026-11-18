@@ -4,8 +4,9 @@
     dibaca dari Pengaturan › Profil perusahaan ($company: nama, alamat, telepon, rekening, kota & penanda
     tangan; baris baru di Alamat ikut tercetak); baris total disusun sistem ($baris_total,
     InvoiceTotalRows) dan di sini hanya ditata per jenisnya.
-    Logo: logo.jpg di folder ini ($aset('logo.jpg')). Font di fonts/: Carlito (pengganti Calibri, judul)
-    dan Caladea (pengganti Cambria, alamat klien & kotak info), keduanya berukuran identik dengan aslinya.
+    Logo: logo.jpg di folder ini ($aset('logo.jpg')). Font di fonts/: Tinos (pengganti Times New Roman, teks
+    utama), Carlito (pengganti Calibri, judul), dan Caladea (pengganti Cambria, alamat klien & kotak info),
+    semuanya berukuran identik dengan aslinya.
     Gambar tanda tangan & stempel dari upload Profil perusahaan ($tanda_tangan, $stempel); tidak disimpan
     di repo (repo publik). Kosong = ruang tanda tangan basah.
 --}}
@@ -24,6 +25,8 @@
     $penandaTangan = $company['signature'];
     $tanggal = $invoice->issue_date?->copy()->locale('id')->translatedFormat('j F Y');
     $font = fn (string $file) => \App\Services\CompanyInvoiceTemplate::path('fonts/'.$file);
+    $fontUtama = $font('Tinos-Regular.ttf');
+    $fontUtamaTebal = $font('Tinos-Bold.ttf');
     $fontJudul = $font('Carlito-Bold.ttf');
     $fontIsi = $font('Caladea-Regular.ttf');
     $fontIsiTebal = $font('Caladea-Bold.ttf');
@@ -35,9 +38,27 @@
     <meta charset="UTF-8">
     <title>Invoice {{ $invoice->invoice_number }}</title>
     <style>
-        /* Font mengikuti dokumen Word asli: Times New Roman (core font "times" DomPDF) untuk nomor,
-           perihal, klien, tabel, tanggal & penanda tangan; Calibri → Carlito untuk judul; Cambria →
-           Caladea untuk alamat klien, ATTENTION, TERM PAYMENT, dan kedua kotak info. Isi 11pt. */
+        /* Font mengikuti dokumen Word asli: Times New Roman → Tinos untuk nomor, perihal, klien, tabel,
+           tanggal & penanda tangan; Calibri → Carlito untuk judul; Cambria → Caladea untuk alamat klien,
+           ATTENTION, TERM PAYMENT, dan kedua kotak info. Isi 11pt. Times New Roman sendiri tidak boleh
+           disertakan di repo (lisensi), dan core font "times" DomPDF tidak tertanam sehingga tampilannya
+           bergantung pada penampil PDF. */
+        @if ($fontUtama)
+            @font-face {
+                font-family: 'Tinos';
+                src: url('{{ $fontUtama }}') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+            }
+        @endif
+        @if ($fontUtamaTebal)
+            @font-face {
+                font-family: 'Tinos';
+                src: url('{{ $fontUtamaTebal }}') format('truetype');
+                font-weight: bold;
+                font-style: normal;
+            }
+        @endif
         @if ($fontJudul)
             @font-face {
                 font-family: 'Carlito';
@@ -77,16 +98,17 @@
 
         body {
             margin: 0;
-            font-family: times, serif;
+            font-family: 'Tinos', times, serif;
             font-size: 11pt;
-            line-height: 1.15;
+            line-height: 0.9;
             color: #000;
         }
 
         /* Tinggi baris DomPDF = line-height × (ascender − descender) × font_height_ratio 1,1. Spasi
-           tunggal Word: Cambria/Caladea 1,172 em → line-height 0,91; Times 0,9 em → 1,15 (di body). */
+           tunggal Word: Cambria/Caladea 1,172 em → line-height 0,91; Times New Roman/Tinos (terukur 1,15 em)
+           → 0,9 (di body; sama dengan 1,15 untuk core font "times" 0,9 em yang dipakai sebelumnya). */
         .cambria {
-            font-family: 'Caladea', times, serif;
+            font-family: 'Caladea', 'Tinos', serif;
             line-height: 0.91;
         }
 
@@ -194,7 +216,7 @@
         /* Satu baris kosong di atas dan di bawah keterangan, seperti blok item di dokumen asli. */
         .items-table td.keterangan {
             padding: 0.5cm 0.08cm;
-            line-height: 1.2;
+            line-height: 0.939;
         }
 
         /* Kedua tabel bergaris penuh; -1px menumpuk garis pertemuannya bila satu halaman, dan tetap ada
@@ -213,6 +235,7 @@
         /* Gaya baris total per jenis (InvoiceTotalRows). Baris tagihan = GRAND TOTAL dokumen asli:
            tebal, label di tengah, nominal 12pt, garis bawah ganda. */
         .totals-table tr.baris-dpp td.label,
+        .totals-table tr.baris-bruto td.label,
         .totals-table tr.baris-total td.label,
         .totals-table tr.baris-tagihan td {
             font-weight: bold;
@@ -291,7 +314,7 @@
         .kotak {
             border: 0.5pt solid #000;
             padding: 0.13cm 0.25cm 0.2cm;
-            font-family: 'Caladea', times, serif;
+            font-family: 'Caladea', 'Tinos', serif;
             line-height: 0.91;
         }
 

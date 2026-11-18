@@ -88,6 +88,9 @@ class ProfitLossService
             'net_profit' => $netProfit,
             // Memo: PPN Keluaran yang ikut diterima dari pembayaran invoice — titipan negara, tidak ikut laba.
             'ppn_output' => $invoiceContrib['ppn'],
+            // Memo: PPh 23 yang dipotong klien atas invoice yang dibayar — tidak masuk rekening, tetapi
+            // sudah termasuk pendapatan (kredit pajak, bukan biaya).
+            'pph_withheld' => $invoiceContrib['pph'],
             'unclassified' => [
                 'income' => $this->unclassified('credit', $start, $end),
                 'expense' => $this->unclassified('debit', $start, $end),
@@ -103,7 +106,8 @@ class ProfitLossService
      *     paid_e     = SUM(payments WHERE payment_date <= end)
      *     paid_s     = SUM(payments WHERE payment_date <  start)
      *     titipan    = SUM(items WHERE is_tax_deposit=true).amount + ppn_amount
-     *     revenue_e  = MAX(0, paid_e − titipan)        // titipan-dulu (PPN reported as ppn_output)
+     *     revenue_e  = MAX(0, paid_e + pph_e − titipan) // titipan-dulu (PPN reported as ppn_output)
+     *     pph_e      = bagian potongan PPh 23 yang ikut lunas bersama paid_e (proporsional)
      *     revenue_s  = MAX(0, paid_s − titipan)
      *     cogs_e     = MIN(revenue_e, total_cogs)      // cost-recovery
      *     cogs_s     = MIN(revenue_s, total_cogs)
@@ -114,7 +118,7 @@ class ProfitLossService
      * Invoices with no titipan reduce to the simple cost-recovery formula
      * (revenue_e == paid_e), so behavior is backward compatible.
      *
-     * @return array{revenue: int, cogs: int}
+     * @return array{revenue: int, cogs: int, ppn: int, pph: int}
      */
     private function invoiceContributions(Carbon $start, Carbon $end): array
     {
@@ -124,7 +128,7 @@ class ProfitLossService
             ->pluck('invoice_id');
 
         if ($invoiceIds->isEmpty()) {
-            return ['revenue' => 0, 'cogs' => 0, 'ppn' => 0];
+            return ['revenue' => 0, 'cogs' => 0, 'ppn' => 0, 'pph' => 0];
         }
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)->with('items')->get();
@@ -162,6 +166,7 @@ class ProfitLossService
         $totalRevenue = 0;
         $totalCogs = 0;
         $totalPpn = 0;
+        $totalPph = 0;
 
         foreach ($invoices as $invoice) {
             $taxDeposit = (int) $invoice->items->where('is_tax_deposit', true)->sum('amount');
@@ -176,10 +181,12 @@ class ProfitLossService
             // "Titipan dulu": cover the client tax deposit, then PPN Keluaran (owed to the
             // state, not revenue), before recognizing revenue. Satu rumus dengan jurnal
             // pembayaran invoice (JournalService), lewat Invoice::allocatePayments().
-            $sampaiAkhir = Invoice::allocatePayments($paidThroughEnd, $taxDeposit, $ppn);
-            $sebelumAwal = Invoice::allocatePayments($paidThroughStartPrev, $taxDeposit, $ppn);
+            // Potongan PPh 23 ikut lunas bersama pembayaran dan tetap pendapatan (kredit pajak).
+            $sampaiAkhir = Invoice::allocatePayments($paidThroughEnd, $taxDeposit, $ppn, (int) $invoice->pph_amount, (int) $invoice->total_amount);
+            $sebelumAwal = Invoice::allocatePayments($paidThroughStartPrev, $taxDeposit, $ppn, (int) $invoice->pph_amount, (int) $invoice->total_amount);
 
             $totalPpn += $sampaiAkhir['ppn'] - $sebelumAwal['ppn'];
+            $totalPph += $sampaiAkhir['pph'] - $sebelumAwal['pph'];
 
             $revenueThroughEnd = $sampaiAkhir['revenue'];
             $revenueThroughStartPrev = $sebelumAwal['revenue'];
@@ -191,7 +198,7 @@ class ProfitLossService
             }
         }
 
-        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs, 'ppn' => $totalPpn];
+        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs, 'ppn' => $totalPpn, 'pph' => $totalPph];
     }
 
     /**

@@ -452,20 +452,21 @@ class DashboardController extends Controller
 
         // Titipan yang sudah ikut dibayar klien — titipan pajak / talangan Debit Note dulu, lalu PPN
         // (Invoice::allocatePayments, sama dengan Laba Rugi): uang yang hanya lewat, bukan laba.
-        $titipanCollected = Invoice::query()
-            ->where(fn ($q) => $q->where('ppn_amount', '>', 0)->orWhereHas('items', fn ($items) => $items->where('is_tax_deposit', true)))
+        // Sebaliknya potongan PPh 23 yang ikut lunas tidak masuk rekening tetapi tetap laba.
+        $koreksiLaba = Invoice::query()
+            ->where(fn ($q) => $q->where('ppn_amount', '>', 0)->orWhere('pph_amount', '>', 0)->orWhereHas('items', fn ($items) => $items->where('is_tax_deposit', true)))
             ->withSum('payments', 'amount')
             ->withSum(['items as deposits_sum' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
             ->get()
             ->sum(function (Invoice $inv): int {
-                $bagian = Invoice::allocatePayments((int) $inv->payments_sum_amount, (int) $inv->deposits_sum, (int) $inv->ppn_amount);
+                $bagian = Invoice::allocatePayments((int) $inv->payments_sum_amount, (int) $inv->deposits_sum, (int) $inv->ppn_amount, (int) $inv->pph_amount, (int) $inv->total_amount);
 
-                return $bagian['tax_deposit'] + $bagian['ppn'];
+                return $bagian['tax_deposit'] + $bagian['ppn'] - $bagian['pph'];
             });
 
         return [
             'total_income' => (int) $totalIncome,
-            'total_profit' => (int) ($totalIncome - $titipanCollected - $totalHpp),
+            'total_profit' => (int) ($totalIncome - $koreksiLaba - $totalHpp),
             'total_outstanding' => (int) max(0, $pendingTotal - $pendingPaid),
             'total_hpp' => (int) $totalHpp,
             'total_pp' => (int) round($ppBase * 0.005),

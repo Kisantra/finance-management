@@ -53,9 +53,10 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
 
     /**
      * Invoice contoh; `number` null = draft. Opsional: `type` (Invoice::TYPE_DEBIT_NOTE = semua item
-     * talangan, tanpa PPN) dan `code` (kode jenis, mis. FINAL).
+     * talangan, tanpa PPN), `code` (kode jenis, mis. FINAL), dan `pph` (tarif PPh 23 yang dipotong klien;
+     * bawaan = tarif profil bila profil memotong PPh 23, 0 = sengaja tidak dipotong).
      *
-     * @return list<array{number: ?string, type?: string, code?: string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
+     * @return list<array{number: ?string, type?: string, code?: string, pph?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
      */
     abstract protected function invoices(): array;
 
@@ -193,7 +194,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     }
 
     /**
-     * @param  array{number: ?string, type?: string, code?: string, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
+     * @param  array{number: ?string, type?: string, code?: string, pph?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
      */
     private function seedInvoice(Client $client, array $data): void
     {
@@ -219,6 +220,13 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
         $ppnRate = $isDebitNote ? 0.0 : (float) $this->profile()['ppn_rate'];
         $subtotal = (int) $items->sum('amount');
         $ppnAmount = Invoice::ppnFor($subtotal - $data['discount'], $ppnRate);
+        $pphRate = match (true) {
+            $isDebitNote => null,
+            isset($data['pph']) => (float) $data['pph'],
+            (bool) ($this->profile()['pph_enabled'] ?? false) => (float) $this->profile()['pph_rate'],
+            default => null,
+        };
+        $pphAmount = Invoice::pphFor($subtotal - $data['discount'], $pphRate);
         $issueDate = Carbon::parse($data['date']);
 
         $invoice = Invoice::create([
@@ -232,7 +240,9 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
             'discount_amount' => $data['discount'],
             'ppn_rate' => $ppnRate,
             'ppn_amount' => $ppnAmount,
-            'total_amount' => max(0, $subtotal - $data['discount']) + $ppnAmount,
+            'pph_rate' => $pphRate,
+            'pph_amount' => $pphAmount,
+            'total_amount' => max(0, $subtotal - $data['discount']) + $ppnAmount - $pphAmount,
             'issue_date' => $issueDate,
             'due_date' => $issueDate->copy()->addDays(14),
             'status' => $data['number'] ? 'sent' : 'draft',

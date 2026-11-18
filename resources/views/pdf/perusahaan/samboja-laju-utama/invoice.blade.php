@@ -3,7 +3,8 @@
     Di sini hanya desainnya (kop, warna, susunan, font). Data perusahaan dibaca dari Pengaturan › Profil
     perusahaan ($company: nama, alamat, email, telepon, rekening, kota & penanda tangan); baris total
     disusun sistem ($baris_total, InvoiceTotalRows) dan di sini hanya ditata per jenisnya.
-    Logo: logo.jpg di folder ini ($aset('logo.jpg')); font judul: fonts/Carlito-Bold.ttf (OFL).
+    Logo: logo.jpg di folder ini ($aset('logo.jpg')). Font di fonts/ (OFL): Tinos (Times New Roman, semua
+    teks) dan Carlito-Bold (Calibri, judul).
     Gambar tanda tangan & stempel dari upload Profil perusahaan ($tanda_tangan, $stempel); tidak
     disimpan di repo (repo publik). Kosong = ruang tanda tangan basah.
     Dipakai juga oleh debit-note.blade.php, yang hanya mengganti judul ($judul, $lebarJudul, $namaDokumen).
@@ -21,7 +22,10 @@
     $namaPerusahaan = mb_strtoupper((string) $company['name']);
     $penandaTangan = $company['signature'];
     $tanggal = $invoice->issue_date?->copy()->locale('id')->translatedFormat('j F Y');
-    $fontJudul = \App\Services\CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
+    $font = fn (string $file) => \App\Services\CompanyInvoiceTemplate::path('fonts/'.$file);
+    $fontJudul = $font('Carlito-Bold.ttf');
+    $fontIsi = $font('Tinos-Regular.ttf');
+    $fontIsiTebal = $font('Tinos-Bold.ttf');
     $judul ??= 'I N V O I C E';
     $lebarJudul ??= '5.58cm';
     $namaDokumen ??= 'Invoice';
@@ -33,9 +37,27 @@
     <meta charset="UTF-8">
     <title>{{ $namaDokumen }} {{ $invoice->invoice_number }}</title>
     <style>
-        /* Font mengikuti dokumen Word asli: Times New Roman di semua teks (core font "times" DomPDF
-           sama ukurannya), judul memakai Calibri → Carlito (OFL, ukuran identik; fonts/). Ukuran:
-           kop 26/10pt, isi 11pt, judul kolom tabel 12pt tebal, rincian item 10pt. */
+        /* Font mengikuti dokumen Word asli: Times New Roman di semua teks → Tinos, judul Calibri →
+           Carlito (keduanya OFL, ukuran & lebar huruf identik dengan aslinya; fonts/). Times New Roman
+           sendiri tidak boleh disertakan di repo (lisensi), dan core font "times" DomPDF tidak tertanam
+           sehingga tampilannya bergantung pada penampil PDF. Ukuran: kop 26/10pt, isi 11pt, judul kolom
+           tabel 12pt tebal, rincian item 10pt. */
+        @if ($fontIsi)
+            @font-face {
+                font-family: 'Tinos';
+                src: url('{{ $fontIsi }}') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+            }
+        @endif
+        @if ($fontIsiTebal)
+            @font-face {
+                font-family: 'Tinos';
+                src: url('{{ $fontIsiTebal }}') format('truetype');
+                font-weight: bold;
+                font-style: normal;
+            }
+        @endif
         @if ($fontJudul)
             @font-face {
                 font-family: 'Carlito';
@@ -53,11 +75,14 @@
             box-sizing: border-box;
         }
 
+        /* Tinggi baris DomPDF sebanding dengan tinggi font: Tinos terukur 1,15 em, core font "times" yang
+           dipakai sebelumnya 0,9 em. Semua line-height teks Tinos = nilai lama × 0,783 (1,15 → 0,9;
+           1,1 → 0,861; 1 → 0,783) agar tata letak tetap sama dengan sebelumnya. */
         body {
             margin: 0;
-            font-family: times, serif;
+            font-family: 'Tinos', times, serif;
             font-size: 11pt;
-            line-height: 1.15;
+            line-height: 0.9;
             color: #000;
         }
 
@@ -91,13 +116,13 @@
         .kop .nama {
             font-size: 26pt;
             font-weight: bold;
-            line-height: 1;
+            line-height: 0.783;
             text-align: center;
         }
 
         .kop .alamat {
             font-size: 10pt;
-            line-height: 1.15;
+            line-height: 0.9;
             padding-left: 1.55cm;
             text-indent: -1.25cm;
         }
@@ -157,7 +182,7 @@
             color: #000;
             font-size: 12pt;
             font-weight: bold;
-            line-height: 1.1;
+            line-height: 0.861;
             text-align: center;
             vertical-align: middle;
             padding: 0.06cm 0.08cm;
@@ -228,7 +253,7 @@
 
         .items-table td.keterangan .rincian {
             font-size: 10pt;
-            line-height: 1.1;
+            line-height: 0.861;
         }
 
         .tebal {
@@ -256,7 +281,7 @@
             border: 0.5px solid #000;
             padding: 0.06cm 0.12cm 0.1cm;
             font-size: 10pt;
-            line-height: 1.15;
+            line-height: 0.9;
         }
 
         .info .kotak .besar {
@@ -293,8 +318,10 @@
             text-decoration: underline;
         }
 
-        /* Gaya baris total per jenis (InvoiceTotalRows). */
-        .totals-table tr.baris-dpp td,
+        /* Gaya baris total per jenis (InvoiceTotalRows), seperti dokumen asli: label subtotal tebal,
+           nominalnya biasa; hanya GRAND TOTAL yang tebal seluruhnya. */
+        .totals-table tr.baris-dpp td.label,
+        .totals-table tr.baris-bruto td.label,
         .totals-table tr.baris-tagihan td,
         .totals-table tr.baris-total td.label {
             font-weight: bold;
@@ -411,12 +438,16 @@
             <td class="c-total"></td>
         </tr>
         @foreach ($baris_total as $baris)
+            @php
+                // Dokumen asli SLU menulis PPH kapital ("PPH 23 (2%)", "belum dipotong PPH").
+                $label = str_replace('PPh', 'PPH', $baris['label']);
+            @endphp
             <tr class="baris-{{ $baris['jenis'] }}">
                 @if ($baris['nomor'])
                     <td class="c-no">{{ $baris['nomor'] }}</td>
-                    <td colspan="3" class="label">{{ $baris['label'] }}</td>
+                    <td colspan="3" class="label">{{ $label }}</td>
                 @else
-                    <td colspan="4" class="label">{{ $baris['label'] }}</td>
+                    <td colspan="4" class="label">{{ $label }}</td>
                 @endif
                 <td class="c-total">{!! $uang($baris['jumlah']) !!}</td>
             </tr>

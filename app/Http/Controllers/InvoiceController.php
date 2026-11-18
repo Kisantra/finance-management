@@ -135,7 +135,7 @@ class InvoiceController extends Controller
 
         $basicStats = DB::table('invoices')
             ->whereIn('id', $statsIds)
-            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn, COALESCE(SUM(CASE WHEN ppn_amount > 0 THEN 1 ELSE 0 END), 0) as ppn_invoice_count')
+            ->selectRaw('COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(ppn_amount), 0) as total_ppn, COALESCE(SUM(pph_amount), 0) as total_pph, COALESCE(SUM(CASE WHEN ppn_amount > 0 THEN 1 ELSE 0 END), 0) as ppn_invoice_count')
             ->first();
 
         $itemStats = DB::table('invoice_items')
@@ -169,9 +169,11 @@ class InvoiceController extends Controller
             'total_ppn' => (int) $basicStats->total_ppn,
             'ppn_invoice_count' => (int) $basicStats->ppn_invoice_count,
             // PPN dan titipan (titipan pajak klien, talangan Debit Note) ikut ditagih (total_revenue)
-            // tetapi bukan laba — sama dengan laba kotor di drawer & editor.
+            // tetapi bukan laba; potongan PPh 23 tidak ikut ditagih tetapi tetap pendapatan (kredit
+            // pajak) — sama dengan laba kotor di drawer & editor.
             'total_tax_deposit' => (int) $itemStats->total_tax_deposit,
-            'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - (int) $itemStats->total_tax_deposit - $totalCogs,
+            'total_pph' => (int) $basicStats->total_pph,
+            'gross_profit' => $totalRevenue + (int) $basicStats->total_pph - (int) $basicStats->total_ppn - (int) $itemStats->total_tax_deposit - $totalCogs,
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
             'outstanding_count' => $outstandingIds->count(),
@@ -323,8 +325,9 @@ class InvoiceController extends Controller
             $ppn = (int) $invoice->ppn_amount;
             $titipan = (int) $invoice->total_tax_deposit;
             // PPN (titipan negara) dan titipan pajak klien / talangan Debit Note ikut ditagih tetapi
-            // bukan omzet, sehingga juga bukan dasar PPh final.
-            $omzet = (int) $invoice->total_amount - $ppn - $titipan;
+            // bukan omzet, sehingga juga bukan dasar PPh final. Potongan PPh 23 sebaliknya tidak
+            // ditransfer klien tetapi tetap omzet.
+            $omzet = (int) $invoice->total_amount + (int) $invoice->pph_amount - $ppn - $titipan;
             $hpp = (int) $invoice->total_cogs;
 
             return [
@@ -470,6 +473,8 @@ class InvoiceController extends Controller
             'discount_reason' => $invoice->discount_reason,
             'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
             'ppn_amount' => (int) $invoice->ppn_amount,
+            'pph_rate' => (float) $invoice->pph_rate > 0 ? (float) $invoice->pph_rate : null,
+            'pph_amount' => (int) $invoice->pph_amount,
             'dpp_amount' => $invoice->dpp_amount,
             'total_amount' => $invoice->total_amount,
             'amount_paid' => $invoice->amount_paid,
@@ -557,6 +562,8 @@ class InvoiceController extends Controller
                 'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
                 'rate' => (float) ($company?->ppn_rate ?? 0),
             ],
+            // Potongan PPh 23 hanya untuk perusahaan yang menyalakannya di Profil perusahaan.
+            'pph' => $this->pphOptions($company),
             // Termin jatuh tempo bawaan; pemegang `manage invoice settings` bisa menggantinya dari form ini.
             'defaultDueDays' => (int) ($company?->default_due_days ?? 14),
             // Perusahaan bertemplate sendiri: editor hanya menawarkan template itu (CompanyInvoiceTemplate).
@@ -569,6 +576,27 @@ class InvoiceController extends Controller
             'services' => Service::orderBy('name')
                 ->get(['id', 'name', 'price', 'type'])
                 ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'price' => $s->price, 'type' => $s->type]),
+        ];
+    }
+
+    /**
+     * Bawaan sakelar PPh 23 editor: `enabled` = perusahaan memakai potongan PPh 23 (sakelar tampil dan
+     * invoice baru dipotong), `rate` = tarif bawaan Profil perusahaan, `clients` = keputusan invoice
+     * terakhir tiap klien (tarif, atau 0 = tidak dipotong) agar invoice berikutnya mengikutinya.
+     *
+     * @return array{enabled: bool, rate: float, clients: array<int, float>}
+     */
+    private function pphOptions(?CompanyProfile $company): array
+    {
+        $clients = Invoice::query()
+            ->whereIn('id', Invoice::query()->whereNotNull('pph_rate')->selectRaw('MAX(id)')->groupBy('billed_to_id'))
+            ->pluck('pph_rate', 'billed_to_id')
+            ->map(fn ($rate): float => (float) $rate);
+
+        return [
+            'enabled' => (bool) $company?->pph_enabled,
+            'rate' => (float) ($company?->pph_rate ?? Invoice::DEFAULT_PPH_RATE),
+            'clients' => $clients->all(),
         ];
     }
 
@@ -650,9 +678,12 @@ class InvoiceController extends Controller
             ? (int) round($subtotal * $discountValue / 100)
             : $discountValue;
 
-        // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih.
+        // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih. PPh 23 yang
+        // dipotong klien dari DPP yang sama mengurangi total: total = yang ditransfer klien (GRAND TOTAL).
         $ppnRate = $isDebitNote ? 0.0 : $this->resolvePpnRate($validated, $existing);
         $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
+        $pphRate = $isDebitNote ? null : $this->resolvePphRate($validated, $existing);
+        $pphAmount = Invoice::pphFor($subtotal - $taxDeposits - $discountAmount, $pphRate);
 
         return [
             'attributes' => [
@@ -667,7 +698,9 @@ class InvoiceController extends Controller
                 'discount_reason' => $validated['discount_reason'] ?? null,
                 'ppn_rate' => $ppnRate,
                 'ppn_amount' => $ppnAmount,
-                'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
+                'pph_rate' => $pphRate,
+                'pph_amount' => $pphAmount,
+                'total_amount' => max(0, max(0, $subtotal - $discountAmount) + $ppnAmount - $pphAmount),
                 'faktur' => match (true) {
                     $isDebitNote => null,
                     array_key_exists('faktur', $validated) => trim((string) $validated['faktur']) ?: null,
@@ -722,6 +755,31 @@ class InvoiceController extends Controller
         }
 
         return $existing && $existing->ppn_rate === null ? null : 0.0;
+    }
+
+    /**
+     * Tarif PPh 23 yang dipotong klien (persen). Seperti PPN: hanya bisa dipilih selama perusahaan
+     * memakai potongan PPh 23 (Profil perusahaan), kecuali invoice yang sudah dipotong (tarifnya tetap).
+     * `apply_pph` kosong = bawaan: invoice baru ikut pengaturan perusahaan, invoice lama tetap seperti
+     * apa adanya. Hasil: tarif > 0 = dipotong; 0 = sengaja tidak dipotong (diingat per klien, lihat
+     * pphOptions()); null = perusahaan tidak memakai PPh 23 saat invoice disimpan.
+     */
+    private function resolvePphRate(array $validated, ?Invoice $existing): ?float
+    {
+        $company = CompanyProfile::current();
+        $enabled = (bool) $company?->pph_enabled;
+        $existingRate = (float) $existing?->pph_rate > 0 ? (float) $existing->pph_rate : null;
+
+        if (! $enabled && $existingRate === null) {
+            return $existing?->pph_rate !== null ? (float) $existing->pph_rate : null;
+        }
+
+        $apply = isset($validated['apply_pph'])
+            ? (bool) $validated['apply_pph']
+            : ($existing ? $existingRate !== null : $enabled);
+        $rate = isset($validated['pph_rate']) ? (float) $validated['pph_rate'] : ($existingRate ?? (float) $company?->pph_rate);
+
+        return $apply && $rate > 0 ? round($rate, 2) : 0.0;
     }
 
     /** Beri nomor berikutnya & ubah draft menjadi terkirim (dipakai "Simpan & terbitkan"). */
@@ -816,6 +874,7 @@ class InvoiceController extends Controller
                 'discount_value' => $invoice->discount_value ?? 0,
                 'discount_reason' => $invoice->discount_reason,
                 'ppn_rate' => (float) $invoice->ppn_rate > 0 ? (float) $invoice->ppn_rate : null,
+                'pph_rate' => (float) $invoice->pph_rate > 0 ? (float) $invoice->pph_rate : null,
                 'faktur' => $invoice->faktur,
                 'subject' => $invoice->subject,
                 'items' => $invoice->items->map(fn ($item) => [

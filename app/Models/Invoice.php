@@ -25,6 +25,9 @@ class Invoice extends Model
     /** @var list<string> */
     public const TYPES = [self::TYPE_INVOICE, self::TYPE_DEBIT_NOTE];
 
+    /** Tarif PPh 23 atas jasa (persen) — bawaan editor bila perusahaan belum pernah memotong PPh. */
+    public const DEFAULT_PPH_RATE = 2.0;
+
     /** Awalan {KODE} di nomor per jenis: "INV", "INV-FINAL", "DN", "DN-PNBP". */
     private const NUMBER_PREFIXES = [self::TYPE_INVOICE => 'INV', self::TYPE_DEBIT_NOTE => 'DN'];
 
@@ -41,6 +44,8 @@ class Invoice extends Model
         'discount_reason',
         'ppn_rate',
         'ppn_amount',
+        'pph_rate',
+        'pph_amount',
         'total_amount',
         'issue_date',
         'due_date',
@@ -56,6 +61,8 @@ class Invoice extends Model
         'discount_value' => 'integer',
         'ppn_rate' => 'decimal:2',
         'ppn_amount' => 'integer',
+        'pph_rate' => 'decimal:2',
+        'pph_amount' => 'integer',
         'total_amount' => 'integer',
         'invoice_sequence' => 'integer',
     ];
@@ -70,22 +77,38 @@ class Invoice extends Model
     }
 
     /**
+     * PPh 23 yang dipotong klien dari DPP yang sama dengan PPN (layanan − diskon, tanpa titipan).
+     * Satu-satunya rumus potongan PPh — dipakai editor invoice dan pratinjau.
+     */
+    public static function pphFor(int $dpp, float|string|null $rate): int
+    {
+        return $rate ? (int) round(max(0, $dpp) * (float) $rate / 100) : 0;
+    }
+
+    /**
      * "Titipan dulu": uang yang SUDAH dibayar klien (kumulatif) menutup titipan pajak klien lebih
      * dulu, lalu PPN Keluaran, sisanya baru pendapatan. Satu-satunya rumus alokasi pembayaran —
      * dipakai Laba Rugi (ProfitLossService::invoiceContributions) dan jurnal pembayaran invoice
      * (JournalService), dicerminkan di klien oleh resources/js/lib/journal.ts › allocatePayments.
-     * Ketiga bagian selalu berjumlah $paid (untuk $paid >= 0).
      *
-     * @return array{tax_deposit: int, ppn: int, revenue: int}
+     * Invoice yang dipotong PPh 23 ($pph > 0, $total = total_amount = yang ditransfer klien): setiap
+     * rupiah yang dibayar ikut melunasi bagian PPh-nya secara proporsional ('pph', kredit pajak
+     * berbukti potong), sehingga saat lunas seluruh potongan tercatat dan pendapatan = DPP penuh.
+     * tax_deposit + ppn + revenue selalu = $paid + pph (untuk $paid >= 0).
+     *
+     * @return array{tax_deposit: int, ppn: int, revenue: int, pph: int}
      */
-    public static function allocatePayments(int $paid, int $taxDeposit, int $ppn): array
+    public static function allocatePayments(int $paid, int $taxDeposit, int $ppn, int $pph = 0, int $total = 0): array
     {
         $paid = max(0, $paid);
+        $pphSettled = $pph > 0 && $total > 0 ? min($pph, (int) round($pph * min($paid, $total) / $total)) : 0;
+        $settled = $paid + $pphSettled;
 
         return [
-            'tax_deposit' => min($paid, $taxDeposit),
-            'ppn' => min(max(0, $paid - $taxDeposit), $ppn),
-            'revenue' => max(0, $paid - $taxDeposit - $ppn),
+            'tax_deposit' => min($settled, $taxDeposit),
+            'ppn' => min(max(0, $settled - $taxDeposit), $ppn),
+            'revenue' => max(0, $settled - $taxDeposit - $ppn),
+            'pph' => $pphSettled,
         ];
     }
 
@@ -158,11 +181,12 @@ class Invoice extends Model
 
     /**
      * PPN (titipan negara) dan item titipan (titipan pajak klien, talangan Debit Note) ikut ditagih
-     * tetapi bukan pendapatan — tidak ikut laba. Sama dengan laba kotor di drawer & editor.
+     * tetapi bukan pendapatan — tidak ikut laba. Potongan PPh 23 sebaliknya tetap pendapatan (kredit
+     * pajak, bukan biaya), jadi dikembalikan. Sama dengan laba kotor di drawer & editor.
      */
     public function getGrossProfitAttribute(): int
     {
-        return $this->total_amount - (int) $this->ppn_amount - $this->taxDepositTotal() - $this->total_cogs;
+        return $this->total_amount + (int) $this->pph_amount - (int) $this->ppn_amount - $this->taxDepositTotal() - $this->total_cogs;
     }
 
     /** Dasar Pengenaan Pajak: subtotal layanan (tanpa titipan pajak) − diskon. */

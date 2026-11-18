@@ -86,6 +86,10 @@ export interface InvoiceFormData {
     /** PPN hanya bila perusahaan PKP (atau invoice ini sudah ber-PPN). */
     apply_ppn: boolean;
     faktur: string;
+    /** Klien memotong PPh 23: total = yang ditransfer klien (DPP + PPN − PPh). */
+    apply_pph: boolean;
+    /** Tarif PPh 23 seperti diketik ("2", "0,5"); dikirim sebagai angka (toPayload). */
+    pph_rate: string;
     items: ItemRow[];
 }
 
@@ -95,17 +99,31 @@ export interface PpnOption {
     rate: number;
 }
 
+/**
+ * Potongan PPh 23 (InvoiceController::pphOptions): `enabled` = perusahaan memakainya (Profil perusahaan),
+ * `rate` = tarif bawaan, `clients` = keputusan invoice terakhir tiap klien (tarif, atau 0 = tidak dipotong).
+ */
+export interface PphOption {
+    enabled: boolean;
+    rate: number;
+    clients: Record<number, number>;
+}
+
+/** Tarif persen untuk isian ("2", "0,5"). */
+export const formatRate = (rate: number) => rate.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+
 interface EditorProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    pph: PphOption;
     documents: DocumentOptions;
     /** Termin jatuh tempo bawaan perusahaan (hari setelah tanggal invoice). */
     defaultDueDays: number;
     /** Ada = perusahaan ini punya template sendiri; pratinjau hanya memakai template itu. */
     companyTemplate?: CompanyTemplate | null;
-    /** Ada = mode edit. `ppn_rate` = tarif tersimpan bila invoice sudah ber-PPN. */
-    invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null };
+    /** Ada = mode edit. `ppn_rate`/`pph_rate` = tarif tersimpan bila invoice sudah ber-PPN / dipotong PPh 23. */
+    invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null; pph_rate: number | null };
     initialData?: InvoiceFormData;
 }
 
@@ -196,6 +214,7 @@ function writePref(key: string, value: string): void {
 function toPayload(d: InvoiceFormData, multiClient: boolean) {
     return {
         ...d,
+        pph_rate: d.pph_rate.trim() === '' ? null : parseQty(d.pph_rate),
         items: d.items.map((item) => ({
             ...item,
             client_id: multiClient ? item.client_id : null,
@@ -265,7 +284,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -286,6 +305,8 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
             discount_reason: '',
             apply_ppn: ppn.enabled,
             faktur: '',
+            apply_pph: pph.enabled,
+            pph_rate: formatRate(pph.rate),
             items: [emptyItem()],
         },
     );
@@ -340,13 +361,31 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
     // Invoice yang sudah ber-PPN tetap memakai tarif tersimpannya walau PKP dimatikan.
     const ppnRate = invoice?.ppn_rate ?? (ppn.enabled ? ppn.rate : 0);
     const ppnAmount = !isDebitNote && data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
-    const total = Math.max(0, subtotal - discount) + ppnAmount;
+    // Potongan PPh 23 dari DPP yang sama; total = yang ditransfer klien. Potongannya tetap pendapatan (kredit pajak).
+    // Sakelar hanya untuk perusahaan yang memakainya, atau invoice yang sudah dipotong (seperti PPN).
+    const pphAvailable = !isDebitNote && (pph.enabled || (invoice?.pph_rate ?? 0) > 0);
+    const pphRate = parseQty(data.pph_rate);
+    const pphAmount = pphAvailable && data.apply_pph && pphRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * pphRate) / 100) : 0;
+    const total = Math.max(0, Math.max(0, subtotal - discount) + ppnAmount - pphAmount);
     const cogs = isDebitNote ? 0 : data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
-    const grossProfit = total - ppnAmount - deposits - cogs;
-    const pph = Math.round((total - ppnAmount - deposits) * 0.005);
+    const grossProfit = total + pphAmount - ppnAmount - deposits - cogs;
+    const pphFinal = Math.round((total + pphAmount - ppnAmount - deposits) * 0.005);
     const termDays = data.issue_date && data.due_date
         ? Math.round((toDate(data.due_date)!.getTime() - toDate(data.issue_date)!.getTime()) / 86_400_000)
         : null;
+
+    /* ── klien: invoice baru mengikuti keputusan PPh 23 invoice terakhir klien itu (InvoiceController::pphOptions) ── */
+    const selectClient = (id: number | null) => {
+        const clientRate = id !== null ? pph.clients[id] : undefined;
+        setData((d) => (isEdit || !pph.enabled
+            ? { ...d, client_id: id }
+            : {
+                  ...d,
+                  client_id: id,
+                  apply_pph: clientRate === undefined || clientRate > 0,
+                  pph_rate: formatRate(clientRate !== undefined && clientRate > 0 ? clientRate : pph.rate),
+              }));
+    };
 
     /* ── termin: jatuh tempo = tanggal invoice + N hari, keduanya saling mengikuti ── */
     const validTerm = termDays != null && termDays >= 0 && termDays <= 365 ? termDays : null;
@@ -620,7 +659,7 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
                                     label={t('Klien')}
                                     options={clientOptions}
                                     value={data.client_id}
-                                    onChange={(v) => setData('client_id', v ? Number(v) : null)}
+                                    onChange={(v) => selectClient(v ? Number(v) : null)}
                                     placeholder={t('Pilih klien')}
                                     searchPlaceholder={t('Cari klien...')}
                                     emptyText={t('Klien tidak ditemukan')}
@@ -836,6 +875,30 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
                                         )}
                                     </div>
                                 )}
+                                {pphAvailable && (
+                                    <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
+                                        <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
+                                            <Switch checked={data.apply_pph} onCheckedChange={(on) => setData('apply_pph', on)} />
+                                            {t('Dipotong PPh 23 oleh klien')}
+                                        </label>
+                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">
+                                            {t('Dari layanan setelah diskon, tanpa PPN dan titipan pajak. Total menjadi yang ditransfer klien; potongannya tetap pendapatan (kredit pajak).')}
+                                        </span>
+                                        {data.apply_pph && (
+                                            <div className={FIELD_SM}>
+                                                <Input
+                                                    value={data.pph_rate}
+                                                    onChange={(e) => setData('pph_rate', e.target.value.replace(/[^\d,.]/g, ''))}
+                                                    inputMode="decimal"
+                                                    placeholder="2"
+                                                    iconRight={<span className="text-xs">%</span>}
+                                                    aria-label={t('Tarif PPh 23')}
+                                                    error={errors.pph_rate}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1.5 sm:border-l sm:border-ob-line sm:pl-6">
                                 {isDebitNote ? (
@@ -848,6 +911,7 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
                                 )}
                                 <SumRow label={data.discount_type === 'percentage' && data.discount_value ? t('Diskon {{value}}%', { value: data.discount_value }) : t('Diskon')} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
                                 {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
+                                {pphAmount > 0 && <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: formatRate(pphRate) })} value={`− ${rp(pphAmount)}`} />}
                                 <div className="my-1.5 border-t border-ob-line" />
                                 <SumRow label={t('Total')} value={rp(total)} strong />
                                 {isDebitNote ? (
@@ -856,7 +920,7 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
                                     <p className="text-[13px] text-ob-ink-2">
                                         {t('Laba kotor')} <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
                                         <span className="mx-1.5 text-ob-ink-3">·</span>
-                                        {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pph)}</b>
+                                        {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pphFinal)}</b>
                                     </p>
                                 )}
                             </div>
@@ -885,7 +949,7 @@ export function InvoiceEditor({ clients, services, ppn, documents, defaultDueDay
                 onOpenChange={(open) => !open && setNewClientName(null)}
                 onCreated={(client) => {
                     setAddedClients((list) => [...list, client]);
-                    setData('client_id', client.id);
+                    selectClient(client.id);
                 }}
             />
 
@@ -1209,11 +1273,12 @@ function CreateInvoicePage({
     clients,
     services,
     ppn,
+    pph,
     documents,
     defaultDueDays,
     companyTemplate,
-}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; documents: DocumentOptions; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
-    return <InvoiceEditor clients={clients} services={services} ppn={ppn} documents={documents} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
+}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; pph: PphOption; documents: DocumentOptions; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
+    return <InvoiceEditor clients={clients} services={services} ppn={ppn} pph={pph} documents={documents} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

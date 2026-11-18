@@ -42,6 +42,8 @@ interface Report {
     tax: GroupBlock;
     net_profit: number;
     ppn_output: number;
+    /** PPh 23 dipotong klien atas invoice yang dibayar: sudah termasuk pendapatan, tidak masuk rekening. */
+    pph_withheld: number;
     unclassified: { income: GroupBlock; expense: GroupBlock };
 }
 
@@ -253,10 +255,15 @@ function PdfDocument({ report, company }: { report: Report; company: Props['comp
 
                 <DocRow label={t('Laba Bersih')} amount={report.net_profit} weight="bold" rule="top-double" />
 
-                {report.ppn_output > 0 && (
+                {(report.ppn_output > 0 || report.pph_withheld > 0) && (
                     <>
                         <DocSectionTitle>{t('Catatan')}</DocSectionTitle>
-                        <DocRow indent label={t('PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)')} amount={report.ppn_output} />
+                        {report.ppn_output > 0 && (
+                            <DocRow indent label={t('PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)')} amount={report.ppn_output} />
+                        )}
+                        {report.pph_withheld > 0 && (
+                            <DocRow indent label={t('PPh 23 dipotong klien (kredit pajak, sudah termasuk pendapatan)')} amount={report.pph_withheld} />
+                        )}
                     </>
                 )}
             </div>

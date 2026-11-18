@@ -71,12 +71,15 @@ class ContohInvoiceBasSeederTest extends TestCase
         $this->assertSame('Invoice FINAL MV. CONTOH SAMUDRA', $final->subject);
         $this->assertSame(520_000_000, (int) $final->subtotal);
         $this->assertSame(57_200_000, (int) $final->ppn_amount);
-        $this->assertSame(577_200_000, (int) $final->total_amount);
+        // 520.000.000 + PPN 57.200.000 − PPh 23 0,5% 2.600.000.
+        $this->assertSame(2_600_000, (int) $final->pph_amount);
+        $this->assertSame(574_600_000, (int) $final->total_amount);
         $this->assertSame('Loading Port : Muara Jawa Anchorage (stevedoring)', $final->items->first()->description);
 
         $twoItems = Invoice::with('items')->where('invoice_number', '013/BAS-CES/INV-FINAL/X/2026')->sole();
         $this->assertSame(['MT', 'Day'], $twoItems->items->pluck('unit')->all());
-        $this->assertSame(425_130_000, (int) $twoItems->total_amount);
+        // 383.000.000 + PPN 42.130.000 − PPh 23 0,5% 1.915.000 (profil BAS memotong PPh 23).
+        $this->assertSame(423_215_000, (int) $twoItems->total_amount);
 
         $this->assertSame('Direktur Finance & Accounting', Client::where('name', 'PT. CONTOH ENERGI SAMUDRA')->value('person_in_charge'));
     }

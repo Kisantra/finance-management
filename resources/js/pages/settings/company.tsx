@@ -55,6 +55,9 @@ interface Company {
     is_pkp: boolean;
     npwp: string | null;
     ppn_rate: number;
+    /** Klien memotong PPh 23: sakelar PPh 23 tampil di editor invoice, dengan tarif bawaan ini. */
+    pph_enabled: boolean;
+    pph_rate: number;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
@@ -84,6 +87,8 @@ interface CompanyFormData {
     is_pkp: boolean;
     npwp: string;
     ppn_rate: string;
+    pph_enabled: boolean;
+    pph_rate: string;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
@@ -144,6 +149,8 @@ export default function CompanySettings() {
         is_pkp: company?.is_pkp ?? false,
         npwp: company?.npwp ?? '',
         ppn_rate: String(company?.ppn_rate ?? 11),
+        pph_enabled: company?.pph_enabled ?? false,
+        pph_rate: String(company?.pph_rate ?? 2),
         finance_manager_name: company?.finance_manager_name ?? '',
         finance_manager_position: company?.finance_manager_position ?? '',
         signature_city: company?.signature_city ?? '',
@@ -426,6 +433,35 @@ export default function CompanySettings() {
                                     onChange={(e) => setData('ppn_rate', e.target.value)}
                                     error={errors.ppn_rate}
                                     placeholder="11"
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-1.5">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <Checkbox
+                                    checked={data.pph_enabled}
+                                    onCheckedChange={(c) => setData('pph_enabled', Boolean(c))}
+                                />
+                                <span className="text-sm text-dark-900 dark:text-dark-50">
+                                    <Trans i18nKey="Klien memotong <b>PPh 23</b> dari invoice perusahaan ini" components={{ b: <strong /> }} />
+                                </span>
+                            </label>
+                            <p className="pl-7 text-[13px] text-ob-ink-2">
+                                {t('Editor invoice menampilkan sakelar PPh 23 dan memotongnya otomatis; pilihan per klien diingat. Mematikannya tidak mengubah invoice yang sudah dipotong.')}
+                            </p>
+                        </div>
+
+                        {data.pph_enabled && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Input
+                                    label={t('Tarif PPh 23 bawaan (%) *')}
+                                    type="number"
+                                    step="0.01"
+                                    value={data.pph_rate}
+                                    onChange={(e) => setData('pph_rate', e.target.value)}
+                                    error={errors.pph_rate}
+                                    placeholder="2"
                                 />
                             </div>
                         )}

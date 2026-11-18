@@ -444,5 +444,12 @@
     "Debit Note berhasil diperbarui.": "借项通知单已更新。",
     "Jenis dokumen tidak tersedia untuk perusahaan ini.": "该公司不支持此单据类型。",
     "Kode jenis hanya boleh huruf, angka, dan tanda hubung, mis. FINAL atau PNBP.": "单据代码只能包含字母、数字和连字符，例如 FINAL 或 PNBP。",
-    "Kode jenis maksimal 20 karakter.": "单据代码最多 20 个字符。"
+    "Kode jenis maksimal 20 karakter.": "单据代码最多 20 个字符。",
+    "PPh 23 Dibayar di Muka": "预缴第23条所得税（PPh 23）",
+    "Tarif PPh 23": "第23条所得税（PPh 23）税率",
+    "PPh 23 dipotong klien": "客户代扣第23条所得税（PPh 23）",
+    "Tarif PPh 23 wajib diisi.": "第23条所得税（PPh 23）税率为必填项。",
+    "Tarif PPh 23 harus berupa angka.": "第23条所得税（PPh 23）税率必须是数字。",
+    "Tarif PPh 23 harus lebih dari 0%.": "第23条所得税（PPh 23）税率必须大于 0%。",
+    "Tarif PPh 23 maksimal 100%.": "第23条所得税（PPh 23）税率不得超过 100%。"
 }

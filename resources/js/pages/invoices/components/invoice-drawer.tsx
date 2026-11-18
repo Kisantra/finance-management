@@ -60,6 +60,9 @@ export interface InvoiceDetail {
     /** null = invoice sebelum fitur PPN; 0 = tanpa PPN. */
     ppn_rate: number | null;
     ppn_amount: number;
+    /** Potongan PPh 23 oleh klien; null/0 = tidak dipotong. total_amount sudah dikurangi potongan ini. */
+    pph_rate: number | null;
+    pph_amount: number;
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
@@ -372,7 +375,8 @@ function DrawerBody({
     const serviceTotal = services.reduce((s, i) => s + i.amount, 0);
     const deposits = detail.items.filter((i) => i.is_tax_deposit).reduce((s, i) => s + i.amount, 0);
     const cogs = services.reduce((s, i) => s + i.cogs_amount, 0);
-    const grossProfit = detail.total_amount - detail.ppn_amount - deposits - cogs;
+    // Potongan PPh 23 tidak ditransfer klien tetapi tetap pendapatan (kredit pajak), sama dengan Invoice::gross_profit.
+    const grossProfit = detail.total_amount + detail.pph_amount - detail.ppn_amount - deposits - cogs;
     const paidPct = detail.total_amount > 0 ? Math.min(100, Math.round((detail.amount_paid / detail.total_amount) * 100)) : 0;
     const due = dueInfo(detail.status, detail.due_date);
     const multiClient = new Set(detail.items.map((i) => i.client_id ?? detail.client.id)).size > 1;
@@ -484,6 +488,9 @@ function DrawerBody({
                                 <SumRow label={detail.discount_reason ? t('Diskon ({{reason}})', { reason: detail.discount_reason }) : t('Diskon')} value={`− ${rp(detail.discount_amount)}`} />
                             )}
                             {detail.ppn_amount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: (detail.ppn_rate ?? 0).toLocaleString('id-ID') })} value={rp(detail.ppn_amount)} />}
+                            {detail.pph_amount > 0 && (
+                                <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: (detail.pph_rate ?? 0).toLocaleString('id-ID') })} value={`− ${rp(detail.pph_amount)}`} />
+                            )}
                             <SumRow label={t('Total')} value={rp(detail.total_amount)} strong className="mt-1 border-t border-ob-line pt-2" />
                         </div>
 
@@ -721,6 +728,8 @@ function PaymentDialog({
               detail.tax_deposit_total,
               detail.ppn_amount,
               depositAccountFor(detail.document_type),
+              detail.pph_amount,
+              detail.total_amount,
           )
         : null;
 
