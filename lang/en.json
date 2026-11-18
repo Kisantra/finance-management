@@ -424,5 +424,12 @@
     "Debit Note berhasil diperbarui.": "Debit note updated.",
     "Jenis dokumen tidak tersedia untuk perusahaan ini.": "This document type isn't available for this company.",
     "Kode jenis hanya boleh huruf, angka, dan tanda hubung, mis. FINAL atau PNBP.": "The document code may only contain letters, numbers, and hyphens, e.g. FINAL or PNBP.",
-    "Kode jenis maksimal 20 karakter.": "The document code may be at most 20 characters."
+    "Kode jenis maksimal 20 karakter.": "The document code may be at most 20 characters.",
+    "PPh 23 Dibayar di Muka": "Prepaid Article 23 income tax (PPh 23)",
+    "Tarif PPh 23": "Article 23 income tax rate (PPh 23)",
+    "PPh 23 dipotong klien": "Article 23 income tax (PPh 23) withheld by client",
+    "Tarif PPh 23 wajib diisi.": "The Article 23 income tax (PPh 23) rate is required.",
+    "Tarif PPh 23 harus berupa angka.": "The Article 23 income tax (PPh 23) rate must be a number.",
+    "Tarif PPh 23 harus lebih dari 0%.": "The Article 23 income tax (PPh 23) rate must be greater than 0%.",
+    "Tarif PPh 23 maksimal 100%.": "The Article 23 income tax (PPh 23) rate may not exceed 100%."
 }

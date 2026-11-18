@@ -41,6 +41,8 @@ class CompanyController extends Controller
                 'is_pkp' => (bool) $company->is_pkp,
                 'npwp' => $company->npwp,
                 'ppn_rate' => $company->ppn_rate,
+                'pph_enabled' => (bool) $company->pph_enabled,
+                'pph_rate' => (float) ($company->pph_rate ?? Invoice::DEFAULT_PPH_RATE),
                 'finance_manager_name' => $isian($company->finance_manager_name),
                 'finance_manager_position' => $isian($company->finance_manager_position),
                 'signature_city' => (string) $company->signature_city,
@@ -72,6 +74,9 @@ class CompanyController extends Controller
             'is_pkp' => (bool) ($validated['is_pkp'] ?? false),
             'npwp' => $validated['npwp'] ?? null,
             'ppn_rate' => $validated['ppn_rate'],
+            // Mematikan PPh 23 tidak mengubah invoice yang sudah dipotong; tarifnya tersimpan di tiap invoice.
+            'pph_enabled' => (bool) ($validated['pph_enabled'] ?? false),
+            'pph_rate' => $validated['pph_rate'] ?? $company->pph_rate ?? Invoice::DEFAULT_PPH_RATE,
             'finance_manager_name' => $validated['finance_manager_name'],
             'finance_manager_position' => $validated['finance_manager_position'],
             'signature_city' => $validated['signature_city'] ?? null,

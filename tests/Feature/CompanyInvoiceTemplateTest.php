@@ -115,6 +115,9 @@ class CompanyInvoiceTemplateTest extends TestCase
         // Font judul dari folder template ikut tertanam (subset). Tanpa chroot proyek DomPDF
         // menolak berkas itu diam-diam dan judul jatuh ke Helvetica.
         $this->assertStringContainsString('Carlito-Bold', $response->getContent());
+        // Teks Times New Roman → Tinos (ukuran identik) tertanam, bukan core font "times".
+        $this->assertStringContainsString('Tinos-Regular', $response->getContent());
+        $this->assertStringContainsString('Tinos-Bold', $response->getContent());
     }
 
     public function test_template_slu_menampilkan_desain_statis_dan_data_invoice(): void
@@ -168,8 +171,11 @@ class CompanyInvoiceTemplateTest extends TestCase
         $response = $this->actingAs($this->admin)->post('/c/'.self::BAS.'/invoices/preview', $this->payload());
 
         $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        // Judul Carlito (pengganti Calibri), alamat & kotak info Caladea (pengganti Cambria), dari fonts/.
+        // Judul Carlito (pengganti Calibri), alamat & kotak info Caladea (pengganti Cambria), teks utama
+        // Tinos (pengganti Times New Roman), dari fonts/.
         $this->assertStringContainsString('Carlito-Bold', $response->getContent());
+        $this->assertStringContainsString('Tinos-Regular', $response->getContent());
+        $this->assertStringContainsString('Tinos-Bold', $response->getContent());
         $this->assertStringContainsString('Caladea-Regular', $response->getContent());
         $this->assertStringContainsString('Caladea-Bold', $response->getContent());
     }

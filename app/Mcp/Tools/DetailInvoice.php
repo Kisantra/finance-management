@@ -26,7 +26,7 @@ class DetailInvoice extends AlatKeuangan
 
     protected string $name = 'detail-invoice';
 
-    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga, HPP, titipan pajak), diskon, DPP, PPN, faktur, total, pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
+    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga, HPP, titipan pajak), diskon, DPP, PPN, PPh 23 yang dipotong klien, faktur, total (= yang ditransfer klien, sudah dikurangi PPh 23), pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
 
     protected function izin(): string
     {
@@ -79,7 +79,8 @@ class DetailInvoice extends AlatKeuangan
         $layanan = $invoice->items->reject(fn (InvoiceItem $item) => $item->is_tax_deposit);
         $titipanPajak = (int) $invoice->items->where('is_tax_deposit', true)->sum('amount');
         $hpp = (int) $layanan->sum('cogs_amount');
-        $pendapatan = (int) $invoice->total_amount - (int) $invoice->ppn_amount - $titipanPajak;
+        // Potongan PPh 23 tidak ditransfer klien tetapi tetap pendapatan (kredit pajak).
+        $pendapatan = (int) $invoice->total_amount + (int) $invoice->pph_amount - (int) $invoice->ppn_amount - $titipanPajak;
 
         return [
             'invoice' => [
@@ -128,6 +129,8 @@ class DetailInvoice extends AlatKeuangan
                 // null = invoice dari sebelum fitur PPN (tanpa data PPN); 0 = sengaja tanpa PPN.
                 'ppn_tarif' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
                 'ppn' => (int) $invoice->ppn_amount,
+                'pph23_tarif' => (float) $invoice->pph_rate > 0 ? (float) $invoice->pph_rate : null,
+                'pph23_dipotong_klien' => (int) $invoice->pph_amount,
                 'total' => (int) $invoice->total_amount,
                 'dibayar' => $invoice->amount_paid,
                 'sisa' => $invoice->amount_remaining,

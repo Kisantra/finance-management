@@ -189,7 +189,7 @@ Sejak 9 Nov 2026 setiap transaksi menampilkan kotak **Jurnal**: akun mana yang d
 | Bunga `EXP-INTEREST` / `REV-INTEREST` | beban/pendapatan biasa berlabel kategori | |
 | Penyesuaian (`adjustment`) | label kategori, arah menurut credit/debit | |
 | Transfer antar rekening (sepasang kaki) | rekening **tujuan** (jumlah diterima) + **Biaya Admin Transfer** (bila ada) | rekening **asal** (jumlah + biaya admin) |
-| Pembayaran invoice | rekening (penuh) | **Titipan Pajak Klien** → **PPN Keluaran** → **Pendapatan dari Invoice** (lihat bawah) |
+| Pembayaran invoice | rekening (penuh) + **PPh 23 Dibayar di Muka** (bagian potongan PPh 23 yang ikut lunas, proporsional; hanya invoice yang dipotong klien, sejak 2026-11-18) | **Titipan Pajak Klien** → **PPN Keluaran** → **Pendapatan dari Invoice** (lihat bawah) |
 | Pembayaran Debit Note | rekening (penuh) | **Talangan Biaya Klien** (semua itemnya talangan, tanpa PPN; `JournalService::depositAccountFor()`) |
 
 - **Nama rekening** = `BankAccount::journalNameFor()`: rekening bank "BCA Operasional — BCA" (sama dengan label pemilih), kas cukup namanya ("Kas Kecil").

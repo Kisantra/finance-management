@@ -2227,5 +2227,14 @@
     "Tersimpan di Master Data › Klien dan langsung dipilih untuk invoice ini.": "保存到 基础资料 › 客户，并立即为此账单选中。",
     "Simpan klien": "保存客户",
     "Buat klien baru": "新建客户",
-    "Alias, NPWP, PIC, dan data pajak lain bisa dilengkapi nanti di Master Data › Klien.": "简称、税号（NPWP）、负责人（PIC）及其他税务资料可稍后在 基础资料 › 客户 中补充。"
+    "Alias, NPWP, PIC, dan data pajak lain bisa dilengkapi nanti di Master Data › Klien.": "简称、税号（NPWP）、负责人（PIC）及其他税务资料可稍后在 基础资料 › 客户 中补充。",
+    "PPh 23 Dibayar di Muka": "预缴第23条所得税（PPh 23）",
+    "PPh 23 dipotong klien {{rate}}%": "客户代扣第23条所得税（PPh 23）{{rate}}%",
+    "Dipotong PPh 23 oleh klien": "客户代扣第23条所得税（PPh 23）",
+    "Dari layanan setelah diskon, tanpa PPN dan titipan pajak. Total menjadi yang ditransfer klien; potongannya tetap pendapatan (kredit pajak).": "按折扣后的服务金额计算，不含增值税和代收税款。合计为客户实际转账金额；代扣部分仍计入收入（可抵扣税款）。",
+    "Tarif PPh 23": "第23条所得税（PPh 23）税率",
+    "PPh 23 dipotong klien (kredit pajak, sudah termasuk pendapatan)": "客户代扣的第23条所得税（可抵扣税款，已计入收入）",
+    "Klien memotong <b>PPh 23</b> dari invoice perusahaan ini": "客户从本公司发票中代扣<b>第23条所得税（PPh 23）</b>",
+    "Editor invoice menampilkan sakelar PPh 23 dan memotongnya otomatis; pilihan per klien diingat. Mematikannya tidak mengubah invoice yang sudah dipotong.": "发票编辑器显示第23条所得税开关并自动代扣；每个客户的选择会被记住。关闭此项不会改变已代扣的发票。",
+    "Tarif PPh 23 bawaan (%) *": "第23条所得税（PPh 23）默认税率（%） *"
 }

@@ -749,6 +749,16 @@
                     </div>
                 @endif
 
+                @if ((int) $invoice->pph_amount > 0)
+                    <!-- Potongan PPh 23 oleh klien: TOTAL di bawah = yang ditransfer klien -->
+                    <div class="grand-total-section">
+                        <div class="grand-total-row">
+                            <div class="grand-total-label">{{ __('invoice.pph_23') }} {{ rtrim(rtrim(number_format($invoice->pph_rate, 2, ',', '.'), '0'), ',') }}%</div>
+                            <div class="grand-total-value">IDR -{{ number_format($invoice->pph_amount, 0, ',', '.') }}</div>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Jumlah Ditagih (ENHANCED - full invoice amount including tax deposits) -->
                 <!-- Total Row -->
                 <div class="total-section">

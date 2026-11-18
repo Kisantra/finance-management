@@ -205,6 +205,8 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | DPP (Dasar Pengenaan Pajak) | Tax base (DPP) | 计税依据（DPP） | "DPP (dasar PPN)" → 计税依据（DPP）. Ganti lama 应税所得: itu "penghasilan kena pajak" (objek PPh), konsep yang berbeda. |
 | PPh (Pajak Penghasilan) | Income tax (PPh) | 所得税（PPh） | Ganti lama 预扣税 (= pajak potong). Terlalu sempit: PPh 25/29/Final bukan pemotongan. |
 | PPh Final | Final income tax (PPh Final) | 最终所得税（PPh Final） | Label "Est. PPh final 0,5%" → 预估最终所得税（PPh Final）0,5%; di kalimat cukup 最终所得税. |
+| PPh 23 (dipotong klien) | Article 23 income tax (PPh 23) | 第23条所得税（PPh 23） | Potongan oleh klien atas jasa (invoice). "Dipotong PPh 23 oleh klien" → Client withholds Article 23 income tax (PPh 23) / 客户代扣第23条所得税（PPh 23）. Di kalimat cukup Article 23 income tax / 第23条所得税. |
+| PPh 23 Dibayar di Muka | Prepaid Article 23 income tax (PPh 23) | 预缴第23条所得税（PPh 23） | Akun jurnal bagian PPh 23 yang dipotong klien (kredit pajak). "Kredit pajak" → tax credit / 可抵扣税款. |
 | PPh Badan | Corporate income tax | 企业所得税 | |
 | Pajak (umum) | Tax | 税费 | Label "Pajak" → 税费; di kata majemuk cukup 税. |
 | Wajib pajak | Taxpayer | 纳税人 | |

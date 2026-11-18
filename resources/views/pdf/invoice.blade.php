@@ -377,6 +377,13 @@
                 </div>
             @endif
 
+            @if ((int) $invoice->pph_amount > 0)
+                <div class="summary-row">
+                    <div class="summary-label">{{ __('invoice.pph_23') }} {{ rtrim(rtrim(number_format($invoice->pph_rate, 2, ',', '.'), '0'), ',') }}%:</div>
+                    <div class="summary-value">-Rp {{ number_format($invoice->pph_amount, 0, ',', '.') }}</div>
+                </div>
+            @endif
+
             <div class="summary-row total">
                 <div class="summary-label">{{ strtoupper(__('invoice.total')) }}:</div>
                 <div class="summary-value">Rp {{ number_format($invoice->total_amount, 0, ',', '.') }}</div>

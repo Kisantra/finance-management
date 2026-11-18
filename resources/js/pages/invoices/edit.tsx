@@ -2,7 +2,7 @@ import * as React from 'react';
 import { AppLayout } from '@/layouts/app-layout';
 import type { SharedProps } from '@/types';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
-import { type ClientOption, type DocumentOptions, type DocumentType, InvoiceEditor, type PpnOption, type ServiceOption } from './create';
+import { type ClientOption, type DocumentOptions, type DocumentType, formatRate, InvoiceEditor, type PphOption, type PpnOption, type ServiceOption } from './create';
 
 interface InvoiceData {
     id: number;
@@ -17,6 +17,8 @@ interface InvoiceData {
     discount_value: number;
     discount_reason: string | null;
     ppn_rate: number | null;
+    /** Tarif PPh 23 tersimpan bila klien memotong PPh; null = tidak dipotong. */
+    pph_rate: number | null;
     faktur: string | null;
     subject: string | null;
     items: Array<{
@@ -36,21 +38,23 @@ interface Props extends SharedProps {
     clients: ClientOption[];
     services: ServiceOption[];
     ppn: PpnOption;
+    pph: PphOption;
     documents: DocumentOptions;
     defaultDueDays: number;
     companyTemplate: CompanyTemplate | null;
 }
 
-function EditInvoicePage({ invoice, clients, services, ppn, documents, defaultDueDays, companyTemplate }: Props) {
+function EditInvoicePage({ invoice, clients, services, ppn, pph, documents, defaultDueDays, companyTemplate }: Props) {
     return (
         <InvoiceEditor
             clients={clients}
             services={services}
             ppn={ppn}
+            pph={pph}
             documents={documents}
             defaultDueDays={defaultDueDays}
             companyTemplate={companyTemplate}
-            invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate }}
+            invoice={{ id: invoice.id, invoice_number: invoice.invoice_number, status: invoice.status, ppn_rate: invoice.ppn_rate, pph_rate: invoice.pph_rate }}
             initialData={{
                 document_type: invoice.document_type,
                 document_code: invoice.document_code ?? '',
@@ -63,6 +67,8 @@ function EditInvoicePage({ invoice, clients, services, ppn, documents, defaultDu
                 discount_reason: invoice.discount_reason ?? '',
                 apply_ppn: invoice.ppn_rate !== null,
                 faktur: invoice.faktur ?? '',
+                apply_pph: invoice.pph_rate !== null,
+                pph_rate: formatRate(invoice.pph_rate ?? pph.rate),
                 items: invoice.items.map((item) => ({
                     // Klien baris = klien invoice disimpan eksplisit; null-kan agar sakelar "beberapa klien" tetap mati.
                     client_id: item.client_id === invoice.client_id ? null : item.client_id,

@@ -18,7 +18,7 @@ class LabaRugi extends AlatKeuangan
 {
     protected string $name = 'laba-rugi';
 
-    protected string $description = 'Laporan Laba Rugi, sama dengan halaman Laporan › Laba Rugi. Basis kas: pendapatan invoice diakui saat dibayar, setelah menutup titipan pajak lalu PPN keluaran (keduanya bukan pendapatan); HPP invoice metode cost-recovery (uang masuk menutup modal dulu). Baris lain dari transaksi bank menurut grup Laba Rugi kategorinya; transfer dan pendanaan (pokok pinjaman/piutang) tidak masuk. Bawaan periode: 1 Januari tahun berjalan s/d hari ini. belum_diklasifikasi = transaksi tanpa kategori atau kategorinya belum bergrup Laba Rugi: TIDAK masuk total mana pun, jadi laba belum final selama masih ada. ppn_keluaran_diterima hanya catatan, bukan pendapatan.';
+    protected string $description = 'Laporan Laba Rugi, sama dengan halaman Laporan › Laba Rugi. Basis kas: pendapatan invoice diakui saat dibayar, setelah menutup titipan pajak lalu PPN keluaran (keduanya bukan pendapatan); HPP invoice metode cost-recovery (uang masuk menutup modal dulu). Baris lain dari transaksi bank menurut grup Laba Rugi kategorinya; transfer dan pendanaan (pokok pinjaman/piutang) tidak masuk. Bawaan periode: 1 Januari tahun berjalan s/d hari ini. belum_diklasifikasi = transaksi tanpa kategori atau kategorinya belum bergrup Laba Rugi: TIDAK masuk total mana pun, jadi laba belum final selama masih ada. ppn_keluaran_diterima hanya catatan, bukan pendapatan. pph23_dipotong_klien = PPh 23 yang dipotong klien atas invoice yang dibayar: sudah termasuk pendapatan (kredit pajak), tetapi tidak masuk rekening.';
 
     protected function izin(): string
     {
@@ -67,6 +67,7 @@ class LabaRugi extends AlatKeuangan
             'pajak' => $this->kelompok($laporan['tax']),
             'laba_bersih' => $laporan['net_profit'],
             'ppn_keluaran_diterima' => $laporan['ppn_output'],
+            'pph23_dipotong_klien' => $laporan['pph_withheld'],
             'belum_diklasifikasi' => [
                 'pemasukan' => $this->kelompok($laporan['unclassified']['income']),
                 'pengeluaran' => $this->kelompok($laporan['unclassified']['expense']),

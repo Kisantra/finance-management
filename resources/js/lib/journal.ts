@@ -29,6 +29,8 @@ export const JOURNAL_ACCOUNTS = {
     /** Bagian titipan pembayaran Debit Note (itemnya talangan) — JournalService::TALANGAN. */
     talangan: tk('Talangan Biaya Klien'),
     invoiceRevenue: tk('Pendapatan dari Invoice'),
+    /** Bagian PPh 23 yang dipotong klien (kredit pajak) — JournalService::PPH_PREPAID. */
+    pphPrepaid: tk('PPh 23 Dibayar di Muka'),
     transferFee: tk('Biaya Admin Transfer'),
 } as const;
 
@@ -63,13 +65,27 @@ export function transferJournal(from: string, to: string, amount: number, adminF
     return lines;
 }
 
-/** Invoice::allocatePayments — "titipan dulu": titipan pajak, lalu PPN, sisanya pendapatan. */
-export function allocatePayments(paid: number, taxDeposit: number, ppn: number): { taxDeposit: number; ppn: number; revenue: number } {
+/**
+ * Invoice::allocatePayments — "titipan dulu": titipan pajak, lalu PPN, sisanya pendapatan. Invoice yang
+ * dipotong PPh 23 (`pph`, `total` = total_amount): setiap rupiah yang dibayar ikut melunasi bagian
+ * potongannya secara proporsional (`pph`), sehingga saat lunas pendapatan = DPP penuh.
+ */
+export function allocatePayments(
+    paid: number,
+    taxDeposit: number,
+    ppn: number,
+    pph = 0,
+    total = 0,
+): { taxDeposit: number; ppn: number; revenue: number; pph: number } {
     const p = Math.max(0, paid);
+    // Math.round PHP membulatkan .5 menjauhi nol; untuk bilangan positif sama dengan Math.round JS.
+    const pphSettled = pph > 0 && total > 0 ? Math.min(pph, Math.round((pph * Math.min(p, total)) / total)) : 0;
+    const settled = p + pphSettled;
     return {
-        taxDeposit: Math.min(p, taxDeposit),
-        ppn: Math.min(Math.max(0, p - taxDeposit), ppn),
-        revenue: Math.max(0, p - taxDeposit - ppn),
+        taxDeposit: Math.min(settled, taxDeposit),
+        ppn: Math.min(Math.max(0, settled - taxDeposit), ppn),
+        revenue: Math.max(0, settled - taxDeposit - ppn),
+        pph: pphSettled,
     };
 }
 
@@ -92,9 +108,9 @@ export function depositAccountFor(documentType: string | null | undefined): stri
 }
 
 /**
- * JournalService::paymentLines — Debit rekening penuh / Kredit selisih alokasi kumulatif sesudah −
- * sebelum pembayaran ini. Tanpa jumlah: kredit ke akun yang akan diisi rupiah berikutnya.
- * `depositAccount` = kunci akun bagian titipan (depositAccountFor).
+ * JournalService::paymentLines — Debit rekening penuh (+ Debit PPh 23 Dibayar di Muka bila klien memotong
+ * PPh) / Kredit selisih alokasi kumulatif sesudah − sebelum pembayaran ini. Tanpa jumlah: kredit ke akun
+ * yang akan diisi rupiah berikutnya. `depositAccount` = kunci akun bagian titipan (depositAccountFor).
  */
 export function paymentJournal(
     account: string,
@@ -103,6 +119,8 @@ export function paymentJournal(
     taxDeposit: number,
     ppn: number,
     depositAccount: string = JOURNAL_ACCOUNTS.taxDeposit,
+    pph = 0,
+    total = 0,
 ): JournalLine[] {
     if (amount <= 0) {
         const next = before < taxDeposit ? depositAccount : before < taxDeposit + ppn ? JOURNAL_ACCOUNTS.ppnOutput : JOURNAL_ACCOUNTS.invoiceRevenue;
@@ -112,14 +130,18 @@ export function paymentJournal(
         ];
     }
 
-    const a = allocatePayments(before, taxDeposit, ppn);
-    const b = allocatePayments(before + amount, taxDeposit, ppn);
+    const a = allocatePayments(before, taxDeposit, ppn, pph, total);
+    const b = allocatePayments(before + amount, taxDeposit, ppn, pph, total);
+    const debits: JournalLine[] = [
+        { account, side: 'debit', amount },
+        { account: t(JOURNAL_ACCOUNTS.pphPrepaid), side: 'debit', amount: b.pph - a.pph },
+    ];
     const credits: JournalLine[] = [
         { account: t(depositAccount), side: 'credit', amount: b.taxDeposit - a.taxDeposit },
         { account: t(JOURNAL_ACCOUNTS.ppnOutput), side: 'credit', amount: b.ppn - a.ppn },
         { account: t(JOURNAL_ACCOUNTS.invoiceRevenue), side: 'credit', amount: b.revenue - a.revenue },
     ];
-    return [{ account, side: 'debit', amount }, ...credits.filter((l) => (l.amount ?? 0) > 0)];
+    return [...debits, ...credits].filter((l) => (l.amount ?? 0) > 0);
 }
 
 /**

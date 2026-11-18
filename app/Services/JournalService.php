@@ -38,6 +38,12 @@ class JournalService
 
     public const INVOICE_REVENUE = 'Pendapatan dari Invoice';
 
+    /**
+     * Akun yang didebit bagian PPh 23 yang dipotong klien (bukti potong): kredit pajak perusahaan,
+     * bukan biaya, sehingga pendapatan invoice tetap DPP penuh.
+     */
+    public const PPH_PREPAID = 'PPh 23 Dibayar di Muka';
+
     public const LOAN = 'Utang Pinjaman';
 
     public const RECEIVABLE = 'Piutang';
@@ -59,6 +65,7 @@ class JournalService
             self::TAX_DEPOSIT => __('Titipan Pajak Klien'),
             self::TALANGAN => __('Talangan Biaya Klien'),
             self::INVOICE_REVENUE => __('Pendapatan dari Invoice'),
+            self::PPH_PREPAID => __('PPh 23 Dibayar di Muka'),
             self::LOAN => __('Utang Pinjaman'),
             self::RECEIVABLE => __('Piutang'),
             self::TRANSFER_FEE => __('Biaya Admin Transfer'),
@@ -135,21 +142,24 @@ class JournalService
      * (Invoice::allocatePayments): bagian satu pembayaran = alokasi kumulatif SESUDAH pembayaran ini
      * dikurangi alokasi kumulatif SEBELUMNYA (urut payment_date, id) — bukan proporsional. HPP tidak
      * dijurnal di sini: pengakuan HPP (cost recovery) tidak menggerakkan uang. Bagian titipan Debit
-     * Note dikredit ke Talangan Biaya Klien ($depositAccount), bukan Titipan Pajak Klien.
+     * Note dikredit ke Talangan Biaya Klien ($depositAccount), bukan Titipan Pajak Klien. Invoice yang
+     * dipotong PPh 23 ($pph, $total = total_amount): bagian potongannya didebit ke PPh 23 Dibayar di
+     * Muka, sehingga kreditnya (pendapatan) melebihi uang yang masuk sebesar potongan itu.
      *
      * @return list<array{account: string, side: 'debit'|'credit', amount: int}>
      */
-    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn, string $depositAccount = self::TAX_DEPOSIT): array
+    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn, string $depositAccount = self::TAX_DEPOSIT, int $pph = 0, int $total = 0): array
     {
         if ($amount <= 0) {
             return [];
         }
 
-        $sebelum = Invoice::allocatePayments($paidBefore, $taxDeposit, $ppn);
-        $sesudah = Invoice::allocatePayments($paidBefore + $amount, $taxDeposit, $ppn);
+        $sebelum = Invoice::allocatePayments($paidBefore, $taxDeposit, $ppn, $pph, $total);
+        $sesudah = Invoice::allocatePayments($paidBefore + $amount, $taxDeposit, $ppn, $pph, $total);
 
         return self::withoutZero([
             self::line($account, 'debit', $amount),
+            self::line(self::terjemahAkun(self::PPH_PREPAID), 'debit', $sesudah['pph'] - $sebelum['pph']),
             self::line(self::terjemahAkun($depositAccount), 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
             self::line(self::terjemahAkun(self::PPN_KELUARAN), 'credit', $sesudah['ppn'] - $sebelum['ppn']),
             self::line(self::terjemahAkun(self::INVOICE_REVENUE), 'credit', $sesudah['revenue'] - $sebelum['revenue']),
@@ -214,7 +224,7 @@ class JournalService
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)
             ->withSum(['items as tax_deposit_total' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
-            ->get(['id', 'ppn_amount', 'document_type'])
+            ->get(['id', 'ppn_amount', 'pph_amount', 'total_amount', 'document_type'])
             ->keyBy('id');
 
         return $rows->map(function (object $row) use ($dibayarSebelum, $invoices): array {
@@ -227,6 +237,8 @@ class JournalService
                 (int) ($invoice->tax_deposit_total ?? 0),
                 (int) ($invoice->ppn_amount ?? 0),
                 self::depositAccountFor($invoice?->document_type),
+                (int) ($invoice->pph_amount ?? 0),
+                (int) ($invoice->total_amount ?? 0),
             );
         })->all();
     }

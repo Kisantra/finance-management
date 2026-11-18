@@ -255,6 +255,7 @@ class AlatKasTest extends TestCase
             'pajak' => ['per_kategori' => ['PPh Badan' => 300_000], 'total' => 300_000],
             'laba_bersih' => 6_450_000,
             'ppn_keluaran_diterima' => 1_000_000,
+            'pph23_dipotong_klien' => 0,
             'belum_diklasifikasi' => [
                 'pemasukan' => ['per_kategori' => [], 'total' => 0],
                 'pengeluaran' => ['per_kategori' => ['Lain-lain' => 100_000], 'total' => 100_000],

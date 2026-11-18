@@ -486,6 +486,12 @@
                     <td class="amount">Rp {{ number_format($total_ppn, 0, ',', '.') }}</td>
                 </tr>
                 @endif
+                @if((int) $invoice->pph_amount > 0)
+                <tr>
+                    <td class="label">PPH 23 {{ rtrim(rtrim(number_format($invoice->pph_rate, 2, ',', '.'), '0'), ',') }}%</td>
+                    <td class="amount">- Rp {{ number_format($invoice->pph_amount, 0, ',', '.') }}</td>
+                </tr>
+                @endif
                 <tr class="total-row">
                     <td class="label">TOTAL</td>
                     <td class="amount">Rp {{ number_format($hasPpnData ? $invoice->total_amount : ($show_ppn ? ($subtotal_without_ppn + $total_ppn) : $subtotal_without_ppn), 0, ',', '.') }}</td>

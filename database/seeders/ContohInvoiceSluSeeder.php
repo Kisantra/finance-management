@@ -43,6 +43,9 @@ class ContohInvoiceSluSeeder extends ContohInvoicePerusahaanSeeder
             'phone' => '0811-5513-232',
             'is_pkp' => true,
             'ppn_rate' => 11,
+            // Seperti invoice asli SLU: klien memotong PPh 23 2%.
+            'pph_enabled' => true,
+            'pph_rate' => 2,
             'finance_manager_name' => 'Salam Ilham',
             'finance_manager_position' => 'Direktur Utama',
             'signature_city' => 'Samarinda',

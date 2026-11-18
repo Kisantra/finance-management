@@ -45,6 +45,8 @@ class InvoicePreviewRequest extends FormRequest
             'discount_reason' => ['nullable', 'string', 'max:255'],
             'apply_ppn' => ['nullable', 'boolean'],
             'faktur' => ['nullable', 'string', 'max:50'],
+            'apply_pph' => ['nullable', 'boolean'],
+            'pph_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 }

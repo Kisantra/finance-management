@@ -44,6 +44,9 @@ class ContohInvoiceBasSeeder extends ContohInvoicePerusahaanSeeder
             'phone' => '0811-5513-232 / 0812-5324-784',
             'is_pkp' => true,
             'ppn_rate' => 11,
+            // Seperti invoice Word BAS: klien memotong PPh 23 0,5%.
+            'pph_enabled' => true,
+            'pph_rate' => 0.5,
             'finance_manager_name' => 'Salam Ilham',
             'finance_manager_position' => 'Direktur Utama',
             'signature_city' => 'Samarinda',

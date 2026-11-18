@@ -183,6 +183,13 @@
                 <td class="amount">{{ $rp($report['ppn_output']) }}</td>
             </tr>
         @endif
+
+        @if (($report['pph_withheld'] ?? 0) > 0)
+            <tr>
+                <td class="label indent">Catatan: PPh 23 dipotong klien (kredit pajak, sudah termasuk pendapatan)</td>
+                <td class="amount">{{ $rp($report['pph_withheld']) }}</td>
+            </tr>
+        @endif
     </table>
 
     @php

@@ -287,6 +287,8 @@ class AlatPenjualanTest extends TestCase
             // JSON tanpa JSON_PRESERVE_ZERO_FRACTION: 11.0 terkirim sebagai 11.
             'ppn_tarif' => 11,
             'ppn' => 132_000,
+            'pph23_tarif' => null,
+            'pph23_dipotong_klien' => 0,
             'total' => 1_532_000,
             'dibayar' => $invoice->amount_paid,
             'sisa' => $invoice->amount_remaining,

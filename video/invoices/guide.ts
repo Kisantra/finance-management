@@ -66,7 +66,8 @@ export const guide: ModuleGuide = {
                 'Di bawah **Qty** isi **satuan** (mis. MT, jam), dan di bawah **Harga satuan** isi **HPP** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
                 'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
-                'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh final 0,5%** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
+                'Bila perusahaan memakai **potongan PPh 23** (diatur admin di Pengaturan › Profil perusahaan), sakelar **Dipotong PPh 23 oleh klien** sudah menyala dengan tarif bawaan (mis. 2 atau 0,5). Potongan dihitung dari dasar yang sama dengan PPN, dan **Total** menjadi yang ditransfer klien (layanan + PPN − PPh 23). Matikan untuk klien yang tidak memotong; invoice klien itu berikutnya ikut tidak dipotong. Perusahaan yang tidak memakainya tidak melihat sakelar ini.',
+                'Periksa **Total** (termasuk PPN, setelah potongan PPh 23), **Laba kotor** (tanpa PPN; potongan PPh 23 tetap dihitung pendapatan), dan **Est. PPh final 0,5%** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
                 'Staff tidak bisa mengubah invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
             ],
         },
@@ -171,6 +172,7 @@ export const guide: ModuleGuide = {
                 '**Laba Rugi** bulan tanggal bayar: pendapatan dari invoice (kas), HPP ditutup lebih dulu.',
                 'Jurnal pembayaran (tampilan, tidak disimpan) memakai rumus titipan dulu yang sama: total kredit **Pendapatan dari Invoice** dan **PPN Keluaran** sebulan = pendapatan invoice & PPN Keluaran di Laba Rugi bulan itu. Terlihat di dialog Catat pembayaran dan di rincian pembayaran Arus Kas / Kas & Bank.',
                 'Status menjadi **Sebagian** / **Lunas**; ringkasan invoice dan **Dashboard** (saldo & pemasukan) ikut berubah.',
+                'Invoice yang **dipotong PPh 23**: transfer sebesar Total (setelah potongan) langsung **Lunas**. Potongannya tidak masuk rekening, tetapi tetap pendapatan: jurnal mendebit **PPh 23 Dibayar di Muka** (kredit pajak) dan Laba Rugi mencatatnya di **Catatan · PPh 23 dipotong klien**. Simpan bukti potong dari klien untuk SPT.',
                 '**Debit Note**: saldo dan pemasukan arus kas bertambah seperti invoice, tetapi pendapatan & laba (Laba Rugi, Ringkasan, rekap) tidak berubah — uangnya mengganti talangan yang dicatat lewat kategori **Bayar Talangan Klien**.',
             ],
         },
@@ -233,6 +235,10 @@ export const guide: ModuleGuide = {
         {
             title: 'Tarif PPN terkunci di invoice',
             body: 'Invoice ber-PPN menyimpan tarifnya sendiri. Mengubah Tarif PPN atau mematikan PKP di Pengaturan hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tetap ditagih dengan PPN-nya.',
+        },
+        {
+            title: 'Potongan PPh 23 hanya mengikuti isian invoice',
+            body: 'Aplikasi tidak tahu apakah klien benar-benar memotong PPh 23. Bila klien mentransfer penuh tanpa memotong, matikan **Dipotong PPh 23 oleh klien** di invoice itu (Finance manager) agar Total dan sisa tagihannya kembali benar. Mematikan pengaturan PPh 23 di Profil perusahaan tidak mengubah invoice yang sudah dipotong. Invoice berulang selalu diterbitkan tanpa potongan PPh.',
         },
         {
             title: 'Nomor Debit Note lama tidak berubah jenis',
