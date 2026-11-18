@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { AlignLeft, ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Tag, Trash2, X } from 'lucide-react';
+import { AlignLeft, ArrowLeft, Eye, EyeOff, Plus, ReceiptText, Search, Send, Trash2, X } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Autocomplete } from '@/components/ui/autocomplete';
@@ -152,6 +152,12 @@ const ITEM_AT = {
     cogs: 'col-[2/span_2] row-start-6 self-start @md:col-[4] @md:row-start-3 @2xl:row-start-2',
     remove: 'col-[3] row-start-4 justify-self-end @md:col-[5] @md:row-start-3 @md:self-start @2xl:row-start-2',
 };
+
+/**
+ * Akhiran "%" isian persen. `block` + `leading-4`: sebagai teks sebaris, tanda % ikut tinggi baris
+ * induknya (24 px) di dalam kotak 16 px dan tampak lebih rendah dari angka.
+ */
+const PERCENT_SUFFIX = <span className="block text-xs leading-4">%</span>;
 
 const COMMON_UNITS = ['jam', 'hari', 'minggu', 'bulan', 'tahun', 'project', 'paket', 'set', 'lot', 'kali', 'pcs', 'unit', 'lembar', 'kg', 'ton', 'm²', 'm³'];
 
@@ -790,13 +796,26 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                             )}
                         </section>
 
-                        {/* ── penyesuaian + total ── */}
-                        <section aria-label={t('Penyesuaian dan total')} className={cn(CARD, 'grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]')}>
-                            <div className="flex flex-col gap-3">
-                                <span className="text-[13px] font-semibold text-ob-ink-2">{t('Penyesuaian')}</span>
-                                {discountOpen ? (
-                                    <div className="flex flex-col gap-2.5">
-                                        <div className="flex items-center gap-2">
+                        {/* ── penyesuaian + total ──
+                            Dua kolom hanya bila kartu cukup lebar (container query); saat pratinjau terbuka kartu
+                            menyempit, jadi penyesuaian dan ringkasan bertumpuk agar keterangannya tidak terlipat-lipat. */}
+                        <section aria-label={t('Penyesuaian dan total')} className={cn(CARD, '@container flex flex-col gap-4')}>
+                            <div className="flex h-8 items-center">
+                                <h2 className="text-base font-semibold text-ob-ink">{t('Penyesuaian')}</h2>
+                            </div>
+                            <div className="grid items-start gap-6 @3xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                                <div className="flex flex-col divide-y divide-ob-line">
+                                    <AdjustmentRow
+                                        title={t('Beri diskon')}
+                                        description={t('Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.')}
+                                        checked={discountOpen}
+                                        onCheckedChange={(on) => {
+                                            setDiscountOpen(on);
+                                            if (!on) setData((d) => ({ ...d, discount_value: 0, discount_reason: '' }));
+                                        }}
+                                    >
+                                        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2">
+                                            {/* Tombol 34 px + trek 8 px = setinggi isian (42 px). */}
                                             <SegmentedControl
                                                 variant="pill"
                                                 label={t('Jenis diskon')}
@@ -806,35 +825,22 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                                                 ]}
                                                 value={data.discount_type}
                                                 onChange={(v) => setData((d) => ({ ...d, discount_type: v, discount_value: 0 }))}
-                                                className="[&>label]:sr-only"
+                                                className="w-auto [&>label]:sr-only [&_button]:h-[34px]"
                                             />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                className="h-8 w-8 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover"
-                                                aria-label={t('Hapus diskon')}
-                                                onClick={() => {
-                                                    setData((d) => ({ ...d, discount_value: 0, discount_reason: '' }));
-                                                    setDiscountOpen(false);
-                                                }}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
+                                            {data.discount_type === 'fixed' ? (
+                                                <CurrencyInput value={data.discount_value} onChange={(v) => setData('discount_value', v)} error={errors.discount_value} />
+                                            ) : (
+                                                <Input
+                                                    inputMode="decimal"
+                                                    value={data.discount_value ? String(data.discount_value) : ''}
+                                                    onChange={(e) => setData('discount_value', Math.min(100, parseFloat(e.target.value.replace(',', '.')) || 0))}
+                                                    placeholder="0"
+                                                    iconRight={PERCENT_SUFFIX}
+                                                    error={errors.discount_value}
+                                                    aria-label={t('Persen diskon')}
+                                                />
+                                            )}
                                         </div>
-                                        <div className={cn(FIELD_SM, 'flex flex-col gap-2.5')}>
-                                        {data.discount_type === 'fixed' ? (
-                                            <CurrencyInput value={data.discount_value} onChange={(v) => setData('discount_value', v)} error={errors.discount_value} />
-                                        ) : (
-                                            <Input
-                                                inputMode="decimal"
-                                                value={data.discount_value ? String(data.discount_value) : ''}
-                                                onChange={(e) => setData('discount_value', Math.min(100, parseFloat(e.target.value.replace(',', '.')) || 0))}
-                                                placeholder="0"
-                                                iconRight={<span className="text-xs">%</span>}
-                                                error={errors.discount_value}
-                                                aria-label={t('Persen diskon')}
-                                            />
-                                        )}
                                         <Input
                                             value={data.discount_reason}
                                             onChange={(e) => setData('discount_reason', e.target.value)}
@@ -842,87 +848,77 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                                             aria-label={t('Alasan diskon')}
                                             error={errors.discount_reason}
                                         />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <button type="button" onClick={() => setDiscountOpen(true)} className="flex flex-col items-start gap-1.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ob-act-fill">
-                                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-ob-ink">
-                                            <Tag className="h-4 w-4" /> {t('Tambah diskon')}
-                                        </span>
-                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">{t('Nominal atau persen dari subtotal, dengan alasan yang tercetak di invoice.')}</span>
-                                    </button>
-                                )}
-                                {ppnRate > 0 && !isDebitNote && (
-                                    <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
-                                        <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
-                                            <Switch checked={data.apply_ppn} onCheckedChange={(on) => setData((d) => ({ ...d, apply_ppn: on, faktur: on ? d.faktur : '' }))} />
-                                            {t('Tagih PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })}
-                                        </label>
-                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">
-                                            {t('Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.')}
-                                        </span>
-                                        {data.apply_ppn && (
-                                            <div className={FIELD_SM}>
-                                                <Input
-                                                    value={data.faktur}
-                                                    onChange={(e) => setData('faktur', e.target.value)}
-                                                    placeholder={t('No. faktur pajak (opsional)')}
-                                                    aria-label={t('Nomor faktur pajak')}
-                                                    maxLength={50}
-                                                    error={errors.faktur}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {pphAvailable && (
-                                    <div className="flex flex-col gap-2.5 border-t border-ob-line pt-3">
-                                        <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-ob-ink">
-                                            <Switch checked={data.apply_pph} onCheckedChange={(on) => setData('apply_pph', on)} />
-                                            {t('Dipotong PPh 23 oleh klien')}
-                                        </label>
-                                        <span className="text-[13px] leading-relaxed text-ob-ink-2">
-                                            {t('Dari layanan setelah diskon, tanpa PPN dan titipan pajak. Total menjadi yang ditransfer klien; potongannya tetap pendapatan (kredit pajak).')}
-                                        </span>
-                                        {data.apply_pph && (
-                                            <div className={FIELD_SM}>
+                                    </AdjustmentRow>
+                                    {ppnRate > 0 && !isDebitNote && (
+                                        <AdjustmentRow
+                                            title={t('Tagih PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })}
+                                            description={t('Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.')}
+                                            checked={data.apply_ppn}
+                                            onCheckedChange={(on) => setData((d) => ({ ...d, apply_ppn: on, faktur: on ? d.faktur : '' }))}
+                                        >
+                                            <Input
+                                                value={data.faktur}
+                                                onChange={(e) => setData('faktur', e.target.value)}
+                                                placeholder={t('No. faktur pajak (opsional)')}
+                                                aria-label={t('Nomor faktur pajak')}
+                                                maxLength={50}
+                                                error={errors.faktur}
+                                            />
+                                        </AdjustmentRow>
+                                    )}
+                                    {pphAvailable && (
+                                        <AdjustmentRow
+                                            title={t('Dipotong PPh 23 oleh klien')}
+                                            description={t('Dari layanan setelah diskon, tanpa PPN dan titipan pajak. Total menjadi yang ditransfer klien; potongannya tetap pendapatan (kredit pajak).')}
+                                            checked={data.apply_pph}
+                                            onCheckedChange={(on) => setData('apply_pph', on)}
+                                        >
+                                            <div className="w-28">
                                                 <Input
                                                     value={data.pph_rate}
                                                     onChange={(e) => setData('pph_rate', e.target.value.replace(/[^\d,.]/g, ''))}
                                                     inputMode="decimal"
                                                     placeholder="2"
-                                                    iconRight={<span className="text-xs">%</span>}
+                                                    iconRight={PERCENT_SUFFIX}
                                                     aria-label={t('Tarif PPh 23')}
                                                     error={errors.pph_rate}
                                                 />
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-1.5 sm:border-l sm:border-ob-line sm:pl-6">
-                                {isDebitNote ? (
-                                    <SumRow label={t('Talangan')} value={rp(deposits)} />
-                                ) : (
-                                    <>
-                                        <SumRow label={t('Subtotal layanan')} value={rp(subtotal - deposits)} />
-                                        {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
-                                    </>
-                                )}
-                                <SumRow label={data.discount_type === 'percentage' && data.discount_value ? t('Diskon {{value}}%', { value: data.discount_value }) : t('Diskon')} value={discount > 0 ? `− ${rp(discount)}` : '—'} />
-                                {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
-                                {pphAmount > 0 && <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: formatRate(pphRate) })} value={`− ${rp(pphAmount)}`} />}
-                                <div className="my-1.5 border-t border-ob-line" />
-                                <SumRow label={t('Total')} value={rp(total)} strong />
-                                {isDebitNote ? (
-                                    <p className="text-[13px] text-ob-ink-2">{t('Talangan diganti klien: bukan pendapatan, tanpa PPN dan PPh final.')}</p>
-                                ) : (
-                                    <p className="text-[13px] text-ob-ink-2">
-                                        {t('Laba kotor')} <b className={cn('font-semibold', grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late')}>{rp(grossProfit)}</b>
-                                        <span className="mx-1.5 text-ob-ink-3">·</span>
-                                        {t('Est. PPh final 0,5%')} <b className="font-semibold text-ob-ink">{rp(pphFinal)}</b>
-                                    </p>
-                                )}
+                                        </AdjustmentRow>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col gap-2 rounded-2xl border border-ob-line bg-ob-inner p-4">
+                                    {isDebitNote ? (
+                                        <SumRow label={t('Talangan')} value={rp(deposits)} />
+                                    ) : (
+                                        <>
+                                            <SumRow label={t('Subtotal layanan')} value={rp(subtotal - deposits)} />
+                                            {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                                        </>
+                                    )}
+                                    <SumRow
+                                        label={data.discount_type === 'percentage' && data.discount_value ? t('Diskon {{value}}%', { value: data.discount_value }) : t('Diskon')}
+                                        value={discount > 0 ? <Minus amount={discount} /> : '—'}
+                                    />
+                                    {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
+                                    {pphAmount > 0 && <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: formatRate(pphRate) })} value={<Minus amount={pphAmount} />} />}
+                                    <SumRow label={t('Total')} value={rp(total)} strong className="mt-1 border-t border-ob-line pt-3" />
+                                    {isDebitNote ? (
+                                        <p className="border-t border-ob-line-soft pt-3 text-[13px] leading-relaxed text-ob-ink-2">
+                                            {t('Talangan diganti klien: bukan pendapatan, tanpa PPN dan PPh final.')}
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-col gap-1.5 border-t border-ob-line-soft pt-3">
+                                            <SumRow
+                                                label={t('Laba kotor')}
+                                                value={<span className={grossProfit >= 0 ? 'text-ob-pos' : 'text-ob-late'}>{rp(grossProfit)}</span>}
+                                                className="text-[13px]"
+                                            />
+                                            <SumRow label={t('Est. PPh final 0,5%')} value={rp(pphFinal)} className="text-[13px]" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </section>
                     </div>
@@ -978,6 +974,46 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
             />
         </>
     );
+}
+
+/* ─────────────────────────────────── penyesuaian ─── */
+
+/** Satu penyesuaian: judul + keterangan di kiri, sakelar di kanan; isiannya muncul di bawah saat menyala. */
+function AdjustmentRow({
+    title,
+    description,
+    checked,
+    onCheckedChange,
+    children,
+}: {
+    title: string;
+    description: string;
+    checked: boolean;
+    onCheckedChange: (on: boolean) => void;
+    children?: React.ReactNode;
+}) {
+    const id = React.useId();
+    return (
+        <div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-col gap-1">
+                    <label htmlFor={id} className="cursor-pointer text-sm font-semibold text-ob-ink">
+                        {title}
+                    </label>
+                    <p id={`${id}-desc`} className="text-[13px] leading-relaxed text-ob-ink-2">
+                        {description}
+                    </p>
+                </div>
+                <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} aria-describedby={`${id}-desc`} />
+            </div>
+            {checked && children && <div className="flex flex-col gap-2.5">{children}</div>}
+        </div>
+    );
+}
+
+/** Nominal pengurang di ringkasan; tanda dan angka tidak terpisah baris. */
+function Minus({ amount }: { amount: number }) {
+    return <span className="whitespace-nowrap">− {rp(amount)}</span>;
 }
 
 /* ─────────────────────────────────── baris item ─── */

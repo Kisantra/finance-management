@@ -133,7 +133,7 @@ async (page) => {
   await s.mouse.wheel(0, 40);
   await snap(s, 'staff-create-totals', {
     totals,
-    discount: s.getByRole('button', { name: /Tambah diskon/ }),
+    discount: s.getByRole('switch', { name: 'Beri diskon' }),
     total: totals.getByText('Total', { exact: true }),
     profit: totals.getByText(/Laba kotor/),
     items: s.getByRole('region', { name: /^Item/ }),
