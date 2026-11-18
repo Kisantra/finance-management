@@ -1,8 +1,8 @@
 # Debit Note PT SLU: penjelasan & pilihan keputusan
 
-> **Status:** usulan, **menunggu keputusan**. Belum ada kode yang diubah.
-> **Asumsi utama (belum dikonfirmasi SLU):** Debit Note `DN-PNBP` menagih kembali biaya yang SLU bayar lebih dulu atas nama klien, **bukan** jasa SLU.
-> **Cara memberi keputusan:** centang pilihan di deskripsi PR, atau balas dengan format `K1: A, K2: A, …`.
+> **Status:** **diimplementasikan** (18 Nov 2026) dengan semua rekomendasi: K1 A, K2 A, K3 A, K4 A, K6 A (sudah selesai di PR template BAS, 12 Nov 2026). **K5 digabung ke PR Debit Note** (pilihan A), karena tanpa itu seluruh Debit Note tampil sebagai laba. Cara kerjanya kini di [`docs/module/invoices.md` › Debit Note](../../module/invoices.md#debit-note-talangan--perusahaan-bertemplate-debit-note-pt-slu).
+> **Asumsi utama (masih perlu dikonfirmasi SLU):** Debit Note `DN-PNBP` menagih kembali biaya yang SLU bayar lebih dulu atas nama klien persis sebesar yang dibayar, **bukan** jasa SLU (K2), dan nomornya berbagi urutan dengan invoice (K3). Bila jawaban SLU berbeda, lihat "Bila asumsi tidak tepat" di bawah.
+> Desain PDF Debit Note meniru invoice SLU (hanya judul berganti) sampai contoh Debit Note asli diterima.
 
 ---
 
@@ -188,6 +188,18 @@ Template SLU sekarang menulis langsung alamat, telepon, rekening, dan nama penan
 | B. Nanti | Teks statis disalin ke template kedua; dua tempat yang harus diubah bila ada perubahan |
 
 ---
+
+## 5a. Yang diimplementasikan (18 Nov 2026)
+
+| Keputusan | Hasil di kode |
+|---|---|
+| K1 A | Kolom `invoices.document_type` (`invoice`/`debit_note`) & `document_code`; Debit Note tersedia bila folder template perusahaan punya `debit-note.blade.php` |
+| K2 A | Item Debit Note dipaksa `is_tax_deposit`, HPP 0, tanpa PPN/faktur; jurnal pembayaran mengkredit **Talangan Biaya Klien**; kategori Pendanaan **Talangan Klien › Bayar Talangan Klien** |
+| K3 A | Token `{KODE}`, satu urutan untuk semua jenis; format SLU `{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}` + isi ulang urutan nomor lama (migration `siapkan_debit_note_slu`) |
+| K4 A | Isian Kode jenis teks bebas dengan saran dari kode yang pernah dipakai |
+| K5 A | Statistik daftar invoice, Ringkasan, rekap Excel/PDF (omzet, profit, PPh final), dan accessor `gross_profit` mengecualikan titipan. **Mengubah angka semua perusahaan yang memakai titipan pajak** (laba/omzet turun menjadi benar); rekap JSM tetap menampilkan total tagihan |
+
+**Bila asumsi tidak tepat:** K2 = B (Debit Note adalah pendapatan) → hapus pemaksaan titipan di `InvoiceController::buildInvoiceData()` (satu tempat) dan kembalikan PPN mengikuti sakelar. K3 = B (urutan sendiri) → `nextSequence()`/`isLatestInPeriod()` perlu disaring per `document_type`.
 
 ## 6. Di luar cakupan
 

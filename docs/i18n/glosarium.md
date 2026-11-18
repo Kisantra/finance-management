@@ -9,6 +9,7 @@
 > **v1.3:** tindak lanjut [`pemeriksaan-silang-zh.md`](pemeriksaan-silang-zh.md), bertanda **[zh v1.3]**. Aksi & catatan pembayaran
 > invoice → 收款 (kunci bersama diberi konteks `invoice` di `pages/invoices/**`), status invoice tetap 已付款/未付款/部分付款
 > (§3 *Bayar*); AR → 税务客户经理; label "Buat …" diseragamkan ke 新建.
+> **v1.4 (18 Nov 2026):** istilah Debit Note & talangan (fitur Debit Note PT SLU), bertanda **[v1.4]**.
 > Entri yang istilah Indonesianya berubah bertanda **[baku baru]** beserta ID perapiannya.
 > **Belum ditinjau penutur asli Mandarin.** Setiap pilihan istilah pajak/akuntansi diberi alasan dan rujukan,
 > supaya pemeriksa terjemah-balik (T2) dan peninjau kelak bisa menilai, bukan menebak.
@@ -213,6 +214,10 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | titipan negara | held for the state | 代国家收取 | "PPN Keluaran diterima (titipan negara, tidak termasuk pendapatan)" → 已收增值税销项税额（代国家收取，不计入收入）. |
 | Setor PPN | Remit VAT | 缴纳增值税 | Untuk teks UI. Nama kategori template "Setor PPN" = data (U6). |
 | Setor titipan pajak klien | Remit client taxes | 代客户缴纳税款 | Idem. |
+| Debit Note (jenis dokumen) | Debit note | 借项通知单 | **[v1.4, 18 Nov 2026]** Dokumen tagihan untuk biaya yang dibayar lebih dulu atas nama klien (talangan), di samping invoice (账单). Judul halaman "Buat/Ubah Debit Note" → 新建/编辑借项通知单 (EN Title Case seperti "Create Invoice"). Judul PDF tetap "DEBIT NOTE" (K2). |
+| Talangan | Disbursement | 代垫款 | **[v1.4]** Uang yang perusahaan bayarkan dulu untuk klien lalu diganti klien: pass-through seperti titipan pajak, bukan pendapatan. PRC mencatatnya di 其他应收款—代垫款项. **Bukan** 预付款 (uang muka ke pemasok) maupun 借款 (pinjaman). |
+| Talangan Biaya Klien (akun) | Client disbursements | 代垫客户费用 | **[v1.4]** Akun jurnal sistem (`JournalService::TALANGAN`), sama persis dengan akun lawan kategori "Bayar Talangan Klien" (nama kategori = data, U6). |
+| Jenis dokumen / Kode jenis | Document type / Document code | 单据类型 / 单据代码 | **[v1.4]** Isian editor invoice; kode (FINAL, PNBP, …) ikut ke nomor lewat token `{KODE}`. |
 | Terbilang | Amount in words | 金额大写 | Padanan fungsi "大写金额" di dokumen Tiongkok. Isi terbilang tetap Bahasa Indonesia (K2). Dipakai ulang (`'say' => '大写'`). |
 | UMKM | MSME | 中小微企业 | |
 

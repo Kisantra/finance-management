@@ -18,7 +18,7 @@ import { companyUrl } from '@/lib/company';
 import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import { Avatar, BTN, CARD, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus } from './components/ob';
+import { Avatar, BTN, CARD, DebitNoteChip, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus } from './components/ob';
 import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
@@ -26,6 +26,7 @@ import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from '.
 interface InvoiceRow {
     id: number;
     invoice_number: string | null;
+    document_type: 'invoice' | 'debit_note';
     client_name: string;
     client_type: string;
     issue_date: string;
@@ -553,7 +554,10 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
                     </div>
                 </div>
             </td>
-            <td className="py-3 font-mono text-xs text-ob-ink-2">{inv.invoice_number ?? <span className="text-ob-ink-3">{t('belum bernomor')}</span>}</td>
+            <td className="py-3 font-mono text-xs text-ob-ink-2">
+                {inv.invoice_number ?? <span className="text-ob-ink-3">{t('belum bernomor')}</span>}
+                {inv.document_type === 'debit_note' && <DebitNoteChip className="mt-1 flex w-fit font-sans" />}
+            </td>
             <td className="py-3">
                 <span className="block text-ob-ink">{shortDate(inv.issue_date)}</span>
                 <span className="text-xs text-ob-ink-2">{issuedAgo(inv.issue_date)}</span>

@@ -58,17 +58,17 @@ class CategoryTemplateServiceTest extends TestCase
         return collect($this->grup($rencana, $grup)['children'])->firstWhere('label', $label);
     }
 
-    public function test_template_berisi_15_induk_dan_59_sub_dengan_pemasukan_lebih_dulu_dan_pendanaan_terakhir(): void
+    public function test_template_berisi_16_induk_dan_60_sub_dengan_pemasukan_lebih_dulu_dan_pendanaan_terakhir(): void
     {
         $template = CategoryTemplateService::TEMPLATE;
 
-        $this->assertCount(15, $template);
-        $this->assertSame(59, array_sum(array_map(fn (array $grup): int => count($grup['children']), $template)));
+        $this->assertCount(16, $template);
+        $this->assertSame(60, array_sum(array_map(fn (array $grup): int => count($grup['children']), $template)));
 
         // Urutan bagan akun: pendapatan (4, 7) dulu, baru beban (5, 6, 8, 9), terakhir pendanaan.
         $this->assertSame(['income', 'income'], array_column(array_slice($template, 0, 2), 'type'));
         $this->assertSame(array_fill(0, 10, 'expense'), array_column(array_slice($template, 2, 10), 'type'));
-        $this->assertSame(array_fill(0, 3, 'financing'), array_column(array_slice($template, 12), 'type'));
+        $this->assertSame(array_fill(0, 4, 'financing'), array_column(array_slice($template, 12), 'type'));
         $this->assertSame('Pendapatan Usaha (Tanpa Invoice)', $template[0]['label']);
         $this->assertSame('Pajak Penghasilan Badan', $template[11]['label']);
     }
@@ -81,6 +81,7 @@ class CategoryTemplateServiceTest extends TestCase
             ['type' => 'financing', 'label' => 'Setoran Modal', 'pl_group' => null, 'children' => ['Setoran Modal Pemilik']],
             ['type' => 'financing', 'label' => 'Penarikan Modal', 'pl_group' => null, 'children' => ['Prive Pemilik']],
             ['type' => 'financing', 'label' => 'Pajak Titipan & PPN', 'pl_group' => null, 'children' => ['Setor PPN', 'Setor Titipan Pajak Klien']],
+            ['type' => 'financing', 'label' => 'Talangan Klien', 'pl_group' => null, 'children' => ['Bayar Talangan Klien']],
         ], $pendanaan);
     }
 
@@ -129,19 +130,19 @@ class CategoryTemplateServiceTest extends TestCase
         );
     }
 
-    public function test_menerapkan_pada_data_kosong_membuat_74_kategori_yang_terklasifikasi(): void
+    public function test_menerapkan_pada_data_kosong_membuat_76_kategori_yang_terklasifikasi(): void
     {
         $hasil = $this->template->apply();
 
-        $this->assertSame(['created' => 74, 'existing' => 0, 'skipped' => 0], $hasil);
-        $this->assertSame(15, TransactionCategory::whereNull('parent_id')->count());
-        $this->assertSame(59, TransactionCategory::whereNotNull('parent_id')->count());
+        $this->assertSame(['created' => 76, 'existing' => 0, 'skipped' => 0], $hasil);
+        $this->assertSame(16, TransactionCategory::whereNull('parent_id')->count());
+        $this->assertSame(60, TransactionCategory::whereNotNull('parent_id')->count());
         $this->assertSame(
             0,
             TransactionCategory::whereIn('type', ['income', 'expense'])->whereNull('pl_group')->count(),
             'Tidak boleh ada pemasukan/pengeluaran yang belum diklasifikasi.'
         );
-        $this->assertSame(7, TransactionCategory::where('type', 'financing')->whereNull('pl_group')->count());
+        $this->assertSame(9, TransactionCategory::where('type', 'financing')->whereNull('pl_group')->count());
 
         foreach (CategoryTemplateService::TEMPLATE as $grup) {
             $induk = TransactionCategory::whereNull('parent_id')->where('label', $grup['label'])->sole();
@@ -165,9 +166,9 @@ class CategoryTemplateServiceTest extends TestCase
     {
         $this->template->apply();
 
-        $this->assertSame(['created' => 0, 'existing' => 74, 'skipped' => 0], $this->template->apply());
-        $this->assertSame(74, TransactionCategory::count());
-        $this->assertSame(['new' => 0, 'existing' => 74, 'skipped' => 0], $this->template->plan()['summary']);
+        $this->assertSame(['created' => 0, 'existing' => 76, 'skipped' => 0], $this->template->apply());
+        $this->assertSame(76, TransactionCategory::count());
+        $this->assertSame(['new' => 0, 'existing' => 76, 'skipped' => 0], $this->template->plan()['summary']);
     }
 
     public function test_induk_lama_dicocokkan_tanpa_peka_huruf_dan_spasi_lalu_sub_ditempel_tanpa_mengubahnya(): void
@@ -219,7 +220,7 @@ class CategoryTemplateServiceTest extends TestCase
 
         $hasil = $this->template->apply();
 
-        $this->assertSame(73, $hasil['created']);
+        $this->assertSame(75, $hasil['created']);
         $this->assertSame(1, $hasil['existing']);
         $this->assertSame(
             [$listrik->id],
@@ -258,11 +259,11 @@ class CategoryTemplateServiceTest extends TestCase
             array_fill(0, 6, CategoryTemplateService::STATUS_SKIPPED),
             array_column($grup['children'], 'status'),
         );
-        $this->assertSame(['new' => 67, 'existing' => 0, 'skipped' => 7], $rencana['summary']);
+        $this->assertSame(['new' => 69, 'existing' => 0, 'skipped' => 7], $rencana['summary']);
 
         $hasil = $this->template->apply();
 
-        $this->assertSame(['created' => 67, 'existing' => 0, 'skipped' => 7], $hasil);
+        $this->assertSame(['created' => 69, 'existing' => 0, 'skipped' => 7], $hasil);
         $this->assertSame(0, $induk->children()->count(), 'Induk yang dipakai langsung tidak boleh diberi sub.');
         $this->assertSame(0, TransactionCategory::where('label', 'Sewa Kantor')->count());
         $this->assertSame(1, TransactionCategory::where('label', 'Beban Kantor')->count());
@@ -355,8 +356,8 @@ class CategoryTemplateServiceTest extends TestCase
 
         $hasil = $this->template->apply();
 
-        // 74 kategori template − 2 induk yang sudah ada.
-        $this->assertSame(['created' => 72, 'existing' => 2, 'skipped' => 0], $hasil);
+        // 76 kategori template − 2 induk yang sudah ada.
+        $this->assertSame(['created' => 74, 'existing' => 2, 'skipped' => 0], $hasil);
         $this->assertSame(['Setoran Modal Pemilik'], $setoran->children()->pluck('label')->all());
         $this->assertSame(['Prive Pemilik'], $penarikan->children()->pluck('label')->all());
         $this->assertSame(1, TransactionCategory::where('label', 'Setoran Modal')->count(), 'Induk kembar tidak boleh dibuat.');
@@ -369,7 +370,7 @@ class CategoryTemplateServiceTest extends TestCase
             $this->assertNull($sub->system_key);
         }
 
-        $this->assertSame(['created' => 0, 'existing' => 74, 'skipped' => 0], $this->template->apply(), 'Penerapan ulang harus idempoten.');
+        $this->assertSame(['created' => 0, 'existing' => 76, 'skipped' => 0], $this->template->apply(), 'Penerapan ulang harus idempoten.');
     }
 
     public function test_rencana_tidak_mengubah_database(): void

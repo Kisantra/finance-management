@@ -20,10 +20,10 @@ import { JournalBox } from '@/components/shared/journal-box';
 import { t } from '@/i18n';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
-import { paidBefore, paymentJournal } from '@/lib/journal';
+import { depositAccountFor, paidBefore, paymentJournal } from '@/lib/journal';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
-import { BTN, dateTime, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
+import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
 import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
 import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './print-invoice-dialog';
 
@@ -46,6 +46,9 @@ export interface InvoiceDetail {
     id: number;
     invoice_number: string | null;
     next_invoice_number: string | null;
+    /** Debit Note = semua item talangan (tanpa PPN, bukan pendapatan). */
+    document_type: 'invoice' | 'debit_note';
+    document_code: string | null;
     status: 'draft' | 'sent' | 'partially_paid' | 'paid';
     issue_date: string;
     due_date: string;
@@ -60,7 +63,7 @@ export interface InvoiceDetail {
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
-    /** Σ item titipan pajak — untuk pratinjau jurnal pembayaran ("titipan dulu"). */
+    /** Σ item titipan pajak / talangan — untuk pratinjau jurnal pembayaran ("titipan dulu"). */
     tax_deposit_total: number;
     faktur: string | null;
     created_at: string | null;
@@ -226,6 +229,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                         {detail && (
                             <>
                                 <span className="font-mono text-[13px] text-ob-ink">{detail.invoice_number ?? t('belum bernomor')}</span>
+                                {detail.document_type === 'debit_note' && <DebitNoteChip />}
                                 <InvoiceStatusPill status={detail.status} />
                                 <Button variant="ghost" className="h-8 w-8 rounded-full p-0 text-ob-ink-2 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" onClick={copyLink} aria-label={t('Salin tautan invoice')}>
                                     <Link2 className="h-4 w-4" />
@@ -238,7 +242,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                                     )}
                                     {detail.status === 'draft' && (
                                         <Button className={cn(BTN.primary, 'h-10')} onClick={() => setDialog('send')} icon={<Send className="h-4 w-4" />}>
-                                            {t('Terbitkan invoice')}
+                                            {detail.document_type === 'debit_note' ? t('Terbitkan Debit Note') : t('Terbitkan invoice')}
                                         </Button>
                                     )}
                                     {canPay && (
@@ -363,6 +367,7 @@ function DrawerBody({
 }) {
     const [zoom, setZoom] = React.useState<PaperZoom>('fit');
 
+    const isDebitNote = detail.document_type === 'debit_note';
     const services = detail.items.filter((i) => !i.is_tax_deposit);
     const serviceTotal = services.reduce((s, i) => s + i.amount, 0);
     const deposits = detail.items.filter((i) => i.is_tax_deposit).reduce((s, i) => s + i.amount, 0);
@@ -397,7 +402,11 @@ function DrawerBody({
                 <Metric label={t('Total')} value={rp(detail.total_amount)} />
                 <Metric label={t('Sudah dibayar')} value={rp(detail.amount_paid)} valueClass="text-ob-pos" sub={t('{{percent}}% terbayar', { percent: paidPct })} />
                 <Metric label={t('Sisa tagihan')} value={rp(detail.amount_remaining)} />
-                <Metric label={t('Laba kotor')} value={rp(grossProfit)} valueClass={grossProfit < 0 ? 'text-ob-late' : undefined} sub={t('Pendapatan − HPP')} />
+                {isDebitNote ? (
+                    <Metric label={t('Talangan')} value={rp(deposits)} sub={t('Diganti klien · bukan pendapatan')} />
+                ) : (
+                    <Metric label={t('Laba kotor')} value={rp(grossProfit)} valueClass={grossProfit < 0 ? 'text-ob-late' : undefined} sub={t('Pendapatan − HPP')} />
+                )}
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-ob-chip" role="progressbar" aria-label={t('Terbayar')} aria-valuenow={paidPct} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
@@ -440,14 +449,18 @@ function DrawerBody({
                             </thead>
                             <tbody>
                                 {detail.items.map((item) => (
-                                    <tr key={item.id} className={cn('border-b border-ob-line-soft', item.is_tax_deposit && 'bg-ob-inner')}>
+                                    <tr key={item.id} className={cn('border-b border-ob-line-soft', item.is_tax_deposit && !isDebitNote && 'bg-ob-inner')}>
                                         <td className="py-2.5 pl-2.5">
                                             <span className="flex items-center gap-2 font-medium text-ob-ink">
-                                                {item.is_tax_deposit && <ReceiptText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />}
+                                                {item.is_tax_deposit && !isDebitNote && <ReceiptText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />}
                                                 {item.service_name}
                                             </span>
                                             <span className="block text-xs text-ob-ink-2">
-                                                {item.is_tax_deposit ? t('Titipan pajak · bukan pendapatan') : t('HPP {{amount}}', { amount: rp(item.cogs_amount).replace('Rp ', '') })}
+                                                {isDebitNote
+                                                    ? t('Talangan · bukan pendapatan')
+                                                    : item.is_tax_deposit
+                                                      ? t('Titipan pajak · bukan pendapatan')
+                                                      : t('HPP {{amount}}', { amount: rp(item.cogs_amount).replace('Rp ', '') })}
                                                 {multiClient && item.client_name ? ` · ${item.client_name}` : ''}
                                             </span>
                                         </td>
@@ -459,8 +472,14 @@ function DrawerBody({
                             </tbody>
                         </table>
                         <div className="ml-auto flex w-full max-w-[300px] flex-col gap-1">
-                            <SumRow label={t('Subtotal layanan')} value={rp(serviceTotal)} />
-                            {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                            {isDebitNote ? (
+                                <SumRow label={t('Talangan')} value={rp(deposits)} />
+                            ) : (
+                                <>
+                                    <SumRow label={t('Subtotal layanan')} value={rp(serviceTotal)} />
+                                    {deposits > 0 && <SumRow label={t('Titipan pajak')} value={rp(deposits)} />}
+                                </>
+                            )}
                             {detail.discount_amount > 0 && (
                                 <SumRow label={detail.discount_reason ? t('Diskon ({{reason}})', { reason: detail.discount_reason }) : t('Diskon')} value={`− ${rp(detail.discount_amount)}`} />
                             )}
@@ -607,9 +626,9 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
         <InvoiceNumberDialog
             open={open}
             onOpenChange={onOpenChange}
-            title={t('Terbitkan invoice')}
+            title={detail.document_type === 'debit_note' ? t('Terbitkan Debit Note') : t('Terbitkan invoice')}
             sub={t('Memberi nomor dan mengubah status menjadi Terbit. Klien tidak menerima email otomatis; unduh PDF setelah terbit.')}
-            confirmLabel={t('Terbitkan invoice')}
+            confirmLabel={detail.document_type === 'debit_note' ? t('Terbitkan Debit Note') : t('Terbitkan invoice')}
             suggested={detail.next_invoice_number ?? ''}
             clientName={detail.client.name}
             total={detail.total_amount}
@@ -701,6 +720,7 @@ function PaymentDialog({
               paidBefore(detail.payments, form.payment_date, payment?.id ?? null),
               detail.tax_deposit_total,
               detail.ppn_amount,
+              depositAccountFor(detail.document_type),
           )
         : null;
 
@@ -818,7 +838,11 @@ function PaymentDialog({
                     <JournalBox
                         mode="preview"
                         lines={journal}
-                        caption={t('Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar')}
+                        caption={
+                            detail.document_type === 'debit_note'
+                                ? t('Jurnal otomatis dari rekening & Debit Note (talangan, tanpa PPN) · belum buku besar')
+                                : t('Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar')
+                        }
                         placeholder={t('Pilih rekening tujuan untuk melihat jurnalnya.')}
                     />
                     <div className={FIELD}>

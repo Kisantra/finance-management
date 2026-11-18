@@ -416,5 +416,13 @@
     "Nomor rekening :position wajib diisi.": "The account number of account :position is required.",
     "Nomor rekening :position maksimal 50 karakter.": "The account number of account :position may be at most 50 characters.",
     "Atas nama rekening :position wajib diisi.": "The account holder of account :position is required.",
-    "Atas nama rekening :position maksimal 255 karakter.": "The account holder of account :position may be at most 255 characters."
+    "Atas nama rekening :position maksimal 255 karakter.": "The account holder of account :position may be at most 255 characters.",
+    "Jenis & kode dokumen": "Document type & code",
+    "Talangan Biaya Klien": "Client disbursements",
+    "Debit Note diterbitkan: :nomor": "Debit note issued: :nomor",
+    "Debit Note disimpan sebagai draft.": "Debit note saved as a draft.",
+    "Debit Note berhasil diperbarui.": "Debit note updated.",
+    "Jenis dokumen tidak tersedia untuk perusahaan ini.": "This document type isn't available for this company.",
+    "Kode jenis hanya boleh huruf, angka, dan tanda hubung, mis. FINAL atau PNBP.": "The document code may only contain letters, numbers, and hyphens, e.g. FINAL or PNBP.",
+    "Kode jenis maksimal 20 karakter.": "The document code may be at most 20 characters."
 }

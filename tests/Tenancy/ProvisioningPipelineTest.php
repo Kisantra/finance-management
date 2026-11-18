@@ -106,7 +106,7 @@ class ProvisioningPipelineTest extends TenancyTestCase
             'SeedDatabase tidak mengisi kategori transaksi - TenantDatabaseSeeder tidak berjalan.'
         );
 
-        // Perusahaan baru langsung mendapat template kategori (15 induk + 59 sub, termasuk bagian
+        // Perusahaan baru langsung mendapat template kategori (16 induk + 60 sub, termasuk bagian
         // Pendanaan), kategori sistem Utang/Piutang, dan sub transfer — tanpa kategori bawaan khas Kisantra.
         $gaji = (clone $kategori)->where('label', 'Gaji Karyawan')->first();
         $this->assertNotNull($gaji, 'Template kategori tidak ikut terpasang saat provisioning.');
@@ -115,7 +115,8 @@ class ProvisioningPipelineTest extends TenancyTestCase
         $this->assertTrue((clone $kategori)->where('label', 'Antar Rekening Sendiri')->whereNotNull('parent_id')->exists());
         $this->assertSame(0, (clone $kategori)->whereIn('label', ['Operational Expenses', 'HPP', 'CAPEX', 'Penghasilan'])->count());
         $this->assertTrue((clone $kategori)->where('label', 'Setor PPN')->where('type', 'financing')->whereNotNull('parent_id')->exists());
-        $this->assertSame(82, (clone $kategori)->count());
+        $this->assertTrue((clone $kategori)->where('label', 'Bayar Talangan Klien')->where('type', 'financing')->whereNotNull('parent_id')->exists());
+        $this->assertSame(84, (clone $kategori)->count());
 
         $profil = $koneksi->table('company_profiles')->first();
 

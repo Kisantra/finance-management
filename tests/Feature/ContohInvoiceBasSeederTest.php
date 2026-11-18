@@ -90,8 +90,8 @@ class ContohInvoiceBasSeederTest extends TestCase
 
         // BAS & SLU sudah dibuat MitraGroupSeeder: tidak diprovisioning ulang.
         Event::assertDispatchedTimes(TenantCreated::class, 10);
-        // Suite ini satu database: 3 invoice BAS + 4 invoice SLU, masing-masing satu klien.
-        $this->assertSame(7, Invoice::count());
+        // Suite ini satu database: 3 invoice BAS + 5 dokumen SLU (termasuk Debit Note), masing-masing satu klien.
+        $this->assertSame(8, Invoice::count());
         $this->assertSame(1, Client::where('name', 'PT. CONTOH ENERGI SAMUDRA')->count());
         $this->assertSame(1, User::where('email', 'admin.bas@mitragroup.id')->count());
         $this->assertSame([self::BAS], User::where('email', 'admin.bas@mitragroup.id')->sole()->companies()->pluck('companies.id')->all());

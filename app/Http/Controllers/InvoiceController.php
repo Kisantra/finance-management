@@ -83,6 +83,7 @@ class InvoiceController extends Controller
             ->through(fn ($invoice) => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
+                'document_type' => $invoice->document_type,
                 'client_name' => $invoice->client_name,
                 'client_type' => $invoice->client_type,
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
@@ -139,7 +140,7 @@ class InvoiceController extends Controller
 
         $itemStats = DB::table('invoice_items')
             ->whereIn('invoice_id', $statsIds)
-            ->selectRaw('COALESCE(SUM(CASE WHEN is_tax_deposit = 0 THEN cogs_amount ELSE 0 END), 0) as total_cogs')
+            ->selectRaw('COALESCE(SUM(CASE WHEN is_tax_deposit = 0 THEN cogs_amount ELSE 0 END), 0) as total_cogs, COALESCE(SUM(CASE WHEN is_tax_deposit = 1 THEN amount ELSE 0 END), 0) as total_tax_deposit')
             ->first();
 
         // Total payments received on the filtered invoices (follows the active
@@ -167,8 +168,10 @@ class InvoiceController extends Controller
             'total_cogs' => $totalCogs,
             'total_ppn' => (int) $basicStats->total_ppn,
             'ppn_invoice_count' => (int) $basicStats->ppn_invoice_count,
-            // PPN ikut ditagih (total_revenue) tetapi titipan negara, bukan laba.
-            'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - $totalCogs,
+            // PPN dan titipan (titipan pajak klien, talangan Debit Note) ikut ditagih (total_revenue)
+            // tetapi bukan laba — sama dengan laba kotor di drawer & editor.
+            'total_tax_deposit' => (int) $itemStats->total_tax_deposit,
+            'gross_profit' => $totalRevenue - (int) $basicStats->total_ppn - (int) $itemStats->total_tax_deposit - $totalCogs,
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
             'outstanding_count' => $outstandingIds->count(),
@@ -275,7 +278,7 @@ class InvoiceController extends Controller
                 'invoices.id', '=', 'p.invoice_id'
             )
             ->leftJoin(
-                DB::raw('(SELECT invoice_id, COALESCE(SUM(cogs_amount), 0) as total_cogs FROM invoice_items GROUP BY invoice_id) as ic'),
+                DB::raw('(SELECT invoice_id, COALESCE(SUM(cogs_amount), 0) as total_cogs, COALESCE(SUM(CASE WHEN is_tax_deposit = 1 THEN amount ELSE 0 END), 0) as total_tax_deposit FROM invoice_items GROUP BY invoice_id) as ic'),
                 'invoices.id', '=', 'ic.invoice_id'
             )
             ->select([
@@ -283,6 +286,7 @@ class InvoiceController extends Controller
                 'clients.name as client_name',
                 DB::raw('COALESCE(p.amount_paid, 0) as amount_paid'),
                 DB::raw('COALESCE(ic.total_cogs, 0) as total_cogs'),
+                DB::raw('COALESCE(ic.total_tax_deposit, 0) as total_tax_deposit'),
             ])
             ->when($search, fn ($q) => $q->where(function ($query) use ($search) {
                 $query->where('invoices.invoice_number', 'like', "%{$search}%")
@@ -317,15 +321,23 @@ class InvoiceController extends Controller
 
         $rows = $invoices->map(function ($invoice) use ($itemNames, $lastPayments) {
             $ppn = (int) $invoice->ppn_amount;
-            $omzet = (int) $invoice->total_amount - $ppn; // PPN titipan negara, bukan omzet
+            $titipan = (int) $invoice->total_tax_deposit;
+            // PPN (titipan negara) dan titipan pajak klien / talangan Debit Note ikut ditagih tetapi
+            // bukan omzet, sehingga juga bukan dasar PPh final.
+            $omzet = (int) $invoice->total_amount - $ppn - $titipan;
             $hpp = (int) $invoice->total_cogs;
 
             return [
                 'invoice_number' => $invoice->invoice_number,
+                'document_type' => $invoice->document_type,
                 'client_name' => $invoice->client_name,
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'total_amount' => $omzet,
+                // Yang ditagih sebelum PPN (omzet + titipan) — "Total Invoice" rekap JSM, agar
+                // Total Invoice + PPN tetap sama dengan tagihannya.
+                'total_before_ppn' => $omzet + $titipan,
+                'titipan' => $titipan,
                 'ppn' => $ppn,
                 // null = invoice sebelum fitur PPN (tanpa data PPN); 0 = tanpa PPN.
                 'ppn_rate' => $invoice->ppn_rate !== null ? (float) $invoice->ppn_rate : null,
@@ -444,8 +456,10 @@ class InvoiceController extends Controller
             'id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
             'next_invoice_number' => $invoice->status === 'draft'
-                ? Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id)
+                ? Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id, $invoice->document_type, $invoice->document_code)
                 : null,
+            'document_type' => $invoice->document_type,
+            'document_code' => $invoice->document_code,
             'status' => $invoice->status,
             'issue_date' => $invoice->issue_date?->format('Y-m-d'),
             'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -516,13 +530,28 @@ class InvoiceController extends Controller
     /**
      * Pilihan klien & layanan untuk editor invoice.
      *
-     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}, defaultDueDays: int}
+     * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}, defaultDueDays: int, documents: array{debitNote: bool, code: bool, codes: Collection<int, array{value: string, type: string}>}}
      */
     private function formOptions(?int $includeClientId = null): array
     {
         $company = CompanyProfile::current();
 
         return [
+            // Jenis dokumen (Debit Note hanya untuk perusahaan bertemplate Debit Note) dan kode jenis
+            // (hanya bila format nomor memakai {KODE}); saran kode = kode yang pernah dipakai.
+            'documents' => [
+                'debitNote' => CompanyInvoiceTemplate::supportsDebitNote(),
+                'code' => str_contains(app(InvoiceNumberService::class)->settings()['format'], '{KODE}'),
+                'codes' => Invoice::query()
+                    ->whereNotNull('document_code')
+                    ->selectRaw('document_code, document_type, COUNT(*) as dipakai')
+                    ->groupBy('document_code', 'document_type')
+                    ->orderByDesc('dipakai')
+                    ->orderBy('document_code')
+                    ->limit(30)
+                    ->get()
+                    ->map(fn (Invoice $invoice) => ['value' => $invoice->document_code, 'type' => $invoice->document_type]),
+            ],
             // PPN hanya bisa dipilih untuk invoice baru selama perusahaan PKP (Pengaturan › Profil perusahaan).
             'ppn' => [
                 'enabled' => (bool) $company?->is_pkp && (float) $company->ppn_rate > 0,
@@ -564,9 +593,12 @@ class InvoiceController extends Controller
             return $invoice;
         });
 
-        $pesan = $publish
-            ? __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number])
-            : __('Invoice disimpan sebagai draft.');
+        $pesan = match (true) {
+            $publish && $invoice->isDebitNote() => __('Debit Note diterbitkan: :nomor', ['nomor' => $invoice->invoice_number]),
+            $publish => __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number]),
+            $invoice->isDebitNote() => __('Debit Note disimpan sebagai draft.'),
+            default => __('Invoice disimpan sebagai draft.'),
+        };
 
         return redirect()->route('invoices.show', $invoice)->with('success', $pesan);
     }
@@ -580,6 +612,10 @@ class InvoiceController extends Controller
      */
     private function buildInvoiceData(array $validated, ?Invoice $existing = null): array
     {
+        ['type' => $documentType, 'code' => $documentCode] = $this->resolveDocument($validated, $existing);
+        // Debit Note menagih kembali talangan: semua itemnya titipan (tanpa HPP), jadi tanpa PPN dan
+        // bukan pendapatan — Laba Rugi, jurnal, dan statistik membacanya lewat is_tax_deposit.
+        $isDebitNote = $documentType === Invoice::TYPE_DEBIT_NOTE;
         $subtotal = 0;
         $taxDeposits = 0;
         $items = [];
@@ -588,6 +624,7 @@ class InvoiceController extends Controller
             $quantity = (float) ($item['quantity'] ?? 0);
             $unitPrice = (int) ($item['unit_price'] ?? 0);
             $amount = (int) round($unitPrice * $quantity);
+            $isTaxDeposit = $isDebitNote || (bool) ($item['is_tax_deposit'] ?? false);
 
             $items[] = [
                 'client_id' => $item['client_id'] ?? $validated['client_id'] ?? null,
@@ -597,12 +634,12 @@ class InvoiceController extends Controller
                 'unit' => $item['unit'] ?? 'pcs',
                 'unit_price' => $unitPrice,
                 'amount' => $amount,
-                'cogs_amount' => (int) ($item['cogs_amount'] ?? 0),
-                'is_tax_deposit' => (bool) ($item['is_tax_deposit'] ?? false),
+                'cogs_amount' => $isDebitNote ? 0 : (int) ($item['cogs_amount'] ?? 0),
+                'is_tax_deposit' => $isTaxDeposit,
             ];
 
             $subtotal += $amount;
-            if ($item['is_tax_deposit'] ?? false) {
+            if ($isTaxDeposit) {
                 $taxDeposits += $amount;
             }
         }
@@ -614,11 +651,13 @@ class InvoiceController extends Controller
             : $discountValue;
 
         // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih.
-        $ppnRate = $this->resolvePpnRate($validated, $existing);
+        $ppnRate = $isDebitNote ? 0.0 : $this->resolvePpnRate($validated, $existing);
         $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
 
         return [
             'attributes' => [
+                'document_type' => $documentType,
+                'document_code' => $documentCode,
                 'billed_to_id' => $validated['client_id'] ?? null,
                 'subject' => trim((string) ($validated['subject'] ?? '')) ?: null,
                 'subtotal' => $subtotal,
@@ -629,13 +668,36 @@ class InvoiceController extends Controller
                 'ppn_rate' => $ppnRate,
                 'ppn_amount' => $ppnAmount,
                 'total_amount' => max(0, $subtotal - $discountAmount) + $ppnAmount,
-                'faktur' => array_key_exists('faktur', $validated)
-                    ? (trim((string) $validated['faktur']) ?: null)
-                    : $existing?->faktur,
+                'faktur' => match (true) {
+                    $isDebitNote => null,
+                    array_key_exists('faktur', $validated) => trim((string) $validated['faktur']) ?: null,
+                    default => $existing?->faktur,
+                },
                 'issue_date' => $validated['issue_date'] ?? null,
                 'due_date' => $validated['due_date'] ?? null,
             ],
             'items' => $items,
+        ];
+    }
+
+    /**
+     * Jenis & kode dokumen. Keduanya membentuk nomor ({KODE}), jadi setelah terbit tidak berubah lagi:
+     * kembalikan ke draft dulu untuk menggantinya. Isian kosong = jenis lama / Invoice.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{type: string, code: ?string}
+     */
+    private function resolveDocument(array $validated, ?Invoice $existing): array
+    {
+        if ($existing && $existing->status !== 'draft') {
+            return ['type' => $existing->document_type, 'code' => $existing->document_code];
+        }
+
+        return [
+            'type' => $validated['document_type'] ?? $existing?->document_type ?? Invoice::TYPE_INVOICE,
+            'code' => array_key_exists('document_code', $validated)
+                ? Invoice::normalizeDocumentCode($validated['document_code'])
+                : $existing?->document_code,
         ];
     }
 
@@ -667,7 +729,7 @@ class InvoiceController extends Controller
     private function publish(Invoice $invoice, ?string $nomor = null): void
     {
         $invoice->update([
-            'invoice_number' => filled($nomor) ? $nomor : Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id),
+            'invoice_number' => filled($nomor) ? $nomor : Invoice::generateInvoiceNumber($invoice->issue_date, $invoice->billed_to_id, $invoice->document_type, $invoice->document_code),
             'status' => 'sent',
         ]);
     }
@@ -679,7 +741,12 @@ class InvoiceController extends Controller
     public function nextNumber(NextInvoiceNumberRequest $request): JsonResponse
     {
         return response()->json([
-            'number' => Invoice::generateInvoiceNumber(Carbon::parse($request->validated('issue_date')), (int) $request->validated('client_id')),
+            'number' => Invoice::generateInvoiceNumber(
+                Carbon::parse($request->validated('issue_date')),
+                (int) $request->validated('client_id'),
+                $request->validated('document_type'),
+                Invoice::normalizeDocumentCode($request->validated('document_code')),
+            ),
         ]);
     }
 
@@ -701,7 +768,7 @@ class InvoiceController extends Controller
 
         $number = $existing?->invoice_number;
         if (! $number && $attributes['billed_to_id'] && $attributes['issue_date']) {
-            $number = Invoice::generateInvoiceNumber(Carbon::parse($attributes['issue_date']), $attributes['billed_to_id']);
+            $number = Invoice::generateInvoiceNumber(Carbon::parse($attributes['issue_date']), $attributes['billed_to_id'], $attributes['document_type'], $attributes['document_code']);
         }
 
         $invoice = new Invoice([
@@ -725,7 +792,7 @@ class InvoiceController extends Controller
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="pratinjau-invoice.pdf"',
+            'Content-Disposition' => 'inline; filename="'.($invoice->isDebitNote() ? 'pratinjau-debit-note.pdf' : 'pratinjau-invoice.pdf').'"',
             'X-Invoice-Number' => $number ?? '',
         ]);
     }
@@ -740,6 +807,8 @@ class InvoiceController extends Controller
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
                 'status' => $invoice->status,
+                'document_type' => $invoice->document_type,
+                'document_code' => $invoice->document_code,
                 'client_id' => $invoice->billed_to_id,
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -789,9 +858,12 @@ class InvoiceController extends Controller
             $invoice->fresh()->updateStatus();
         }
 
-        $pesan = $publish
-            ? __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number])
-            : __('Invoice berhasil diperbarui.');
+        $pesan = match (true) {
+            $publish && $invoice->isDebitNote() => __('Debit Note diterbitkan: :nomor', ['nomor' => $invoice->invoice_number]),
+            $publish => __('Invoice diterbitkan: :nomor', ['nomor' => $invoice->invoice_number]),
+            $invoice->isDebitNote() => __('Debit Note berhasil diperbarui.'),
+            default => __('Invoice berhasil diperbarui.'),
+        };
 
         return redirect()->route('invoices.show', $invoice)->with('success', $pesan);
     }
@@ -821,7 +893,9 @@ class InvoiceController extends Controller
             'status' => 'sent',
         ]);
 
-        return $this->actionResult($request, true, __('Invoice diterbitkan: :nomor', ['nomor' => $request->invoice_number]));
+        return $this->actionResult($request, true, $invoice->isDebitNote()
+            ? __('Debit Note diterbitkan: :nomor', ['nomor' => $request->invoice_number])
+            : __('Invoice diterbitkan: :nomor', ['nomor' => $request->invoice_number]));
     }
 
     public function rollback(Request $request, Invoice $invoice): JsonResponse|RedirectResponse

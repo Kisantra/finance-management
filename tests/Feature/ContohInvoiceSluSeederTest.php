@@ -47,7 +47,7 @@ class ContohInvoiceSluSeederTest extends TestCase
 
         $profile = CompanyProfile::current();
         $this->assertSame('PT. SAMBOJA LAJU UTAMA', $profile->name);
-        $this->assertSame('{NO}/{PT}-{KLIEN}/INV/{BLN_ROMAWI}/{THN}', $profile->invoice_number_format);
+        $this->assertSame('{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}', $profile->invoice_number_format);
         $this->assertSame([], $profile->missingFields());
         // Data yang tercetak di template invoice perusahaan.
         $this->assertSame('Samarinda', $profile->signature_city);
@@ -58,11 +58,21 @@ class ContohInvoiceSluSeederTest extends TestCase
         $this->assertSame('images/contoh-ttd-stempel.png', $profile->signature_path);
         $this->assertStringStartsWith("\x89PNG", Storage::disk('public')->get($profile->signature_path));
 
+        // Kode jenis ikut di nomor ({KODE}); invoice & Debit Note berbagi satu urutan.
         $this->assertSame(
-            ['037/SLU-CBN/INV-FINAL/X/2026', '038/SLU-CBN/INV-DEM/X/2026', '039/SLU-CBN/INV-TKBM/X/2026'],
-            Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_number')->all(),
+            ['037/SLU-CBN/INV-FINAL/X/2026' => 37, '038/SLU-CBN/INV-DEM/X/2026' => 38, '039/SLU-CBN/INV-TKBM/X/2026' => 39, '040/SLU-CBN/DN-PNBP/X/2026' => 40],
+            Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_sequence', 'invoice_number')->all(),
         );
         $this->assertSame(1, Invoice::where('status', 'draft')->count());
+        $draft = Invoice::where('status', 'draft')->sole();
+        $this->assertSame('041/SLU-CBN/INV-FINAL/XI/2026', Invoice::generateInvoiceNumber($draft->issue_date, $draft->billed_to_id, $draft->document_type, $draft->document_code));
+
+        $debitNote = Invoice::with('items')->where('invoice_number', '040/SLU-CBN/DN-PNBP/X/2026')->sole();
+        $this->assertTrue($debitNote->isDebitNote());
+        $this->assertSame('PNBP', $debitNote->document_code);
+        $this->assertSame(24_000_000, (int) $debitNote->total_amount);
+        $this->assertSame(0, (int) $debitNote->ppn_amount);
+        $this->assertTrue($debitNote->items->every('is_tax_deposit'));
 
         $final = Invoice::with('items')->where('invoice_number', '037/SLU-CBN/INV-FINAL/X/2026')->sole();
         $this->assertSame('Invoice FINAL MV. CONTOH JAYA', $final->subject);
@@ -80,7 +90,7 @@ class ContohInvoiceSluSeederTest extends TestCase
 
         // SLU sudah dibuat MitraGroupSeeder: tidak diprovisioning ulang.
         Event::assertDispatchedTimes(TenantCreated::class, 10);
-        $this->assertSame(4, Invoice::count());
+        $this->assertSame(5, Invoice::count());
         $this->assertSame(1, Client::where('name', 'PT. CONTOH BATUBARA NUSANTARA')->count());
         $this->assertSame(1, User::where('email', 'staff.slu@mitragroup.id')->count());
     }

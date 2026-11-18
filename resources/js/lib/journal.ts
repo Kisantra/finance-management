@@ -26,6 +26,8 @@ export interface JournalLine {
 export const JOURNAL_ACCOUNTS = {
     ppnOutput: tk('PPN Keluaran'),
     taxDeposit: tk('Titipan Pajak Klien'),
+    /** Bagian titipan pembayaran Debit Note (itemnya talangan) — JournalService::TALANGAN. */
+    talangan: tk('Talangan Biaya Klien'),
     invoiceRevenue: tk('Pendapatan dari Invoice'),
     transferFee: tk('Biaya Admin Transfer'),
 } as const;
@@ -84,13 +86,26 @@ export function paidBefore(payments: Array<{ id: number; amount: number; payment
         .reduce((sum, p) => sum + p.amount, 0);
 }
 
+/** JournalService::depositAccountFor — bagian titipan Debit Note dikredit ke talangan, invoice ke titipan pajak. */
+export function depositAccountFor(documentType: string | null | undefined): string {
+    return documentType === 'debit_note' ? JOURNAL_ACCOUNTS.talangan : JOURNAL_ACCOUNTS.taxDeposit;
+}
+
 /**
  * JournalService::paymentLines — Debit rekening penuh / Kredit selisih alokasi kumulatif sesudah −
  * sebelum pembayaran ini. Tanpa jumlah: kredit ke akun yang akan diisi rupiah berikutnya.
+ * `depositAccount` = kunci akun bagian titipan (depositAccountFor).
  */
-export function paymentJournal(account: string, amount: number, before: number, taxDeposit: number, ppn: number): JournalLine[] {
+export function paymentJournal(
+    account: string,
+    amount: number,
+    before: number,
+    taxDeposit: number,
+    ppn: number,
+    depositAccount: string = JOURNAL_ACCOUNTS.taxDeposit,
+): JournalLine[] {
     if (amount <= 0) {
-        const next = before < taxDeposit ? JOURNAL_ACCOUNTS.taxDeposit : before < taxDeposit + ppn ? JOURNAL_ACCOUNTS.ppnOutput : JOURNAL_ACCOUNTS.invoiceRevenue;
+        const next = before < taxDeposit ? depositAccount : before < taxDeposit + ppn ? JOURNAL_ACCOUNTS.ppnOutput : JOURNAL_ACCOUNTS.invoiceRevenue;
         return [
             { account, side: 'debit', amount: null },
             { account: t(next), side: 'credit', amount: null },
@@ -100,7 +115,7 @@ export function paymentJournal(account: string, amount: number, before: number, 
     const a = allocatePayments(before, taxDeposit, ppn);
     const b = allocatePayments(before + amount, taxDeposit, ppn);
     const credits: JournalLine[] = [
-        { account: t(JOURNAL_ACCOUNTS.taxDeposit), side: 'credit', amount: b.taxDeposit - a.taxDeposit },
+        { account: t(depositAccount), side: 'credit', amount: b.taxDeposit - a.taxDeposit },
         { account: t(JOURNAL_ACCOUNTS.ppnOutput), side: 'credit', amount: b.ppn - a.ppn },
         { account: t(JOURNAL_ACCOUNTS.invoiceRevenue), side: 'credit', amount: b.revenue - a.revenue },
     ];

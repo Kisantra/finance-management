@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Invoice;
 use Illuminate\Support\Facades\View;
 
 /**
@@ -13,6 +14,9 @@ use Illuminate\Support\Facades\View;
  *
  * Perusahaan yang punya folder ini HANYA memakai template ini: template bawaan milik perusahaan
  * lain tidak ditawarkan dan ditolak rute. Perusahaan tanpa folder tetap memakai template bawaan.
+ *
+ * `debit-note.blade.php` di folder yang sama membuat perusahaan itu bisa menerbitkan Debit Note
+ * (jenis dokumen di editor); dokumen berjenis Debit Note dicetak dengan template itu.
  */
 class CompanyInvoiceTemplate
 {
@@ -25,15 +29,19 @@ class CompanyInvoiceTemplate
     /** Nama view Blade template perusahaan aktif, atau null bila perusahaan ini belum punya. */
     public static function view(): ?string
     {
-        $slug = self::slug();
+        return self::viewNamed('invoice');
+    }
 
-        if ($slug === null) {
-            return null;
-        }
+    /** Nama view Debit Note perusahaan aktif, atau null bila perusahaan ini tidak menerbitkan Debit Note. */
+    public static function debitNoteView(): ?string
+    {
+        return self::view() !== null ? self::viewNamed('debit-note') : null;
+    }
 
-        $view = "pdf.perusahaan.{$slug}.invoice";
-
-        return View::exists($view) ? $view : null;
+    /** Perusahaan aktif bisa menerbitkan Debit Note (editor menawarkan jenis dokumen). */
+    public static function supportsDebitNote(): bool
+    {
+        return self::debitNoteView() !== null;
     }
 
     public static function exists(): bool
@@ -68,10 +76,17 @@ class CompanyInvoiceTemplate
         return self::exists() ? ['value' => self::KEY, 'label' => (string) tenant('name')] : null;
     }
 
-    /** Nama view Blade untuk nilai `template` yang sudah lolos allowed(). */
-    public static function viewFor(string $template): string
+    /**
+     * Nama view Blade untuk nilai `template` yang sudah lolos allowed(). Template perusahaan memakai
+     * view Debit Note untuk dokumen berjenis Debit Note.
+     */
+    public static function viewFor(string $template, ?Invoice $invoice = null): string
     {
-        return $template === self::KEY ? (string) self::view() : 'pdf.'.$template;
+        if ($template !== self::KEY) {
+            return 'pdf.'.$template;
+        }
+
+        return ($invoice?->isDebitNote() ? self::debitNoteView() : null) ?? (string) self::view();
     }
 
     /**
@@ -104,6 +119,19 @@ class CompanyInvoiceTemplate
         $path = resource_path("views/pdf/perusahaan/{$slug}/{$relative}");
 
         return is_file($path) ? $path : '';
+    }
+
+    private static function viewNamed(string $file): ?string
+    {
+        $slug = self::slug();
+
+        if ($slug === null) {
+            return null;
+        }
+
+        $view = "pdf.perusahaan.{$slug}.{$file}";
+
+        return View::exists($view) ? $view : null;
     }
 
     /** Slug perusahaan aktif; ikut menjadi path view & berkas, jadi hanya karakter slug yang sah. */

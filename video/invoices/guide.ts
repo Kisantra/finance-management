@@ -61,13 +61,26 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Buka **Keuangan › Invoice**, lalu klik **Buat Invoice**.',
-                'Pilih **Klien**. **Tanggal invoice** terisi hari ini; **Jatuh tempo** dihitung dari **Termin (hari)** di sampingnya. Ubah termin dan jatuh tempo ikut bergeser, atau pilih tanggalnya langsung (tidak boleh sebelum tanggal invoice). Finance manager & admin bisa menekan **Jadikan N hari bawaan** agar invoice berikutnya memakai termin itu.',
-                'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty**, **Harga satuan**, dan **Satuan**. Rincian di bawah nama layanan (mis. pelabuhan muat atau rincian jam) diisi lewat **Tambah keterangan**; **Perihal** (opsional) diisi di bawah Klien. Keduanya tercetak bila desain invoice perusahaan memakainya.',
-                'Isi **HPP baris** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
+                'Pilih **Klien**. Belum ada? Ketik namanya di kotak cari, klik **Buat klien baru** di bawah daftar, isi **Alamat** di modal **Klien baru**, lalu **Simpan klien**: klien langsung terpilih. Alias, NPWP, dan PIC bisa dilengkapi nanti di **Master Data › Klien**. **Tanggal invoice** terisi hari ini; **Jatuh tempo** dihitung dari **Termin (hari)** di sampingnya. Ubah termin dan jatuh tempo ikut bergeser, atau pilih tanggalnya langsung (tidak boleh sebelum tanggal invoice). Finance manager & admin bisa menekan **Jadikan N hari bawaan** agar invoice berikutnya memakai termin itu.',
+                'Isi baris item: ketik nama layanan atau klik ikon kaca pembesar untuk memilih dari katalog (nama + harga terisi), lalu **Qty** dan **Harga satuan**. Rincian di bawah nama layanan (mis. pelabuhan muat atau rincian jam) diisi lewat **Tambah keterangan**; **Perihal** (opsional) diisi di bawah Klien. Keduanya tercetak bila desain invoice perusahaan memakainya.',
+                'Di bawah **Qty** isi **satuan** (mis. MT, jam), dan di bawah **Harga satuan** isi **HPP** (modal untuk seluruh baris, bukan per unit). Nyalakan **Titipan pajak** untuk baris pajak klien yang hanya dititipkan: ditagih, tetapi tidak dihitung pendapatan.',
                 'Klik **Tambah baris** (atau Ctrl+Enter) untuk item berikutnya. Bila perlu, klik **Tambah diskon** (nominal atau persen, beserta alasan yang tercetak di invoice).',
                 'Bila perusahaan **PKP**, sakelar **Tagih PPN** (mis. 11%) sudah menyala: PPN dihitung dari layanan setelah diskon (titipan pajak tidak ikut) dan masuk ke Total. Matikan untuk invoice tanpa PPN; isi **No. faktur pajak** bila sudah ada.',
                 'Periksa **Total** (termasuk PPN), **Laba kotor** (tanpa PPN), dan **Est. PPh final 0,5%** di bagian bawah, lalu klik **Simpan draft** atau **Simpan & terbitkan**. **Simpan & terbitkan** membuka dialog berisi nomor invoice berikutnya sesuai format; Finance manager & admin boleh mengubahnya (asal belum dipakai) sebelum klik **Terbitkan**, Staff melihat nomor otomatisnya saja.',
                 'Staff tidak bisa mengubah invoice setelah tersimpan: periksa sebelum menyimpan, atau minta finance manager memperbaikinya.',
+            ],
+        },
+        {
+            title: 'Membuat Debit Note (menagih kembali talangan)',
+            role: ROLES.staff,
+            steps: [
+                'Hanya untuk perusahaan yang punya desain Debit Note (saat ini PT Samboja Laju Utama). Dipakai untuk menagih kembali biaya yang perusahaan bayar lebih dulu **atas nama klien** (mis. PNBP), persis sebesar yang dibayar. Jasa perusahaan tetap ditagih lewat invoice biasa.',
+                'Klik **Buat Invoice**, lalu pada **Jenis dokumen** pilih **Debit Note**. Judul halaman berubah menjadi **Buat Debit Note**.',
+                'Isi **Kode jenis** bila perlu (mis. **PNBP**; saran muncul dari kode yang pernah dipakai). Kode ikut ke nomor: petunjuk **Di nomor** menunjukkan hasilnya, mis. `DN-PNBP`. Invoice biasa juga boleh diberi kode (mis. **FINAL** → `INV-FINAL`).',
+                'Isi klien, perihal, dan item seperti invoice. Semua item Debit Note otomatis dianggap **talangan**: tanpa PPN, tanpa HPP, dan tidak dihitung pendapatan; sakelar PPN dan Titipan pajak tidak tampil.',
+                'Klik **Simpan & terbitkan**. Nomor memakai urutan yang sama dengan invoice (mis. `040/SLU-CBN/DN-PNBP/X/2026` setelah `039/SLU-CBN/INV-TKBM/X/2026`). PDF-nya berjudul **DEBIT NOTE**.',
+                'Setelah terbit, jenis dan kode tidak bisa diganti karena sudah menjadi bagian nomor. Untuk menggantinya, Finance manager mengembalikannya ke draft dulu.',
+                'Saat membayar biaya itu ke negara, catat di **Arus Kas › Pengeluaran** dengan kategori **Bayar Talangan Klien** (grup Pendanaan), bukan beban, agar Laba Rugi tidak berubah.',
             ],
         },
         {
@@ -91,7 +104,7 @@ export const guide: ModuleGuide = {
                 'Buka invoice berstatus **Terbit** atau **Sebagian**, lalu klik **Catat pembayaran**.',
                 '**Jumlah** terisi sisa tagihan. Pilih **Sisa penuh**, **50%**, atau **Nominal lain**; tidak boleh melebihi sisa.',
                 'Isi **Tanggal** uang diterima, pilih **Rekening tujuan** (wajib) dan **Metode** (**Transfer bank** / **Tunai**).',
-                'Kotak **Jurnal · Pratinjau** menunjukkan pembagiannya: rekening didebit penuh; kreditnya menutup **Titipan Pajak Klien** dulu, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — sama dengan cara Laba Rugi mengakui pendapatan. Uang muka kecil bisa seluruhnya masuk titipan.',
+                'Kotak **Jurnal · Pratinjau** menunjukkan pembagiannya: rekening didebit penuh; kreditnya menutup **Titipan Pajak Klien** dulu, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — sama dengan cara Laba Rugi mengakui pendapatan. Uang muka kecil bisa seluruhnya masuk titipan. Pembayaran **Debit Note** seluruhnya dikredit ke **Talangan Biaya Klien**.',
                 'Isi **Nomor referensi** dan unggah bukti transfer (JPG, PNG, PDF, maks 5 MB) bila ada, lalu klik **Simpan pembayaran**.',
                 'Status otomatis menjadi **Sebagian** atau **Lunas**. Pembayaran yang salah bisa diubah (ikon pensil) atau dihapus (ikon tempat sampah) di kartu **Pembayaran**, tetapi hanya oleh Finance manager / Admin.',
             ],
@@ -101,7 +114,7 @@ export const guide: ModuleGuide = {
             role: ROLES.staff,
             steps: [
                 'Atur filter (status, klien, bulan, atau rentang tanggal), lalu klik **Ekspor** dan pilih **Rekap Excel · Bawaan**, **Rekap Excel · JSM**, atau **Rekap PDF**.',
-                '**Bawaan** & **PDF** memuat omzet (tanpa PPN), PPN, HPP, profit, PPh final 0,5%, terbayar, dan sisa (termasuk PPN). **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (nilai PPN invoice; invoice sebelum fitur PPN memakai rumus yang bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
+                '**Bawaan** & **PDF** memuat omzet (tanpa PPN, titipan pajak, dan talangan Debit Note), PPN, HPP, profit, PPh final 0,5%, terbayar, dan sisa (termasuk PPN). **JSM** mengelompokkan invoice per bulan dengan Total Invoice, PPN (nilai PPN invoice; invoice sebelum fitur PPN memakai rumus yang bisa dihapus per baris), Grand Total, tanggal bayar terakhir, dan keterangan dari nama layanan.',
                 'Semua rekap mengikuti filter aktif dan tidak memuat draft. Untuk rekap setahun, pakai rentang tanggal 1 Januari – 31 Desember.',
             ],
         },
@@ -158,6 +171,7 @@ export const guide: ModuleGuide = {
                 '**Laba Rugi** bulan tanggal bayar: pendapatan dari invoice (kas), HPP ditutup lebih dulu.',
                 'Jurnal pembayaran (tampilan, tidak disimpan) memakai rumus titipan dulu yang sama: total kredit **Pendapatan dari Invoice** dan **PPN Keluaran** sebulan = pendapatan invoice & PPN Keluaran di Laba Rugi bulan itu. Terlihat di dialog Catat pembayaran dan di rincian pembayaran Arus Kas / Kas & Bank.',
                 'Status menjadi **Sebagian** / **Lunas**; ringkasan invoice dan **Dashboard** (saldo & pemasukan) ikut berubah.',
+                '**Debit Note**: saldo dan pemasukan arus kas bertambah seperti invoice, tetapi pendapatan & laba (Laba Rugi, Ringkasan, rekap) tidak berubah — uangnya mengganti talangan yang dicatat lewat kategori **Bayar Talangan Klien**.',
             ],
         },
         {
@@ -219,6 +233,10 @@ export const guide: ModuleGuide = {
         {
             title: 'Tarif PPN terkunci di invoice',
             body: 'Invoice ber-PPN menyimpan tarifnya sendiri. Mengubah Tarif PPN atau mematikan PKP di Pengaturan hanya berlaku untuk invoice **baru**; invoice yang sudah ber-PPN tetap ditagih dengan PPN-nya.',
+        },
+        {
+            title: 'Nomor Debit Note lama tidak berubah jenis',
+            body: 'Saat fitur Debit Note dipasang, nomor lama berawalan **DN** (bila ada) tetap tercatat sebagai invoice biasa, sehingga itemnya masih dihitung pendapatan. Periksa dan perbaiki manual bila perlu.',
         },
         {
             title: 'Pengingat jatuh tempo terbatas',

@@ -1,5 +1,5 @@
 import { Command as CommandPrimitive } from 'cmdk';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,16 @@ export interface ComboboxOption {
     tagIcon?: React.ReactNode;
 }
 
+/**
+ * Aksi "buat baru" di akhir daftar (mis. "Buat klien baru"): selalu tampil, juga saat pencarian
+ * kosong hasilnya. Memilihnya menutup daftar dan memanggil `onCreate` dengan teks pencarian saat
+ * itu (untuk mengisi awal formulir pembuatnya).
+ */
+export interface ComboboxCreateAction {
+    label: string;
+    onCreate: (search: string) => void;
+}
+
 interface ComboboxSingleProps {
     multiple?: false;
     options: ComboboxOption[];
@@ -41,6 +51,7 @@ interface ComboboxSingleProps {
     className?: string;
     emptyText?: string;
     popoverWidth?: string;
+    create?: ComboboxCreateAction;
 }
 
 interface ComboboxMultipleProps {
@@ -77,7 +88,8 @@ export function Combobox({
     emptyText = t('Tidak ada data.'),
     multiple = false,
     popoverWidth,
-}: ComboboxProps & { multiple?: boolean }) {
+    create,
+}: ComboboxProps & { multiple?: boolean; create?: ComboboxCreateAction }) {
     const [open, setOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
     const inputId = React.useId();
@@ -237,7 +249,7 @@ export function Combobox({
                             onWheel={(e) => e.stopPropagation()}
                         >
                             {filtered.length === 0 && (
-                                <p className="py-8 text-center text-[13px] text-ob-ink-2">
+                                <p className={cn('text-center text-[13px] text-ob-ink-2', create ? 'py-4' : 'py-8')}>
                                     {emptyText}
                                 </p>
                             )}
@@ -300,6 +312,31 @@ export function Combobox({
                                 )}
                                 </React.Fragment>
                             ))}
+                            {create && (
+                                <>
+                                    <div role="presentation" className="mx-1 my-1.5 border-t border-ob-line" />
+                                    <CommandPrimitive.Item
+                                        value="__create__"
+                                        onSelect={() => {
+                                            const query = search.trim();
+                                            setOpen(false);
+                                            setSearch('');
+                                            create.onCreate(query);
+                                        }}
+                                        className={cn(
+                                            'flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-ob-act outline-none',
+                                            'transition-colors duration-150 ease-out motion-reduce:transition-none',
+                                            'hover:bg-ob-hover aria-selected:bg-ob-hover',
+                                        )}
+                                    >
+                                        <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        <div className="min-w-0">
+                                            <div className="truncate">{create.label}</div>
+                                            {search.trim() && <div className="truncate text-xs font-normal text-ob-ink-3">“{search.trim()}”</div>}
+                                        </div>
+                                    </CommandPrimitive.Item>
+                                </>
+                            )}
                         </CommandPrimitive.List>
                         {multiple && multiValue.length > 0 && (
                             <div className="border-t border-ob-line p-2">

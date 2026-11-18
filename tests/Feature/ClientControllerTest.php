@@ -70,6 +70,36 @@ class ClientControllerTest extends TestCase
         $this->assertDatabaseHas('clients', ['name' => 'Budi Santoso', 'type' => 'individual']);
     }
 
+    /** Pintasan "Buat klien baru" di editor invoice memakai fetch dan butuh klien barunya untuk langsung dipilih. */
+    public function test_store_from_invoice_editor_returns_the_new_client_as_json(): void
+    {
+        $response = $this->actingAs($this->admin)->postJson('/clients', [
+            'name' => 'PT. Contoh Batubara Nusantara',
+            'type' => 'company',
+            'status' => 'Active',
+            'alias' => ' cbn ',
+            'NPWP' => '01.234.567.8-901.000',
+            'person_in_charge' => 'Direktur Finance & Accounting',
+            'address' => "Gedung Contoh Lantai 3\nJakarta Selatan",
+            'email' => '',
+        ]);
+
+        $client = Client::where('name', 'PT. Contoh Batubara Nusantara')->sole();
+        $response->assertCreated()->assertExactJson([
+            'message' => 'Klien berhasil ditambahkan.',
+            'client' => ['id' => $client->id, 'name' => 'PT. Contoh Batubara Nusantara', 'email' => null, 'npwp' => '01.234.567.8-901.000', 'type' => 'company'],
+        ]);
+        $this->assertSame('CBN', $client->alias);
+        $this->assertSame('Active', $client->status);
+        $this->assertSame("Gedung Contoh Lantai 3\nJakarta Selatan", $client->address);
+
+        // Galat validasi tetap per isian (422 JSON), bukan redirect.
+        $this->actingAs($this->admin)->postJson('/clients', ['name' => '', 'type' => 'company', 'status' => 'Active', 'alias' => 'C B N'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['name', 'alias']);
+        $this->actingAs($this->viewer)->postJson('/clients', ['name' => 'X', 'type' => 'company', 'status' => 'Active'])->assertForbidden();
+    }
+
     public function test_store_requires_create_clients_permission(): void
     {
         $this->actingAs($this->viewer)->post('/clients', [

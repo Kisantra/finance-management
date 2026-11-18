@@ -171,10 +171,10 @@ class PendanaanTest extends TestCase
 
         $pendanaan = $debit->filter(fn (array $o): bool => $o['financing'] ?? false)->values();
         $this->assertSame(
-            ['Pajak Titipan & PPN', '↳ Setor PPN', '↳ Setor Titipan Pajak Klien', 'Penarikan Modal', '↳ Prive Pemilik', 'Setoran Modal', '↳ Setoran Modal Pemilik'],
+            ['Pajak Titipan & PPN', '↳ Setor PPN', '↳ Setor Titipan Pajak Klien', 'Penarikan Modal', '↳ Prive Pemilik', 'Setoran Modal', '↳ Setoran Modal Pemilik', 'Talangan Klien', '↳ Bayar Talangan Klien'],
             $pendanaan->pluck('label')->all()
         );
-        $this->assertSame($pendanaan->all(), $debit->slice(-7)->values()->all(), 'Grup Pendanaan harus terakhir.');
+        $this->assertSame($pendanaan->all(), $debit->slice(-9)->values()->all(), 'Grup Pendanaan harus terakhir.');
         $this->assertFalse($debit->contains('label', '↳ Penerimaan Pinjaman'));
         $this->assertTrue($pendanaan->first()['disabled']);
 

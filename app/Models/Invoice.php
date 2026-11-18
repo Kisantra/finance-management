@@ -13,8 +13,25 @@ class Invoice extends Model
 {
     use HasFactory;
 
+    /** Jenis dokumen tagihan; kolom `document_type`. */
+    public const TYPE_INVOICE = 'invoice';
+
+    /**
+     * Debit Note: menagih kembali biaya yang perusahaan bayar lebih dulu atas nama klien (talangan,
+     * mis. PNBP). Semua itemnya titipan (`is_tax_deposit`), jadi tanpa PPN dan bukan pendapatan.
+     */
+    public const TYPE_DEBIT_NOTE = 'debit_note';
+
+    /** @var list<string> */
+    public const TYPES = [self::TYPE_INVOICE, self::TYPE_DEBIT_NOTE];
+
+    /** Awalan {KODE} di nomor per jenis: "INV", "INV-FINAL", "DN", "DN-PNBP". */
+    private const NUMBER_PREFIXES = [self::TYPE_INVOICE => 'INV', self::TYPE_DEBIT_NOTE => 'DN'];
+
     protected $fillable = [
         'invoice_number',
+        'document_type',
+        'document_code',
         'billed_to_id',
         'subject',
         'subtotal',
@@ -72,6 +89,33 @@ class Invoice extends Model
         ];
     }
 
+    /**
+     * Segmen {KODE} nomor: awalan jenis + kode bila ada ("INV", "INV-FINAL", "DN-PNBP").
+     */
+    public static function numberCode(?string $documentType, ?string $documentCode): string
+    {
+        $prefix = self::NUMBER_PREFIXES[$documentType] ?? self::NUMBER_PREFIXES[self::TYPE_INVOICE];
+
+        return filled($documentCode) ? "{$prefix}-{$documentCode}" : $prefix;
+    }
+
+    /**
+     * Kode jenis seperti disimpan: huruf kapital, tanpa spasi tepi, dan tanpa awalan jenis yang
+     * terlanjur diketik ("dn-pnbp" → "PNBP"), karena awalan itu ditambahkan numberCode().
+     */
+    public static function normalizeDocumentCode(?string $code): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        $code = (string) preg_replace('/^(INV|DN)-/', '', $code);
+
+        return $code !== '' ? $code : null;
+    }
+
+    public function isDebitNote(): bool
+    {
+        return $this->document_type === self::TYPE_DEBIT_NOTE;
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'billed_to_id');
@@ -112,20 +156,27 @@ class Invoice extends Model
         return $this->items()->sum('cogs_amount');
     }
 
-    /** PPN adalah titipan untuk negara, bukan pendapatan — tidak ikut laba. */
+    /**
+     * PPN (titipan negara) dan item titipan (titipan pajak klien, talangan Debit Note) ikut ditagih
+     * tetapi bukan pendapatan — tidak ikut laba. Sama dengan laba kotor di drawer & editor.
+     */
     public function getGrossProfitAttribute(): int
     {
-        return $this->total_amount - (int) $this->ppn_amount - $this->total_cogs;
+        return $this->total_amount - (int) $this->ppn_amount - $this->taxDepositTotal() - $this->total_cogs;
     }
 
     /** Dasar Pengenaan Pajak: subtotal layanan (tanpa titipan pajak) − diskon. */
     public function getDppAmountAttribute(): int
     {
-        $deposits = $this->relationLoaded('items')
+        return max(0, (int) $this->subtotal - $this->taxDepositTotal() - (int) $this->discount_amount);
+    }
+
+    /** Σ item titipan (titipan pajak klien / talangan Debit Note). */
+    public function taxDepositTotal(): int
+    {
+        return $this->relationLoaded('items')
             ? (int) $this->items->where('is_tax_deposit', true)->sum('amount')
             : (int) $this->items()->where('is_tax_deposit', true)->sum('amount');
-
-        return max(0, (int) $this->subtotal - $deposits - (int) $this->discount_amount);
     }
 
     public function getOutstandingProfitAttribute(): int
@@ -162,9 +213,9 @@ class Invoice extends Model
         });
     }
 
-    public static function generateInvoiceNumber(\DateTimeInterface $issueDate, int $clientId): string
+    public static function generateInvoiceNumber(\DateTimeInterface $issueDate, int $clientId, ?string $documentType = null, ?string $documentCode = null): string
     {
-        return app(InvoiceNumberService::class)->next(Carbon::instance($issueDate), $clientId);
+        return app(InvoiceNumberService::class)->next(Carbon::instance($issueDate), $clientId, self::numberCode($documentType, $documentCode));
     }
 
     public static function isLatestInNumberingPeriod(self $invoice): bool

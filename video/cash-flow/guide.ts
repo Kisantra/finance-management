@@ -81,7 +81,7 @@ export const guide: ModuleGuide = {
                 'Pakai tombol yang sama: **Catat Pemasukan** untuk setoran modal, **Catat Pengeluaran** untuk prive, setor PPN, dan setor titipan pajak.',
                 'Di **Kategori**, gulir ke grup paling bawah **Pendanaan · tidak masuk Laba Rugi**, lalu pilih subkategorinya (mis. **Setor PPN**). Grup ini belum ada? Minta admin klik **Pakai Template** di halaman Kategori Transaksi.',
                 'Kolom Kategori menampilkan penanda **Pendanaan**, dan petunjuk di bawahnya menegaskan: saldo rekening bertambah/berkurang sebesar Jumlah, **Laba Rugi tidak berubah**.',
-                'Kotak **Jurnal** memakai akun neraca, bukan nama kategori: Setoran Modal Pemilik → **Modal Pemilik**, Prive Pemilik → **Prive Pemilik**, Setor PPN → **PPN Keluaran**, Setor Titipan Pajak Klien → **Titipan Pajak Klien**.',
+                'Kotak **Jurnal** memakai akun neraca, bukan nama kategori: Setoran Modal Pemilik → **Modal Pemilik**, Prive Pemilik → **Prive Pemilik**, Setor PPN → **PPN Keluaran**, Setor Titipan Pajak Klien → **Titipan Pajak Klien**, Bayar Talangan Klien → **Talangan Biaya Klien**.',
                 'Isi Jumlah, Tanggal, Deskripsi, lalu simpan. Di daftar, barisnya berbadge **Pendanaan** dan nominalnya masuk kartu **Pendanaan (tidak masuk Laba Rugi)**.',
             ],
         },

@@ -102,7 +102,7 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `Slider` | `@/components/ui/slider` | **`<input type="range">` manual — WAJIB** | Styled range with optional suffix label. Props: `value`, `onChange`, `min`, `max`, `step`, `label`, `suffix`, `disabled`. |
 | `SegmentedControl` | `@/components/ui/segmented-control` | **Tombol pilihan segmented/radio manual** | Pilihan eksklusif berbentuk grup tombol (mis. tipe/prioritas/status). Props: `options` (`{value,label,icon?,activeClassName?}`), `value`, `onChange`, `columns`, `layout` (`stack`\|`inline`), `label`, `error`. Generic atas tipe value. |
 | `Label` | `@/components/ui/label` | `<label>` manual | 13 px `text-ob-ink-2`. |
-| `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. Opsi: `disabled` = judul grup; `section`/`sectionIcon` = judul bagian bergaris (tetap tampil saat mencari); `tag`/`tagIcon` = penanda di pemicu saat terpilih. |
+| `Combobox` | `@/components/ui/combobox` | **`<select>` — WAJIB** | Searchable dropdown via `cmdk`. Props: `options`, `value`, `onChange`, `placeholder`, `searchPlaceholder`, `emptyText`. Opsi: `disabled` = judul grup; `section`/`sectionIcon` = judul bagian bergaris (tetap tampil saat mencari); `tag`/`tagIcon` = penanda di pemicu saat terpilih. Prop `create` (`{label, onCreate(search)}`) = baris "+ buat baru" di akhir daftar (mis. pintasan Klien baru di editor invoice). |
 | `Autocomplete` | `@/components/ui/autocomplete` | **`<input>` + `<datalist>` / saran manual** | Teks bebas dengan daftar saran (nilai tidak wajib salah satu opsi — beda dengan `Combobox`). Props: `value` (string), `onChange`, `options` (`{value,label?,description?,icon?,keywords?}`), `icon` (slot kiri 24 px), `label`, `hint`, `error`. Panah/Enter/Esc; Enter tanpa saran tersorot tetap mengirim form. |
 | `DatePicker` | `@/components/ui/date-picker` | **`<input type="date">` — WAJIB** | Indonesian locale, hari terpilih `ob-act-fill`, react-day-picker v10. Single: `value`, `onChange`. Range: tambah `mode="range"`, `value={from,to}`, `placeholderTo`. |
 | `Dialog` | `@/components/ui/dialog` | Modal HTML manual | Sizes: `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`, `4xl`, `full`. Exports: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`. |
@@ -199,11 +199,11 @@ Loading skeleton                  → Skeleton
 | Dashboard | `/dashboard` | Overview stats |
 | Clients | `/clients` | Index, Create, Edit, Delete, Show |
 | Services | `/services` | Index, Create, Edit, Delete |
-| Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments |
+| Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments; jenis dokumen **Debit Note** (talangan: semua item titipan, tanpa PPN, bukan pendapatan) untuk perusahaan bertemplate `debit-note.blade.php` (PT SLU) |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
 | Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh; **Pendanaan** (`financing`) bisa dicatat lewat grup terakhir pemilih kategori, tampil berbadge & kartu terpisah karena tidak masuk Laba Rugi, pokok utang/piutang hanya-lihat, rinciannya bisa dibuka hanya-lihat) + menu Transfer & Penyesuaian; kotak **Jurnal** (debit/kredit diturunkan dari rekening + kategori, pembayaran invoice "titipan dulu" seperti Laba Rugi — tidak disimpan, bukan buku besar; `JournalService`) di dialog Catat, rincian, ubah, Transfer, Catat pembayaran invoice, dan rincian Kas & Bank |
-| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (15 induk/59 sub: pemasukan & pengeluaran bergrup L/R + bagian Pendanaan tanpa L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama → 82 kategori) |
+| Tx Categories | `/transaction-categories` | Index, Create, Update, Delete, Pakai Template (16 induk/60 sub: pemasukan & pengeluaran bergrup L/R + bagian Pendanaan tanpa L/R, `CategoryTemplateService`; seeder perusahaan baru memakai template yang sama → 84 kategori) |
 | Reimbursements | `/reimbursements` | All/My Requests, Create, Review, Payment |
 | Fund Requests | `/fund-requests` | All/My Requests, Create, Review, Disburse |
 | Loans | `/loans` | Index, Create, Update, Delete, PayLoan |
@@ -217,7 +217,7 @@ Loading skeleton                  → Skeleton
 
 ### Key Business Logic
 
-**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`; `{KLIEN}` = alias klien, atau inisial nama bila kosong) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`; jatuh tempo = tanggal + termin (bawaan `company_profiles.default_due_days`, disetel dari form invoice baru)
+**Invoice:** default `001/INV/KSN-XXX/I/2026` (`{NO}/INV/{PT}-{KLIEN}/{BLN_ROMAWI}/{THN}`; `{KLIEN}` = alias klien, atau inisial nama bila kosong; `{KODE}` = jenis + kode dokumen, mis. `INV-FINAL`, `DN-PNBP`) — format, digit & periode reset bisa diatur di Pengaturan › Penomoran invoice (`InvoiceNumberService`); nomor baru diisi saat `send`, sebelum itu `null`; urutan tersimpan di `invoice_sequence`; status: `draft → sent → partially_paid → paid`; jatuh tempo = tanggal + termin (bawaan `company_profiles.default_due_days`, disetel dari form invoice baru)
 **Reimbursement:** `draft → pending → approved → paid` (or `rejected`)
 **Fund Request:** `draft → pending → approved → disbursed` (or `rejected`); format `001/KSN/I/2026`
 **Recurring:** Manual generation (no scheduled tasks); frequencies: monthly/quarterly/semi_annual/annual

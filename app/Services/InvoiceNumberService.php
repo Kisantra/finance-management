@@ -40,6 +40,7 @@ class InvoiceNumberService
         'NO' => 'Nomor urut',
         'PT' => 'Singkatan perusahaan',
         'KLIEN' => 'Alias/inisial klien',
+        'KODE' => 'Jenis & kode dokumen',
         'BLN_ROMAWI' => 'Bulan romawi',
         'BLN' => 'Bulan 2 digit',
         'THN' => 'Tahun 4 digit',
@@ -57,6 +58,7 @@ class InvoiceNumberService
             'NO' => __('Nomor urut'),
             'PT' => __('Singkatan perusahaan'),
             'KLIEN' => __('Alias/inisial klien'),
+            'KODE' => __('Jenis & kode dokumen'),
             'BLN_ROMAWI' => __('Bulan romawi'),
             'BLN' => __('Bulan 2 digit'),
             'THN' => __('Tahun 4 digit'),
@@ -80,8 +82,12 @@ class InvoiceNumberService
         ];
     }
 
-    /** Nomor yang akan diberikan bila invoice klien ini diterbitkan dengan tanggal terbit ini. */
-    public function next(CarbonInterface $issueDate, int $clientId): string
+    /**
+     * Nomor yang akan diberikan bila invoice klien ini diterbitkan dengan tanggal terbit ini.
+     * $kode = segmen {KODE} (Invoice::numberCode(): "INV", "INV-FINAL", "DN-PNBP"). Semua jenis
+     * dokumen berbagi satu urutan, jadi kode tidak memengaruhi {NO}.
+     */
+    public function next(CarbonInterface $issueDate, int $clientId, string $kode = 'INV'): string
     {
         $settings = $this->settings();
 
@@ -91,6 +97,7 @@ class InvoiceNumberService
             $issueDate,
             $this->companyInitials(),
             $this->clientInitials($clientId),
+            $kode,
         );
     }
 
@@ -101,12 +108,13 @@ class InvoiceNumberService
     }
 
     /** @param array{format: string, padding: int} $settings */
-    public function render(array $settings, int $sequence, CarbonInterface $date, string $companyInitials, string $clientInitials): string
+    public function render(array $settings, int $sequence, CarbonInterface $date, string $companyInitials, string $clientInitials, string $kode = 'INV'): string
     {
         return strtr($settings['format'], [
             '{NO}' => str_pad((string) $sequence, $settings['padding'], '0', STR_PAD_LEFT),
             '{PT}' => $companyInitials,
             '{KLIEN}' => $clientInitials,
+            '{KODE}' => $kode,
             '{BLN_ROMAWI}' => self::ROMAN_MONTHS[$date->month],
             '{BLN}' => $date->format('m'),
             '{THN}' => $date->format('Y'),
@@ -121,17 +129,38 @@ class InvoiceNumberService
      */
     public function sequenceOf(string $number): ?int
     {
+        return $this->parse($number)['sequence'] ?? null;
+    }
+
+    /**
+     * Segmen {KODE} nomor yang mengikuti pola aktif ("INV-FINAL", "DN-PNBP"); null bila pola tidak
+     * memakai {KODE} atau nomor tidak cocok.
+     */
+    public function kodeOf(string $number): ?string
+    {
+        return $this->parse($number)['kode'] ?? null;
+    }
+
+    /** @return array{sequence: int, kode: ?string}|null */
+    private function parse(string $number): ?array
+    {
         $regex = strtr(preg_quote($this->settings()['format'], '/'), [
-            '\{NO\}' => '(\d+)',
+            '\{NO\}' => '(?<no>\d+)',
             '\{PT\}' => '[A-Za-z0-9]+?',
             '\{KLIEN\}' => '[A-Za-z0-9]+?',
+            '\{KODE\}' => '(?<kode>[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)',
             '\{BLN_ROMAWI\}' => '(?:XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)',
             '\{BLN\}' => '\d{2}',
             '\{THN\}' => '\d{4}',
             '\{THN2\}' => '\d{2}',
         ]);
 
-        return preg_match('/^'.$regex.'$/', $number, $match) ? (int) $match[1] : null;
+        // (?J): token yang dipakai dua kali (mis. {KODE}) tidak membuat nama grup bentrok.
+        if (! preg_match('/(?J)^'.$regex.'$/', $number, $match)) {
+            return null;
+        }
+
+        return ['sequence' => (int) $match['no'], 'kode' => ($match['kode'] ?? '') !== '' ? $match['kode'] : null];
     }
 
     /**

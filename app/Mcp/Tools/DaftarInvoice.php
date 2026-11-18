@@ -141,7 +141,7 @@ class DaftarInvoice extends AlatKeuangan
 
         $baris = (clone $dasar)
             ->select([
-                'invoices.id', 'invoices.invoice_number', 'invoices.billed_to_id', 'invoices.issue_date',
+                'invoices.id', 'invoices.invoice_number', 'invoices.document_type', 'invoices.billed_to_id', 'invoices.issue_date',
                 'invoices.due_date', 'invoices.total_amount', 'invoices.status', 'clients.name as nama_klien',
             ])
             // Alias sengaja bukan `amount_paid`: accessor Invoice::getAmountPaidAttribute()
@@ -186,6 +186,7 @@ class DaftarInvoice extends AlatKeuangan
             'invoice' => $baris->map(fn (Invoice $invoice) => [
                 'id' => $invoice->id,
                 'nomor' => $invoice->invoice_number,
+                'jenis' => self::labelJenis($invoice->document_type),
                 'klien_id' => (int) $invoice->billed_to_id,
                 'klien' => $invoice->nama_klien,
                 'terbit' => $invoice->issue_date?->format('Y-m-d'),
@@ -203,6 +204,12 @@ class DaftarInvoice extends AlatKeuangan
     public static function labelStatus(?string $status): ?string
     {
         return $status === null ? null : (self::LABEL_STATUS[$status] ?? $status);
+    }
+
+    /** "Invoice" atau "Debit Note" (talangan: tanpa PPN, bukan pendapatan). */
+    public static function labelJenis(?string $documentType): string
+    {
+        return $documentType === Invoice::TYPE_DEBIT_NOTE ? 'Debit Note' : 'Invoice';
     }
 
     /** Hari sejak jatuh tempo untuk invoice yang masih menunggu bayar; 0 bila belum lewat, lunas, atau draft. */
