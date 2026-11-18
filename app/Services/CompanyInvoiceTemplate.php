@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\View;
  * Template invoice milik satu perusahaan.
  *
  * Desainnya statis di kode: satu folder per perusahaan, `resources/views/pdf/perusahaan/{slug}/`,
- * berisi `invoice.blade.php` dan gambar yang dipakainya (logo, tanda tangan, stempel). Yang berubah
- * per invoice hanya datanya; mengganti desain = mengubah file di folder itu lalu deploy.
+ * berisi `invoice.blade.php` dan gambar/font yang dipakainya (logo, font judul). Yang berubah per
+ * invoice hanya datanya; mengganti desain = mengubah file di folder itu lalu deploy. Tanda tangan &
+ * stempel bukan bagian folder ini: selalu dari upload Profil perusahaan (repo publik).
  *
  * Perusahaan yang punya folder ini HANYA memakai template ini: template bawaan milik perusahaan
  * lain tidak ditawarkan dan ditolak rute. Perusahaan tanpa folder tetap memakai template bawaan.

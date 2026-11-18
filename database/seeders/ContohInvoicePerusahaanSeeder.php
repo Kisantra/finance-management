@@ -8,11 +8,9 @@ use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\User;
-use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Dasar seeder contoh untuk perusahaan Mitra Group yang punya template invoice sendiri
@@ -20,8 +18,9 @@ use Illuminate\Support\Facades\Storage;
  * khusus perusahaan itu, profil + format nomor invoice, satu klien, dan beberapa invoice contoh.
  * Subkelas hanya berisi datanya.
  *
- * Repo ini publik: klien, kapal, dan nominal di subkelas FIKTIF, dan tanda tangan/stempel yang dipasang
- * adalah gambar "CONTOH" buatan seeder. Tanda tangan asli diunggah di Pengaturan › Profil perusahaan.
+ * Repo ini publik: klien, kapal, dan nominal di subkelas FIKTIF. Seeder tidak memasang gambar tanda tangan
+ * maupun stempel — keduanya diunggah di Pengaturan › Profil perusahaan; selama kosong, PDF menyisakan
+ * ruang tanda tangan basah.
  *
  * Idempoten dan cocok dengan MitraGroupSeeder: perusahaan/akun/invoice yang sudah ada tidak dibuat ulang.
  */
@@ -128,61 +127,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
         // pola penomoran (hanya pola ber-{KODE}); tandai sudah ditinjau supaya admin tidak dialihkan
         // ke halaman peninjauan.
         $profile->invoice_legacy_reviewed_at = now();
-        // Jangan pernah menimpa tanda tangan yang sudah diunggah.
-        $profile->signature_path ??= $this->sampleSignature();
         $profile->save();
-    }
-
-    /**
-     * Gambar tanda tangan + stempel bertuliskan CONTOH, digambar saat seeding (bukan berkas di repo)
-     * dan disimpan di disk public perusahaan seperti hasil upload Profil perusahaan. Font dari folder
-     * template perusahaan aktif.
-     */
-    private function sampleSignature(): ?string
-    {
-        $font = CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
-
-        if ($font === '' || ! function_exists('imagettftext')) {
-            return null;
-        }
-
-        $image = imagecreatetruecolor(480, 216);
-        imagesavealpha($image, true);
-        imagefill($image, 0, 0, imagecolorallocatealpha($image, 0, 0, 0, 127));
-        $blue = imagecolorallocatealpha($image, 30, 64, 175, 25);
-        $ink = imagecolorallocate($image, 25, 25, 25);
-
-        foreach ([200, 198, 196, 172, 170] as $diameter) {
-            imageellipse($image, 108, 108, $diameter, $diameter, $blue);
-        }
-        $this->centeredText($image, 22, 108, 112, $blue, $font, 'CONTOH');
-        $this->centeredText($image, 12, 108, 138, $blue, $font, 'BUKAN ASLI');
-
-        imagesetthickness($image, 3);
-        $previous = null;
-        for ($x = 170; $x <= 470; $x += 4) {
-            $y = 100 + (int) round(30 * sin($x / 19) * (1 - ($x - 170) / 520));
-            if ($previous) {
-                imageline($image, $previous[0], $previous[1], $x, $y, $ink);
-            }
-            $previous = [$x, $y];
-        }
-
-        ob_start();
-        imagepng($image);
-        $png = (string) ob_get_clean();
-        imagedestroy($image);
-
-        $path = 'images/contoh-ttd-stempel.png';
-        Storage::disk('public')->put($path, $png);
-
-        return $path;
-    }
-
-    private function centeredText(\GdImage $image, int $size, int $centerX, int $baseline, int $color, string $font, string $text): void
-    {
-        $box = imagettfbbox($size, 0, $font, $text);
-        imagettftext($image, $size, 0, $centerX - (int) (($box[2] - $box[0]) / 2), $baseline, $color, $font, $text);
     }
 
     private function seedClient(): Client

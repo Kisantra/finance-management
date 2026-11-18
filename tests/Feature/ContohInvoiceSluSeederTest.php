@@ -54,9 +54,12 @@ class ContohInvoiceSluSeederTest extends TestCase
         $this->assertSame('148-00-2346343-6', $profile->bank_accounts[0]['account_number']);
         $this->assertFalse($profile->needsInvoiceReview());
 
-        // Tanda tangan CONTOH digambar seeder ke disk public perusahaan (bukan berkas asli di repo).
-        $this->assertSame('images/contoh-ttd-stempel.png', $profile->signature_path);
-        $this->assertStringStartsWith("\x89PNG", Storage::disk('public')->get($profile->signature_path));
+        // Tanda tangan & stempel hanya dari upload Profil perusahaan: seeder tidak memasang gambar apa pun.
+        $this->assertNull($profile->signature_path);
+        $this->assertNull($profile->stamp_path);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame('Salam Ilham', $profile->finance_manager_name);
+        $this->assertSame('Direktur Utama', $profile->finance_manager_position);
 
         // Kode jenis ikut di nomor ({KODE}); invoice & Debit Note berbagi satu urutan.
         $this->assertSame(
@@ -98,10 +101,11 @@ class ContohInvoiceSluSeederTest extends TestCase
     public function test_tidak_menimpa_tanda_tangan_yang_sudah_diunggah(): void
     {
         $this->seed(ContohInvoiceSluSeeder::class);
-        CompanyProfile::current()->update(['signature_path' => 'images/pdf-signature-asli.png']);
+        CompanyProfile::current()->update(['signature_path' => 'images/pdf-signature-asli.png', 'stamp_path' => 'images/stamp-asli.png']);
 
         $this->seed(ContohInvoiceSluSeeder::class);
 
         $this->assertSame('images/pdf-signature-asli.png', CompanyProfile::current()->signature_path);
+        $this->assertSame('images/stamp-asli.png', CompanyProfile::current()->stamp_path);
     }
 }

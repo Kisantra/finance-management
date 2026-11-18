@@ -57,9 +57,10 @@ class ContohInvoiceBasSeederTest extends TestCase
         $this->assertSame('148-00-23719878', $profile->bank_accounts[0]['account_number']);
         $this->assertFalse($profile->needsInvoiceReview());
 
-        // Tanda tangan CONTOH digambar seeder (font dari folder template BAS), bukan berkas asli di repo.
-        $this->assertSame('images/contoh-ttd-stempel.png', $profile->signature_path);
-        $this->assertStringStartsWith("\x89PNG", Storage::disk('public')->get($profile->signature_path));
+        // Tanda tangan & stempel hanya dari upload Profil perusahaan: seeder tidak memasang gambar apa pun.
+        $this->assertNull($profile->signature_path);
+        $this->assertNull($profile->stamp_path);
+        $this->assertSame([], Storage::disk('public')->allFiles());
 
         $this->assertSame(
             ['012/BAS-CES/INV-FINAL/X/2026', '013/BAS-CES/INV-FINAL/X/2026'],
@@ -100,10 +101,11 @@ class ContohInvoiceBasSeederTest extends TestCase
     public function test_tidak_menimpa_tanda_tangan_yang_sudah_diunggah(): void
     {
         $this->seed(ContohInvoiceBasSeeder::class);
-        CompanyProfile::current()->update(['signature_path' => 'images/pdf-signature-asli.png']);
+        CompanyProfile::current()->update(['signature_path' => 'images/pdf-signature-asli.png', 'stamp_path' => 'images/stamp-asli.png']);
 
         $this->seed(ContohInvoiceBasSeeder::class);
 
         $this->assertSame('images/pdf-signature-asli.png', CompanyProfile::current()->signature_path);
+        $this->assertSame('images/stamp-asli.png', CompanyProfile::current()->stamp_path);
     }
 }
