@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { t } from '@/i18n';
-import { companyUrl } from '@/lib/company';
+import { api } from '@/lib/api';
 
 export interface QuickAddCategoryResult {
     id: number;
@@ -66,17 +66,12 @@ export function QuickAddCategoryDialog({ open, onOpenChange, type, parentOptions
         setSaving(true);
         setErrors({});
         try {
-            const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
             const body: Record<string, unknown> = { label: label.trim(), type };
             if (mode === 'child') body.parent_id = parentId;
 
-            const res = await fetch(companyUrl('/transaction-categories'), {
+            const res = await api('/transaction-categories', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),
             });
             const json = await res.json().catch(() => ({}));
