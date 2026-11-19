@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use App\Models\User;
+use Carbon\Carbon;
 use Database\Seeders\ContohInvoiceBasSeeder;
 use Database\Seeders\ContohInvoiceSluSeeder;
 use Database\Seeders\MitraGroupSeeder;
@@ -50,7 +51,7 @@ class ContohInvoiceBasSeederTest extends TestCase
         $profile = CompanyProfile::current();
         $this->assertSame('PT. BERKAH ANDALAN SAMBOJA', $profile->name);
         $this->assertSame('BAS', $profile->abbreviation);
-        $this->assertSame('{NO}/{PT}-{KLIEN}/INV/{BLN_ROMAWI}/{THN}', $profile->invoice_number_format);
+        $this->assertSame('{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}', $profile->invoice_number_format);
         $this->assertSame([], $profile->missingFields());
         // Data yang tercetak di template invoice perusahaan.
         $this->assertSame('Samarinda', $profile->signature_city);
@@ -62,10 +63,19 @@ class ContohInvoiceBasSeederTest extends TestCase
         $this->assertStringStartsWith("\x89PNG", Storage::disk('public')->get($profile->signature_path));
 
         $this->assertSame(
-            ['012/BAS-CES/INV-FINAL/X/2026', '013/BAS-CES/INV-FINAL/X/2026'],
+            [
+                '012/BAS-CES/INV-FINAL/X/2026',
+                '013/BAS-CES/INV-FINAL/X/2026',
+                '014/BAS-CES/DN-PNBP/X/2026',
+                '015/BAS-CES/DN-DEM/X/2026',
+                '016/BAS-CES/DN-OPS/X/2026',
+            ],
             Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_number')->all(),
         );
         $this->assertSame(1, Invoice::where('status', 'draft')->count());
+        // Format {KODE} membaca urutan semua nomor contoh, jadi draft berikutnya melanjutkan 016.
+        $this->assertSame([12, 13, 14, 15, 16], Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_sequence')->all());
+        $this->assertSame('017/BAS-CES/INV-FINAL/XI/2026', Invoice::generateInvoiceNumber(Carbon::parse('2026-11-12'), Client::where('name', 'PT. CONTOH ENERGI SAMUDRA')->value('id'), Invoice::TYPE_INVOICE, 'FINAL'));
 
         $final = Invoice::with('items')->where('invoice_number', '012/BAS-CES/INV-FINAL/X/2026')->sole();
         $this->assertSame('Invoice FINAL MV. CONTOH SAMUDRA', $final->subject);
@@ -81,6 +91,15 @@ class ContohInvoiceBasSeederTest extends TestCase
         // 383.000.000 + PPN 42.130.000 − PPh 23 0,5% 1.915.000 (profil BAS memotong PPh 23).
         $this->assertSame(423_215_000, (int) $twoItems->total_amount);
 
+        // Debit Note meniru dokumen Word BAS: talangan, tanpa PPN/PPh, total = yang dibayar BAS.
+        $debitNotes = Invoice::with('items')->where('document_type', Invoice::TYPE_DEBIT_NOTE)->orderBy('invoice_number')->get();
+        $this->assertSame(['PNBP', 'DEM', 'OPS'], $debitNotes->pluck('document_code')->all());
+        $this->assertSame([12_500_000, 15_000_000, 30_000_000], $debitNotes->pluck('total_amount')->all());
+        $this->assertTrue($debitNotes->every(fn (Invoice $dn) => $dn->items->every('is_tax_deposit') && $dn->ppn_amount === 0 && $dn->pph_rate === null));
+        $this->assertSame(['FINAL', 'FINAL'], Invoice::where('document_type', Invoice::TYPE_INVOICE)->whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('document_code')->all());
+        $this->assertSame('3.000', $debitNotes[1]->items->first()->quantity);
+        $this->assertSame('Day', $debitNotes[1]->items->first()->unit);
+
         $this->assertSame('Direktur Finance & Accounting', Client::where('name', 'PT. CONTOH ENERGI SAMUDRA')->value('person_in_charge'));
     }
 
@@ -93,8 +112,8 @@ class ContohInvoiceBasSeederTest extends TestCase
 
         // BAS & SLU sudah dibuat MitraGroupSeeder: tidak diprovisioning ulang.
         Event::assertDispatchedTimes(TenantCreated::class, 10);
-        // Suite ini satu database: 3 invoice BAS + 5 dokumen SLU (termasuk Debit Note), masing-masing satu klien.
-        $this->assertSame(8, Invoice::count());
+        // Suite ini satu database: 6 dokumen BAS + 5 dokumen SLU (termasuk Debit Note), masing-masing satu klien.
+        $this->assertSame(11, Invoice::count());
         $this->assertSame(1, Client::where('name', 'PT. CONTOH ENERGI SAMUDRA')->count());
         $this->assertSame(1, User::where('email', 'admin.bas@mitragroup.id')->count());
         $this->assertSame([self::BAS], User::where('email', 'admin.bas@mitragroup.id')->sole()->companies()->pluck('companies.id')->all());
