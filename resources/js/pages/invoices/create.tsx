@@ -239,6 +239,9 @@ interface PreviewState {
     error: string | null;
 }
 
+/** Batas coba ulang otomatis saat server membalas 503 (±2 menit dengan Retry-After 10 detik). */
+const PREVIEW_AUTO_RETRY_MAX = 12;
+
 /**
  * Render ulang PDF di server setiap isian berubah (jeda 350 ms, permintaan lama dibatalkan).
  * Server memakai jalur render yang sama dengan tombol Unduh, jadi kertas = berkas ekspor.
@@ -246,11 +249,13 @@ interface PreviewState {
 function useLivePreview(payload: unknown, enabled: boolean) {
     const [state, setState] = React.useState<PreviewState>({ url: null, number: null, loading: true, error: null });
     const [attempt, setAttempt] = React.useState(0);
+    const autoRetries = React.useRef(0);
     const body = JSON.stringify(payload);
 
     React.useEffect(() => {
         if (!enabled) return;
         const controller = new AbortController();
+        let retryTimer: number | undefined;
         setState((s) => ({ ...s, loading: true }));
         const timer = window.setTimeout(async () => {
             try {
@@ -260,10 +265,20 @@ function useLivePreview(payload: unknown, enabled: boolean) {
                     body,
                     signal: controller.signal,
                 });
+                // 503 = database sedang restart (Watchpost #18): pulih sendiri dalam hitungan detik,
+                // jadi pratinjau dicoba lagi setelah Retry-After tanpa menunggu pengguna mengetik.
+                if (res.status === 503 && autoRetries.current < PREVIEW_AUTO_RETRY_MAX) {
+                    autoRetries.current += 1;
+                    const seconds = Math.min(Math.max(Number(res.headers.get('Retry-After')) || 10, 2), 30);
+                    retryTimer = window.setTimeout(() => setAttempt((n) => n + 1), seconds * 1000);
+                    setState((s) => ({ ...s, loading: false, error: t('Server sedang tidak tersedia. Pratinjau dicoba lagi otomatis.') }));
+                    return;
+                }
                 if (!res.ok) {
                     const data = await res.json().catch(() => null);
                     throw new Error(data?.message ?? t('Server membalas {{status}}.', { status: res.status }));
                 }
+                autoRetries.current = 0;
                 const url = URL.createObjectURL(await res.blob());
                 setState((prev) => {
                     // URL lama dilepas setelah kertas baru sempat menggantikannya.
@@ -281,6 +296,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
         }, 350);
         return () => {
             window.clearTimeout(timer);
+            window.clearTimeout(retryTimer);
             controller.abort();
         };
     }, [body, enabled, attempt]);

@@ -1812,6 +1812,7 @@
     "Server baru saja disiapkan": "The server was just set up",
     "Server belum siap untuk Claude": "The server is not ready for Claude",
     "Server membalas {{status}}.": "The server replied {{status}}.",
+    "Server sedang tidak tersedia. Pratinjau dicoba lagi otomatis.": "The server is temporarily unavailable. The preview will retry automatically.",
     "Setelah akun dihapus, seluruh data Anda akan hilang permanen. Pastikan Anda telah mengunduh data yang ingin disimpan.": "Once your account is deleted, all of your data will be permanently lost. Make sure you have downloaded any data you want to keep.",
     "Setelah Anda klik Buat perusahaan": "After you click Create company",
     "Setelah Anda memilih Izinkan dari Claude, sambungannya muncul di sini dan bisa dicabut kapan saja.": "After you choose Allow from Claude, the connection appears here and can be revoked at any time.",
