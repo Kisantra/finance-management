@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Http\Middleware\SetDocumentLocale;
 use App\Models\User;
+use Illuminate\Contracts\Database\LostConnectionDetector;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Kisantra\Watchpost\Facades\Watchpost;
+use PDOException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -24,6 +26,12 @@ use Throwable;
 class ErrorReportService
 {
     private const TRACE_FRAMES = 8;
+
+    /**
+     * Saran jeda (detik) saat database tidak bisa dihubungi. MySQL produksi butuh
+     * ±40 detik sampai siap lagi setelah restart, jadi beberapa kali coba sudah cukup.
+     */
+    private const COBA_LAGI_DETIK = 10;
 
     /**
      * Judul dan penjelasan per kode status, dalam bahasa $locale.
@@ -73,7 +81,15 @@ class ErrorReportService
 
         $debugMenang = config('app.debug') && ! config('app.error_page_in_debug');
 
-        if ($status < 400 || $debugMenang || ($request->expectsJson() && ! $request->header('X-Inertia'))) {
+        if ($status < 400 || $debugMenang) {
+            return $response;
+        }
+
+        if (self::databaseTidakTerjangkau($e)) {
+            return $this->databaseTidakTersedia($request);
+        }
+
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
             return $response;
         }
 
@@ -86,6 +102,49 @@ class ErrorReportService
             // prop bersama dihitung), halaman bawaan Laravel lebih baik daripada layar kosong.
             return $response;
         }
+    }
+
+    /**
+     * Server database sedang restart atau mati ("Connection refused", "server has gone away", …).
+     *
+     * Terjadi sungguhan pada 2026-11-17 (Watchpost #18): systemd menyalakan ulang MySQL
+     * produksi pukul 08:45:52 UTC dan baru siap 42 detik kemudian. Pratinjau invoice yang
+     * sedang berjalan gagal saat menulis sesi dan pengguna mendapat 500 "Terjadi kesalahan
+     * di sistem"; halaman yang dibuka setelahnya menampilkan tombol "Masuk" karena sesinya
+     * tidak terbaca. Yang benar adalah "tunggu sebentar", bukan "ada yang rusak".
+     *
+     * Daftar pesannya milik Laravel — yang sama dipakai Connection untuk memutuskan
+     * koneksi perlu disambung ulang. Rantai previous ikut diperiksa (mis. ViewException
+     * dari template PDF yang membungkus QueryException).
+     */
+    private static function databaseTidakTerjangkau(Throwable $e): bool
+    {
+        for ($sebab = $e; $sebab !== null; $sebab = $sebab->getPrevious()) {
+            if (($sebab instanceof QueryException || $sebab instanceof PDOException)
+                && app(LostConnectionDetector::class)->causedByLostConnection($sebab)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 503 + Retry-After. Halaman Inertia dilewati: propnya (izin per tim, cache) butuh
+     * database yang justru sedang mati, sedangkan halaman cadangan Blade dijamin tidak
+     * menyentuh database. Exception-nya tetap dilaporkan ke log dan Watchpost seperti biasa.
+     */
+    private function databaseTidakTersedia(Request $request): Response
+    {
+        $headers = ['Retry-After' => (string) self::COBA_LAGI_DETIK];
+
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json([
+                'message' => __('Sistem sedang dalam pemeliharaan atau sibuk. Coba lagi beberapa menit lagi.', [], self::bahasaTampilan($request)),
+            ], 503, $headers);
+        }
+
+        return response()->view('errors.503', [], 503, $headers);
     }
 
     /**

@@ -1618,6 +1618,7 @@
     "Server baru saja disiapkan": "服务器刚刚完成准备",
     "Server belum siap untuk Claude": "服务器尚未准备好连接 Claude",
     "Server membalas {{status}}.": "服务器返回 {{status}}。",
+    "Server sedang tidak tersedia. Pratinjau dicoba lagi otomatis.": "服务器暂时不可用。预览将自动重试。",
     "Setelah akun dihapus, seluruh data Anda akan hilang permanen. Pastikan Anda telah mengunduh data yang ingin disimpan.": "账户删除后，您的所有数据将永久丢失。请确保已下载需要保留的数据。",
     "Setelah Anda klik Buat perusahaan": "点击“创建公司”后",
     "Setelah Anda memilih Izinkan dari Claude, sambungannya muncul di sini dan bisa dicabut kapan saja.": "您在 Claude 中选择“允许”后，连接会显示在这里，并可随时撤销。",

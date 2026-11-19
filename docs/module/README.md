@@ -142,6 +142,12 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
     perusahaan yang dibuka selama pengecekan izin lalu mengembalikannya. Jangan menulis ke
     `storage_path()` dari penanganan error: di dalam tenancy path itu diarahkan ke folder tenant.
   - Uji: `tests/Feature/ErrorPageTest.php`.
+  - **Database tidak bisa dihubungi** (MySQL restart/mati: "Connection refused", "server has gone
+    away", … — daftar `LostConnectionDetector` Laravel, termasuk di rantai previous): **503** +
+    `Retry-After: 10`, bukan 500. Halaman memakai cadangan Blade `errors.503` langsung (prop Inertia
+    butuh database); JSON mendapat `message` 503. Exception-nya tetap dilaporkan ke log & Watchpost.
+    Asal: Watchpost #18 (2026-11-17, MySQL produksi restart 42 detik). Uji:
+    `tests/Feature/DatabaseTidakTerjangkauTest.php`.
 
   - **Lapisan cadangan** (`resources/views/errors/*.blade.php`): dipakai ketika halaman Inertia
     sendiri gagal dirender (database mati, manifest Vite hilang). Berkas itu HARAM menyentuh
