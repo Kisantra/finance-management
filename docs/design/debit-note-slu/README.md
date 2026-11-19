@@ -1,6 +1,6 @@
 # Debit Note PT SLU: penjelasan & pilihan keputusan
 
-> **Status:** **diimplementasikan** (18 Nov 2026) dengan semua rekomendasi: K1 A, K2 A, K3 A, K4 A, K6 A (sudah selesai di PR template BAS, 12 Nov 2026). **K5 digabung ke PR Debit Note** (pilihan A), karena tanpa itu seluruh Debit Note tampil sebagai laba. Cara kerjanya kini di [`docs/module/invoices.md` › Debit Note](../../module/invoices.md#debit-note-talangan--perusahaan-bertemplate-debit-note-pt-slu).
+> **Status:** **diimplementasikan** (18 Nov 2026) dengan semua rekomendasi: K1 A, K2 A, K3 A, K4 A, K6 A (sudah selesai di PR template BAS, 12 Nov 2026). **K5 digabung ke PR Debit Note** (pilihan A), karena tanpa itu seluruh Debit Note tampil sebagai laba. Cara kerjanya kini di [`docs/module/invoices.md` › Debit Note](../../module/invoices.md#debit-note-talangan--perusahaan-bertemplate-debit-note-pt-slu-pt-bas).
 > **Asumsi utama (masih perlu dikonfirmasi SLU):** Debit Note `DN-PNBP` menagih kembali biaya yang SLU bayar lebih dulu atas nama klien persis sebesar yang dibayar, **bukan** jasa SLU (K2), dan nomornya berbagi urutan dengan invoice (K3). Bila jawaban SLU berbeda, lihat "Bila asumsi tidak tepat" di bawah.
 > Desain PDF Debit Note meniru invoice SLU (hanya judul berganti) sampai contoh Debit Note asli diterima.
 
@@ -204,7 +204,7 @@ Template SLU sekarang menulis langsung alamat, telepon, rekening, dan nama penan
 ## 6. Di luar cakupan
 
 - **Potongan PPh 23** pada invoice SLU: PR terpisah (mengubah hitungan total & status Lunas).
-- **Debit Note untuk perusahaan lain:** otomatis tersedia bila perusahaan itu diberi template `debit-note` sendiri; tidak ada yang berubah sampai saat itu.
+- **Debit Note untuk perusahaan lain:** otomatis tersedia bila perusahaan itu diberi template `debit-note` sendiri; tidak ada yang berubah sampai saat itu. PT BAS menyusul 19 Nov 2026 dengan desain dari Debit Note Word aslinya (PNBP, DEMMURAGE, OPERASIONAL) — lihat modul Invoice.
 - **Credit Note** (pengurangan tagihan): tidak termasuk.
 
 ---
