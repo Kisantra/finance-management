@@ -137,11 +137,11 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     /**
      * Gambar tanda tangan + stempel bertuliskan CONTOH, digambar saat seeding (bukan berkas di repo)
      * dan disimpan di disk public perusahaan seperti hasil upload Profil perusahaan. Font dari folder
-     * template perusahaan aktif.
+     * template perusahaan aktif: Carlito-Bold, atau Tinos-Bold bila template tidak memakai Carlito (MKB).
      */
     private function sampleSignature(): ?string
     {
-        $font = CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
+        $font = CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf') ?: CompanyInvoiceTemplate::path('fonts/Tinos-Bold.ttf');
 
         if ($font === '' || ! function_exists('imagettftext')) {
             return null;

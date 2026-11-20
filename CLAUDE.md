@@ -199,7 +199,7 @@ Loading skeleton                  → Skeleton
 | Dashboard | `/dashboard` | Overview stats |
 | Clients | `/clients` | Index, Create, Edit, Delete, Show |
 | Services | `/services` | Index, Create, Edit, Delete |
-| Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments; jenis dokumen **Debit Note** (talangan: semua item titipan, tanpa PPN, bukan pendapatan) untuk perusahaan bertemplate `debit-note.blade.php` (PT SLU, PT BAS) |
+| Invoices | `/invoices` | Index, Create, Edit, Delete, Show + Payments; jenis dokumen **Debit Note** (talangan: semua item titipan, tanpa PPN, bukan pendapatan) untuk perusahaan bertemplate `debit-note.blade.php` (PT SLU, PT BAS, PT MKB, PT BCB) |
 | Recurring | `/recurring-invoices` | Templates, Monthly, Analytics + CRUD |
 | Kas & Bank | `/bank-accounts` | Index, Create, Edit, Delete, Transactions; jenis akun `bank`/`cash` (kas kecil: penanggung jawab, plafon, Isi ulang via transfer); label menu "Kas & Bank", route & izin tetap `bank-accounts` |
 | Cash Flow | `/cash-flow` | Menu **Pemasukan & Pengeluaran** (tab Semua `/all` — butuh `view income` + `view expense`, ekspor Excel —, Pemasukan, Pengeluaran; kolom & filter Diinput oleh; **Pendanaan** (`financing`) bisa dicatat lewat grup terakhir pemilih kategori, tampil berbadge & kartu terpisah karena tidak masuk Laba Rugi, pokok utang/piutang hanya-lihat, rinciannya bisa dibuka hanya-lihat) + menu Transfer & Penyesuaian; kotak **Jurnal** (debit/kredit diturunkan dari rekening + kategori, pembayaran invoice "titipan dulu" seperti Laba Rugi — tidak disimpan, bukan buku besar; `JournalService`) di dialog Catat, rincian, ubah, Transfer, Catat pembayaran invoice, dan rincian Kas & Bank |
