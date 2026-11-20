@@ -134,6 +134,14 @@ class DetailInvoice extends AlatKeuangan
                 'total' => (int) $invoice->total_amount,
                 'dibayar' => $invoice->amount_paid,
                 'sisa' => $invoice->amount_remaining,
+                // Tagihan USD: utang klien dalam USD dengan kurs invoice; Rupiah di atas = pembukuan.
+                ...($invoice->isForeign() ? [
+                    'mata_uang' => $invoice->currency,
+                    'kurs' => (float) $invoice->exchange_rate,
+                    'total_usd' => (float) $invoice->total_foreign,
+                    'dibayar_usd' => $invoice->foreign_paid,
+                    'sisa_usd' => $invoice->foreign_remaining,
+                ] : []),
             ],
             'laba' => [
                 'pendapatan' => $pendapatan,
@@ -143,6 +151,10 @@ class DetailInvoice extends AlatKeuangan
             'pembayaran' => $invoice->payments->map(fn (Payment $pembayaran) => [
                 'tanggal' => $pembayaran->payment_date?->format('Y-m-d'),
                 'jumlah' => (int) $pembayaran->amount,
+                ...($pembayaran->foreign_amount !== null ? [
+                    'jumlah_usd' => (float) $pembayaran->foreign_amount,
+                    'kurs' => (float) $pembayaran->exchange_rate,
+                ] : []),
                 'rekening' => $pembayaran->bankAccount
                     ? $pembayaran->bankAccount->account_name.' ('.$pembayaran->bankAccount->bank_name.')'
                     : null,

@@ -596,6 +596,7 @@
                     style="font-style: italic; margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid #42b2cc;">
                     <strong style="color: #42b2cc;">{{ __('invoice.say') }}:</strong> {{ $terbilang }} {{ __('invoice.rupiah') }}
                 </div>
+                @include('pdf.partials.tagihan-usd')
 
                 <!-- DP Information Box -->
                 @if ($is_down_payment)

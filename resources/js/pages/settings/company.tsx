@@ -26,6 +26,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { FileUpload } from '@/components/shared/file-upload';
@@ -38,11 +39,21 @@ import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { intlLocale, t, tk, Trans } from '@/i18n';
 
-/** Rekening tujuan transfer yang tercetak di invoice (`company_profiles.bank_accounts`). */
+/**
+ * Rekening tujuan transfer yang tercetak di invoice (`company_profiles.bank_accounts`). Rekening USD tercetak di
+ * tagihan USD (dengan cabang & Swift untuk transfer luar negeri), rekening Rupiah di tagihan Rupiah.
+ */
 interface BankAccountRow {
     bank: string;
     account_number: string;
     account_name: string;
+    currency: 'IDR' | 'USD';
+    branch: string;
+    swift: string;
+}
+
+function emptyBankAccount(): BankAccountRow {
+    return { bank: '', account_number: '', account_name: '', currency: 'IDR', branch: '', swift: '' };
 }
 
 interface Company {
@@ -58,10 +69,12 @@ interface Company {
     /** Klien memotong PPh 23: sakelar PPh 23 tampil di editor invoice, dengan tarif bawaan ini. */
     pph_enabled: boolean;
     pph_rate: number;
+    /** Bisa menagih dalam USD: editor invoice menampilkan mata uang tagihan, kurs, dan harga USD. */
+    foreign_currency_enabled: boolean;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
-    bank_accounts: Partial<BankAccountRow>[];
+    bank_accounts: Array<Partial<Omit<BankAccountRow, 'branch' | 'swift'>> & { branch?: string | null; swift?: string | null }>;
     logo_path: string | null;
     letter_head_path: string | null;
     signature_path: string | null;
@@ -89,6 +102,7 @@ interface CompanyFormData {
     ppn_rate: string;
     pph_enabled: boolean;
     pph_rate: string;
+    foreign_currency_enabled: boolean;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
@@ -151,6 +165,7 @@ export default function CompanySettings() {
         ppn_rate: String(company?.ppn_rate ?? 11),
         pph_enabled: company?.pph_enabled ?? false,
         pph_rate: String(company?.pph_rate ?? 2),
+        foreign_currency_enabled: company?.foreign_currency_enabled ?? false,
         finance_manager_name: company?.finance_manager_name ?? '',
         finance_manager_position: company?.finance_manager_position ?? '',
         signature_city: company?.signature_city ?? '',
@@ -158,6 +173,9 @@ export default function CompanySettings() {
             bank: row.bank ?? '',
             account_number: row.account_number ?? '',
             account_name: row.account_name ?? '',
+            currency: row.currency ?? 'IDR',
+            branch: row.branch ?? '',
+            swift: row.swift ?? '',
         })),
         logo: null,
         letter_head: null,
@@ -328,6 +346,27 @@ export default function CompanySettings() {
                         </div>
                     </FormSection>
 
+                    {/* Section: Tagihan valuta asing */}
+                    <FormSection
+                        title={t('Tagihan USD')}
+                        description={t('Untuk klien yang membayar dalam USD. Pembukuan tetap Rupiah dengan kurs yang diisi manual di tiap invoice.')}
+                    >
+                        <div className="flex flex-col gap-1.5">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <Checkbox
+                                    checked={data.foreign_currency_enabled}
+                                    onCheckedChange={(c) => setData('foreign_currency_enabled', Boolean(c))}
+                                />
+                                <span className="text-sm text-dark-900 dark:text-dark-50">
+                                    <Trans i18nKey="Perusahaan ini bisa <b>menagih dalam USD</b>" components={{ b: <strong /> }} />
+                                </span>
+                            </label>
+                            <p className="pl-7 text-[13px] text-ob-ink-2">
+                                {t('Editor invoice menampilkan mata uang tagihan, kurs, dan harga USD per baris; pembayaran tagihan USD dicatat dalam USD dengan kurs saat diterima. Mematikannya tidak mengubah invoice yang sudah ber-USD.')}
+                            </p>
+                        </div>
+                    </FormSection>
+
                     {/* Section: Rekening pembayaran */}
                     <FormSection
                         title={t('Rekening Pembayaran')}
@@ -339,10 +378,8 @@ export default function CompanySettings() {
                             </p>
                         )}
                         {data.bank_accounts.map((row, index) => (
-                            <div
-                                key={index}
-                                className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-3 items-start"
-                            >
+                            <div key={index} className="flex flex-col gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-3 items-start">
                                 <Autocomplete
                                     label={t('Nama Bank *')}
                                     value={row.bank}
@@ -383,6 +420,38 @@ export default function CompanySettings() {
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
                             </div>
+                            {(data.foreign_currency_enabled || row.currency !== 'IDR') && (
+                                <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-3 items-start sm:pr-12">
+                                    <SegmentedControl
+                                        variant="pill"
+                                        label={t('Mata uang rekening')}
+                                        options={[
+                                            { value: 'IDR' as const, label: t('Rupiah') },
+                                            { value: 'USD' as const, label: 'USD' }, // i18n-abaikan: kode mata uang
+                                        ]}
+                                        value={row.currency}
+                                        onChange={(v) => updateBankAccount(index, 'currency', v)}
+                                        error={fieldErrors[`bank_accounts.${index}.currency`]}
+                                        className="w-auto"
+                                    />
+                                    <Input
+                                        label={t('Cabang')}
+                                        value={row.branch}
+                                        onChange={(e) => updateBankAccount(index, 'branch', e.target.value)}
+                                        error={fieldErrors[`bank_accounts.${index}.branch`]}
+                                        placeholder={t('Opsional, mis. Samarinda Sempaja Branch')}
+                                    />
+                                    <Input
+                                        label={t('Kode Swift')}
+                                        value={row.swift}
+                                        onChange={(e) => updateBankAccount(index, 'swift', e.target.value.toUpperCase())}
+                                        error={fieldErrors[`bank_accounts.${index}.swift`]}
+                                        placeholder={t('Opsional, mis. BMRIIDJA')}
+                                        maxLength={20}
+                                    />
+                                </div>
+                            )}
+                            </div>
                         ))}
                         {errors.bank_accounts && <p className="text-xs text-red-600 dark:text-red-400">{errors.bank_accounts}</p>}
                         {data.bank_accounts.length < MAX_BANK_ACCOUNTS && (
@@ -392,7 +461,7 @@ export default function CompanySettings() {
                                 size="sm"
                                 icon={<Plus className="w-4 h-4" />}
                                 onClick={() =>
-                                    setData('bank_accounts', [...data.bank_accounts, { bank: '', account_number: '', account_name: '' }])
+                                    setData('bank_accounts', [...data.bank_accounts, emptyBankAccount()])
                                 }
                             >
                                 {t('Tambah rekening')}

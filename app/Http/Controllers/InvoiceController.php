@@ -54,7 +54,7 @@ class InvoiceController extends Controller
         $query = Invoice::query()
             ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
             ->leftJoin(
-                DB::raw('(SELECT invoice_id, COALESCE(SUM(amount), 0) as amount_paid FROM payments GROUP BY invoice_id) as p'),
+                DB::raw('(SELECT invoice_id, COALESCE(SUM(amount), 0) as amount_paid, COALESCE(SUM(foreign_amount), 0) as foreign_paid FROM payments GROUP BY invoice_id) as p'),
                 'invoices.id', '=', 'p.invoice_id'
             )
             ->select([
@@ -62,6 +62,7 @@ class InvoiceController extends Controller
                 'clients.name as client_name',
                 'clients.type as client_type',
                 DB::raw('COALESCE(p.amount_paid, 0) as amount_paid'),
+                DB::raw('COALESCE(p.foreign_paid, 0) as foreign_paid_sum'),
             ])
             ->when($search, fn ($q) => $q->where(function ($query) use ($search) {
                 $query->where('invoices.invoice_number', 'like', "%{$search}%")
@@ -90,7 +91,12 @@ class InvoiceController extends Controller
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
                 'total_amount' => $invoice->total_amount,
                 'amount_paid' => (int) $invoice->amount_paid,
-                'amount_remaining' => $invoice->total_amount - (int) $invoice->amount_paid,
+                'amount_remaining' => $this->remainingOf($invoice),
+                'currency' => $invoice->currency ?? Invoice::CURRENCY_IDR,
+                'total_foreign' => $invoice->total_foreign !== null ? (float) $invoice->total_foreign : null,
+                'foreign_remaining' => $invoice->isForeign()
+                    ? max(0, Invoice::cents($invoice->total_foreign) - Invoice::cents($invoice->foreign_paid_sum)) / 100
+                    : null,
                 'status' => $invoice->status,
                 'faktur' => $invoice->faktur,
             ]);
@@ -127,8 +133,7 @@ class InvoiceController extends Controller
             ->when($clientIds, fn ($qq) => $qq->whereIn('invoices.billed_to_id', $clientIds));
         $this->applyStatusFilter($overdueQuery, 'overdue');
         $overdueIds = $overdueQuery->pluck('invoices.id');
-        $overdueAmount = max(0, (int) Invoice::whereIn('id', $overdueIds)->sum('total_amount')
-            - (int) Payment::whereIn('invoice_id', $overdueIds)->sum('amount'));
+        $overdueAmount = Invoice::outstandingTotal($overdueIds);
 
         // Revenue/profit/count exclude drafts (match Listing.php behaviour).
         $statsIds = $filtered()->whereNotIn('invoices.status', ['draft', 'cancelled'])->pluck('invoices.id');
@@ -152,9 +157,7 @@ class InvoiceController extends Controller
 
         // Outstanding within the active filters: billed minus paid on unpaid invoices.
         $outstandingIds = $filtered()->whereIn('invoices.status', ['sent', 'partially_paid'])->pluck('invoices.id');
-        $billed = (int) Invoice::whereIn('id', $outstandingIds)->sum('total_amount');
-        $paidOnOutstanding = (int) Payment::whereIn('invoice_id', $outstandingIds)->sum('amount');
-        $totalOutstanding = max(0, $billed - $paidOnOutstanding);
+        $totalOutstanding = Invoice::outstandingTotal($outstandingIds);
 
         // Per-status tab counts within the same filtered scope (minus status).
         $statusCounts = $filtered(false)
@@ -223,6 +226,21 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Sisa tagihan baris daftar/rekap dari kolom agregat query (`amount_paid`, `foreign_paid_sum`), sama dengan
+     * accessor Invoice::amount_remaining: tagihan USD = sisa USD × kurs invoice, tidak minus bila kurs naik.
+     */
+    private function remainingOf(Invoice $invoice): int
+    {
+        if (! $invoice->isForeign()) {
+            return (int) $invoice->total_amount - (int) $invoice->getAttributes()['amount_paid'];
+        }
+
+        $sisa = max(0, Invoice::cents($invoice->total_foreign) - Invoice::cents($invoice->foreign_paid_sum)) / 100;
+
+        return (int) round($sisa * (float) $invoice->exchange_rate);
+    }
+
+    /**
      * Filter tab status. "overdue" = terkirim/sebagian yang jatuh temponya sudah lewat
      * (penanda, bukan status tersimpan).
      *
@@ -276,7 +294,7 @@ class InvoiceController extends Controller
         $query = Invoice::query()
             ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
             ->leftJoin(
-                DB::raw('(SELECT invoice_id, COALESCE(SUM(amount), 0) as amount_paid FROM payments GROUP BY invoice_id) as p'),
+                DB::raw('(SELECT invoice_id, COALESCE(SUM(amount), 0) as amount_paid, COALESCE(SUM(foreign_amount), 0) as foreign_paid FROM payments GROUP BY invoice_id) as p'),
                 'invoices.id', '=', 'p.invoice_id'
             )
             ->leftJoin(
@@ -287,6 +305,7 @@ class InvoiceController extends Controller
                 'invoices.*',
                 'clients.name as client_name',
                 DB::raw('COALESCE(p.amount_paid, 0) as amount_paid'),
+                DB::raw('COALESCE(p.foreign_paid, 0) as foreign_paid_sum'),
                 DB::raw('COALESCE(ic.total_cogs, 0) as total_cogs'),
                 DB::raw('COALESCE(ic.total_tax_deposit, 0) as total_tax_deposit'),
             ])
@@ -348,7 +367,7 @@ class InvoiceController extends Controller
                 'profit' => $omzet - $hpp,            // gross profit = omzet − HPP
                 'pph_final' => (int) round($omzet * 0.005), // PP 55/2022 final: 0,5% × omzet
                 'amount_paid' => (int) $invoice->amount_paid,
-                'amount_remaining' => (int) $invoice->total_amount - (int) $invoice->amount_paid,
+                'amount_remaining' => $this->remainingOf($invoice),
                 'status' => $invoice->status,
                 'invoice_sequence' => $invoice->invoice_sequence,
                 'items_description' => $itemNames[$invoice->id] ?? '',
@@ -479,6 +498,12 @@ class InvoiceController extends Controller
             'total_amount' => $invoice->total_amount,
             'amount_paid' => $invoice->amount_paid,
             'amount_remaining' => $invoice->amount_remaining,
+            // Tagihan USD: utang, terbayar, dan sisa dalam USD; kurs invoice untuk menilai Rupiahnya.
+            'currency' => $invoice->currency ?? Invoice::CURRENCY_IDR,
+            'exchange_rate' => $invoice->exchange_rate !== null ? (float) $invoice->exchange_rate : null,
+            'total_foreign' => $invoice->total_foreign !== null ? (float) $invoice->total_foreign : null,
+            'foreign_paid' => $invoice->isForeign() ? $invoice->foreign_paid : null,
+            'foreign_remaining' => $invoice->foreign_remaining,
             // Pratinjau jurnal pembayaran ("titipan dulu", Invoice::allocatePayments): Σ item titipan pajak.
             'tax_deposit_total' => (int) $invoice->items->where('is_tax_deposit', true)->sum('amount'),
             'faktur' => $invoice->faktur,
@@ -506,6 +531,7 @@ class InvoiceController extends Controller
                 'quantity' => (float) $item->quantity,
                 'unit' => $item->unit,
                 'unit_price' => $item->unit_price,
+                'foreign_unit_price' => $item->foreign_unit_price !== null ? (float) $item->foreign_unit_price : null,
                 'amount' => $item->amount,
                 'cogs_amount' => $item->cogs_amount,
                 'is_tax_deposit' => $item->is_tax_deposit,
@@ -513,6 +539,8 @@ class InvoiceController extends Controller
             'payments' => $invoice->payments->map(fn ($payment) => [
                 'id' => $payment->id,
                 'amount' => $payment->amount,
+                'foreign_amount' => $payment->foreign_amount !== null ? (float) $payment->foreign_amount : null,
+                'exchange_rate' => $payment->exchange_rate !== null ? (float) $payment->exchange_rate : null,
                 'payment_date' => $payment->payment_date?->format('Y-m-d'),
                 'payment_method' => $payment->payment_method,
                 'bank_account_id' => $payment->bank_account_id,
@@ -564,6 +592,11 @@ class InvoiceController extends Controller
             ],
             // Potongan PPh 23 hanya untuk perusahaan yang menyalakannya di Profil perusahaan.
             'pph' => $this->pphOptions($company),
+            // Tagihan USD & harga USD hanya untuk perusahaan yang menyalakannya; kurs terakhir = saran isian.
+            'foreignCurrency' => [
+                'enabled' => (bool) $company?->foreign_currency_enabled,
+                'lastRate' => ($rate = Invoice::query()->whereNotNull('exchange_rate')->latest('id')->value('exchange_rate')) !== null ? (float) $rate : null,
+            ],
             // Termin jatuh tempo bawaan; pemegang `manage invoice settings` bisa menggantinya dari form ini.
             'defaultDueDays' => (int) ($company?->default_due_days ?? 14),
             // Perusahaan bertemplate sendiri: editor hanya menawarkan template itu (CompanyInvoiceTemplate).
@@ -644,15 +677,29 @@ class InvoiceController extends Controller
         // Debit Note menagih kembali talangan: semua itemnya titipan (tanpa HPP), jadi tanpa PPN dan
         // bukan pendapatan — Laba Rugi, jurnal, dan statistik membacanya lewat is_tax_deposit.
         $isDebitNote = $documentType === Invoice::TYPE_DEBIT_NOTE;
+        // Tagihan USD / harga USD: pembukuan tetap Rupiah (kurs invoice), USD hanya sisi tagihannya.
+        $currency = $this->resolveCurrency($validated, $existing);
+        $exchangeRate = isset($validated['exchange_rate']) && (float) $validated['exchange_rate'] > 0
+            ? round((float) $validated['exchange_rate'], 2)
+            : null;
         $subtotal = 0;
         $taxDeposits = 0;
         $items = [];
+        $usesForeignPrice = false;
 
         foreach ($validated['items'] ?? [] as $item) {
             $quantity = (float) ($item['quantity'] ?? 0);
-            $unitPrice = (int) ($item['unit_price'] ?? 0);
-            $amount = (int) round($unitPrice * $quantity);
+            $foreignUnitPrice = isset($item['foreign_unit_price']) && $item['foreign_unit_price'] !== '' && $exchangeRate
+                ? round((float) $item['foreign_unit_price'], 4)
+                : null;
+            // Harga USD: Rupiah per unit dibulatkan hanya untuk tampilan; jumlah baris dihitung dari harga USD
+            // supaya sama persis dengan dokumen asli (Invoice::foreignLineAmount).
+            $unitPrice = $foreignUnitPrice !== null ? (int) round($foreignUnitPrice * $exchangeRate) : (int) ($item['unit_price'] ?? 0);
+            $amount = $foreignUnitPrice !== null
+                ? Invoice::foreignLineAmount($quantity, $foreignUnitPrice, $exchangeRate)
+                : (int) round($unitPrice * $quantity);
             $isTaxDeposit = $isDebitNote || (bool) ($item['is_tax_deposit'] ?? false);
+            $usesForeignPrice = $usesForeignPrice || $foreignUnitPrice !== null;
 
             $items[] = [
                 'client_id' => $item['client_id'] ?? $validated['client_id'] ?? null,
@@ -661,6 +708,7 @@ class InvoiceController extends Controller
                 'quantity' => $quantity,
                 'unit' => $item['unit'] ?? 'pcs',
                 'unit_price' => $unitPrice,
+                'foreign_unit_price' => $foreignUnitPrice,
                 'amount' => $amount,
                 'cogs_amount' => $isDebitNote ? 0 : (int) ($item['cogs_amount'] ?? 0),
                 'is_tax_deposit' => $isTaxDeposit,
@@ -684,6 +732,8 @@ class InvoiceController extends Controller
         $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
         $pphRate = $isDebitNote ? null : $this->resolvePphRate($validated, $existing);
         $pphAmount = Invoice::pphFor($subtotal - $taxDeposits - $discountAmount, $pphRate);
+        $total = max(0, max(0, $subtotal - $discountAmount) + $ppnAmount - $pphAmount);
+        $isForeign = $currency !== Invoice::CURRENCY_IDR && $exchangeRate !== null;
 
         return [
             'attributes' => [
@@ -700,7 +750,11 @@ class InvoiceController extends Controller
                 'ppn_amount' => $ppnAmount,
                 'pph_rate' => $pphRate,
                 'pph_amount' => $pphAmount,
-                'total_amount' => max(0, max(0, $subtotal - $discountAmount) + $ppnAmount - $pphAmount),
+                'total_amount' => $total,
+                // Kurs disimpan bila dipakai (tagihan USD atau ada harga USD); utang USD hanya untuk tagihan USD.
+                'currency' => $isForeign ? $currency : Invoice::CURRENCY_IDR,
+                'exchange_rate' => $isForeign || $usesForeignPrice ? $exchangeRate : null,
+                'total_foreign' => $isForeign ? Invoice::foreignTotalFor($total, $exchangeRate) : null,
                 'faktur' => match (true) {
                     $isDebitNote => null,
                     array_key_exists('faktur', $validated) => trim((string) $validated['faktur']) ?: null,
@@ -732,6 +786,21 @@ class InvoiceController extends Controller
                 ? Invoice::normalizeDocumentCode($validated['document_code'])
                 : $existing?->document_code,
         ];
+    }
+
+    /**
+     * Mata uang tagihan. Tagihan yang sudah menerima pembayaran tidak bisa ganti mata uang (pembayarannya
+     * tercatat dalam mata uang itu); selain itu ikut isian editor, bawaan mata uang lama / Rupiah.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolveCurrency(array $validated, ?Invoice $existing): string
+    {
+        if ($existing && $existing->payments()->exists()) {
+            return $existing->currency ?? Invoice::CURRENCY_IDR;
+        }
+
+        return $validated['currency'] ?? $existing?->currency ?? Invoice::CURRENCY_IDR;
     }
 
     /**
@@ -877,6 +946,10 @@ class InvoiceController extends Controller
                 'pph_rate' => (float) $invoice->pph_rate > 0 ? (float) $invoice->pph_rate : null,
                 'faktur' => $invoice->faktur,
                 'subject' => $invoice->subject,
+                'currency' => $invoice->currency ?? Invoice::CURRENCY_IDR,
+                'exchange_rate' => $invoice->exchange_rate !== null ? (float) $invoice->exchange_rate : null,
+                // Sudah ada pembayaran: mata uang terkunci (InvoiceController::resolveCurrency).
+                'has_payments' => $invoice->payments()->exists(),
                 'items' => $invoice->items->map(fn ($item) => [
                     'client_id' => $item->client_id,
                     'service_name' => $item->service_name,
@@ -884,6 +957,7 @@ class InvoiceController extends Controller
                     'quantity' => (float) $item->quantity,
                     'unit' => $item->unit,
                     'unit_price' => $item->unit_price,
+                    'foreign_unit_price' => $item->foreign_unit_price !== null ? (float) $item->foreign_unit_price : null,
                     'cogs_amount' => $item->cogs_amount,
                     'is_tax_deposit' => $item->is_tax_deposit,
                 ]),

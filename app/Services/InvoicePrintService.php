@@ -123,7 +123,7 @@ class InvoicePrintService
             'regular_items' => $regularItems,
             'tax_deposit_items' => $taxDepositItems,
             'payments' => $invoice->payments,
-            'company' => $this->getCompanyInfo($company),
+            'company' => $this->getCompanyInfo($company, $invoice),
             'terbilang' => $this->numberToWords($grandTotal),
             'is_down_payment' => $isDownPayment,
             'is_pelunasan' => $isPelunasan,
@@ -160,7 +160,7 @@ class InvoicePrintService
         return $this->generateSingleInvoicePdf($invoice, null, null, $template)->download($filename);
     }
 
-    private function getCompanyInfo(?CompanyProfile $company): array
+    private function getCompanyInfo(?CompanyProfile $company, ?Invoice $invoice = null): array
     {
         if (! $company) {
             return $this->getFallbackCompanyInfo();
@@ -174,7 +174,7 @@ class InvoicePrintService
             'logo_base64' => $this->getImageBase64($company?->letter_head_path ?? 'images/letter-head.png'),
             'signature_base64' => $company?->signature_path ? $this->getImageBase64($company->signature_path) : '',
             'stamp_base64' => $company?->stamp_path ? $this->getImageBase64($company->stamp_path) : '',
-            'bank_accounts' => $company->bank_accounts,
+            'bank_accounts' => $this->bankAccountsFor($company, $invoice),
             'signature' => [
                 'name' => $company->finance_manager_name,
                 'position' => $company->finance_manager_position,
@@ -185,6 +185,21 @@ class InvoicePrintService
             'ppn_rate' => $company->ppn_rate,
             'pph22_rate' => 1.5, // Fixed for semesta template
         ];
+    }
+
+    /**
+     * Rekening yang dicetak: yang mata uangnya sama dengan tagihan (rekening USD di tagihan USD, rekening
+     * Rupiah di tagihan Rupiah). Tidak ada yang cocok = semua rekening, supaya tagihan tidak tanpa rekening.
+     *
+     * @return list<array{bank: string, account_number: string, account_name: string, currency: string, branch: ?string, swift: ?string}>
+     */
+    private function bankAccountsFor(CompanyProfile $company, ?Invoice $invoice): array
+    {
+        $semua = $company->printableBankAccounts();
+        $mataUang = $invoice?->isForeign() ? $invoice->currency : Invoice::CURRENCY_IDR;
+        $cocok = array_values(array_filter($semua, fn (array $rekening): bool => $rekening['currency'] === $mataUang));
+
+        return $cocok !== [] ? $cocok : $semua;
     }
 
     private function getFallbackCompanyInfo(): array

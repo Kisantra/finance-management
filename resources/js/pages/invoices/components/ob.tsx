@@ -48,6 +48,10 @@ export function DebitNoteChip({ className }: { className?: string }) {
 
 export const rp = (n: number) => formatCurrency(Math.round(n));
 
+/** Nominal USD ("USD 44.116,00"); tarif per unit sampai `maxDecimals` desimal ("USD 0,825"). */
+// i18n-abaikan: kode mata uang + angka, sama di semua bahasa (seperti "Rp 1.500.000")
+export const usd = (n: number, maxDecimals = 2) => `USD ${n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals })}`;
+
 function parseIso(iso: string): Date {
     return new Date(iso.slice(0, 10) + 'T00:00:00');
 }
@@ -167,7 +171,7 @@ export function SumRow({ label, value, strong, className }: { label: React.React
     return (
         <div className={cn('flex items-baseline justify-between gap-4', strong ? 'text-base font-semibold text-ob-ink' : 'text-sm text-ob-ink-2', className)}>
             <span>{label}</span>
-            <span className={cn('tabular-nums', strong ? 'text-lg' : 'font-medium text-ob-ink')}>{value}</span>
+            <span className={cn('whitespace-nowrap tabular-nums', strong ? 'text-lg' : 'font-medium text-ob-ink')}>{value}</span>
         </div>
     );
 }

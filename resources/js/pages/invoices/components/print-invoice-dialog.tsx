@@ -34,6 +34,8 @@ interface Props {
     customTemplates?: CustomTemplate[];
     /** Ada = perusahaan ini punya template sendiri; template bawaan perusahaan lain tidak ditawarkan. */
     companyTemplate?: CompanyTemplate | null;
+    /** Tagihan USD: hanya cetak penuh (uang muka & pelunasan dihitung dalam Rupiah, belum untuk USD). */
+    foreignCurrency?: boolean;
 }
 
 /* Warna strip mini = aksen masing-masing template PDF, supaya kartu mudah dikenali. */
@@ -44,9 +46,9 @@ const BUILTIN = [
     { value: 'invoice', label: tk('Generik'), accent: '#64748b' },
 ];
 
-export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [], companyTemplate = null }: Props) {
+export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [], companyTemplate = null, foreignCurrency = false }: Props) {
     const remaining = totalAmount - amountPaid;
-    const settlementAvailable = amountPaid > 0 && remaining > 0;
+    const settlementAvailable = !foreignCurrency && amountPaid > 0 && remaining > 0;
 
     const [printType, setPrintType] = React.useState<PrintType>('full');
     const [dpAmount, setDpAmount] = React.useState(0);
@@ -74,7 +76,7 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
 
     const typeOptions = [
         { value: 'full' as const, label: t('Penuh') },
-        { value: 'dp' as const, label: t('Uang muka') },
+        ...(foreignCurrency ? [] : [{ value: 'dp' as const, label: t('Uang muka') }]),
         ...(settlementAvailable ? [{ value: 'pelunasan' as const, label: t('Pelunasan') }] : []),
     ];
 

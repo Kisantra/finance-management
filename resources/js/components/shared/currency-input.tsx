@@ -9,9 +9,38 @@ interface CurrencyInputProps {
     error?: string;
     placeholder?: string;
     prefix?: string;
+    /**
+     * Digit desimal yang boleh diketik (bawaan 0 = Rupiah bulat). Untuk nominal valas, mis. USD `decimals={2}`
+     * ("44.116,50") atau tarif per unit `decimals={4}` ("0,8250"). Koma = desimal, titik = ribuan.
+     */
+    decimals?: number;
     disabled?: boolean;
     className?: string;
     id?: string;
+}
+
+/** Nilai → teks isian format Indonesia ("44.116,5"); 0/kosong = "". */
+function formatValue(value: number | null | undefined, decimals: number): string {
+    return value != null && value > 0 ? value.toLocaleString('id-ID', { maximumFractionDigits: decimals }) : '';
+}
+
+/**
+ * Teks yang sedang diketik → {tampilan, angka}. Titik diabaikan (pemisah ribuan); dengan `decimals` > 0 koma
+ * pertama = desimal dan dipertahankan selama mengetik ("44.116," tetap tampil) agar sen bisa diketik.
+ */
+function parseTyped(raw: string, decimals: number): { display: string; numeric: number } {
+    if (decimals === 0) {
+        const numeric = parseInt(raw.replace(/[^0-9]/g, ''), 10) || 0;
+        return { display: numeric > 0 ? numeric.toLocaleString('id-ID') : '', numeric };
+    }
+
+    const [whole, ...rest] = raw.replace(/[^0-9,]/g, '').split(',');
+    const hasComma = rest.length > 0;
+    const fraction = rest.join('').slice(0, decimals);
+    const integer = parseInt(whole, 10) || 0;
+    const numeric = parseFloat(`${integer}.${fraction || '0'}`) || 0;
+    const display = whole === '' && !hasComma ? '' : `${integer.toLocaleString('id-ID')}${hasComma ? `,${fraction}` : ''}`;
+    return { display, numeric };
 }
 
 export function CurrencyInput({
@@ -22,35 +51,30 @@ export function CurrencyInput({
     error,
     placeholder = '0',
     prefix = 'Rp',
+    decimals = 0,
     disabled,
     className,
     id,
 }: CurrencyInputProps) {
     const inputId = id ?? React.useId();
 
-    const [displayValue, setDisplayValue] = React.useState<string>(() =>
-        value != null && value > 0 ? value.toLocaleString('id-ID') : '',
-    );
+    const [displayValue, setDisplayValue] = React.useState<string>(() => formatValue(value, decimals));
 
+    // Nilai dari luar yang berbeda dengan yang sedang diketik menggantikan tampilan; ketikan setengah jadi
+    // ("44.116,") dibiarkan selama angkanya sama.
     React.useEffect(() => {
-        if (value != null && value > 0) {
-            setDisplayValue(value.toLocaleString('id-ID'));
-        } else if (!value) {
-            setDisplayValue('');
-        }
-    }, [value]);
+        setDisplayValue((current) => (parseTyped(current, decimals).numeric === (value ?? 0) ? current : formatValue(value, decimals)));
+    }, [value, decimals]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const raw = e.target.value.replace(/[^0-9]/g, '');
-        const numeric = parseInt(raw, 10) || 0;
+        const { display, numeric } = parseTyped(e.target.value, decimals);
 
-        setDisplayValue(numeric > 0 ? numeric.toLocaleString('id-ID') : '');
+        setDisplayValue(display);
         onChange?.(numeric);
     };
 
     const handleBlur = () => {
-        const numeric = parseInt(displayValue.replace(/[^0-9]/g, ''), 10) || 0;
-        setDisplayValue(numeric > 0 ? numeric.toLocaleString('id-ID') : '');
+        setDisplayValue(formatValue(parseTyped(displayValue, decimals).numeric, decimals));
     };
 
     return (
@@ -75,7 +99,7 @@ export function CurrencyInput({
                 <input
                     id={inputId}
                     type="text"
-                    inputMode="numeric"
+                    inputMode={decimals > 0 ? 'decimal' : 'numeric'}
                     value={displayValue}
                     onChange={handleChange}
                     onBlur={handleBlur}

@@ -19,7 +19,9 @@ class PaymentController extends Controller
             return response()->json(['message' => __('Invoice tidak dapat menerima pembayaran.')], 422);
         }
 
-        if ($error = $this->exceedsRemaining($invoice, (int) $validated['amount'])) {
+        $nominal = $this->nominal($invoice, $validated);
+
+        if ($error = $this->exceedsRemaining($invoice, $nominal)) {
             return $error;
         }
 
@@ -34,7 +36,7 @@ class PaymentController extends Controller
 
         $payment = Payment::create([
             'invoice_id' => $invoice->id,
-            'amount' => $validated['amount'],
+            ...$nominal,
             'payment_date' => $validated['payment_date'],
             'payment_method' => $validated['payment_method'],
             'bank_account_id' => $validated['bank_account_id'] ?? null,
@@ -52,7 +54,9 @@ class PaymentController extends Controller
     {
         $validated = $request->validated();
 
-        if ($error = $this->exceedsRemaining($payment->invoice, (int) $validated['amount'], $payment->amount)) {
+        $nominal = $this->nominal($payment->invoice, $validated);
+
+        if ($error = $this->exceedsRemaining($payment->invoice, $nominal, $payment)) {
             return $error;
         }
 
@@ -74,7 +78,7 @@ class PaymentController extends Controller
         }
 
         $payment->update([
-            'amount' => $validated['amount'],
+            ...$nominal,
             'payment_date' => $validated['payment_date'],
             'payment_method' => $validated['payment_method'],
             'bank_account_id' => $validated['bank_account_id'] ?? null,
@@ -98,13 +102,46 @@ class PaymentController extends Controller
     }
 
     /**
-     * Pembayaran tidak boleh melebihi sisa tagihan; kelebihan dicatat sebagai transaksi bank terpisah.
-     * $replacing = nominal pembayaran lama yang sedang diedit (ikut dihitung sebagai sisa).
+     * Nominal yang disimpan. Tagihan USD: USD diterima + kurs saat diterima, Rupiahnya = USD × kurs itu
+     * (yang benar-benar masuk ke rekening Rupiah). Tagihan Rupiah: Rupiah apa adanya.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{amount: int, foreign_amount: ?float, exchange_rate: ?float}
      */
-    private function exceedsRemaining(Invoice $invoice, int $amount, int $replacing = 0): ?JsonResponse
+    private function nominal(Invoice $invoice, array $validated): array
     {
-        $remaining = $invoice->amount_remaining + $replacing;
-        if ($amount <= $remaining) {
+        if (! $invoice->isForeign()) {
+            return ['amount' => (int) $validated['amount'], 'foreign_amount' => null, 'exchange_rate' => null];
+        }
+
+        $usd = round((float) $validated['foreign_amount'], 2);
+        $kurs = round((float) $validated['exchange_rate'], 2);
+
+        return ['amount' => (int) round($usd * $kurs), 'foreign_amount' => $usd, 'exchange_rate' => $kurs];
+    }
+
+    /**
+     * Pembayaran tidak boleh melebihi sisa tagihan; kelebihan dicatat sebagai transaksi bank terpisah.
+     * Tagihan USD dibandingkan dalam USD (Rupiahnya bergantung kurs). $replacing = pembayaran lama yang
+     * sedang diedit (nominalnya ikut dihitung sebagai sisa).
+     *
+     * @param  array{amount: int, foreign_amount: ?float, exchange_rate: ?float}  $nominal
+     */
+    private function exceedsRemaining(Invoice $invoice, array $nominal, ?Payment $replacing = null): ?JsonResponse
+    {
+        if ($invoice->isForeign()) {
+            $remaining = Invoice::cents($invoice->foreign_remaining) + Invoice::cents($replacing?->foreign_amount);
+            if (Invoice::cents($nominal['foreign_amount']) <= $remaining) {
+                return null;
+            }
+
+            $message = __('Melebihi sisa tagihan USD :sisa. Catat kelebihan sebagai transaksi terpisah.', ['sisa' => number_format($remaining / 100, 2, ',', '.')]);
+
+            return response()->json(['message' => $message, 'errors' => ['foreign_amount' => [$message]]], 422);
+        }
+
+        $remaining = $invoice->amount_remaining + (int) $replacing?->amount;
+        if ($nominal['amount'] <= $remaining) {
             return null;
         }
 
@@ -118,6 +155,8 @@ class PaymentController extends Controller
         return [
             'id' => $payment->id,
             'amount' => $payment->amount,
+            'foreign_amount' => $payment->foreign_amount !== null ? (float) $payment->foreign_amount : null,
+            'exchange_rate' => $payment->exchange_rate !== null ? (float) $payment->exchange_rate : null,
             'payment_date' => $payment->payment_date?->format('Y-m-d'),
             'payment_method' => $payment->payment_method,
             'bank_account_id' => $payment->bank_account_id,

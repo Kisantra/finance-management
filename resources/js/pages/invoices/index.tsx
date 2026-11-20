@@ -18,7 +18,7 @@ import { companyUrl } from '@/lib/company';
 import { openResource, parseResource, resourceHref, showResource, useResource } from '@/lib/resource-modal';
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import { Avatar, BTN, CARD, DebitNoteChip, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus } from './components/ob';
+import { Avatar, BTN, CARD, DebitNoteChip, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus, usd } from './components/ob';
 import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
@@ -34,6 +34,10 @@ interface InvoiceRow {
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
+    /** Tagihan USD: utang & sisa dalam USD; total_amount tetap Rupiah (kurs invoice). */
+    currency: 'IDR' | 'USD';
+    total_foreign: number | null;
+    foreign_remaining: number | null;
     status: InvoiceStatus;
     faktur: string | null;
 }
@@ -460,6 +464,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, companyTempla
                     amountPaid={printRow.amount_paid}
                     customTemplates={customTemplates}
                     companyTemplate={companyTemplate}
+                    foreignCurrency={printRow.currency === 'USD'}
                 />
             )}
 
@@ -525,7 +530,11 @@ function SortTh({
 
 function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: InvoiceRow; selected: boolean; onOpen: () => void; onPrint: () => void; onDelete: () => void }) {
     const due = dueInfo(inv.status, inv.due_date);
-    const paidPct = inv.total_amount > 0 ? Math.min(100, Math.round((inv.amount_paid / inv.total_amount) * 100)) : 0;
+    const isForeign = inv.currency === 'USD';
+    // Tagihan USD: persen terbayar dari USD; Rupiah yang masuk bergantung kurs saat dibayar.
+    const paidPct = isForeign
+        ? (inv.total_foreign ?? 0) > 0 ? Math.min(100, Math.round((1 - (inv.foreign_remaining ?? 0) / (inv.total_foreign ?? 1)) * 100)) : 0
+        : inv.total_amount > 0 ? Math.min(100, Math.round((inv.amount_paid / inv.total_amount) * 100)) : 0;
 
     return (
         <tr
@@ -571,10 +580,11 @@ function InvoiceTableRow({ inv, selected, onOpen, onPrint, onDelete }: { inv: In
                 )}
             </td>
             <td className="py-3 text-right">
-                <span className="block font-semibold text-ob-ink">{rp(inv.total_amount)}</span>
+                <span className="block font-semibold text-ob-ink">{isForeign ? usd(inv.total_foreign ?? 0) : rp(inv.total_amount)}</span>
+                {isForeign && <span className="block text-xs text-ob-ink-2">{rp(inv.total_amount)}</span>}
                 {inv.status === 'partially_paid' && (
                     <>
-                        <span className="text-xs text-ob-ink-2">{t('sisa {{amount}}', { amount: rp(inv.amount_remaining) })}</span>
+                        <span className="text-xs text-ob-ink-2">{t('sisa {{amount}}', { amount: isForeign ? usd(inv.foreign_remaining ?? 0) : rp(inv.amount_remaining) })}</span>
                         <span className="ml-auto mt-1 block h-1 w-40 overflow-hidden rounded-full bg-ob-chip" aria-hidden="true">
                             <span className="block h-full rounded-full bg-ob-pos" style={{ width: `${paidPct}%` }} />
                         </span>

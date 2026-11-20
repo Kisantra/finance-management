@@ -53,10 +53,12 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
 
     /**
      * Invoice contoh; `number` null = draft. Opsional: `type` (Invoice::TYPE_DEBIT_NOTE = semua item
-     * talangan, tanpa PPN), `code` (kode jenis, mis. FINAL), dan `pph` (tarif PPh 23 yang dipotong klien;
-     * bawaan = tarif profil bila profil memotong PPh 23, 0 = sengaja tidak dipotong).
+     * talangan, tanpa PPN), `code` (kode jenis, mis. FINAL), `pph` (tarif PPh 23 yang dipotong klien;
+     * bawaan = tarif profil bila profil memotong PPh 23, 0 = sengaja tidak dipotong), `ppn` (tarif PPN;
+     * bawaan = tarif profil), `currency` + `kurs` (tagihan USD, kurs Rp per 1 USD), dan per item
+     * `foreign_unit_price` (harga USD; Rupiahnya = harga USD × kurs).
      *
-     * @return list<array{number: ?string, type?: string, code?: string, pph?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
+     * @return list<array{number: ?string, type?: string, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
      */
     abstract protected function invoices(): array;
 
@@ -137,11 +139,11 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     /**
      * Gambar tanda tangan + stempel bertuliskan CONTOH, digambar saat seeding (bukan berkas di repo)
      * dan disimpan di disk public perusahaan seperti hasil upload Profil perusahaan. Font dari folder
-     * template perusahaan aktif.
+     * template perusahaan aktif: Carlito-Bold, atau Tinos-Bold bila template tidak memakai Carlito (MKB).
      */
     private function sampleSignature(): ?string
     {
-        $font = CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf');
+        $font = CompanyInvoiceTemplate::path('fonts/Carlito-Bold.ttf') ?: CompanyInvoiceTemplate::path('fonts/Tinos-Bold.ttf');
 
         if ($font === '' || ! function_exists('imagettftext')) {
             return null;
@@ -194,7 +196,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     }
 
     /**
-     * @param  array{number: ?string, type?: string, code?: string, pph?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
+     * @param  array{number: ?string, type?: string, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
      */
     private function seedInvoice(Client $client, array $data): void
     {
@@ -209,15 +211,26 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
         $type = $data['type'] ?? Invoice::TYPE_INVOICE;
         $isDebitNote = $type === Invoice::TYPE_DEBIT_NOTE;
 
+        $kurs = isset($data['kurs']) ? (float) $data['kurs'] : null;
+        $currency = $data['currency'] ?? Invoice::CURRENCY_IDR;
+
+        // Harga USD: Rupiah = jumlah × harga USD × kurs, sama dengan editor (Invoice::foreignLineAmount).
         $items = collect($data['items'])->map(fn (array $item): array => [
             ...$item,
             'client_id' => $client->id,
-            'amount' => (int) round($item['unit_price'] * $item['quantity']),
+            'unit_price' => isset($item['foreign_unit_price']) ? (int) round($item['foreign_unit_price'] * $kurs) : $item['unit_price'],
+            'amount' => isset($item['foreign_unit_price'])
+                ? Invoice::foreignLineAmount((float) $item['quantity'], $item['foreign_unit_price'], $kurs)
+                : (int) round($item['unit_price'] * $item['quantity']),
             'cogs_amount' => 0,
             'is_tax_deposit' => $isDebitNote,
         ]);
 
-        $ppnRate = $isDebitNote ? 0.0 : (float) $this->profile()['ppn_rate'];
+        $ppnRate = match (true) {
+            $isDebitNote => 0.0,
+            isset($data['ppn']) => (float) $data['ppn'],
+            default => (float) $this->profile()['ppn_rate'],
+        };
         $subtotal = (int) $items->sum('amount');
         $ppnAmount = Invoice::ppnFor($subtotal - $data['discount'], $ppnRate);
         $pphRate = match (true) {
@@ -227,6 +240,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
             default => null,
         };
         $pphAmount = Invoice::pphFor($subtotal - $data['discount'], $pphRate);
+        $total = max(0, $subtotal - $data['discount']) + $ppnAmount - $pphAmount;
         $issueDate = Carbon::parse($data['date']);
 
         $invoice = Invoice::create([
@@ -242,7 +256,10 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
             'ppn_amount' => $ppnAmount,
             'pph_rate' => $pphRate,
             'pph_amount' => $pphAmount,
-            'total_amount' => max(0, $subtotal - $data['discount']) + $ppnAmount - $pphAmount,
+            'total_amount' => $total,
+            'currency' => $currency,
+            'exchange_rate' => $kurs,
+            'total_foreign' => $currency !== Invoice::CURRENCY_IDR ? Invoice::foreignTotalFor($total, $kurs) : null,
             'issue_date' => $issueDate,
             'due_date' => $issueDate->copy()->addDays(14),
             'status' => $data['number'] ? 'sent' : 'draft',

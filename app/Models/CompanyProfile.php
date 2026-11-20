@@ -25,6 +25,7 @@ class CompanyProfile extends Model
         'ppn_rate',
         'pph_enabled',
         'pph_rate',
+        'foreign_currency_enabled',
         'bank_accounts',
         'finance_manager_name',
         'finance_manager_position',
@@ -40,10 +41,33 @@ class CompanyProfile extends Model
         'is_pkp' => 'boolean',
         'ppn_rate' => 'decimal:2',
         'pph_enabled' => 'boolean',
+        'foreign_currency_enabled' => 'boolean',
         'pph_rate' => 'decimal:2',
         'invoice_legacy_reviewed_at' => 'datetime',
         'default_due_days' => 'integer',
     ];
+
+    /**
+     * Rekening pembayaran dengan isian lengkap: rekening lama (sebelum tagihan USD) dianggap Rupiah tanpa
+     * cabang & Swift.
+     *
+     * @return list<array{bank: string, account_number: string, account_name: string, currency: string, branch: ?string, swift: ?string}>
+     */
+    public function printableBankAccounts(): array
+    {
+        return collect($this->bank_accounts ?? [])
+            ->filter(fn ($rekening): bool => is_array($rekening))
+            ->map(fn (array $rekening): array => [
+                'bank' => (string) ($rekening['bank'] ?? ''),
+                'account_number' => (string) ($rekening['account_number'] ?? ''),
+                'account_name' => (string) ($rekening['account_name'] ?? ''),
+                'currency' => (string) ($rekening['currency'] ?? 'IDR'),
+                'branch' => $rekening['branch'] ?? null,
+                'swift' => $rekening['swift'] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
 
     /**
      * Aset dibaca dari Storage disk 'public' (konvensi upload saat ini);

@@ -75,13 +75,25 @@ export const guide: ModuleGuide = {
             title: 'Membuat Debit Note (menagih kembali talangan)',
             role: ROLES.staff,
             steps: [
-                'Hanya untuk perusahaan yang punya desain Debit Note (saat ini PT Samboja Laju Utama dan PT Berkah Andalan Samboja). Dipakai untuk menagih kembali biaya yang perusahaan bayar lebih dulu **atas nama klien** (mis. PNBP, demurrage, biaya operasional), persis sebesar yang dibayar. Jasa perusahaan tetap ditagih lewat invoice biasa.',
+                'Hanya untuk perusahaan yang punya desain Debit Note (saat ini PT Samboja Laju Utama, PT Berkah Andalan Samboja, PT Mitra Kellian Baruna, dan PT Bahtera Cipta Bersama). Dipakai untuk menagih kembali biaya yang perusahaan bayar lebih dulu **atas nama klien** (mis. PNBP, demurrage, biaya operasional, overtime hari libur), persis sebesar yang dibayar. Jasa perusahaan tetap ditagih lewat invoice biasa.',
                 'Klik **Buat Invoice**, lalu pada **Jenis dokumen** pilih **Debit Note**. Judul halaman berubah menjadi **Buat Debit Note**.',
                 'Isi **Kode jenis** bila perlu (mis. **PNBP**; saran muncul dari kode yang pernah dipakai). Kode ikut ke nomor: petunjuk **Di nomor** menunjukkan hasilnya, mis. `DN-PNBP`. Invoice biasa juga boleh diberi kode (mis. **FINAL** → `INV-FINAL`).',
                 'Isi klien, perihal, dan item seperti invoice. Rincian seperti nomor nota tagihan, NTPN, atau tanggal on board/complete ditulis lewat **Tambah keterangan** di baris item. Semua item Debit Note otomatis dianggap **talangan**: tanpa PPN, tanpa potongan PPh 23, tanpa HPP, dan tidak dihitung pendapatan; sakelar PPN dan Titipan pajak tidak tampil.',
-                'Klik **Simpan & terbitkan**. Nomor memakai urutan yang sama dengan invoice (mis. `040/SLU-CBN/DN-PNBP/X/2026` setelah `039/SLU-CBN/INV-TKBM/X/2026`). PDF-nya berjudul **DEBIT NOTE**. Di PT Berkah Andalan Samboja, kolom **DAY** dan **PRICE** hanya tercetak bila ada item dengan jumlah selain 1 (mis. demurrage 3 hari × tarif harian); tagihan sekali bayar cukup kolom Keterangan dan Total.',
+                'Klik **Simpan & terbitkan**. Nomor memakai urutan yang sama dengan invoice (mis. `040/SLU-CBN/DN-PNBP/X/2026` setelah `039/SLU-CBN/INV-TKBM/X/2026`). PDF-nya berjudul **DEBIT NOTE**. Di PT Berkah Andalan Samboja (kolom **DAY** dan **PRICE**) dan PT Mitra Kellian Baruna / PT Bahtera Cipta Bersama (kolom **Quantity** dan **PRICE**), kolom jumlah & harga hanya tercetak bila ada item dengan jumlah selain 1 (mis. demurrage 3 hari × tarif harian); tagihan sekali bayar cukup kolom Keterangan dan Total.',
                 'Setelah terbit, jenis dan kode tidak bisa diganti karena sudah menjadi bagian nomor. Untuk menggantinya, Finance manager mengembalikannya ke draft dulu.',
                 'Saat membayar biaya itu ke negara, catat di **Arus Kas › Pengeluaran** dengan kategori **Bayar Talangan Klien** (grup Pendanaan), bukan beban, agar Laba Rugi tidak berubah.',
+            ],
+        },
+        {
+            title: 'Menagih dalam USD (kurs manual)',
+            role: ROLES.staff,
+            steps: [
+                'Hanya untuk perusahaan yang menyalakan **Tagihan USD** di **Pengaturan › Profil perusahaan** (mis. klien luar negeri PT Bahtera Cipta Bersama). Perusahaan lain tidak melihat pilihan ini.',
+                'Di **Detail invoice**, pilih **Mata uang tagihan: USD**, lalu isi **Kurs (Rp per 1 USD)** hari itu. Kurs terakhir yang dipakai terisi otomatis sebagai awalan.',
+                'Isi item seperti biasa. Untuk harga per ton/unit dalam USD (mis. $0,82/MT), nyalakan **Harga USD** di baris itu dan ketik harga USD-nya; Rupiahnya = jumlah × harga USD × kurs. Baris lain boleh tetap berharga Rupiah (mis. transport TKBM).',
+                'PPN dan potongan PPh 23 tetap dihitung dalam Rupiah. Ringkasan menampilkan **Tagihan USD (total ÷ kurs)** — inilah yang harus dibayar klien. PDF mencetak GRAND TOTAL (IDR), kurs, dan **TOTAL OUTSTANDING (USD)**, beserta rekening USD dari Profil perusahaan.',
+                'Invoice **Rupiah** bertarif USD (mis. invoice FINAL stevedoring: $0,75 × kurs = Rp 13.423,50/MT) cukup memakai **Harga USD** + **Kurs** tanpa mengganti mata uang tagihan; PDF mencetak baris Exchange Rate dan Rate Stevedoring seperti dokumen Word.',
+                'Mata uang tagihan tidak bisa diganti setelah invoice menerima pembayaran.',
             ],
         },
         {
@@ -105,6 +117,7 @@ export const guide: ModuleGuide = {
                 'Buka invoice berstatus **Terbit** atau **Sebagian**, lalu klik **Catat pembayaran**.',
                 '**Jumlah** terisi sisa tagihan. Pilih **Sisa penuh**, **50%**, atau **Nominal lain**; tidak boleh melebihi sisa.',
                 'Isi **Tanggal** uang diterima, pilih **Rekening tujuan** (wajib) dan **Metode** (**Transfer bank** / **Tunai**).',
+                'Tagihan **USD**: isi **Diterima (USD)** dan **Kurs saat diterima** (terisi kurs invoice; ganti dengan kurs saat uang dikonversi). Aplikasi menghitung **Masuk ke rekening: Rp …** dan mencatatnya ke rekening Rupiah yang dipilih. Batas sisa dihitung dalam USD.',
                 'Kotak **Jurnal · Pratinjau** menunjukkan pembagiannya: rekening didebit penuh; kreditnya menutup **Titipan Pajak Klien** dulu, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — sama dengan cara Laba Rugi mengakui pendapatan. Uang muka kecil bisa seluruhnya masuk titipan. Pembayaran **Debit Note** seluruhnya dikredit ke **Talangan Biaya Klien**.',
                 'Isi **Nomor referensi** dan unggah bukti transfer (JPG, PNG, PDF, maks 5 MB) bila ada, lalu klik **Simpan pembayaran**.',
                 'Status otomatis menjadi **Sebagian** atau **Lunas**. Pembayaran yang salah bisa diubah (ikon pensil) atau dihapus (ikon tempat sampah) di kartu **Pembayaran**, tetapi hanya oleh Finance manager / Admin.',
@@ -174,6 +187,7 @@ export const guide: ModuleGuide = {
                 'Status menjadi **Sebagian** / **Lunas**; ringkasan invoice dan **Dashboard** (saldo & pemasukan) ikut berubah.',
                 'Invoice yang **dipotong PPh 23**: transfer sebesar Total (setelah potongan) langsung **Lunas**. Potongannya tidak masuk rekening, tetapi tetap pendapatan: jurnal mendebit **PPh 23 Dibayar di Muka** (kredit pajak) dan Laba Rugi mencatatnya di **Catatan · PPh 23 dipotong klien**. Simpan bukti potong dari klien untuk SPT.',
                 '**Debit Note**: saldo dan pemasukan arus kas bertambah seperti invoice, tetapi pendapatan & laba (Laba Rugi, Ringkasan, rekap) tidak berubah — uangnya mengganti talangan yang dicatat lewat kategori **Bayar Talangan Klien**.',
+                '**Tagihan USD**: invoice **Lunas** saat USD-nya terbayar penuh, berapa pun Rupiah yang masuk. Pendapatan di Laba Rugi tetap sebesar tagihan dengan kurs invoice; bila kurs saat diterima lebih tinggi/rendah, selisihnya tercatat sebagai **Laba selisih kurs** (Pendapatan Lain) atau **Rugi selisih kurs** (Beban Lain), dan jurnalnya memakai akun **Selisih Kurs**.',
             ],
         },
         {
@@ -239,6 +253,10 @@ export const guide: ModuleGuide = {
         {
             title: 'Potongan PPh 23 hanya mengikuti isian invoice',
             body: 'Aplikasi tidak tahu apakah klien benar-benar memotong PPh 23. Bila klien mentransfer penuh tanpa memotong, matikan **Dipotong PPh 23 oleh klien** di invoice itu (Finance manager) agar Total dan sisa tagihannya kembali benar. Mematikan pengaturan PPh 23 di Profil perusahaan tidak mengubah invoice yang sudah dipotong. Invoice berulang selalu diterbitkan tanpa potongan PPh.',
+        },
+        {
+            title: 'Tagihan USD: satu kurs manual, uang muka belum didukung',
+            body: 'Kurs diisi manual dan dipakai untuk semua hitungan Rupiah invoice itu, termasuk PPN. Bila faktur pajak harus memakai kurs Menteri Keuangan (KMK), pastikan kurs yang diisi sesuai atau konsultasikan dengan tim pajak. Tagihan USD hanya bisa dicetak **Penuh** (belum uang muka/pelunasan), diskon tetap dalam Rupiah, dan rekap Excel tetap Rupiah.',
         },
         {
             title: 'Nomor Debit Note lama tidak berubah jenis',

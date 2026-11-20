@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Invoice;
 use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -38,6 +39,7 @@ class InvoicePreviewRequest extends FormRequest
             'items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['nullable', 'integer', 'min:0'],
+            'items.*.foreign_unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'items.*.cogs_amount' => ['nullable', 'integer', 'min:0'],
             'items.*.is_tax_deposit' => ['nullable', 'boolean'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
@@ -47,6 +49,8 @@ class InvoicePreviewRequest extends FormRequest
             'faktur' => ['nullable', 'string', 'max:50'],
             'apply_pph' => ['nullable', 'boolean'],
             'pph_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'currency' => ['nullable', Rule::in(StoreInvoiceRequest::currencies(isset($this->invoice_id) ? Invoice::find($this->invoice_id) : null))],
+            'exchange_rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
         ];
     }
 }

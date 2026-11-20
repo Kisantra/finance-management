@@ -54,8 +54,11 @@ class ProfitLossService
         $opex = $this->transactionsByGroup('opex', 'debit', $start, $end);
         $operatingProfit = $grossProfit - $opex['total'];
 
-        $otherIncome = $this->transactionsByGroup('other_income', 'credit', $start, $end);
-        $otherExpense = $this->transactionsByGroup('other_expense', 'debit', $start, $end);
+        // Selisih kurs tagihan USD (Rupiah yang masuk − nilainya dengan kurs invoice): laba kurs = pendapatan
+        // lain, rugi kurs = beban lain, satu baris tanpa kategori di masing-masing kelompok.
+        $exchangeDifference = $invoiceContrib['fx'];
+        $otherIncome = $this->withRow($this->transactionsByGroup('other_income', 'credit', $start, $end), __('Laba selisih kurs'), max(0, $exchangeDifference));
+        $otherExpense = $this->withRow($this->transactionsByGroup('other_expense', 'debit', $start, $end), __('Rugi selisih kurs'), max(0, -$exchangeDifference));
         $preTaxProfit = $operatingProfit + $otherIncome['total'] - $otherExpense['total'];
 
         $tax = $this->transactionsByGroup('tax', 'debit', $start, $end);
@@ -91,6 +94,8 @@ class ProfitLossService
             // Memo: PPh 23 yang dipotong klien atas invoice yang dibayar — tidak masuk rekening, tetapi
             // sudah termasuk pendapatan (kredit pajak, bukan biaya).
             'pph_withheld' => $invoiceContrib['pph'],
+            // Selisih kurs tagihan USD dalam periode (positif = laba), sudah termasuk pendapatan/beban lain.
+            'fx_difference' => $exchangeDifference,
             'unclassified' => [
                 'income' => $this->unclassified('credit', $start, $end),
                 'expense' => $this->unclassified('debit', $start, $end),
@@ -118,7 +123,11 @@ class ProfitLossService
      * Invoices with no titipan reduce to the simple cost-recovery formula
      * (revenue_e == paid_e), so behavior is backward compatible.
      *
-     * @return array{revenue: int, cogs: int, ppn: int, pph: int}
+     * Tagihan USD: "titipan dulu" berjalan atas Rupiah yang tertutup DINILAI DENGAN KURS INVOICE
+     * (Invoice::settledAtInvoiceRate dari USD yang diterima), sehingga PPN, PPh, dan pendapatan sama
+     * dengan tagihannya; Rupiah yang masuk di atas/di bawah nilai itu = selisih kurs (`fx`).
+     *
+     * @return array{revenue: int, cogs: int, ppn: int, pph: int, fx: int}
      */
     private function invoiceContributions(Carbon $start, Carbon $end): array
     {
@@ -128,7 +137,7 @@ class ProfitLossService
             ->pluck('invoice_id');
 
         if ($invoiceIds->isEmpty()) {
-            return ['revenue' => 0, 'cogs' => 0, 'ppn' => 0, 'pph' => 0];
+            return ['revenue' => 0, 'cogs' => 0, 'ppn' => 0, 'pph' => 0, 'fx' => 0];
         }
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)->with('items')->get();
@@ -160,6 +169,11 @@ class ProfitLossService
                 'COALESCE(SUM(CASE WHEN payment_date < ? THEN amount ELSE 0 END), 0) as through_start_prev',
                 [$start->toDateString()]
             )
+            ->selectRaw('COALESCE(SUM(foreign_amount), 0) as foreign_through_end')
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN payment_date < ? THEN foreign_amount ELSE 0 END), 0) as foreign_through_start_prev',
+                [$start->toDateString()]
+            )
             ->get()
             ->keyBy('invoice_id');
 
@@ -167,6 +181,7 @@ class ProfitLossService
         $totalCogs = 0;
         $totalPpn = 0;
         $totalPph = 0;
+        $totalFx = 0;
 
         foreach ($invoices as $invoice) {
             $taxDeposit = (int) $invoice->items->where('is_tax_deposit', true)->sum('amount');
@@ -177,6 +192,13 @@ class ProfitLossService
 
             $paidThroughEnd = (int) ($baris->through_end ?? 0);
             $paidThroughStartPrev = (int) ($baris->through_start_prev ?? 0);
+
+            if ($invoice->isForeign()) {
+                $settledThroughEnd = $invoice->settledAtInvoiceRate($baris->foreign_through_end ?? 0);
+                $settledThroughStartPrev = $invoice->settledAtInvoiceRate($baris->foreign_through_start_prev ?? 0);
+                $totalFx += ($paidThroughEnd - $settledThroughEnd) - ($paidThroughStartPrev - $settledThroughStartPrev);
+                [$paidThroughEnd, $paidThroughStartPrev] = [$settledThroughEnd, $settledThroughStartPrev];
+            }
 
             // "Titipan dulu": cover the client tax deposit, then PPN Keluaran (owed to the
             // state, not revenue), before recognizing revenue. Satu rumus dengan jurnal
@@ -198,7 +220,25 @@ class ProfitLossService
             }
         }
 
-        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs, 'ppn' => $totalPpn, 'pph' => $totalPph];
+        return ['revenue' => $totalRevenue, 'cogs' => $totalCogs, 'ppn' => $totalPpn, 'pph' => $totalPph, 'fx' => $totalFx];
+    }
+
+    /**
+     * Tambah satu baris tanpa kategori ke kelompok (mis. selisih kurs) bila jumlahnya > 0.
+     *
+     * @param  array{by_category: list<array{category_id: ?int, category_label: string, amount: int}>, total: int}  $group
+     * @return array{by_category: list<array{category_id: ?int, category_label: string, amount: int}>, total: int}
+     */
+    private function withRow(array $group, string $label, int $amount): array
+    {
+        if ($amount <= 0) {
+            return $group;
+        }
+
+        $group['by_category'][] = ['category_id' => null, 'category_label' => $label, 'amount' => $amount];
+        $group['total'] += $amount;
+
+        return $group;
     }
 
     /**
