@@ -48,6 +48,13 @@ export function DebitNoteChip({ className }: { className?: string }) {
 
 export const rp = (n: number) => formatCurrency(Math.round(n));
 
+/** Harga per unit dengan dua desimal bila bersen ("Rp 21.670,80", "Rp 1.500.000"); nominal lain tetap `rp`. */
+export function rpSen(amount: number): string {
+    const rounded = Math.round(amount * 100) / 100;
+
+    return `Rp ${rounded.toLocaleString('id-ID', { minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+
 /** Nominal USD ("USD 44.116,00"); tarif per unit sampai `maxDecimals` desimal ("USD 0,825"). */
 // i18n-abaikan: kode mata uang + angka, sama di semua bahasa (seperti "Rp 1.500.000")
 export const usd = (n: number, maxDecimals = 2) => `USD ${n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals })}`;

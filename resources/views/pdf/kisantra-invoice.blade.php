@@ -559,7 +559,7 @@
                             <td>
                                 <div class="currency-cell">
                                     <div class="currency-left">IDR</div>
-                                    <div class="currency-right">{{ number_format($item->unit_price, 0, ',', '.') }}
+                                    <div class="currency-right">{{ \App\Services\InvoiceTotalRows::format($item->unit_price) }}
                                     </div>
                                 </div>
                             </td>

@@ -435,7 +435,7 @@
                     <td class="price">
                         <div style="display: table; width: 100%;">
                             <span style="display: table-cell; text-align: left;">Rp</span>
-                            <span style="display: table-cell; text-align: right;">{{ number_format($item->unit_price, 0, ',', '.') }}</span>
+                            <span style="display: table-cell; text-align: right;">{{ \App\Services\InvoiceTotalRows::format($item->unit_price) }}</span>
                         </div>
                     </td>
                     <td class="amount">

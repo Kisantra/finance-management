@@ -19,9 +19,15 @@ interface CurrencyInputProps {
     id?: string;
 }
 
-/** Nilai → teks isian format Indonesia ("44.116,5"); 0/kosong = "". */
+/** Nilai → teks isian format Indonesia; pecahan minimal dua desimal seperti uang ("21.670,80", "0,825"); 0/kosong = "". */
 function formatValue(value: number | null | undefined, decimals: number): string {
-    return value != null && value > 0 ? value.toLocaleString('id-ID', { maximumFractionDigits: decimals }) : '';
+    if (value == null || value <= 0) {
+        return '';
+    }
+
+    const fractionDigits = decimals > 0 && !Number.isInteger(value) ? Math.min(2, decimals) : 0;
+
+    return value.toLocaleString('id-ID', { minimumFractionDigits: fractionDigits, maximumFractionDigits: decimals });
 }
 
 /**

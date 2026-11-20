@@ -38,7 +38,7 @@ class InvoicePreviewRequest extends FormRequest
             'items.*.description' => ['nullable', 'string', 'max:2000'],
             'items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
-            'items.*.unit_price' => ['nullable', 'integer', 'min:0'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'items.*.foreign_unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'items.*.cogs_amount' => ['nullable', 'integer', 'min:0'],
             'items.*.is_tax_deposit' => ['nullable', 'boolean'],

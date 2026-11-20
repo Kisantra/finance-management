@@ -36,7 +36,8 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.description' => ['nullable', 'string', 'max:2000'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
-            'items.*.unit_price' => ['required', 'integer', 'min:0'],
+            // Harga Rupiah per unit boleh bersen (0,85; 9.459,46), maksimal dua angka di belakang koma.
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             // Harga USD per unit (kosong = harga Rupiah); Rupiahnya = harga USD × kurs.
             'items.*.foreign_unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'items.*.cogs_amount' => ['nullable', 'integer', 'min:0'],
@@ -118,6 +119,9 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.quantity.min' => __('Qty baris :position harus lebih dari 0.'),
             'items.*.unit_price.required' => __('Harga satuan baris :position wajib diisi.'),
             'items.*.unit_price.min' => __('Harga satuan baris :position tidak boleh negatif.'),
+            'items.*.unit_price.numeric' => __('Harga satuan baris :position harus berupa angka.'),
+            'items.*.unit_price.max' => __('Harga satuan baris :position terlalu besar.'),
+            'items.*.unit_price.decimal' => __('Harga satuan baris :position maksimal dua angka di belakang koma.'),
             'discount_value.min' => __('Diskon tidak boleh negatif.'),
             'faktur.max' => __('Nomor faktur pajak maksimal 50 karakter.'),
             'pph_rate.required_if_accepted' => __('Tarif PPh 23 wajib diisi.'),
@@ -184,7 +188,7 @@ class StoreInvoiceRequest extends FormRequest
                 $subtotal = collect($this->input('items', []))
                     ->sum(fn ($item) => ($item['foreign_unit_price'] ?? null) !== null && $item['foreign_unit_price'] !== '' && $kurs > 0
                         ? Invoice::foreignLineAmount((float) ($item['quantity'] ?? 0), $item['foreign_unit_price'], $kurs)
-                        : (float) ($item['quantity'] ?? 0) * (int) ($item['unit_price'] ?? 0));
+                        : (float) ($item['quantity'] ?? 0) * (float) ($item['unit_price'] ?? 0));
 
                 if ($nilai > $subtotal) {
                     $validator->errors()->add('discount_value',

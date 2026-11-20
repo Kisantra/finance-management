@@ -402,9 +402,10 @@ class TemplateTokens
      * Format an integer (stored in cents-of-Rupiah, i.e. whole Rupiah) to "Rp 1.500.000".
      * Matches the convention used throughout the app: integer → display.
      */
-    public static function formatRupiah(int $amount): string
+    /** "Rp 1.500.000"; nominal bersen (harga satuan) dengan dua desimal: "Rp 9.459,46". */
+    public static function formatRupiah(int|float $amount): string
     {
-        return 'Rp '.number_format($amount, 0, ',', '.');
+        return 'Rp '.InvoiceTotalRows::format($amount);
     }
 
     /**

@@ -23,7 +23,7 @@ import { companyUrl } from '@/lib/company';
 import { cents, depositAccountFor, foreignPaidBefore, paidBefore, paymentJournal, settledAtInvoiceRate } from '@/lib/journal';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
-import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE, usd } from './ob';
+import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, rpSen, SumRow, SURFACE, usd } from './ob';
 import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
 import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './print-invoice-dialog';
 
@@ -501,7 +501,7 @@ function DrawerBody({
                                             </span>
                                         </td>
                                         <td className="py-2.5 text-right text-ob-ink-2">{qty(item.quantity)} {item.unit}</td>
-                                        <td className="py-2.5 text-right text-ob-ink-2">{item.foreign_unit_price !== null ? usd(item.foreign_unit_price, 4) : rp(item.unit_price).replace('Rp ', '')}</td>
+                                        <td className="py-2.5 text-right text-ob-ink-2">{item.foreign_unit_price !== null ? usd(item.foreign_unit_price, 4) : rpSen(item.unit_price).replace('Rp ', '')}</td>
                                         <td className="py-2.5 pr-2.5 text-right font-semibold text-ob-ink">{rp(item.amount)}</td>
                                     </tr>
                                 ))}
