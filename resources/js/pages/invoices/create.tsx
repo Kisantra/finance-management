@@ -27,7 +27,7 @@ import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { parseQty } from './components/item-table-helpers';
 import { QuickClientDialog } from './components/quick-client-dialog';
-import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE } from './components/ob';
+import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE, usd } from './components/ob';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -54,11 +54,24 @@ interface ItemRow {
     quantity: string;
     unit: string;
     unit_price: number;
+    /** Harga USD per unit; null = harga Rupiah. Rupiah baris = jumlah × harga USD × kurs (Invoice::foreignLineAmount). */
+    foreign_unit_price: number | null;
     cogs_amount: number;
     is_tax_deposit: boolean;
 }
 
 export type DocumentType = 'invoice' | 'debit_note';
+
+export type Currency = 'IDR' | 'USD';
+
+/**
+ * Tagihan USD (InvoiceController::formOptions): `enabled` = perusahaan menyalakan "Bisa menagih dalam USD"
+ * (Profil perusahaan), `lastRate` = kurs terakhir yang dipakai, sebagai isian awal.
+ */
+export interface ForeignCurrencyOption {
+    enabled: boolean;
+    lastRate: number | null;
+}
 
 /** Jenis & kode dokumen yang ditawarkan editor (InvoiceController::formOptions). */
 export interface DocumentOptions {
@@ -90,6 +103,10 @@ export interface InvoiceFormData {
     apply_pph: boolean;
     /** Tarif PPh 23 seperti diketik ("2", "0,5"); dikirim sebagai angka (toPayload). */
     pph_rate: string;
+    /** Mata uang tagihan: USD = klien berutang dalam USD (total ÷ kurs); pembukuan tetap Rupiah. */
+    currency: Currency;
+    /** Kurs manual Rp per 1 USD (0 = belum diisi); dipakai tagihan USD dan harga USD. */
+    exchange_rate: number;
     items: ItemRow[];
 }
 
@@ -117,13 +134,17 @@ interface EditorProps {
     services: ServiceOption[];
     ppn: PpnOption;
     pph: PphOption;
+    foreignCurrency: ForeignCurrencyOption;
     documents: DocumentOptions;
     /** Termin jatuh tempo bawaan perusahaan (hari setelah tanggal invoice). */
     defaultDueDays: number;
     /** Ada = perusahaan ini punya template sendiri; pratinjau hanya memakai template itu. */
     companyTemplate?: CompanyTemplate | null;
-    /** Ada = mode edit. `ppn_rate`/`pph_rate` = tarif tersimpan bila invoice sudah ber-PPN / dipotong PPh 23. */
-    invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null; pph_rate: number | null };
+    /**
+     * Ada = mode edit. `ppn_rate`/`pph_rate` = tarif tersimpan bila invoice sudah ber-PPN / dipotong PPh 23;
+     * `has_payments` = sudah ada pembayaran, mata uang terkunci (InvoiceController::resolveCurrency).
+     */
+    invoice?: { id: number; invoice_number: string | null; status: string; ppn_rate: number | null; pph_rate: number | null; has_payments?: boolean; uses_foreign?: boolean };
     initialData?: InvoiceFormData;
 }
 
@@ -187,8 +208,20 @@ function numberCode(type: DocumentType, code: string): string {
 }
 
 function emptyItem(): ItemRow {
-    return { client_id: null, service_name: '', description: '', quantity: '1', unit: '', unit_price: 0, cogs_amount: 0, is_tax_deposit: false };
+    return { client_id: null, service_name: '', description: '', quantity: '1', unit: '', unit_price: 0, foreign_unit_price: null, cogs_amount: 0, is_tax_deposit: false };
 }
+
+/** Cermin Invoice::foreignLineAmount / buildInvoiceData: Rupiah satu baris (harga USD × kurs, atau harga Rupiah). */
+function lineAmount(item: ItemRow, exchangeRate: number): number {
+    const qty = parseQty(item.quantity);
+    return item.foreign_unit_price !== null && exchangeRate > 0 ? Math.round(qty * item.foreign_unit_price * exchangeRate) : Math.round(item.unit_price * qty);
+}
+
+/** Rupiah per unit dari tarif USD, dengan sen bila ada ("Rp 13.423,50"). */
+function formatRupiahDecimal(amount: number): string {
+    return `Rp ${(Math.round(amount * 100) / 100).toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
+}
+
 
 function addDays(iso: string, days: number): string {
     const d = new Date(iso + 'T00:00:00');
@@ -221,6 +254,7 @@ function toPayload(d: InvoiceFormData, multiClient: boolean) {
     return {
         ...d,
         pph_rate: d.pph_rate.trim() === '' ? null : parseQty(d.pph_rate),
+        exchange_rate: d.exchange_rate > 0 ? d.exchange_rate : null,
         items: d.items.map((item) => ({
             ...item,
             client_id: multiClient ? item.client_id : null,
@@ -306,7 +340,7 @@ function useLivePreview(payload: unknown, enabled: boolean) {
 
 /* ─────────────────────────────────── editor ─── */
 
-export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
+export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, documents, defaultDueDays, companyTemplate = null, invoice, initialData }: EditorProps) {
     const isEdit = !!invoice;
     const isDraft = !invoice || invoice.status === 'draft';
     const today = toLocalIso(new Date());
@@ -329,6 +363,8 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
             faktur: '',
             apply_pph: pph.enabled,
             pph_rate: formatRate(pph.rate),
+            currency: 'IDR',
+            exchange_rate: foreignCurrency.lastRate ?? 0,
             items: [emptyItem()],
         },
     );
@@ -374,8 +410,14 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
         .map((c) => ({ value: c.value }));
     const clientOptions = allClients.map((c) => ({ value: c.id, label: c.name }));
 
+    /* ── tagihan USD & harga USD: hanya bila perusahaan menyalakannya, atau invoice ini sudah memakainya ── */
+    const foreignAvailable = foreignCurrency.enabled || !!invoice?.uses_foreign;
+    const isForeign = data.currency === 'USD';
+    const usesForeignPrice = data.items.some((i) => i.foreign_unit_price !== null);
+    const currencyLocked = !!invoice?.has_payments;
+
     /* ── angka (sama dengan InvoiceController::buildInvoiceData) ── */
-    const amounts = data.items.map((i) => Math.round(i.unit_price * parseQty(i.quantity)));
+    const amounts = data.items.map((i) => lineAmount(i, data.exchange_rate));
     const subtotal = amounts.reduce((a, b) => a + b, 0);
     // Debit Note: semua item talangan (titipan), sama dengan buildInvoiceData.
     const deposits = isDebitNote ? subtotal : data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
@@ -389,6 +431,8 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
     const pphRate = parseQty(data.pph_rate);
     const pphAmount = pphAvailable && data.apply_pph && pphRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * pphRate) / 100) : 0;
     const total = Math.max(0, Math.max(0, subtotal - discount) + ppnAmount - pphAmount);
+    // Utang klien dalam USD = total Rupiah ÷ kurs, dibulatkan ke sen (Invoice::foreignTotalFor).
+    const totalForeign = isForeign && data.exchange_rate > 0 ? Math.round((total / data.exchange_rate) * 100) / 100 : null;
     const cogs = isDebitNote ? 0 : data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
     const grossProfit = total + pphAmount - ppnAmount - deposits - cogs;
     const pphFinal = Math.round((total + pphAmount - ppnAmount - deposits) * 0.005);
@@ -675,6 +719,43 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                                     )}
                                 </div>
                             )}
+                            {foreignAvailable && (
+                                <div className="flex flex-col gap-2">
+                                    <div className={cn(FIELD, 'grid items-start gap-3 sm:grid-cols-2')}>
+                                        <SegmentedControl
+                                            variant="pill"
+                                            label={t('Mata uang tagihan')}
+                                            options={[
+                                                { value: 'IDR' as const, label: t('Rupiah') },
+                                                { value: 'USD' as const, label: 'USD' }, // i18n-abaikan: kode mata uang
+                                            ]}
+                                            value={data.currency}
+                                            onChange={(v) => setData('currency', v)}
+                                            disabled={currencyLocked}
+                                            error={errors.currency}
+                                            className="[&>label]:text-[13px] [&>label]:text-ob-ink-2 dark:[&>label]:text-ob-ink-2"
+                                        />
+                                        {(isForeign || usesForeignPrice) && (
+                                            <CurrencyInput
+                                                label={t('Kurs (Rp per 1 USD)')}
+                                                value={data.exchange_rate}
+                                                onChange={(v) => setData('exchange_rate', v)}
+                                                hint={t('Kurs saat ini, diisi manual.')}
+                                                error={errors.exchange_rate}
+                                            />
+                                        )}
+                                    </div>
+                                    {currencyLocked ? (
+                                        <p className="text-[13px] text-ob-ink-2">{t('Mata uang tidak bisa diganti karena tagihan ini sudah menerima pembayaran.')}</p>
+                                    ) : (
+                                        isForeign && (
+                                            <p className="text-[13px] leading-relaxed text-ob-ink-2">
+                                                {t('Klien berutang dalam USD (total ÷ kurs). Pembukuan tetap Rupiah dengan kurs ini; pembayaran dicatat dalam USD dengan kurs saat diterima.')}
+                                            </p>
+                                        )
+                                    )}
+                                </div>
+                            )}
                             <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px]')}>
                                 <Combobox
                                     className="sm:col-span-3"
@@ -787,6 +868,9 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                                                 amount={amounts[idx]}
                                                 active={activeRow === idx}
                                                 debitNote={isDebitNote}
+                                                foreignAvailable={foreignAvailable}
+                                                exchangeRate={data.exchange_rate}
+                                                foreignInvoice={isForeign}
                                                 multiClient={multiClient}
                                                 clientOptions={clientOptions}
                                                 services={services}
@@ -920,6 +1004,13 @@ export function InvoiceEditor({ clients, services, ppn, pph, documents, defaultD
                                     {ppnAmount > 0 && <SumRow label={t('PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })} value={rp(ppnAmount)} />}
                                     {pphAmount > 0 && <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: formatRate(pphRate) })} value={<Minus amount={pphAmount} />} />}
                                     <SumRow label={t('Total')} value={rp(total)} strong className="mt-1 border-t border-ob-line pt-3" />
+                                    {isForeign && (
+                                        <SumRow
+                                            label={t('Tagihan USD (total ÷ kurs)')}
+                                            value={totalForeign !== null ? usd(totalForeign) : '—'}
+                                            strong
+                                        />
+                                    )}
                                     {isDebitNote ? (
                                         <p className="border-t border-ob-line-soft pt-3 text-[13px] leading-relaxed text-ob-ink-2">
                                             {t('Talangan diganti klien: bukan pendapatan, tanpa PPN dan PPh final.')}
@@ -1040,6 +1131,9 @@ function ItemEditorRow({
     amount,
     active,
     debitNote,
+    foreignAvailable,
+    exchangeRate,
+    foreignInvoice,
     multiClient,
     clientOptions,
     services,
@@ -1057,6 +1151,11 @@ function ItemEditorRow({
     active: boolean;
     /** Debit Note: semua item talangan, jadi tanpa HPP dan tanpa sakelar titipan pajak. */
     debitNote: boolean;
+    /** Perusahaan bisa menagih dalam USD: baris boleh berharga USD (× kurs). */
+    foreignAvailable: boolean;
+    exchangeRate: number;
+    /** Tagihan USD (bukan hanya harga USD di tagihan Rupiah). */
+    foreignInvoice: boolean;
     multiClient: boolean;
     clientOptions: { value: number; label: string }[];
     services: ServiceOption[];
@@ -1070,7 +1169,8 @@ function ItemEditorRow({
 }) {
     const listId = `svc-list-${index}`;
     const unitListId = `unit-list-${index}`;
-    const messages = [error('service_name'), error('description'), error('quantity'), error('unit_price'), error('cogs_amount'), error('client_id')].filter(Boolean);
+    const messages = [error('service_name'), error('description'), error('quantity'), error('unit_price'), error('foreign_unit_price'), error('cogs_amount'), error('client_id')].filter(Boolean);
+    const foreignPrice = item.foreign_unit_price !== null;
     const [noteOpen, setNoteOpen] = React.useState(item.description !== '');
     const showNote = noteOpen || item.description !== '';
     // Di Debit Note semua baris talangan; penanda per baris hanya untuk titipan pajak di invoice.
@@ -1131,7 +1231,18 @@ function ItemEditorRow({
                 </div>
                 <div className={cn(FIELD_SM, ITEM_AT.price, 'flex min-w-0 items-center gap-2')}>
                     <span aria-hidden="true" className="hidden text-sm text-ob-ink-3 @md:inline @2xl:hidden">×</span>
-                    <CurrencyInput value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
+                    {foreignPrice ? (
+                        <CurrencyInput
+                            prefix="USD" // i18n-abaikan: kode mata uang
+                            decimals={4}
+                            value={item.foreign_unit_price}
+                            onChange={(v) => onChange({ foreign_unit_price: v })}
+                            className={cn('w-full min-w-0 bg-ob-card text-right', error('foreign_unit_price') && 'border-ob-late')}
+                            id={`price-${index}`}
+                        />
+                    ) : (
+                        <CurrencyInput value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
+                    )}
                 </div>
                 <span className={cn(ITEM_AT.amount, 'whitespace-nowrap text-sm font-semibold text-ob-ink')}>
                     <span aria-hidden="true" className="mr-1.5 font-normal text-ob-ink-3 @2xl:hidden">=</span>
@@ -1161,6 +1272,12 @@ function ItemEditorRow({
                             <label className="inline-flex h-8 cursor-pointer items-center gap-2 text-ob-ink">
                                 <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
                                 {t('Titipan pajak')}
+                            </label>
+                        )}
+                        {(foreignAvailable || foreignPrice) && (
+                            <label className="inline-flex h-8 cursor-pointer items-center gap-2 text-ob-ink">
+                                <Switch checked={foreignPrice} onCheckedChange={(on) => onChange({ foreign_unit_price: on ? 0 : null })} />
+                                {t('Harga USD')}
                             </label>
                         )}
                     </div>
@@ -1200,6 +1317,15 @@ function ItemEditorRow({
                 </div>
             )}
             {taxDeposit && <p className="pl-7 text-[13px] text-ob-ink-2">{t('Ditagihkan tetapi tidak dihitung pendapatan, HPP, atau dasar PPh.')}</p>}
+            {foreignPrice && (
+                <p className="pl-7 text-[13px] text-ob-ink-2">
+                    {exchangeRate > 0
+                        ? foreignInvoice
+                            ? t('Harga USD × kurs {{rate}} = {{price}} per unit dalam pembukuan.', { rate: rp(exchangeRate), price: formatRupiahDecimal((item.foreign_unit_price ?? 0) * exchangeRate) })
+                            : t('Harga USD × kurs {{rate}} = {{price}} per unit.', { rate: rp(exchangeRate), price: formatRupiahDecimal((item.foreign_unit_price ?? 0) * exchangeRate) })
+                        : t('Isi kurs di Detail invoice untuk menghitung Rupiahnya.')}
+                </p>
+            )}
             {messages.length > 0 && (
                 <ul className="pl-7 text-xs text-ob-late">
                     {messages.map((m) => (
@@ -1326,11 +1452,32 @@ function CreateInvoicePage({
     services,
     ppn,
     pph,
+    foreignCurrency,
     documents,
     defaultDueDays,
     companyTemplate,
-}: SharedProps & { clients: ClientOption[]; services: ServiceOption[]; ppn: PpnOption; pph: PphOption; documents: DocumentOptions; defaultDueDays: number; companyTemplate: CompanyTemplate | null }) {
-    return <InvoiceEditor clients={clients} services={services} ppn={ppn} pph={pph} documents={documents} defaultDueDays={defaultDueDays} companyTemplate={companyTemplate} />;
+}: SharedProps & {
+    clients: ClientOption[];
+    services: ServiceOption[];
+    ppn: PpnOption;
+    pph: PphOption;
+    foreignCurrency: ForeignCurrencyOption;
+    documents: DocumentOptions;
+    defaultDueDays: number;
+    companyTemplate: CompanyTemplate | null;
+}) {
+    return (
+        <InvoiceEditor
+            clients={clients}
+            services={services}
+            ppn={ppn}
+            pph={pph}
+            foreignCurrency={foreignCurrency}
+            documents={documents}
+            defaultDueDays={defaultDueDays}
+            companyTemplate={companyTemplate}
+        />
+    );
 }
 
 CreateInvoicePage.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;

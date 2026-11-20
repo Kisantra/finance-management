@@ -10,6 +10,7 @@
 > invoice → 收款 (kunci bersama diberi konteks `invoice` di `pages/invoices/**`), status invoice tetap 已付款/未付款/部分付款
 > (§3 *Bayar*); AR → 税务客户经理; label "Buat …" diseragamkan ke 新建.
 > **v1.4 (18 Nov 2026):** istilah Debit Note & talangan (fitur Debit Note PT SLU), bertanda **[v1.4]**.
+> **v1.5 (20 Nov 2026):** istilah tagihan USD & kurs (fitur tagihan USD PT BCB), bertanda **[v1.5]**.
 > Entri yang istilah Indonesianya berubah bertanda **[baku baru]** beserta ID perapiannya.
 > **Belum ditinjau penutur asli Mandarin.** Setiap pilihan istilah pajak/akuntansi diberi alasan dan rujukan,
 > supaya pemeriksa terjemah-balik (T2) dan peninjau kelak bisa menilai, bukan menebak.
@@ -220,6 +221,11 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Talangan | Disbursement | 代垫款 | **[v1.4]** Uang yang perusahaan bayarkan dulu untuk klien lalu diganti klien: pass-through seperti titipan pajak, bukan pendapatan. PRC mencatatnya di 其他应收款—代垫款项. **Bukan** 预付款 (uang muka ke pemasok) maupun 借款 (pinjaman). |
 | Talangan Biaya Klien (akun) | Client disbursements | 代垫客户费用 | **[v1.4]** Akun jurnal sistem (`JournalService::TALANGAN`), sama persis dengan akun lawan kategori "Bayar Talangan Klien" (nama kategori = data, U6). |
 | Jenis dokumen / Kode jenis | Document type / Document code | 单据类型 / 单据代码 | **[v1.4]** Isian editor invoice; kode (FINAL, PNBP, …) ikut ke nomor lewat token `{KODE}`. |
+| Kurs | Exchange rate | 汇率 | **[v1.5, 20 Nov 2026]** Kurs manual Rp per 1 USD di invoice dan pembayaran. "Kurs (Rp per 1 USD)" → 汇率（每 1 USD 兑 Rp）; "kurs {{rate}}" dalam kalimat pendek → EN "rate {{rate}}", ZH 汇率 {{rate}}. **Bukan** 牌价/外汇牌价 (kurs resmi bank). |
+| Selisih kurs / Laba selisih kurs / Rugi selisih kurs | Exchange difference / Exchange gain / Exchange loss | 汇兑差额 / 汇兑收益 / 汇兑损失 | **[v1.5]** Rupiah yang masuk dari pembayaran tagihan USD dikurangi nilainya dengan kurs invoice. "Selisih Kurs" juga akun jurnal sistem (`JournalService::EXCHANGE_DIFFERENCE`; EN server "Exchange Difference"). Laba/rugi tampil di Pendapatan Lain / Beban Lain (其他收入 / 其他费用). PRC: 财务费用—汇兑损益. |
+| Tagihan USD / Mata uang tagihan | USD billing / Billing currency | 美元账单 / 账单币种 | **[v1.5]** "Tagihan" di sini = invoice (账单), sejalan dengan §3 *Tagihan*. Nominal: "Tagihan USD (total ÷ kurs)" → USD amount due (total ÷ rate) / 美元账单金额（总额 ÷ 汇率）. |
+| Rupiah (mata uang) | Rupiah | 印尼盾 | **[v1.5]** Nama mata uang di pilihan "Rupiah / USD". Nominal tetap "Rp 1.500.000" di semua bahasa (K-angka). |
+| Kode Swift / Cabang (rekening) | SWIFT code / Branch | SWIFT 代码 / 支行 | **[v1.5]** Isian rekening USD di Profil perusahaan; tercetak "Swift Code" / "Bank Branch Name" di PDF (K2). |
 | Terbilang | Amount in words | 金额大写 | Padanan fungsi "大写金额" di dokumen Tiongkok. Isi terbilang tetap Bahasa Indonesia (K2). Dipakai ulang (`'say' => '大写'`). |
 | UMKM | MSME | 中小微企业 | |
 

@@ -16,6 +16,8 @@ class Payment extends Model
         'invoice_id',
         'bank_account_id',
         'amount',
+        'foreign_amount',
+        'exchange_rate',
         'payment_date',
         'payment_method',
         'reference_number',
@@ -26,6 +28,8 @@ class Payment extends Model
     protected $casts = [
         'payment_date' => 'date',
         'amount' => 'integer',
+        'foreign_amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:2',
     ];
 
     public function invoice(): BelongsTo

@@ -18,6 +18,7 @@ class InvoiceItem extends Model
         'quantity',
         'unit',
         'unit_price',
+        'foreign_unit_price',
         'amount',
         'cogs_amount',
         'is_tax_deposit',
@@ -26,6 +27,7 @@ class InvoiceItem extends Model
     protected $casts = [
         'quantity' => 'decimal:3',
         'unit_price' => 'integer',
+        'foreign_unit_price' => 'decimal:4',
         'amount' => 'integer',
         'cogs_amount' => 'integer',
         'is_tax_deposit' => 'boolean',

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Client;
+use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Foundation\Http\FormRequest;
@@ -36,6 +37,8 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'items.*.unit' => ['nullable', 'string', 'max:20'],
             'items.*.unit_price' => ['required', 'integer', 'min:0'],
+            // Harga USD per unit (kosong = harga Rupiah); Rupiahnya = harga USD × kurs.
+            'items.*.foreign_unit_price' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'items.*.cogs_amount' => ['nullable', 'integer', 'min:0'],
             'items.*.is_tax_deposit' => ['boolean'],
             'discount_type' => ['nullable', 'in:fixed,percentage'],
@@ -50,10 +53,30 @@ class StoreInvoiceRequest extends FormRequest
             // Potongan PPh 23 oleh klien: tarif wajib bila dipotong.
             'apply_pph' => ['nullable', 'boolean'],
             'pph_rate' => ['nullable', 'required_if_accepted:apply_pph', 'numeric', 'min:0.01', 'max:100'],
+            // Tagihan USD (utang klien dalam USD) dan kurs manual Rp per 1 USD; hanya bila perusahaan menyalakannya.
+            'currency' => ['nullable', Rule::in(self::currencies($this->route('invoice')))],
+            'exchange_rate' => ['nullable', 'required_if:currency,'.Invoice::CURRENCY_USD, 'numeric', 'min:0.01', 'max:9999999999'],
             // Nomor dari dialog "Simpan & terbitkan". Dipakai hanya saat publish oleh pemegang
             // `edit invoices` (lihat InvoiceController::store); kosong = nomor otomatis.
             'invoice_number' => ['nullable', 'string', 'max:100', Rule::unique('invoices', 'invoice_number')->ignore($this->route('invoice'))],
         ];
+    }
+
+    /**
+     * Mata uang tagihan yang boleh dipilih: USD hanya untuk perusahaan yang menyalakan "Bisa menagih dalam
+     * USD", atau invoice yang sudah ber-USD (tetap bisa diubah walau sakelarnya dimatikan belakangan).
+     *
+     * @return list<string>
+     */
+    public static function currencies(?Invoice $invoice = null): array
+    {
+        return self::foreignCurrencyAllowed($invoice) ? Invoice::CURRENCIES : [Invoice::CURRENCY_IDR];
+    }
+
+    public static function foreignCurrencyAllowed(?Invoice $invoice = null): bool
+    {
+        return (bool) CompanyProfile::current()?->foreign_currency_enabled
+            || ($invoice !== null && ($invoice->isForeign() || $invoice->exchange_rate !== null));
     }
 
     /** @return list<string> */
@@ -104,6 +127,14 @@ class StoreInvoiceRequest extends FormRequest
             'invoice_number.unique' => __('Nomor ini sudah dipakai invoice lain.'),
             'invoice_number.max' => __('Nomor invoice maksimal 100 karakter.'),
             'discount_value.integer' => __('Nilai diskon harus bilangan bulat. Diskon persen pecahan (mis. 12,5%) belum didukung — gunakan diskon nominal bila perlu.'),
+            'currency.in' => __('Tagihan USD belum dinyalakan untuk perusahaan ini (Pengaturan › Profil perusahaan).'),
+            'exchange_rate.required_if' => __('Kurs wajib diisi untuk tagihan USD.'),
+            'exchange_rate.numeric' => __('Kurs harus berupa angka.'),
+            'exchange_rate.min' => __('Kurs harus lebih dari 0.'),
+            'exchange_rate.max' => __('Kurs terlalu besar.'),
+            'items.*.foreign_unit_price.numeric' => __('Harga USD baris :position harus berupa angka.'),
+            'items.*.foreign_unit_price.min' => __('Harga USD baris :position tidak boleh negatif.'),
+            'items.*.foreign_unit_price.max' => __('Harga USD baris :position terlalu besar.'),
         ];
     }
 
@@ -124,6 +155,16 @@ class StoreInvoiceRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function ($validator) {
+            $hargaUsd = collect($this->input('items', []))->contains(fn ($item) => is_array($item) && ($item['foreign_unit_price'] ?? null) !== null && $item['foreign_unit_price'] !== '');
+
+            if ($hargaUsd && ! self::foreignCurrencyAllowed($this->route('invoice'))) {
+                $validator->errors()->add('items', __('Harga USD belum dinyalakan untuk perusahaan ini (Pengaturan › Profil perusahaan).'));
+            } elseif ($hargaUsd && (float) $this->input('exchange_rate', 0) <= 0) {
+                $validator->errors()->add('exchange_rate', __('Kurs wajib diisi bila ada harga dalam USD.'));
+            }
+        });
+
+        $validator->after(function ($validator) {
             $tipe = $this->input('discount_type');
             $nilai = (int) $this->input('discount_value', 0);
 
@@ -138,8 +179,12 @@ class StoreInvoiceRequest extends FormRequest
             }
 
             if ($tipe === 'fixed') {
+                $kurs = (float) $this->input('exchange_rate', 0);
+                // Baris berharga USD dihitung seperti InvoiceController::buildInvoiceData (harga USD × kurs).
                 $subtotal = collect($this->input('items', []))
-                    ->sum(fn ($item) => (float) ($item['quantity'] ?? 0) * (int) ($item['unit_price'] ?? 0));
+                    ->sum(fn ($item) => ($item['foreign_unit_price'] ?? null) !== null && $item['foreign_unit_price'] !== '' && $kurs > 0
+                        ? Invoice::foreignLineAmount((float) ($item['quantity'] ?? 0), $item['foreign_unit_price'], $kurs)
+                        : (float) ($item['quantity'] ?? 0) * (int) ($item['unit_price'] ?? 0));
 
                 if ($nilai > $subtotal) {
                     $validator->errors()->add('discount_value',

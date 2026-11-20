@@ -14,10 +14,9 @@
 @extends('pdf.perusahaan.berkah-andalan-samboja.kerangka')
 
 @php
-    $rp = fn ($value) => number_format((float) $value, 0, ',', '.');
     $qty = fn ($value) => rtrim(rtrim(number_format((float) $value, 3, ',', '.'), '0'), ',');
     // "Rp" rata kiri, angka rata kanan dalam satu baris (format akuntansi tabel Excel di dokumen asli).
-    $uang = fn ($value) => '<table class="uang"><tr><td class="rp">Rp</td><td class="angka">'.$rp($value).'</td></tr></table>';
+    $uang = fn ($value, $mataUang = 'IDR') => '<table class="uang"><tr><td class="rp">'.\App\Services\InvoiceTotalRows::symbol($mataUang).'</td><td class="angka">'.\App\Services\InvoiceTotalRows::format($value, $mataUang, 4).'</td></tr></table>';
 
     $units = $items->pluck('unit')->filter()->unique()->values();
     $sharedUnit = $units->count() === 1 ? $units->first() : null;
@@ -182,7 +181,7 @@
                 @else
                     <td colspan="{{ $kolom - 1 }}" class="label">{{ $labelTotal($baris) }}</td>
                 @endif
-                <td class="c-total">{!! $uang($baris['jumlah']) !!}</td>
+                <td class="c-total">{!! $uang($baris['jumlah'], $baris['mata_uang']) !!}</td>
             </tr>
         @endforeach
     </table>

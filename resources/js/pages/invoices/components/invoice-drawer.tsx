@@ -20,10 +20,10 @@ import { JournalBox } from '@/components/shared/journal-box';
 import { t } from '@/i18n';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
-import { depositAccountFor, paidBefore, paymentJournal } from '@/lib/journal';
+import { cents, depositAccountFor, foreignPaidBefore, paidBefore, paymentJournal, settledAtInvoiceRate } from '@/lib/journal';
 import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
-import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE } from './ob';
+import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, SumRow, SURFACE, usd } from './ob';
 import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
 import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './print-invoice-dialog';
 
@@ -31,7 +31,11 @@ import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from '.
 
 interface Payment {
     id: number;
+    /** Rupiah yang masuk ke rekening (tagihan USD: USD × kurs saat diterima). */
     amount: number;
+    /** Tagihan USD: USD yang diterima dan kurs saat diterima; null untuk tagihan Rupiah. */
+    foreign_amount: number | null;
+    exchange_rate: number | null;
     payment_date: string;
     payment_method: 'cash' | 'bank_transfer';
     bank_account_id: number | null;
@@ -66,6 +70,12 @@ export interface InvoiceDetail {
     total_amount: number;
     amount_paid: number;
     amount_remaining: number;
+    /** Tagihan USD: utang klien `total_foreign`, terbayar & sisa dalam USD, kurs invoice untuk menilai Rupiahnya. */
+    currency: 'IDR' | 'USD';
+    exchange_rate: number | null;
+    total_foreign: number | null;
+    foreign_paid: number | null;
+    foreign_remaining: number | null;
     /** Σ item titipan pajak / talangan — untuk pratinjau jurnal pembayaran ("titipan dulu"). */
     tax_deposit_total: number;
     faktur: string | null;
@@ -83,11 +93,18 @@ export interface InvoiceDetail {
         quantity: number;
         unit: string | null;
         unit_price: number;
+        /** Harga USD per unit; null = harga Rupiah. */
+        foreign_unit_price: number | null;
         amount: number;
         cogs_amount: number;
         is_tax_deposit: boolean;
     }>;
     payments: Payment[];
+}
+
+/** Nominal pembayaran untuk teks: USD (tagihan USD) atau Rupiah. */
+function paymentLabel(p: Payment): string {
+    return p.foreign_amount !== null ? usd(p.foreign_amount) : rp(p.amount);
 }
 
 type LoadState = { kind: 'loading' } | { kind: 'ready'; detail: InvoiceDetail } | { kind: 'missing' } | { kind: 'error'; message: string };
@@ -318,6 +335,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                     <PrintInvoiceDialog
                         open={dialog === 'print'}
                         onOpenChange={(o) => setDialog(o ? 'print' : null)}
+                        foreignCurrency={detail.currency === 'USD'}
                         invoiceId={detail.id}
                         invoiceNumber={detail.invoice_number}
                         totalAmount={detail.total_amount}
@@ -377,14 +395,19 @@ function DrawerBody({
     const cogs = services.reduce((s, i) => s + i.cogs_amount, 0);
     // Potongan PPh 23 tidak ditransfer klien tetapi tetap pendapatan (kredit pajak), sama dengan Invoice::gross_profit.
     const grossProfit = detail.total_amount + detail.pph_amount - detail.ppn_amount - deposits - cogs;
-    const paidPct = detail.total_amount > 0 ? Math.min(100, Math.round((detail.amount_paid / detail.total_amount) * 100)) : 0;
+    const isForeign = detail.currency === 'USD';
+    // Tagihan USD: persen terbayar dari USD (Rupiah yang masuk bergantung kurs saat dibayar).
+    const paidPct = isForeign
+        ? (detail.total_foreign ?? 0) > 0 ? Math.min(100, Math.round(((detail.foreign_paid ?? 0) / (detail.total_foreign ?? 1)) * 100)) : 0
+        : detail.total_amount > 0 ? Math.min(100, Math.round((detail.amount_paid / detail.total_amount) * 100)) : 0;
+    const remainingLabel = isForeign ? usd(detail.foreign_remaining ?? 0) : rp(detail.amount_remaining);
     const due = dueInfo(detail.status, detail.due_date);
     const multiClient = new Set(detail.items.map((i) => i.client_id ?? detail.client.id)).size > 1;
 
     const history = [
         ...detail.payments.map((p) => ({
             at: p.created_at ?? p.payment_date,
-            text: p.payment_method === 'cash' ? t('Pembayaran {{amount}} dicatat · tunai', { amount: rp(p.amount) }) : t('Pembayaran {{amount}} dicatat · transfer', { amount: rp(p.amount) }),
+            text: p.payment_method === 'cash' ? t('Pembayaran {{amount}} dicatat · tunai', { amount: paymentLabel(p) }) : t('Pembayaran {{amount}} dicatat · transfer', { amount: paymentLabel(p) }),
         })),
         ...(detail.created_at ? [{ at: detail.created_at, text: t('Dibuat sebagai draft') }] : []),
     ].sort((a, b) => b.at.localeCompare(a.at));
@@ -403,9 +426,18 @@ function DrawerBody({
             </div>
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Metric label={t('Total')} value={rp(detail.total_amount)} />
-                <Metric label={t('Sudah dibayar')} value={rp(detail.amount_paid)} valueClass="text-ob-pos" sub={t('{{percent}}% terbayar', { percent: paidPct })} />
-                <Metric label={t('Sisa tagihan')} value={rp(detail.amount_remaining)} />
+                {isForeign ? (
+                    <>
+                        <Metric label={t('Tagihan USD')} value={usd(detail.total_foreign ?? 0)} sub={t('{{amount}} · kurs {{rate}}', { amount: rp(detail.total_amount), rate: rp(detail.exchange_rate ?? 0) })} />
+                        <Metric label={t('Sudah dibayar')} value={usd(detail.foreign_paid ?? 0)} valueClass="text-ob-pos" sub={t('{{percent}}% terbayar', { percent: paidPct })} />
+                    </>
+                ) : (
+                    <>
+                        <Metric label={t('Total')} value={rp(detail.total_amount)} />
+                        <Metric label={t('Sudah dibayar')} value={rp(detail.amount_paid)} valueClass="text-ob-pos" sub={t('{{percent}}% terbayar', { percent: paidPct })} />
+                    </>
+                )}
+                <Metric label={t('Sisa tagihan')} value={remainingLabel} />
                 {isDebitNote ? (
                     <Metric label={t('Talangan')} value={rp(deposits)} sub={t('Diganti klien · bukan pendapatan')} />
                 ) : (
@@ -469,7 +501,7 @@ function DrawerBody({
                                             </span>
                                         </td>
                                         <td className="py-2.5 text-right text-ob-ink-2">{qty(item.quantity)} {item.unit}</td>
-                                        <td className="py-2.5 text-right text-ob-ink-2">{rp(item.unit_price).replace('Rp ', '')}</td>
+                                        <td className="py-2.5 text-right text-ob-ink-2">{item.foreign_unit_price !== null ? usd(item.foreign_unit_price, 4) : rp(item.unit_price).replace('Rp ', '')}</td>
                                         <td className="py-2.5 pr-2.5 text-right font-semibold text-ob-ink">{rp(item.amount)}</td>
                                     </tr>
                                 ))}
@@ -492,6 +524,18 @@ function DrawerBody({
                                 <SumRow label={t('PPh 23 dipotong klien {{rate}}%', { rate: (detail.pph_rate ?? 0).toLocaleString('id-ID') })} value={`− ${rp(detail.pph_amount)}`} />
                             )}
                             <SumRow label={t('Total')} value={rp(detail.total_amount)} strong className="mt-1 border-t border-ob-line pt-2" />
+                            {isForeign && (
+                                <SumRow
+                                    label={
+                                        <>
+                                            {t('Tagihan USD')}
+                                            <span className="block text-xs font-normal text-ob-ink-3">{t('Kurs invoice {{rate}}', { rate: rp(detail.exchange_rate ?? 0) })}</span>
+                                        </>
+                                    }
+                                    value={usd(detail.total_foreign ?? 0)}
+                                    strong
+                                />
+                            )}
                         </div>
 
                         <div>
@@ -533,7 +577,10 @@ function DrawerBody({
                                         <li key={p.id} className="flex items-start gap-2.5 border-b border-ob-line-soft py-2 last:border-0">
                                             <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ob-pos" aria-hidden="true" />
                                             <div className="min-w-0 flex-1">
-                                                <p className="font-semibold text-ob-ink">{rp(p.amount)}</p>
+                                                <p className="font-semibold text-ob-ink">{paymentLabel(p)}</p>
+                                                {p.foreign_amount !== null && (
+                                                    <p className="text-xs text-ob-ink-2">{t('{{amount}} masuk · kurs {{rate}}', { amount: rp(p.amount), rate: rp(p.exchange_rate ?? 0) })}</p>
+                                                )}
                                                 <p className="text-xs text-ob-ink-2">
                                                     {longDate(p.payment_date)} · {p.payment_method === 'cash' ? t('Tunai') : t('Transfer')}{p.bank_account_name ? ` · ${p.bank_account_name}` : ''}
                                                 </p>
@@ -546,10 +593,10 @@ function DrawerBody({
                                                     </p>
                                                 )}
                                             </div>
-                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" aria-label={t('Ubah pembayaran {{amount}}', { amount: rp(p.amount) })} onClick={() => onEditPayment(p)}>
+                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-hover hover:text-ob-ink dark:hover:bg-ob-hover" aria-label={t('Ubah pembayaran {{amount}}', { amount: paymentLabel(p) })} onClick={() => onEditPayment(p)}>
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10" aria-label={t('Hapus pembayaran {{amount}}', { amount: rp(p.amount) })} onClick={() => onDeletePayment(p)}>
+                                            <Button variant="ghost" className="h-7 w-7 shrink-0 rounded-full p-0 text-ob-ink-3 hover:bg-ob-late/10 hover:text-ob-late dark:hover:bg-ob-late/10" aria-label={t('Hapus pembayaran {{amount}}', { amount: paymentLabel(p) })} onClick={() => onDeletePayment(p)}>
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </li>
@@ -558,7 +605,7 @@ function DrawerBody({
                             )}
                             <div className="flex items-center justify-between border-t border-ob-line pt-2.5">
                                 <span className="text-ob-ink-2">{t('Sisa tagihan')}</span>
-                                <span className="text-sm font-semibold text-ob-ink">{rp(detail.amount_remaining)}</span>
+                                <span className="text-sm font-semibold text-ob-ink">{remainingLabel}</span>
                             </div>
                         </section>
                     </div>
@@ -651,6 +698,9 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
 
 interface PaymentForm {
     amount: number;
+    /** Tagihan USD: USD yang diterima & kurs saat diterima; Rupiahnya = USD × kurs (dihitung server). */
+    foreign_amount: number;
+    exchange_rate: number;
     payment_date: string;
     payment_method: 'bank_transfer' | 'cash';
     bank_account_id: number | null;
@@ -672,8 +722,12 @@ function PaymentDialog({
     payment: Payment | null;
     onSaved: () => void;
 }) {
+    const isForeign = detail.currency === 'USD';
     const remaining = detail.amount_remaining + (payment?.amount ?? 0);
-    const [form, setForm] = React.useState<PaymentForm>(() => blankPayment(remaining));
+    // Tagihan USD: sisa dalam USD (sen), termasuk pembayaran yang sedang diubah.
+    const remainingUsd = isForeign ? (cents(detail.foreign_remaining) + cents(payment?.foreign_amount)) / 100 : 0;
+    const blank = () => blankPayment(remaining, remainingUsd, detail.exchange_rate ?? 0);
+    const [form, setForm] = React.useState<PaymentForm>(blank);
     const [errors, setErrors] = React.useState<Record<string, string>>({});
     const [saving, setSaving] = React.useState(false);
     const [accounts, setAccounts] = React.useState<{ label: string; value: number; journal_name: string }[]>([]);
@@ -688,6 +742,8 @@ function PaymentDialog({
             payment
                 ? {
                       amount: payment.amount,
+                      foreign_amount: payment.foreign_amount ?? 0,
+                      exchange_rate: payment.exchange_rate ?? detail.exchange_rate ?? 0,
                       payment_date: payment.payment_date,
                       payment_method: payment.payment_method,
                       bank_account_id: payment.bank_account_id,
@@ -695,41 +751,59 @@ function PaymentDialog({
                       attachment: null,
                       remove_attachment: false,
                   }
-                : blankPayment(remaining),
+                : blank(),
         );
         api('/api/bank-accounts')
             .then((r) => r.json())
             .then(setAccounts)
             .catch((e) => console.error('[BankAccounts]', e));
-    }, [open, payment, remaining]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- blank() hanya membaca sisa & kurs di bawah ini
+    }, [open, payment, remaining, remainingUsd]);
 
     const set = <K extends keyof PaymentForm>(key: K, value: PaymentForm[K]) => setForm((f) => ({ ...f, [key]: value }));
 
+    // Tagihan USD: nominal yang diisi USD; Rupiah yang masuk = USD × kurs saat diterima (PaymentController::nominal).
+    const amountKey = isForeign ? 'foreign_amount' : 'amount';
+    const full = isForeign ? remainingUsd : remaining;
+    const half = isForeign ? Math.round(remainingUsd * 50) / 100 : Math.round(remaining / 2);
+    const entered = isForeign ? form.foreign_amount : form.amount;
+    const rupiah = isForeign ? Math.round(form.foreign_amount * form.exchange_rate) : form.amount;
+
     const choosePreset = (p: 'full' | 'half' | 'custom') => {
         setPreset(p);
-        if (p === 'full') set('amount', remaining);
-        if (p === 'half') set('amount', Math.round(remaining / 2));
+        if (p === 'full') set(amountKey, full);
+        if (p === 'half') set(amountKey, half);
         if (p === 'custom') {
-            set('amount', 0);
+            set(amountKey, 0);
             requestAnimationFrame(() => amountRef.current?.querySelector('input')?.focus());
         }
     };
 
-    const overMessage = form.amount > remaining ? t('Melebihi sisa tagihan {{amount}}. Catat kelebihan sebagai transaksi terpisah.', { amount: rp(remaining) }) : null;
+    const overMessage = isForeign
+        ? cents(form.foreign_amount) > cents(remainingUsd)
+            ? t('Melebihi sisa tagihan {{amount}}. Catat kelebihan sebagai transaksi terpisah.', { amount: usd(remainingUsd) })
+            : null
+        : form.amount > remaining
+          ? t('Melebihi sisa tagihan {{amount}}. Catat kelebihan sebagai transaksi terpisah.', { amount: rp(remaining) })
+          : null;
 
     // Pratinjau jurnal "titipan dulu" (cermin JournalService::paymentLines / Invoice::allocatePayments):
     // yang sudah dibayar SEBELUM pembayaran ini dihitung dari daftar pembayaran invoice, urut (tanggal, id).
+    // Tagihan USD: dialokasikan dengan kurs invoice dari USD yang diterima; selisihnya ke Selisih Kurs.
     const account = accounts.find((a) => a.value === form.bank_account_id);
+    const settle = (foreign: number) => settledAtInvoiceRate(foreign, detail.total_foreign ?? 0, detail.exchange_rate ?? 0, detail.total_amount);
+    const usdBefore = isForeign ? foreignPaidBefore(detail.payments, form.payment_date, payment?.id ?? null) : 0;
     const journal = account
         ? paymentJournal(
               account.journal_name,
-              form.amount,
-              paidBefore(detail.payments, form.payment_date, payment?.id ?? null),
+              rupiah,
+              isForeign ? settle(usdBefore) : paidBefore(detail.payments, form.payment_date, payment?.id ?? null),
               detail.tax_deposit_total,
               detail.ppn_amount,
               depositAccountFor(detail.document_type),
               detail.pph_amount,
               detail.total_amount,
+              isForeign ? settle(usdBefore + form.foreign_amount) - settle(usdBefore) : null,
           )
         : null;
 
@@ -739,7 +813,12 @@ function PaymentDialog({
         setSaving(true);
         setErrors({});
         const fd = new FormData();
-        fd.append('amount', String(form.amount));
+        if (isForeign) {
+            fd.append('foreign_amount', String(form.foreign_amount));
+            fd.append('exchange_rate', String(form.exchange_rate));
+        } else {
+            fd.append('amount', String(form.amount));
+        }
         fd.append('payment_date', form.payment_date);
         fd.append('payment_method', form.payment_method);
         if (form.bank_account_id != null) fd.append('bank_account_id', String(form.bank_account_id));
@@ -761,7 +840,7 @@ function PaymentDialog({
                 toastErrors(errs, 'PaymentSubmit');
                 return;
             }
-            toast.success(payment ? t('Pembayaran diperbarui.') : t('Pembayaran {{amount}} dicatat.', { amount: rp(form.amount) }));
+            toast.success(payment ? t('Pembayaran diperbarui.') : t('Pembayaran {{amount}} dicatat.', { amount: isForeign ? usd(form.foreign_amount) : rp(form.amount) }));
             onOpenChange(false);
             onSaved();
         } catch (err) {
@@ -790,23 +869,49 @@ function PaymentDialog({
             <DialogContent size="lg" hideClose className={DIALOG}>
                 <DialogHead
                     title={payment ? t('Ubah pembayaran', { context: 'invoice' }) : t('Catat pembayaran', { context: 'invoice' })}
-                    sub={t('{{number}} · sisa {{amount}}', { number: detail.invoice_number ?? t('Draft'), amount: rp(remaining) })}
+                    sub={t('{{number}} · sisa {{amount}}', { number: detail.invoice_number ?? t('Draft'), amount: isForeign ? usd(remainingUsd) : rp(remaining) })}
                     onClose={() => onOpenChange(false)}
                 />
                 <form onSubmit={submit} className="flex flex-col gap-4">
                     {errors._ && <p role="alert" className="rounded-xl border border-ob-late/35 bg-ob-late/10 px-3 py-2 text-[13px] text-ob-late">{errors._}</p>}
                     <div ref={amountRef}>
-                        <div className={FIELD}>
-                        <CurrencyInput
-                            label={t('Jumlah')}
-                            value={form.amount}
-                            onChange={(v) => {
-                                set('amount', v);
-                                setPreset(v === remaining ? 'full' : v === Math.round(remaining / 2) ? 'half' : 'custom');
-                            }}
-                            error={overMessage ?? errors.amount}
-                        />
-                        </div>
+                        {isForeign ? (
+                            <div className={cn(FIELD, 'grid gap-3 sm:grid-cols-2')}>
+                                <CurrencyInput
+                                    label={t('Diterima (USD)')}
+                                    prefix="USD" // i18n-abaikan: kode mata uang
+                                    decimals={2}
+                                    value={form.foreign_amount}
+                                    onChange={(v) => {
+                                        set('foreign_amount', v);
+                                        setPreset(cents(v) === cents(full) ? 'full' : cents(v) === cents(half) ? 'half' : 'custom');
+                                    }}
+                                    error={overMessage ?? errors.foreign_amount}
+                                />
+                                <CurrencyInput
+                                    label={t('Kurs saat diterima (Rp per 1 USD)')}
+                                    value={form.exchange_rate}
+                                    onChange={(v) => set('exchange_rate', v)}
+                                    hint={t('Kurs invoice {{rate}}', { rate: rp(detail.exchange_rate ?? 0) })}
+                                    error={errors.exchange_rate}
+                                />
+                                <p className="text-[13px] text-ob-ink-2 sm:col-span-2">
+                                    {t('Masuk ke rekening: {{amount}}', { amount: rp(rupiah) })}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className={FIELD}>
+                                <CurrencyInput
+                                    label={t('Jumlah')}
+                                    value={form.amount}
+                                    onChange={(v) => {
+                                        set('amount', v);
+                                        setPreset(v === remaining ? 'full' : v === Math.round(remaining / 2) ? 'half' : 'custom');
+                                    }}
+                                    error={overMessage ?? errors.amount}
+                                />
+                            </div>
+                        )}
                         <div className="mt-2 flex flex-wrap gap-2">
                             {chip('full', t('Sisa penuh'))}
                             {chip('half', '50%')}
@@ -876,7 +981,7 @@ function PaymentDialog({
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)}>
                             {t('Batal')}
                         </Button>
-                        <Button type="submit" className={BTN.primary} loading={saving} disabled={!form.amount || !!overMessage} icon={<Check className="h-4 w-4" />}>
+                        <Button type="submit" className={BTN.primary} loading={saving} disabled={!entered || (isForeign && !form.exchange_rate) || !!overMessage} icon={<Check className="h-4 w-4" />}>
                             {payment ? t('Simpan perubahan') : t('Simpan pembayaran', { context: 'invoice' })}
                         </Button>
                     </div>
@@ -886,9 +991,11 @@ function PaymentDialog({
     );
 }
 
-function blankPayment(remaining: number): PaymentForm {
+function blankPayment(remaining: number, remainingUsd = 0, exchangeRate = 0): PaymentForm {
     return {
         amount: Math.max(0, remaining),
+        foreign_amount: Math.max(0, remainingUsd),
+        exchange_rate: exchangeRate,
         payment_date: toLocalIso(new Date()),
         payment_method: 'bank_transfer',
         bank_account_id: null,

@@ -98,10 +98,12 @@ class TemplateInvoiceMkbTest extends TestCase
 
     /**
      * @param  list<array<string, mixed>>  $items
+     * @param  array<string, mixed>  $extra
      */
-    private function dokumen(string $type, ?string $code, string $subject, array $items): Invoice
+    private function dokumen(string $type, ?string $code, string $subject, array $items, array $extra = []): Invoice
     {
         $this->actingAs($this->admin)->post(self::BASE.'/invoices', [
+            ...$extra,
             'client_id' => $this->client->id,
             'issue_date' => '2026-10-15',
             'due_date' => '2026-10-29',
@@ -238,6 +240,28 @@ class TemplateInvoiceMkbTest extends TestCase
         $this->assertStringContainsString('<div class="nama">Nama Direktur</div>', $html);
         $this->assertStringContainsString('<div class="jabatan">Direktur Utama</div>', $html);
         $this->assertStringContainsString('src="data:image/png;base64,'.base64_encode('ttd-unggahan').'"', $html);
+    }
+
+    public function test_invoice_rupiah_bertarif_usd_mencetak_kurs_dan_tarif_seperti_dokumen_asli(): void
+    {
+        CompanyProfile::current()->update(['foreign_currency_enabled' => true]);
+
+        $html = $this->render($this->dokumen(Invoice::TYPE_INVOICE, 'FINAL', 'Invoice FINAL MV. CONTOH HARMONY', [[
+            'service_name' => 'MV. CONTOH HARMONY',
+            'quantity' => 55070,
+            'unit' => 'MT',
+            'unit_price' => 0,
+            'foreign_unit_price' => 0.75,
+        ]], ['exchange_rate' => 17898]));
+
+        // Invoice FINAL 046 MKB: kurs & tarif di blok klien, harga Rupiah bersen, total sama dengan Excel.
+        $this->assertMatchesRegularExpression('#<td class="label">Exchange Rate</td>\s*<td class="titik">:</td>\s*<td>Rp 17\.898,-</td>#', $html);
+        $this->assertStringContainsString('<td>0,75 $</td>', $html);
+        $this->assertStringContainsString('<td>17.898 x 0,75 $ = Rp 13.423,50</td>', $html);
+        $this->assertStringContainsString('<td class="angka">13.423,50</td>', $html);
+        $this->assertStringContainsString('<td class="angka">739.232.145</td>', $html);
+        $this->assertStringContainsString('<th class="c-price">PRICE</th>', $html);
+        $this->assertStringNotContainsString('<tr class="baris-tagihan_usd">', $html);
     }
 
     public function test_kop_dan_kotak_mengikuti_isian_profil(): void

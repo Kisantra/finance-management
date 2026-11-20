@@ -44,6 +44,12 @@ class JournalService
      */
     public const PPH_PREPAID = 'PPh 23 Dibayar di Muka';
 
+    /**
+     * Selisih Rupiah pembayaran tagihan USD terhadap nilainya dengan kurs invoice: kredit = laba kurs,
+     * debit = rugi kurs. Σ-nya dalam periode = `fx_difference` Laba Rugi.
+     */
+    public const EXCHANGE_DIFFERENCE = 'Selisih Kurs';
+
     public const LOAN = 'Utang Pinjaman';
 
     public const RECEIVABLE = 'Piutang';
@@ -66,6 +72,7 @@ class JournalService
             self::TALANGAN => __('Talangan Biaya Klien'),
             self::INVOICE_REVENUE => __('Pendapatan dari Invoice'),
             self::PPH_PREPAID => __('PPh 23 Dibayar di Muka'),
+            self::EXCHANGE_DIFFERENCE => __('Selisih Kurs'),
             self::LOAN => __('Utang Pinjaman'),
             self::RECEIVABLE => __('Piutang'),
             self::TRANSFER_FEE => __('Biaya Admin Transfer'),
@@ -146,23 +153,31 @@ class JournalService
      * dipotong PPh 23 ($pph, $total = total_amount): bagian potongannya didebit ke PPh 23 Dibayar di
      * Muka, sehingga kreditnya (pendapatan) melebihi uang yang masuk sebesar potongan itu.
      *
+     * Tagihan USD ($settled = Rupiah pembayaran ini dinilai dengan kurs invoice, $paidBefore juga dengan
+     * kurs invoice): alokasi memakai nilai itu, dan selisihnya dengan uang yang masuk ($amount, kurs saat
+     * diterima) dikredit (laba) atau didebit (rugi) ke Selisih Kurs.
+     *
      * @return list<array{account: string, side: 'debit'|'credit', amount: int}>
      */
-    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn, string $depositAccount = self::TAX_DEPOSIT, int $pph = 0, int $total = 0): array
+    public static function paymentLines(string $account, int $amount, int $paidBefore, int $taxDeposit, int $ppn, string $depositAccount = self::TAX_DEPOSIT, int $pph = 0, int $total = 0, ?int $settled = null): array
     {
         if ($amount <= 0) {
             return [];
         }
 
+        $dialokasikan = $settled ?? $amount;
+        $selisihKurs = $amount - $dialokasikan;
         $sebelum = Invoice::allocatePayments($paidBefore, $taxDeposit, $ppn, $pph, $total);
-        $sesudah = Invoice::allocatePayments($paidBefore + $amount, $taxDeposit, $ppn, $pph, $total);
+        $sesudah = Invoice::allocatePayments($paidBefore + $dialokasikan, $taxDeposit, $ppn, $pph, $total);
 
         return self::withoutZero([
             self::line($account, 'debit', $amount),
             self::line(self::terjemahAkun(self::PPH_PREPAID), 'debit', $sesudah['pph'] - $sebelum['pph']),
+            self::line(self::terjemahAkun(self::EXCHANGE_DIFFERENCE), 'debit', max(0, -$selisihKurs)),
             self::line(self::terjemahAkun($depositAccount), 'credit', $sesudah['tax_deposit'] - $sebelum['tax_deposit']),
             self::line(self::terjemahAkun(self::PPN_KELUARAN), 'credit', $sesudah['ppn'] - $sebelum['ppn']),
             self::line(self::terjemahAkun(self::INVOICE_REVENUE), 'credit', $sesudah['revenue'] - $sebelum['revenue']),
+            self::line(self::terjemahAkun(self::EXCHANGE_DIFFERENCE), 'credit', max(0, $selisihKurs)),
         ]);
     }
 
@@ -210,24 +225,36 @@ class JournalService
             return $rows->map(fn (): array => [])->all();
         }
 
+        $invoices = Invoice::query()->whereIn('id', $invoiceIds)
+            ->withSum(['items as tax_deposit_total' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
+            ->get(['id', 'ppn_amount', 'pph_amount', 'total_amount', 'document_type', 'currency', 'exchange_rate', 'total_foreign'])
+            ->keyBy('id');
+
+        // Jumlah yang sudah dibayar SEBELUM tiap pembayaran. Tagihan USD dinilai dengan kurs invoice dari USD
+        // yang sudah diterima, dan pembayaran itu sendiri juga ($dinilai) — selisihnya = selisih kurs.
         $dibayarSebelum = [];
+        $dinilai = [];
         Payment::query()->whereIn('invoice_id', $invoiceIds)->orderBy('payment_date')->orderBy('id')
-            ->get(['id', 'invoice_id', 'amount'])
+            ->get(['id', 'invoice_id', 'amount', 'foreign_amount'])
             ->groupBy('invoice_id')
-            ->each(function (Collection $pembayaran) use (&$dibayarSebelum): void {
+            ->each(function (Collection $pembayaran, int $invoiceId) use (&$dibayarSebelum, &$dinilai, $invoices): void {
+                $invoice = $invoices->get($invoiceId);
                 $jalan = 0;
+                $usd = 0.0;
                 foreach ($pembayaran as $p) {
+                    if ($invoice?->isForeign()) {
+                        $dibayarSebelum[$p->id] = $invoice->settledAtInvoiceRate($usd);
+                        $usd += (float) $p->foreign_amount;
+                        $dinilai[$p->id] = $invoice->settledAtInvoiceRate($usd) - $dibayarSebelum[$p->id];
+
+                        continue;
+                    }
                     $dibayarSebelum[$p->id] = $jalan;
                     $jalan += (int) $p->amount;
                 }
             });
 
-        $invoices = Invoice::query()->whereIn('id', $invoiceIds)
-            ->withSum(['items as tax_deposit_total' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
-            ->get(['id', 'ppn_amount', 'pph_amount', 'total_amount', 'document_type'])
-            ->keyBy('id');
-
-        return $rows->map(function (object $row) use ($dibayarSebelum, $invoices): array {
+        return $rows->map(function (object $row) use ($dibayarSebelum, $dinilai, $invoices): array {
             $invoice = $invoices->get($row->invoice_id);
 
             return self::paymentLines(
@@ -239,6 +266,7 @@ class JournalService
                 self::depositAccountFor($invoice?->document_type),
                 (int) ($invoice->pph_amount ?? 0),
                 (int) ($invoice->total_amount ?? 0),
+                $dinilai[$row->id] ?? null,
             );
         })->all();
     }

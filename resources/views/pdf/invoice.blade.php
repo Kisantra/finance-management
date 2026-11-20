@@ -409,6 +409,7 @@
                 <div class="terbilang">
                     <strong>{{ __('invoice.say') }}:</strong> {{ $terbilang }} {{ __('invoice.rupiah') }}
                 </div>
+                @include('pdf.partials.tagihan-usd')
 
                 <!-- Notes -->
                 <div class="notes">

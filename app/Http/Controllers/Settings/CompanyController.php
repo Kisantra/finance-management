@@ -43,10 +43,11 @@ class CompanyController extends Controller
                 'ppn_rate' => $company->ppn_rate,
                 'pph_enabled' => (bool) $company->pph_enabled,
                 'pph_rate' => (float) ($company->pph_rate ?? Invoice::DEFAULT_PPH_RATE),
+                'foreign_currency_enabled' => (bool) $company->foreign_currency_enabled,
                 'finance_manager_name' => $isian($company->finance_manager_name),
                 'finance_manager_position' => $isian($company->finance_manager_position),
                 'signature_city' => (string) $company->signature_city,
-                'bank_accounts' => $company->bank_accounts ?? [],
+                'bank_accounts' => $company->printableBankAccounts(),
                 'logo_path' => $company->logo_path,
                 'letter_head_path' => $company->letter_head_path,
                 'signature_path' => $company->signature_path,
@@ -77,6 +78,8 @@ class CompanyController extends Controller
             // Mematikan PPh 23 tidak mengubah invoice yang sudah dipotong; tarifnya tersimpan di tiap invoice.
             'pph_enabled' => (bool) ($validated['pph_enabled'] ?? false),
             'pph_rate' => $validated['pph_rate'] ?? $company->pph_rate ?? Invoice::DEFAULT_PPH_RATE,
+            // Mematikan tagihan USD tidak mengubah invoice yang sudah ber-USD.
+            'foreign_currency_enabled' => (bool) ($validated['foreign_currency_enabled'] ?? false),
             'finance_manager_name' => $validated['finance_manager_name'],
             'finance_manager_position' => $validated['finance_manager_position'],
             'signature_city' => $validated['signature_city'] ?? null,
@@ -86,6 +89,9 @@ class CompanyController extends Controller
                     'bank' => $rekening['bank'],
                     'account_number' => $rekening['account_number'],
                     'account_name' => $rekening['account_name'],
+                    'currency' => $rekening['currency'],
+                    'branch' => ($rekening['branch'] ?? '') !== '' ? $rekening['branch'] : null,
+                    'swift' => ($rekening['swift'] ?? '') !== '' ? strtoupper($rekening['swift']) : null,
                 ])
                 ->values()
                 ->all() ?: null,

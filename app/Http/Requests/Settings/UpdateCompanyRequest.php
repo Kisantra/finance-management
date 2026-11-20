@@ -29,6 +29,8 @@ class UpdateCompanyRequest extends FormRequest
             // Klien memotong PPh 23: tarif bawaan invoice baru, wajib bila dinyalakan.
             'pph_enabled' => ['nullable', 'boolean'],
             'pph_rate' => ['nullable', 'required_if_accepted:pph_enabled', 'numeric', 'min:0.01', 'max:100'],
+            // Tagihan dalam USD dengan kurs manual (editor invoice & pembayaran).
+            'foreign_currency_enabled' => ['nullable', 'boolean'],
             'finance_manager_name' => ['required', 'string', 'not_in:-'],
             'finance_manager_position' => ['required', 'string', 'not_in:-'],
             'signature_city' => ['nullable', 'string', 'max:100'],
@@ -36,6 +38,10 @@ class UpdateCompanyRequest extends FormRequest
             'bank_accounts.*.bank' => ['required', 'string', 'max:100'],
             'bank_accounts.*.account_number' => ['required', 'string', 'max:50'],
             'bank_accounts.*.account_name' => ['required', 'string', 'max:255'],
+            // Rekening USD tercetak di tagihan USD, rekening IDR di tagihan Rupiah; cabang & Swift untuk transfer luar negeri.
+            'bank_accounts.*.currency' => ['required', 'in:IDR,USD'],
+            'bank_accounts.*.branch' => ['nullable', 'string', 'max:100'],
+            'bank_accounts.*.swift' => ['nullable', 'string', 'max:20'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'letter_head' => ['nullable', 'image', 'max:2048'],
             'signature' => ['nullable', 'image', 'max:2048'],
@@ -66,6 +72,9 @@ class UpdateCompanyRequest extends FormRequest
             'bank_accounts.*.account_number.max' => __('Nomor rekening :position maksimal 50 karakter.'),
             'bank_accounts.*.account_name.required' => __('Atas nama rekening :position wajib diisi.'),
             'bank_accounts.*.account_name.max' => __('Atas nama rekening :position maksimal 255 karakter.'),
+            'bank_accounts.*.currency.in' => __('Mata uang rekening :position harus IDR atau USD.'),
+            'bank_accounts.*.branch.max' => __('Cabang rekening :position maksimal 100 karakter.'),
+            'bank_accounts.*.swift.max' => __('Kode Swift rekening :position maksimal 20 karakter.'),
         ];
     }
 
@@ -74,13 +83,15 @@ class UpdateCompanyRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $isian = ['bank' => '', 'account_number' => '', 'account_name' => '', 'branch' => '', 'swift' => ''];
         $rekening = collect((array) $this->input('bank_accounts', []))
             ->filter(fn ($baris): bool => is_array($baris))
-            ->map(fn (array $baris): array => array_map(
-                fn ($nilai): string => trim((string) $nilai),
-                array_intersect_key($baris, array_flip(['bank', 'account_number', 'account_name'])) + ['bank' => '', 'account_number' => '', 'account_name' => ''],
-            ))
-            ->reject(fn (array $baris): bool => implode('', $baris) === '')
+            ->map(fn (array $baris): array => [
+                ...array_map(fn ($nilai): string => trim((string) $nilai), array_intersect_key($baris, $isian) + $isian),
+                // Rekening lama (tanpa mata uang) = Rupiah.
+                'currency' => strtoupper(trim((string) ($baris['currency'] ?? ''))) ?: 'IDR',
+            ])
+            ->reject(fn (array $baris): bool => $baris['bank'].$baris['account_number'].$baris['account_name'].$baris['branch'].$baris['swift'] === '')
             ->values()
             ->all();
 

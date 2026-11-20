@@ -19,7 +19,10 @@
 | `ppn_amount` | unsigned integer, default 0 — `Invoice::ppnFor(DPP, ppn_rate)`; ikut di `total_amount` |
 | `pph_rate` | decimal(5,2) nullable — tarif PPh 23 (persen) yang **dipotong klien**, dibekukan per invoice. `> 0` = dipotong; `0` = sengaja tidak dipotong (diingat untuk klien itu); `NULL` = perusahaan tidak memakai PPh 23 saat invoice disimpan, invoice sebelum fitur, atau Debit Note. Sejak 2026-11-18 (lihat "Potongan PPh 23"). |
 | `pph_amount` | unsigned integer, default 0 — `Invoice::pphFor(DPP, pph_rate)`; **mengurangi** `total_amount` |
-| `total_amount` | integer = `max(0, subtotal - discount_amount) + ppn_amount - pph_amount` — GRAND TOTAL = yang ditransfer klien. Status Lunas, sisa, Perlu ditagih, dan saldo rekening memakai angka ini. |
+| `total_amount` | integer = `max(0, subtotal - discount_amount) + ppn_amount - pph_amount` — GRAND TOTAL = yang ditransfer klien. Status Lunas, sisa, Perlu ditagih, dan saldo rekening memakai angka ini (tagihan USD: pembukuan dengan kurs invoice; status & sisa dari `total_foreign`). |
+| `currency` | string(3), default `IDR` — mata uang tagihan (`Invoice::CURRENCIES` = IDR, USD). `USD` = klien berutang dalam USD (`total_foreign`); pembukuan tetap Rupiah. Lihat "Tagihan USD & kurs manual". |
+| `exchange_rate` | decimal(12,2) nullable — kurs manual Rp per 1 USD. Diisi bila tagihan USD **atau** ada item berharga USD (tagihan Rupiah bertarif USD); selain itu `null`. |
+| `total_foreign` | decimal(15,2) nullable — utang klien dalam USD = `round(total_amount ÷ exchange_rate, 2)` (`Invoice::foreignTotalFor`), **disimpan** (tidak dihitung ulang) karena itu yang ditagih; hanya tagihan USD. |
 | `issue_date`, `due_date` | date (cast `date` di model) |
 | `status` | enum: `draft`, `sent`, `paid`, `partially_paid`, `overdue`, `cancelled` |
 | `faktur` | string nullable (maks. 50) — nomor faktur pajak. Diisi di editor (kolom muncul saat PPN aktif), di-`trim`, kosong → `null`; tercetak di header PDF Kisantra/Generik/Semesta dan token `{{invoice.faktur}}`. |
@@ -33,7 +36,8 @@
 | `description` | text nullable (maks. 2000) — **keterangan tambahan** di bawah nama layanan, boleh beberapa baris (mis. pelabuhan muat, rincian jam kerja, nomor nota). Editor: tautan "Tambah keterangan" per baris; kosong → `null`. Tercetak oleh template perusahaan yang memakainya. |
 | `quantity` | decimal (cast `decimal:3`) — boleh pecahan, min `0.001` |
 | `unit` | string satuan, default `'pcs'` |
-| `unit_price`, `amount`, `cogs_amount` | integer rupiah penuh; `amount = round(unit_price × quantity)` |
+| `unit_price`, `amount`, `cogs_amount` | integer rupiah penuh; `amount = round(unit_price × quantity)`, atau untuk item berharga USD `amount = round(quantity × foreign_unit_price × exchange_rate)` (`Invoice::foreignLineAmount`) dan `unit_price` = harga USD × kurs dibulatkan (hanya tampilan) |
+| `foreign_unit_price` | decimal(15,4) nullable — harga USD per unit (mis. 0,82); `null` = harga Rupiah biasa. Boleh di tagihan Rupiah maupun USD, dan boleh campur dengan baris berharga Rupiah. |
 | `is_tax_deposit` | boolean — item "titipan pajak": dikecualikan dari omzet/laba (lihat accessor `net_revenue`/`net_profit` di `app/Models/InvoiceItem.php`) |
 
 ### `payments`
@@ -41,7 +45,9 @@
 |---|---|
 | `invoice_id` | FK → `invoices.id` |
 | `bank_account_id` | FK → `bank_accounts.id` — **wajib** (`StorePaymentRequest`), pembayaran menaikkan saldo bank secara dinamis |
-| `amount` | integer rupiah penuh, min 1 |
+| `amount` | integer rupiah penuh, min 1 — Rupiah yang masuk ke rekening (tagihan USD: `round(foreign_amount × exchange_rate)`, dihitung server) |
+| `foreign_amount` | decimal(15,2) nullable — tagihan USD: USD yang diterima; `null` untuk tagihan Rupiah |
+| `exchange_rate` | decimal(12,2) nullable — tagihan USD: kurs saat diterima (manual) |
 | `payment_date` | date |
 | `payment_method` | enum: `cash` \| `bank_transfer` |
 | `reference_number` | string nullable |
@@ -136,6 +142,19 @@ Sejak 2026-11-18, PT BAS, PT MKB, dan PT BCB sejak 2026-11-19 (usulan & keputusa
 
 Dikunci `tests/Feature/DebitNoteTest.php`, `tests/Feature/DebitNoteBasTest.php`, `tests/Feature/TemplateInvoiceMkbTest.php`, `tests/Feature/TemplateInvoiceBcbTest.php` dan `InvoiceNumberServiceTest::test_token_kode_berisi_jenis_dan_kode_dokumen_dan_urutannya_tetap_terbaca`. Belum ada: Debit Note untuk perusahaan lain (cukup tambah `debit-note.blade.php` di foldernya), Credit Note.
 
+### Tagihan USD & kurs manual
+Sejak 2026-11-20 (untuk BCB: klien luar negeri ditagih dalam USD; juga MKB/BCB invoice FINAL bertarif USD). **Pembukuan tetap Rupiah**: `total_amount`, item `amount`, `payments.amount` tetap Rupiah dan dibaca Laba Rugi, Kas & Bank, rekap, dan Ringkasan seperti biasa; USD hanya sisi tagihannya. Aktif per perusahaan lewat **Pengaturan › Profil perusahaan › Tagihan USD** (`company_profiles.foreign_currency_enabled`, bawaan mati); perusahaan lain tidak melihat apa pun.
+
+1. **Editor** (`formOptions()['foreignCurrency'] = {enabled, lastRate}`; tampil bila sakelar menyala atau invoice ini sudah memakai kurs): **Mata uang tagihan** Rupiah/USD (`SegmentedControl`), **Kurs (Rp per 1 USD)** (`CurrencyInput`, terisi kurs terakhir) — tampil bila tagihan USD atau ada baris berharga USD —, dan per baris sakelar **Harga USD** (harga diisi `CurrencyInput prefix="USD" decimals={4}`, dengan keterangan "Harga USD × kurs … = Rp … per unit"). Ringkasan menambah **Tagihan USD (total ÷ kurs)**. Mata uang terkunci bila tagihan sudah menerima pembayaran (`resolveCurrency()`, `has_payments`).
+2. **Simpan** (`buildInvoiceData()`): baris berharga USD → `amount = round(qty × harga USD × kurs)` (`Invoice::foreignLineAmount`, satu pembulatan di akhir: 55.070 × $0,75 × 17.898 = **739.232.145**, sama dengan Excel invoice FINAL 046 MKB), `unit_price` = harga USD × kurs dibulatkan. PPN, PPh, diskon, total tetap dihitung dalam Rupiah. Tagihan USD → `total_foreign = round(total ÷ kurs, 2)` (TKBM 097 BCB: 362.914.500 ÷ 18.218 = **$19.920,66**). Kurs disimpan bila dipakai. Validasi (`StoreInvoiceRequest::currencies()` / `foreignCurrencyAllowed()`): USD & harga USD ditolak bila sakelar mati (kecuali invoice yang sudah memakai kurs), kurs wajib untuk tagihan USD dan bila ada harga USD; batas diskon nominal memakai Rupiah baris USD.
+3. **Sisa & status**: `foreign_paid` (Σ `payments.foreign_amount`), `foreign_remaining` (tidak minus), `amount_remaining` = sisa USD × kurs invoice (0 bila USD lunas — Rupiah yang masuk bisa melebihi `total_amount` saat kurs naik). `updateStatus()` membandingkan USD. Daftar, rekap Excel/PDF, kartu "Perlu ditagih"/"Belum dibayar" (`Invoice::outstandingTotal()`, satu query `CASE currency`), dan alat MCP memakai rumus yang sama.
+4. **Pembayaran**: `StorePaymentRequest` untuk tagihan USD mewajibkan `foreign_amount` (≤ sisa USD + pembayaran yang diubah) dan `exchange_rate`; `PaymentController::nominal()` menyimpan `amount = round(USD × kurs saat diterima)` ke rekening Rupiah yang dipilih (rekening USD tidak dicatat di Kas & Bank), dan `exceedsRemaining()` membandingkan USD. Kirim `amount` saja untuk tagihan USD = 422.
+5. **Laba Rugi & jurnal**: "titipan dulu" tagihan USD dialokasikan atas Rupiah **dinilai dengan kurs invoice** (`Invoice::settledAtInvoiceRate(USD diterima)`, lunas = `total_amount`), sehingga PPN, PPh, dan pendapatan sama dengan tagihannya; Rupiah yang masuk di atas/di bawah nilai itu = **selisih kurs**: baris "Laba selisih kurs" (Pendapatan Lain) / "Rugi selisih kurs" (Beban Lain) di Laba Rugi (`fx_difference`) dan akun jurnal **Selisih Kurs** (kredit laba / debit rugi) — lihat [profit-loss.md](profit-loss.md) & [cash-flow.md](cash-flow.md).
+6. **Drawer & daftar**: tagihan USD menampilkan Tagihan USD / Sudah dibayar / Sisa dalam USD (sub: Rupiah & kurs), harga baris USD, riwayat pembayaran "USD … · Rp … masuk · kurs …"; daftar menampilkan USD dengan Rupiah di bawahnya. Dialog cetak tagihan USD hanya **Penuh** (uang muka & pelunasan masih Rupiah).
+7. **PDF**: `InvoiceTotalRows` menambah baris `kurs` ("Exchange Rate (1 USD)") dan `tagihan_usd` ("TOTAL OUTSTANDING (USD)"), tiap baris ber-`mata_uang`; template perusahaan memformat lewat `InvoiceTotalRows::format()`/`symbol()` (Rupiah bulat/bersen, USD ≥ 2 desimal). MKB/BCB: kolom **PRICE (USD)** bila semua item berharga USD, label "GRAND TOTAL (IDR)", dan untuk tagihan Rupiah bertarif USD baris "Exchange Rate : Rp 17.898,- / Rate Stevedoring $ / Rate Stevedoring Rp : 17.898 x 0,75 $ = Rp 13.423,50" di blok klien (seperti invoice FINAL asli). Template bawaan Kisantra/Generik/Semesta: kotak `pdf/partials/tagihan-usd.blade.php` (kurs + TOTAL OUTSTANDING) di bawah terbilang; AGSA tidak disentuh. Rekening tercetak sesuai mata uang tagihan (`InvoicePrintService::bankAccountsFor`: rekening USD di tagihan USD — "Bank Account No: … (USD)", cabang, Swift —, tidak ada yang cocok = semua rekening). Token builder `{{invoice.exchange_rate}}`, `{{invoice.total_foreign}}`.
+
+Belum termasuk: uang muka/pelunasan tagihan USD, diskon dalam USD, invoice berulang & ekspor Excel dalam USD, kurs KMK terpisah untuk PPN (satu kurs manual untuk semuanya), WHT 23 yang ditambahkan ke tagihan (Debit Note FINAL 099 BCB). Dikunci `tests/Feature/TagihanUsdTest.php` + kasus USD di `TemplateInvoiceMkbTest`/`TemplateInvoiceBcbTest`.
+
 ### Hapus Invoice (Destroy)
 **Alur:** DELETE `/invoices/{invoice}` (`can:delete invoices`) → **ditolak dengan flash `error`** bila invoice sudah punya pembayaran ("Invoice yang sudah memiliki pembayaran tidak dapat dihapus. Hapus pembayarannya terlebih dahulu."); jika tidak, transaksi: hapus `invoice_items` lalu invoice; redirect back. Guard ini mencegah FK cascade menghapus `payments` diam-diam (yang menurunkan saldo bank tanpa peringatan dan meninggalkan file lampiran yatim).
 
@@ -163,7 +182,7 @@ Untuk invoice ber-`invoice_sequence` null (nomor manual atau warisan yang tidak 
 
 ### Pembayaran — Catat (POST /invoices/{invoice}/payments)
 **Alur step-by-step:**
-1. Di drawer, user klik "Catat pembayaran" → dialog: `amount` (CurrencyInput + chip Sisa penuh / 50% / Nominal lain), `payment_date`, `bank_account_id` (wajib; `/api/bank-accounts`), `payment_method` (Transfer bank / Tunai — benar-benar dikirim, sebelumnya selalu `bank_transfer`), `reference_number`, `attachment`. Di bawah Metode tampil **Jurnal · Pratinjau** (sejak 9 Nov 2026): Debit rekening tujuan (`journal_name` dari `/api/bank-accounts`) / Kredit dipecah "titipan dulu" — **Titipan Pajak Klien**, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — dari `tax_deposit_total` & `ppn_amount` invoice dan pembayaran yang sudah ada sebelum tanggal ini (urut tanggal, id; pembayaran yang diubah tidak dihitung). Rumusnya cermin `JournalService::paymentLines()` / `Invoice::allocatePayments()` di `resources/js/lib/journal.ts`; jurnal tersimpan tampil di rincian pembayaran Arus Kas & Kas & Bank. Lihat [cash-flow.md › Jurnal tampilan](cash-flow.md#jurnal-tampilan-cara-a--debitkredit-dari-rekening--kategori).
+1. Di drawer, user klik "Catat pembayaran" → dialog: `amount` (CurrencyInput + chip Sisa penuh / 50% / Nominal lain), `payment_date`, `bank_account_id` (wajib; `/api/bank-accounts`), `payment_method` (Transfer bank / Tunai — benar-benar dikirim, sebelumnya selalu `bank_transfer`), `reference_number`. Tagihan USD: `amount` diganti **Diterima (USD)** (`foreign_amount`, CurrencyInput `decimals={2}`) + **Kurs saat diterima** (`exchange_rate`, terisi kurs invoice) dan baris "Masuk ke rekening: Rp …"; chip menghitung dalam USD (lihat "Tagihan USD & kurs manual")., `attachment`. Di bawah Metode tampil **Jurnal · Pratinjau** (sejak 9 Nov 2026): Debit rekening tujuan (`journal_name` dari `/api/bank-accounts`) / Kredit dipecah "titipan dulu" — **Titipan Pajak Klien**, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — dari `tax_deposit_total` & `ppn_amount` invoice dan pembayaran yang sudah ada sebelum tanggal ini (urut tanggal, id; pembayaran yang diubah tidak dihitung). Rumusnya cermin `JournalService::paymentLines()` / `Invoice::allocatePayments()` di `resources/js/lib/journal.ts`; jurnal tersimpan tampil di rincian pembayaran Arus Kas & Kas & Bank. Lihat [cash-flow.md › Jurnal tampilan](cash-flow.md#jurnal-tampilan-cara-a--debitkredit-dari-rekening--kategori).
 2. Frontend submit via `fetch` multipart POST ke `/invoices/{invoice}/payments` (route ber-middleware `can:create invoices`), validasi `StorePaymentRequest`.
 3. `PaymentController::store()` menolak (422 JSON) jika status invoice `draft` atau `paid`, dan **jika nominal melebihi sisa tagihan** (`exceedsRemaining()`: "Melebihi sisa tagihan Rp X. Catat kelebihan sebagai transaksi terpisah."; UI juga memblokir sebelum kirim). `update()` memakai aturan yang sama dengan nominal lama ikut dihitung sebagai sisa. Lampiran disimpan ke `storage/app/public/payments`.
 4. Insert `payments`, lalu **`$invoice->updateStatus()`** menghitung ulang status dari total pembayaran.
@@ -180,7 +199,7 @@ if ($amountPaid == 0) {
 }
 $this->save();
 ```
-Status murni turunan dari `amount_paid` vs `total_amount`. Bila **semua** pembayaran dihapus, invoice yang sudah ber-nomor kembali ke `sent` (bukan `draft`) — sebelumnya ia jatuh ke `draft` sambil tetap memegang nomor, yang membuat `isInvoiceLatestInMonth()` memblokir rollback invoice lain di bulan yang sama.
+Status murni turunan dari `amount_paid` vs `total_amount` — tagihan USD: dari Σ `foreign_amount` vs `total_foreign` dalam sen (`Invoice::cents`), jadi lunas saat USD-nya lunas berapa pun Rupiah yang masuk. Bila **semua** pembayaran dihapus, invoice yang sudah ber-nomor kembali ke `sent` (bukan `draft`) — sebelumnya ia jatuh ke `draft` sambil tetap memegang nomor, yang membuat `isInvoiceLatestInMonth()` memblokir rollback invoice lain di bulan yang sama.
 
 ### Pembayaran — Ubah & Hapus (/payments/{payment})
 **Alur:** POST `/payments/{payment}` dan DELETE `/payments/{payment}` digate `can:edit invoices`. `update()` (validasi `UpdatePaymentRequest` = Store + `remove_attachment` boolean) mengganti field, mengelola siklus lampiran (hapus file lama jika diganti/di-remove), lalu `$payment->invoice->updateStatus()`. `destroy()` menghapus payment (hook model ikut menghapus file lampiran) lalu `updateStatus()` pada invoice-nya. Keduanya merespons JSON.
@@ -249,7 +268,9 @@ Konteks PKP/PPN: invoice ber-data PPN (`ppn_rate` tidak null) memakai PPN tersim
 | Accessor | Rumus |
 |---|---|
 | `amount_paid` | Σ `payments.amount` (pakai relasi yang sudah loaded bila ada) |
-| `amount_remaining` | `total_amount − amount_paid` |
+| `amount_remaining` | `total_amount − amount_paid`; tagihan USD: `round(foreign_remaining × exchange_rate)` (0 bila USD lunas) |
+| `foreign_paid` / `foreign_remaining` | tagihan USD: Σ `payments.foreign_amount` / `max(0, total_foreign − foreign_paid)` dalam sen; `foreign_remaining` null untuk tagihan Rupiah |
+| `isForeign()`, `cents()`, `foreignLineAmount()`, `foreignTotalFor()`, `settledAtInvoiceRate()`, `outstandingTotal()` | tagihan USD: mata uang ≠ IDR; nominal USD → sen; Rupiah baris berharga USD; utang USD = total ÷ kurs; Rupiah yang tertutup USD yang diterima dengan kurs invoice (dasar alokasi Laba Rugi & jurnal); Σ sisa tagihan sekumpulan invoice dalam satu query |
 | `total_cogs` | Σ `items.cogs_amount` (catatan: **termasuk** item titipan pajak; stats index mengecualikannya via query terpisah) |
 | `gross_profit` | `total_amount + pph_amount − ppn_amount − Σ item titipan − total_cogs` (PPN dan titipan pajak/talangan bukan laba; titipan sejak 2026-11-18; potongan PPh 23 tetap laba, sejak 2026-11-18) |
 | `taxDepositTotal()` | Σ `amount` item `is_tax_deposit` (titipan pajak klien / talangan Debit Note) |
@@ -267,7 +288,9 @@ Konteks PKP/PPN: invoice ber-data PPN (`ppn_rate` tidak null) memakai PPN tersim
 - **PDF Templates (Settings):** `PdfTemplate` + `CustomFont` dipakai `BuilderInvoicePrinter`; daftar template builder dikirim ke halaman index sebagai `customTemplates`.
 
 ## Invarian & Jebakan
-- Semua nominal **integer rupiah penuh** — jangan pernah pakai float; `quantity` satu-satunya decimal.
+- Semua nominal **integer rupiah penuh** — jangan pernah pakai float; `quantity` satu-satunya decimal. Pengecualian: sisi USD tagihan USD (`total_foreign`, `foreign_unit_price`, `payments.foreign_amount`, kurs) berupa decimal; bandingkan USD dalam sen (`Invoice::cents`), jangan float langsung.
+- **Tagihan USD: USD mengikat, Rupiah membukukan.** Status Lunas, sisa, dan batas pembayaran dari `total_foreign`; `total_amount` & `payments.amount` tetap Rupiah untuk semua laporan. Jangan menghitung ulang `total_foreign` dari Rupiah setelah disimpan, dan jangan mengizinkan ganti mata uang setelah ada pembayaran.
+- Selisih kurs **bukan** pendapatan invoice: Laba Rugi mengalokasikan pembayaran USD dengan kurs invoice dan menaruh selisihnya di Pendapatan/Beban Lain; jurnal mencatatnya di akun Selisih Kurs. Dengan begitu Σ kredit "Pendapatan dari Invoice" tetap = `revenue.invoice`.
 - Invoice `draft` tidak punya `invoice_number`; nomor hanya diberikan saat `send` (termasuk invoice hasil publish recurring), unik global, sequence reset sesuai pengaturan (default per bulan `issue_date`).
 - **Urutan dibaca dari `invoice_sequence`, bukan dari teks nomor** — bentuk nomor bisa diganti kapan saja. Jangan menulis `invoice_sequence` manual kecuali sengaja; biarkan hook `saving` yang mengisinya. Mengganti pola tidak mengubah nomor yang sudah terbit.
 - Rollback hanya untuk invoice `sent` dengan sequence **tertinggi** di periodenya (`isLatestInNumberingPeriod`) — jaga urutan nomor tanpa lubang.
@@ -303,6 +326,7 @@ Konteks PKP/PPN: invoice ber-data PPN (`ppn_rate` tidak null) memakai PPN tersim
 - `tests/Feature/DebitNoteTest.php`, `resources/views/pdf/perusahaan/samboja-laju-utama/debit-note.blade.php`, `database/migrations/tenant/2026_11_18_131845_add_document_type_to_invoices_table.php`, `database/migrations/tenant/2026_11_18_131846_siapkan_debit_note_slu.php`
 - `tests/Feature/DebitNoteBasTest.php`, `resources/views/pdf/perusahaan/berkah-andalan-samboja/{kerangka,invoice,debit-note}.blade.php`, `database/migrations/tenant/2026_11_19_132642_siapkan_debit_note_bas.php`
 - `tests/Feature/TemplateInvoiceMkbTest.php`, `tests/Feature/ContohInvoiceMkbSeederTest.php`, `tests/Feature/TemplateInvoiceBcbTest.php`, `tests/Feature/ContohInvoiceBcbSeederTest.php`, `resources/views/pdf/perusahaan/{mitra-kellian-baruna,bahtera-cipta-bersama}/{kerangka,invoice,debit-note}.blade.php`, `database/migrations/tenant/2026_11_19_161513_siapkan_debit_note_mkb_bcb.php`
+- `tests/Feature/TagihanUsdTest.php` (tagihan USD & kurs manual: simpan, harga USD, validasi, pembayaran USD, status Lunas menurut USD, daftar & stats, Laba Rugi & jurnal selisih kurs, PDF, profil), `database/migrations/tenant/2026_11_20_111309_add_foreign_currency_to_invoices.php`, `resources/views/pdf/partials/tagihan-usd.blade.php`
 - `tests/Feature/InvoicePphTest.php` (potongan PPh 23: simpan, Lunas, laba, Laba Rugi, jurnal, PDF), `database/migrations/tenant/2026_11_18_153840_add_pph_to_invoices_table.php`
 - `tests/Feature/InvoiceControllerTest.php`, `tests/Feature/PaymentControllerTest.php`, `tests/Feature/InvoiceNumberAssignmentTest.php`, `tests/Feature/InvoicePpnTest.php` (PPN: simpan, snapshot tarif, invoice lama, status Lunas, faktur, PDF Kisantra, Laba Rugi, rekap, invoice berulang, Ringkasan)
 - `database/migrations/2026_10_13_135211_add_ppn_to_invoices_table.php`

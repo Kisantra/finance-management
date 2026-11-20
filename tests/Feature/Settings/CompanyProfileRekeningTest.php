@@ -47,9 +47,10 @@ class CompanyProfileRekeningTest extends TestCase
         // Kolom JSON MySQL menyusun ulang kunci tiap objek; urutan rekening tetap.
         $profile = CompanyProfile::current();
         $this->assertSame('Samarinda', $profile->signature_city);
+        // Rekening tanpa mata uang = Rupiah, tanpa cabang & Swift (dipakai tagihan USD).
         $this->assertEquals([
-            ['bank' => 'Bank Mandiri', 'account_number' => '148-00-23719878', 'account_name' => 'PT. BERKAH ANDALAN SAMBOJA'],
-            ['bank' => 'BCA', 'account_number' => '1234567890', 'account_name' => 'PT. BERKAH ANDALAN SAMBOJA'],
+            ['bank' => 'Bank Mandiri', 'account_number' => '148-00-23719878', 'account_name' => 'PT. BERKAH ANDALAN SAMBOJA', 'currency' => 'IDR', 'branch' => null, 'swift' => null],
+            ['bank' => 'BCA', 'account_number' => '1234567890', 'account_name' => 'PT. BERKAH ANDALAN SAMBOJA', 'currency' => 'IDR', 'branch' => null, 'swift' => null],
         ], $profile->bank_accounts);
 
         $this->actingAs($this->admin)->get('/settings/company')

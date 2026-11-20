@@ -18,13 +18,17 @@ use App\Models\Invoice;
  * klien, bernomor), `total` (total invoice, hanya untuk tagihan uang muka/pelunasan), `diterima`
  * (pembayaran yang sudah masuk, potongan), `tagihan` (baris terakhir: GRAND TOTAL / uang muka /
  * pelunasan). Semua nominal positif; potongan tersirat dari labelnya, seperti dokumen asli.
+ *
+ * Tagihan USD menambah dua baris di akhir: `kurs` (1 USD = Rp …, kurs invoice) dan `tagihan_usd`
+ * (TOTAL OUTSTANDING (USD) = utang klien). Setiap baris membawa `mata_uang` (IDR/USD) agar template
+ * memformat nominalnya dengan benar; semua baris lain Rupiah.
  */
 class InvoiceTotalRows
 {
     /**
      * Relasi `items` dan `payments` harus sudah terpasang.
      *
-     * @return list<array{jenis: string, nomor: ?int, label: string, jumlah: int}>
+     * @return list<array{jenis: string, nomor: ?int, label: string, jumlah: int|float, mata_uang: string}>
      */
     public static function for(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, ?string $dpPercentage = null): array
     {
@@ -64,15 +68,47 @@ class InvoiceTotalRows
             $rows[] = self::row('tagihan', 'GRAND TOTAL', (int) $invoice->total_amount);
         }
 
+        if ($invoice->isForeign()) {
+            $rows[] = self::row('kurs', 'Exchange Rate (1 USD)', (float) $invoice->exchange_rate);
+            $rows[] = self::row('tagihan_usd', 'TOTAL OUTSTANDING (USD)', (float) $invoice->total_foreign, null, Invoice::CURRENCY_USD);
+        }
+
         return $rows;
     }
 
     /**
-     * @return array{jenis: string, nomor: ?int, label: string, jumlah: int}
+     * @return array{jenis: string, nomor: ?int, label: string, jumlah: int|float, mata_uang: string}
      */
-    private static function row(string $jenis, string $label, int $jumlah, ?int $nomor = null): array
+    private static function row(string $jenis, string $label, int|float $jumlah, ?int $nomor = null, string $mataUang = Invoice::CURRENCY_IDR): array
     {
-        return ['jenis' => $jenis, 'nomor' => $nomor, 'label' => $label, 'jumlah' => $jumlah];
+        return ['jenis' => $jenis, 'nomor' => $nomor, 'label' => $label, 'jumlah' => $jumlah, 'mata_uang' => $mataUang];
+    }
+
+    /**
+     * Nominal untuk dicetak (format Indonesia, sama di semua template perusahaan). Rupiah tanpa desimal,
+     * kecuali berpecahan (kurs, harga per unit dari tarif USD: "13.423,50"); USD minimal dua desimal
+     * ("19.920,66"), harga per unit sampai $maxDesimal bila perlu ("0,8250" → "0,825").
+     */
+    public static function format(int|float|string $jumlah, string $mataUang = Invoice::CURRENCY_IDR, int $maxDesimal = 2): string
+    {
+        $jumlah = round((float) $jumlah, $maxDesimal);
+
+        if ($mataUang === Invoice::CURRENCY_IDR) {
+            $desimal = fmod($jumlah, 1.0) !== 0.0 ? 2 : 0;
+        } else {
+            $desimal = 2;
+            while ($desimal < $maxDesimal && round($jumlah, $desimal) !== $jumlah) {
+                $desimal++;
+            }
+        }
+
+        return number_format($jumlah, $desimal, ',', '.');
+    }
+
+    /** Simbol mata uang di kolom nominal ("Rp" / "USD"). */
+    public static function symbol(string $mataUang): string
+    {
+        return $mataUang === Invoice::CURRENCY_IDR ? 'Rp' : $mataUang;
     }
 
     /** 11.00 → "11", 1.10 → "1,1". */

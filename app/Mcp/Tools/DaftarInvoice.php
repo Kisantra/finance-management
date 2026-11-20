@@ -102,7 +102,7 @@ class DaftarInvoice extends AlatKeuangan
         $dasar = Invoice::query()
             ->join('clients', 'invoices.billed_to_id', '=', 'clients.id')
             ->leftJoinSub(
-                Payment::query()->select('invoice_id')->selectRaw('SUM(amount) AS jumlah_dibayar')->groupBy('invoice_id'),
+                Payment::query()->select('invoice_id')->selectRaw('SUM(amount) AS jumlah_dibayar, SUM(COALESCE(foreign_amount, 0)) AS usd_dibayar')->groupBy('invoice_id'),
                 'p',
                 'p.invoice_id',
                 '=',
@@ -124,7 +124,9 @@ class DaftarInvoice extends AlatKeuangan
                 ->where('invoices.invoice_number', 'like', "%{$kataKunci}%")
                 ->orWhere('clients.name', 'like', "%{$kataKunci}%")));
 
-        $sisa = 'invoices.total_amount - COALESCE(p.jumlah_dibayar, 0)';
+        // Tagihan USD: sisa USD × kurs invoice (Invoice::amount_remaining), tidak minus bila kurs naik.
+        $sisa = "CASE WHEN invoices.currency = 'IDR' THEN invoices.total_amount - COALESCE(p.jumlah_dibayar, 0)"
+            .' ELSE ROUND(GREATEST(0, invoices.total_foreign - COALESCE(p.usd_dibayar, 0)) * invoices.exchange_rate) END';
         $menunggu = "invoices.status IN ('sent', 'partially_paid')";
 
         $ringkasan = (clone $dasar)->toBase()->selectRaw(
@@ -143,10 +145,13 @@ class DaftarInvoice extends AlatKeuangan
             ->select([
                 'invoices.id', 'invoices.invoice_number', 'invoices.document_type', 'invoices.billed_to_id', 'invoices.issue_date',
                 'invoices.due_date', 'invoices.total_amount', 'invoices.status', 'clients.name as nama_klien',
+                'invoices.currency', 'invoices.exchange_rate', 'invoices.total_foreign',
             ])
             // Alias sengaja bukan `amount_paid`: accessor Invoice::getAmountPaidAttribute()
             // mengabaikan kolom terpilih dan menjalankan query SUM per baris.
             ->selectRaw('COALESCE(p.jumlah_dibayar, 0) AS jumlah_dibayar')
+            ->selectRaw('COALESCE(p.usd_dibayar, 0) AS usd_dibayar')
+            ->selectRaw("{$sisa} AS sisa_tagihan")
             ->tap(fn (Builder $q) => match ($urut) {
                 'terlama' => $q->orderBy('invoices.issue_date')->orderBy('invoices.id'),
                 'jatuh_tempo' => $q->orderBy('invoices.due_date')->orderBy('invoices.id'),
@@ -193,7 +198,14 @@ class DaftarInvoice extends AlatKeuangan
                 'jatuh_tempo' => $invoice->due_date?->format('Y-m-d'),
                 'total' => (int) $invoice->total_amount,
                 'dibayar' => (int) $invoice->jumlah_dibayar,
-                'sisa' => (int) $invoice->total_amount - (int) $invoice->jumlah_dibayar,
+                'sisa' => (int) $invoice->sisa_tagihan,
+                // Tagihan USD: utang klien dalam USD; nominal Rupiah di atas memakai kurs invoice.
+                ...($invoice->isForeign() ? [
+                    'mata_uang' => $invoice->currency,
+                    'kurs' => (float) $invoice->exchange_rate,
+                    'total_usd' => (float) $invoice->total_foreign,
+                    'sisa_usd' => max(0, Invoice::cents($invoice->total_foreign) - Invoice::cents($invoice->usd_dibayar)) / 100,
+                ] : []),
                 'status' => $invoice->status,
                 'status_label' => self::labelStatus($invoice->status),
                 'hari_lewat_tempo' => self::hariLewatTempo($invoice->status, $invoice->due_date),

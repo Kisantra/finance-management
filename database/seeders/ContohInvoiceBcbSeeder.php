@@ -10,8 +10,9 @@ use App\Models\Invoice;
  * (resources/views/pdf/perusahaan/bahtera-cipta-bersama): perusahaan BCB saja, akun khusus BCB, profil +
  * format nomor BCB (dengan {KODE}), satu klien, tiga invoice terbit untuk satu kapal yang meniru invoice Word
  * asli (FINAL stevedoring, MOORING, FENDER), dua Debit Note (talangan) — overtime hari libur seperti Debit
- * Note Word asli, dan demurrage berkolom Quantity/PRICE —, ditambah satu draft untuk editor. Semua datanya
- * FIKTIF (lihat ContohInvoicePerusahaanSeeder).
+ * Note Word asli, dan demurrage berkolom Quantity/PRICE —, satu tagihan USD seperti PROFORMA 103 (harga USD per
+ * ton, kurs manual, dibayar ke rekening USD), ditambah satu draft untuk editor. Semua datanya FIKTIF (lihat
+ * ContohInvoicePerusahaanSeeder).
  *
  *   php artisan db:seed --class=ContohInvoiceBcbSeeder
  *
@@ -47,10 +48,15 @@ class ContohInvoiceBcbSeeder extends ContohInvoicePerusahaanSeeder
             // Seperti invoice Word BCB: klien memotong PPh 23 2%.
             'pph_enabled' => true,
             'pph_rate' => 2,
+            // Klien luar negeri ditagih dalam USD (dokumen AVRA BCB).
+            'foreign_currency_enabled' => true,
             'finance_manager_name' => 'Sri Puspita Wulani',
             'finance_manager_position' => 'Direktur Utama',
             'signature_city' => 'Samarinda',
-            'bank_accounts' => [['bank' => 'Bank Mandiri', 'account_number' => '148-00-2281085-0', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA']],
+            'bank_accounts' => [
+                ['bank' => 'Bank Mandiri', 'account_number' => '148-00-2281085-0', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'IDR', 'branch' => null, 'swift' => null],
+                ['bank' => 'Bank Mandiri', 'account_number' => '148-00-2885477-9', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'USD', 'branch' => 'Samarinda Sempaja Branch', 'swift' => 'BMRIIDJA'],
+            ],
             'invoice_number_format' => '{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}',
             'invoice_number_padding' => 3,
             'invoice_number_reset' => 'yearly',
@@ -147,6 +153,25 @@ class ContohInvoiceBcbSeeder extends ContohInvoicePerusahaanSeeder
                     'quantity' => 3,
                     'unit' => 'Day',
                     'unit_price' => 5000000,
+                ]],
+            ],
+            // Tagihan USD seperti PROFORMA 103: tarif per ton dalam USD, kurs manual; utang klien $41.000,00.
+            [
+                'number' => '105/BCB-CBS/INV-ORBIT/XI/2026',
+                'code' => 'ORBIT',
+                'currency' => 'USD',
+                'kurs' => 18250,
+                'ppn' => 0,
+                'pph' => 0,
+                'date' => '2026-11-18',
+                'subject' => 'Proforma Invoice MV. CONTOH FLAME',
+                'discount' => 0,
+                'items' => [[
+                    'service_name' => 'MV. CONTOH FLAME',
+                    'description' => '(Proforma Invoice)',
+                    'quantity' => 50000,
+                    'unit' => 'MT',
+                    'foreign_unit_price' => 0.82,
                 ]],
             ],
             [

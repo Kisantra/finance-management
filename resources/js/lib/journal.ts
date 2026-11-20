@@ -31,6 +31,8 @@ export const JOURNAL_ACCOUNTS = {
     invoiceRevenue: tk('Pendapatan dari Invoice'),
     /** Bagian PPh 23 yang dipotong klien (kredit pajak) — JournalService::PPH_PREPAID. */
     pphPrepaid: tk('PPh 23 Dibayar di Muka'),
+    /** Selisih Rupiah pembayaran tagihan USD vs kurs invoice (kredit laba, debit rugi) — JournalService::EXCHANGE_DIFFERENCE. */
+    exchangeDifference: tk('Selisih Kurs'),
     transferFee: tk('Biaya Admin Transfer'),
 } as const;
 
@@ -102,6 +104,32 @@ export function paidBefore(payments: Array<{ id: number; amount: number; payment
         .reduce((sum, p) => sum + p.amount, 0);
 }
 
+/** Invoice::cents — sen dari nominal USD, untuk membandingkan tanpa galat pecahan. */
+export function cents(amount: number | null | undefined): number {
+    return Math.round((amount ?? 0) * 100);
+}
+
+/**
+ * Invoice::settledAtInvoiceRate — Rupiah tagihan USD yang sudah tertutup, dinilai dengan kurs INVOICE dari USD
+ * yang diterima; lunas = total penuh. Dasar alokasi "titipan dulu" tagihan USD.
+ */
+export function settledAtInvoiceRate(foreignPaid: number, totalForeign: number, exchangeRate: number, total: number): number {
+    if (cents(foreignPaid) >= cents(totalForeign)) return total;
+    return Math.min(total, Math.round(foreignPaid * exchangeRate));
+}
+
+/** USD yang sudah diterima SEBELUM sebuah pembayaran — urutan sama dengan paidBefore. */
+export function foreignPaidBefore(
+    payments: Array<{ id: number; foreign_amount: number | null; payment_date: string }>,
+    date: string,
+    excludeId: number | null = null,
+): number {
+    return payments
+        .filter((p) => p.id !== excludeId)
+        .filter((p) => p.payment_date < date || (p.payment_date === date && (excludeId === null || p.id < excludeId)))
+        .reduce((sum, p) => sum + (p.foreign_amount ?? 0), 0);
+}
+
 /** JournalService::depositAccountFor — bagian titipan Debit Note dikredit ke talangan, invoice ke titipan pajak. */
 export function depositAccountFor(documentType: string | null | undefined): string {
     return documentType === 'debit_note' ? JOURNAL_ACCOUNTS.talangan : JOURNAL_ACCOUNTS.taxDeposit;
@@ -111,6 +139,8 @@ export function depositAccountFor(documentType: string | null | undefined): stri
  * JournalService::paymentLines — Debit rekening penuh (+ Debit PPh 23 Dibayar di Muka bila klien memotong
  * PPh) / Kredit selisih alokasi kumulatif sesudah − sebelum pembayaran ini. Tanpa jumlah: kredit ke akun
  * yang akan diisi rupiah berikutnya. `depositAccount` = kunci akun bagian titipan (depositAccountFor).
+ * Tagihan USD: `settled` = Rupiah pembayaran ini dinilai dengan kurs invoice (`before` juga); selisihnya dengan
+ * `amount` (kurs saat diterima) dikredit (laba) / didebit (rugi) ke Selisih Kurs.
  */
 export function paymentJournal(
     account: string,
@@ -121,6 +151,7 @@ export function paymentJournal(
     depositAccount: string = JOURNAL_ACCOUNTS.taxDeposit,
     pph = 0,
     total = 0,
+    settled: number | null = null,
 ): JournalLine[] {
     if (amount <= 0) {
         const next = before < taxDeposit ? depositAccount : before < taxDeposit + ppn ? JOURNAL_ACCOUNTS.ppnOutput : JOURNAL_ACCOUNTS.invoiceRevenue;
@@ -130,16 +161,20 @@ export function paymentJournal(
         ];
     }
 
+    const allocated = settled ?? amount;
+    const difference = amount - allocated;
     const a = allocatePayments(before, taxDeposit, ppn, pph, total);
-    const b = allocatePayments(before + amount, taxDeposit, ppn, pph, total);
+    const b = allocatePayments(before + allocated, taxDeposit, ppn, pph, total);
     const debits: JournalLine[] = [
         { account, side: 'debit', amount },
         { account: t(JOURNAL_ACCOUNTS.pphPrepaid), side: 'debit', amount: b.pph - a.pph },
+        { account: t(JOURNAL_ACCOUNTS.exchangeDifference), side: 'debit', amount: Math.max(0, -difference) },
     ];
     const credits: JournalLine[] = [
         { account: t(depositAccount), side: 'credit', amount: b.taxDeposit - a.taxDeposit },
         { account: t(JOURNAL_ACCOUNTS.ppnOutput), side: 'credit', amount: b.ppn - a.ppn },
         { account: t(JOURNAL_ACCOUNTS.invoiceRevenue), side: 'credit', amount: b.revenue - a.revenue },
+        { account: t(JOURNAL_ACCOUNTS.exchangeDifference), side: 'credit', amount: Math.max(0, difference) },
     ];
     return [...debits, ...credits].filter((l) => (l.amount ?? 0) > 0);
 }

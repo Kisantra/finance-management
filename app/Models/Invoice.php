@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Invoice extends Model
 {
@@ -28,6 +29,14 @@ class Invoice extends Model
     /** Tarif PPh 23 atas jasa (persen) — bawaan editor bila perusahaan belum pernah memotong PPh. */
     public const DEFAULT_PPH_RATE = 2.0;
 
+    /** Mata uang tagihan; kolom `currency`. Pembukuan selalu Rupiah, USD = utang klien (`total_foreign`). */
+    public const CURRENCY_IDR = 'IDR';
+
+    public const CURRENCY_USD = 'USD';
+
+    /** @var list<string> */
+    public const CURRENCIES = [self::CURRENCY_IDR, self::CURRENCY_USD];
+
     /** Awalan {KODE} di nomor per jenis: "INV", "INV-FINAL", "DN", "DN-PNBP". */
     private const NUMBER_PREFIXES = [self::TYPE_INVOICE => 'INV', self::TYPE_DEBIT_NOTE => 'DN'];
 
@@ -47,6 +56,9 @@ class Invoice extends Model
         'pph_rate',
         'pph_amount',
         'total_amount',
+        'currency',
+        'exchange_rate',
+        'total_foreign',
         'issue_date',
         'due_date',
         'status',
@@ -64,6 +76,8 @@ class Invoice extends Model
         'pph_rate' => 'decimal:2',
         'pph_amount' => 'integer',
         'total_amount' => 'integer',
+        'exchange_rate' => 'decimal:2',
+        'total_foreign' => 'decimal:2',
         'invoice_sequence' => 'integer',
     ];
 
@@ -139,6 +153,98 @@ class Invoice extends Model
         return $this->document_type === self::TYPE_DEBIT_NOTE;
     }
 
+    /**
+     * Rupiah satu baris item berharga USD: jumlah × harga USD × kurs, dibulatkan sekali di akhir
+     * (55.070 × $0,75 × 17.898 = Rp 739.232.145, sama dengan Excel). Satu-satunya rumus — dipakai editor
+     * invoice, validasi diskon, dan pratinjau; dicerminkan editor React (create.tsx › lineAmount).
+     */
+    public static function foreignLineAmount(float $quantity, float|string $foreignUnitPrice, float|string $exchangeRate): int
+    {
+        return (int) round($quantity * (float) $foreignUnitPrice * (float) $exchangeRate);
+    }
+
+    /** Utang klien dalam USD = GRAND TOTAL Rupiah ÷ kurs, dibulatkan ke sen. */
+    public static function foreignTotalFor(int $total, float|string $exchangeRate): float
+    {
+        return (float) $exchangeRate > 0 ? round($total / (float) $exchangeRate, 2) : 0.0;
+    }
+
+    /** Sen dari nominal USD, untuk membandingkan tanpa galat pecahan (44116.00 = 4411600). */
+    public static function cents(float|string|null $amount): int
+    {
+        return (int) round((float) $amount * 100);
+    }
+
+    /**
+     * Σ sisa tagihan (Rupiah) sekumpulan invoice dalam satu query: Rupiah = total − dibayar; USD = sisa USD
+     * × kurs invoice (tidak minus walau Rupiah yang masuk melebihi total karena kurs naik). Sama dengan
+     * Σ accessor amount_remaining, untuk kartu "Perlu ditagih" / "Belum dibayar" di daftar invoice.
+     *
+     * @param  iterable<int>  $ids
+     */
+    public static function outstandingTotal(iterable $ids): int
+    {
+        $ids = collect($ids)->all();
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        $dibayar = DB::table('payments')
+            ->selectRaw('invoice_id, SUM(amount) as paid, SUM(COALESCE(foreign_amount, 0)) as foreign_paid')
+            ->groupBy('invoice_id');
+
+        return (int) DB::table('invoices')
+            ->leftJoinSub($dibayar, 'p', 'p.invoice_id', '=', 'invoices.id')
+            ->whereIn('invoices.id', $ids)
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN invoices.currency = ? THEN GREATEST(0, invoices.total_amount - COALESCE(p.paid, 0))'
+                .' ELSE ROUND(GREATEST(0, invoices.total_foreign - COALESCE(p.foreign_paid, 0)) * invoices.exchange_rate) END), 0) as sisa',
+                [self::CURRENCY_IDR],
+            )
+            ->value('sisa');
+    }
+
+    /** Tagihan dalam mata uang asing (USD): utangnya `total_foreign`, bukan `total_amount`. */
+    public function isForeign(): bool
+    {
+        return ($this->currency ?? self::CURRENCY_IDR) !== self::CURRENCY_IDR;
+    }
+
+    /** USD yang sudah diterima (Σ payments.foreign_amount); 0 untuk tagihan Rupiah. */
+    public function getForeignPaidAttribute(): float
+    {
+        $sum = $this->relationLoaded('payments')
+            ? $this->payments->sum(fn (Payment $payment) => (float) $payment->foreign_amount)
+            : (float) $this->payments()->sum('foreign_amount');
+
+        return round((float) $sum, 2);
+    }
+
+    /** Sisa utang USD (tidak pernah minus); null untuk tagihan Rupiah. */
+    public function getForeignRemainingAttribute(): ?float
+    {
+        if (! $this->isForeign()) {
+            return null;
+        }
+
+        return max(0, self::cents($this->total_foreign) - self::cents($this->foreign_paid)) / 100;
+    }
+
+    /**
+     * Bagian Rupiah tagihan yang sudah tertutup, dinilai dengan kurs INVOICE (bukan kurs saat
+     * dibayar), dari USD yang sudah diterima. Dasar alokasi "titipan dulu" tagihan USD di Laba Rugi
+     * dan jurnal; selisihnya dengan Rupiah yang benar-benar masuk = selisih kurs. Lunas = total penuh.
+     */
+    public function settledAtInvoiceRate(float|string $foreignPaid): int
+    {
+        if (self::cents($foreignPaid) >= self::cents($this->total_foreign)) {
+            return (int) $this->total_amount;
+        }
+
+        return min((int) $this->total_amount, (int) round((float) $foreignPaid * (float) $this->exchange_rate));
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'billed_to_id');
@@ -164,8 +270,16 @@ class Invoice extends Model
         return $this->payments()->sum('amount');
     }
 
+    /**
+     * Sisa tagihan dalam Rupiah. Tagihan USD: sisa USD × kurs invoice (0 bila USD lunas), karena
+     * Rupiah yang masuk bergantung kurs saat dibayar dan bisa melebihi total_amount.
+     */
     public function getAmountRemainingAttribute(): int
     {
+        if ($this->isForeign()) {
+            return (int) round((float) $this->foreign_remaining * (float) $this->exchange_rate);
+        }
+
         return $this->total_amount - $this->amount_paid;
     }
 
@@ -250,11 +364,14 @@ class Invoice extends Model
     // Update invoice status based on payments
     public function updateStatus(): void
     {
-        $amountPaid = $this->amount_paid;
+        // Tagihan USD lunas bila USD-nya terbayar penuh, berapa pun Rupiah yang masuk (kurs berubah).
+        [$amountPaid, $total] = $this->isForeign()
+            ? [self::cents($this->foreign_paid), self::cents($this->total_foreign)]
+            : [$this->amount_paid, $this->total_amount];
 
         if ($amountPaid == 0) {
             $this->status = $this->invoice_number ? 'sent' : 'draft';
-        } elseif ($amountPaid >= $this->total_amount) {
+        } elseif ($amountPaid >= $total) {
             $this->status = 'paid';
         } else {
             $this->status = 'partially_paid';

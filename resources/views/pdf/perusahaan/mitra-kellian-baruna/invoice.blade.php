@@ -8,15 +8,26 @@
 @extends('pdf.perusahaan.mitra-kellian-baruna.kerangka')
 
 @php
-    $rp = fn ($value) => number_format((float) $value, 0, ',', '.');
     $qty = fn ($value) => rtrim(rtrim(number_format((float) $value, 3, ',', '.'), '0'), ',');
-    // "Rp" rata kiri, angka rata kanan dalam satu baris (format akuntansi tabel Excel di dokumen asli).
-    $uang = fn ($value) => '<table class="uang"><tr><td class="rp">Rp</td><td class="angka">'.$rp($value).'</td></tr></table>';
+    // "Rp"/"USD" rata kiri, angka rata kanan dalam satu baris (format akuntansi tabel Excel di dokumen asli).
+    $uang = fn ($value, $mataUang = 'IDR') => '<table class="uang"><tr><td class="rp">'.\App\Services\InvoiceTotalRows::symbol($mataUang).'</td><td class="angka">'.\App\Services\InvoiceTotalRows::format($value, $mataUang, 4).'</td></tr></table>';
 
     $units = $items->pluck('unit')->filter()->unique()->values();
     $sharedUnit = $units->count() === 1 ? $units->first() : null;
-    // Dokumen asli menulis baris potongan "PPH 23 (2%)" kapital, tetapi "belum dipotong PPh" di subtotal.
-    $label = fn (array $baris) => $baris['jenis'] === 'pph' ? str_replace('PPh', 'PPH', $baris['label']) : $baris['label'];
+    // Harga per unit bertarif USD: USD di tagihan USD, Rupiah hasil kurs ("13.423,50") di tagihan Rupiah.
+    $harga = fn ($item) => match (true) {
+        $item->foreign_unit_price === null => $uang($item->unit_price),
+        $invoice->isForeign() => $uang($item->foreign_unit_price, 'USD'),
+        default => $uang(round((float) $item->foreign_unit_price * (float) $invoice->exchange_rate, 2)),
+    };
+    $hargaUsd = $invoice->isForeign() && $items->isNotEmpty() && $items->every(fn ($item) => $item->foreign_unit_price !== null);
+    // Dokumen asli menulis baris potongan "PPH 23 (2%)" kapital, tetapi "belum dipotong PPh" di subtotal; tagihan
+    // USD menyebut GRAND TOTAL dalam Rupiah sebelum TOTAL OUTSTANDING (USD).
+    $label = fn (array $baris) => match (true) {
+        $baris['jenis'] === 'pph' => str_replace('PPh', 'PPH', $baris['label']),
+        $baris['label'] === 'GRAND TOTAL' && $invoice->isForeign() => 'GRAND TOTAL (IDR)',
+        default => $baris['label'],
+    };
 @endphp
 
 @section('nama-dokumen', 'Invoice')
@@ -98,6 +109,17 @@
             font-size: 12pt;
         }
 
+        /* Tagihan USD: kurs invoice lalu TOTAL OUTSTANDING (USD) — utang klien — tebal, di tengah, garis bawah
+           ganda seperti GRAND TOTAL. */
+        .totals-table tr.baris-tagihan_usd td {
+            font-weight: bold;
+            border-bottom: 3px double #000;
+        }
+
+        .totals-table tr.baris-tagihan_usd td.label {
+            text-align: center;
+        }
+
         .totals-table tr.baris-pph td.c-total,
         .totals-table tr.baris-diterima td.c-total {
             color: #ff0000;
@@ -134,7 +156,7 @@
                 <th class="c-no">No</th>
                 <th class="c-ket">Keterangan</th>
                 <th class="c-qty">Quantity{{ $sharedUnit ? ' ('.strtoupper($sharedUnit).')' : '' }}</th>
-                <th class="c-price">PRICE</th>
+                <th class="c-price">PRICE{{ $hargaUsd ? ' (USD)' : '' }}</th>
                 <th class="c-total">TOTAL (Rp)</th>
             </tr>
         </thead>
@@ -149,7 +171,7 @@
                         @endif
                     </td>
                     <td class="c-qty">{{ $qty($item->quantity) }}{{ $sharedUnit ? '' : ' '.$item->unit }}</td>
-                    <td class="c-price">{!! $uang($item->unit_price) !!}</td>
+                    <td class="c-price">{!! $harga($item) !!}</td>
                     <td class="c-total">{!! $uang($item->amount) !!}</td>
                 </tr>
             @endforeach
@@ -173,7 +195,7 @@
                 @else
                     <td colspan="4" class="label">{{ $label($baris) }}</td>
                 @endif
-                <td class="c-total">{!! $uang($baris['jumlah']) !!}</td>
+                <td class="c-total">{!! $uang($baris['jumlah'], $baris['mata_uang']) !!}</td>
             </tr>
         @endforeach
     </table>

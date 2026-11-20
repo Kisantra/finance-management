@@ -26,6 +26,11 @@
     ]);
     $penandaTangan = $company['signature'];
     $tanggal = $invoice->issue_date?->copy()->locale('id')->translatedFormat('j F Y');
+    // Tagihan Rupiah bertarif USD (invoice FINAL): kurs & tarif tercetak di blok klien seperti dokumen asli.
+    // Tagihan USD mencetak kursnya di baris total (InvoiceTotalRows).
+    $angka = fn ($nilai, $mataUang = 'IDR') => \App\Services\InvoiceTotalRows::format($nilai, $mataUang, 4);
+    $tarifUsd = $items->pluck('foreign_unit_price')->filter(fn ($tarif) => $tarif !== null)->map(fn ($tarif) => (float) $tarif)->unique()->values();
+    $kursDiBlokKlien = $invoice->exchange_rate !== null && ! $invoice->isForeign() && $tarifUsd->isNotEmpty();
     $font = fn (string $file) => \App\Services\CompanyInvoiceTemplate::path('fonts/'.$file);
     $fontUtama = $font('Tinos-Regular.ttf');
     $fontUtamaTebal = $font('Tinos-Bold.ttf');
@@ -351,6 +356,25 @@
             <td class="titik">:</td>
             <td>Telegraphic Transfer (T/T)</td>
         </tr>
+        @if ($kursDiBlokKlien)
+            <tr>
+                <td class="label">Exchange Rate</td>
+                <td class="titik">:</td>
+                <td>Rp {{ $angka($invoice->exchange_rate) }},-</td>
+            </tr>
+            @if ($tarifUsd->count() === 1)
+                <tr>
+                    <td class="label">Rate Stevedoring $</td>
+                    <td class="titik">:</td>
+                    <td>{{ $angka($tarifUsd->first(), 'USD') }} $</td>
+                </tr>
+                <tr>
+                    <td class="label">Rate Stevedoring Rp</td>
+                    <td class="titik">:</td>
+                    <td>{{ $angka($invoice->exchange_rate) }} x {{ $angka($tarifUsd->first(), 'USD') }} $ = Rp {{ $angka(round($tarifUsd->first() * (float) $invoice->exchange_rate, 2)) }}</td>
+                </tr>
+            @endif
+        @endif
     </table>
 
     @yield('tabel')
@@ -371,7 +395,18 @@
                 @foreach ($company['bank_accounts'] ?? [] as $rekening)
                     <div class="bank{{ $loop->first ? '' : ' rekening-lain' }}">{{ $rekening['bank'] }}</div>
                     <div><span class="tebal">An</span>. <span class="tebal">{{ $rekening['account_name'] }}</span></div>
-                    <div>Nomor rekening bank: <span class="nomor-rekening">{{ $rekening['account_number'] }}</span></div>
+                    @if (($rekening['currency'] ?? 'IDR') !== 'IDR')
+                        {{-- Rekening valas seperti dokumen AVRA: nomor bermata uang, cabang, dan Swift untuk transfer luar negeri. --}}
+                        <div>Bank Account No: {{ $rekening['account_number'] }} ({{ $rekening['currency'] }})</div>
+                    @else
+                        <div>Nomor rekening bank: <span class="nomor-rekening">{{ $rekening['account_number'] }}</span></div>
+                    @endif
+                    @if (filled($rekening['branch'] ?? null))
+                        <div>Bank Branch Name: {{ $rekening['branch'] }}</div>
+                    @endif
+                    @if (filled($rekening['swift'] ?? null))
+                        <div>Swift Code: {{ $rekening['swift'] }}</div>
+                    @endif
                 @endforeach
             </td>
         </tr>

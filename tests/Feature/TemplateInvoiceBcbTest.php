@@ -97,10 +97,12 @@ class TemplateInvoiceBcbTest extends TestCase
 
     /**
      * @param  list<array<string, mixed>>  $items
+     * @param  array<string, mixed>  $extra
      */
-    private function dokumen(string $type, ?string $code, string $subject, array $items): Invoice
+    private function dokumen(string $type, ?string $code, string $subject, array $items, array $extra = []): Invoice
     {
         $this->actingAs($this->admin)->post(self::BASE.'/invoices', [
+            ...$extra,
             'client_id' => $this->client->id,
             'issue_date' => '2026-11-16',
             'due_date' => '2026-11-30',
@@ -284,6 +286,39 @@ class TemplateInvoiceBcbTest extends TestCase
         $this->assertStringContainsString('Total Debit Note', $dp);
         $this->assertStringContainsString('TAGIHAN UANG MUKA', $dp);
         $this->assertStringNotContainsString('Total Invoice', $dp);
+    }
+
+    public function test_tagihan_usd_bcb_mencetak_harga_usd_total_outstanding_dan_rekening_usd(): void
+    {
+        CompanyProfile::current()->update([
+            'foreign_currency_enabled' => true,
+            'bank_accounts' => [
+                ['bank' => 'Bank Contoh', 'account_number' => '000-00-0000000-0', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'IDR'],
+                ['bank' => 'Bank Contoh', 'account_number' => '111-00-1111111-1', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'USD', 'branch' => 'Samarinda Contoh Branch', 'swift' => 'CONTIDJA'],
+            ],
+        ]);
+
+        $html = $this->render($this->dokumen(Invoice::TYPE_INVOICE, 'ORBIT', 'Proforma Invoice MV. CONTOH FLAME', [[
+            'service_name' => 'MV. CONTOH FLAME',
+            'quantity' => 53800,
+            'unit' => 'MT',
+            'unit_price' => 0,
+            'foreign_unit_price' => 0.82,
+        ]], ['currency' => 'USD', 'exchange_rate' => 18250, 'apply_ppn' => false, 'apply_pph' => false]));
+
+        // Seperti PROFORMA 103 BCB: harga USD, total Rupiah dengan kurs invoice, lalu utang dalam USD.
+        $this->assertStringContainsString('<th class="c-price">PRICE (USD)</th>', $html);
+        $this->assertMatchesRegularExpression('#<td class="rp">USD</td><td class="angka">0,82</td>#', $html);
+        $this->assertStringContainsString('<td class="angka">805.117.000</td>', $html);
+        $this->assertStringContainsString('GRAND TOTAL (IDR)', $html);
+        $this->assertMatchesRegularExpression('#<tr class="baris-kurs">.*?Exchange Rate \(1 USD\).*?<td class="angka">18.250</td>#s', $html);
+        $this->assertMatchesRegularExpression('#<tr class="baris-tagihan_usd">.*?TOTAL OUTSTANDING \(USD\).*?<td class="rp">USD</td><td class="angka">44.116,00</td>#s', $html);
+        // Tagihan USD hanya mencetak rekening USD, dengan cabang & Swift; blok klien tanpa baris kurs.
+        $this->assertStringContainsString('Bank Account No: 111-00-1111111-1 (USD)', $html);
+        $this->assertStringContainsString('Bank Branch Name: Samarinda Contoh Branch', $html);
+        $this->assertStringContainsString('Swift Code: CONTIDJA', $html);
+        $this->assertStringNotContainsString('000-00-0000000-0', $html);
+        $this->assertStringNotContainsString('Rate Stevedoring', $html);
     }
 
     public function test_migrasi_menyiapkan_debit_note_bcb(): void

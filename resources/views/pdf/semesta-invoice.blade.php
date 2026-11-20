@@ -507,6 +507,7 @@
                 {{ $terbilang }} Rupiah
             </div>
         </div>
+        @include('pdf.partials.tagihan-usd')
 
         <!-- Payment Detail -->
         <div class="payment-box">

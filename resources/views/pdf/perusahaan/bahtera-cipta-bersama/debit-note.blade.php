@@ -16,17 +16,27 @@
 @extends('pdf.perusahaan.bahtera-cipta-bersama.kerangka')
 
 @php
-    $rp = fn ($value) => number_format((float) $value, 0, ',', '.');
     $qty = fn ($value) => rtrim(rtrim(number_format((float) $value, 3, ',', '.'), '0'), ',');
-    // "Rp" rata kiri, angka rata kanan dalam satu baris (format akuntansi tabel Excel di dokumen asli).
-    $uang = fn ($value) => '<table class="uang"><tr><td class="rp">Rp</td><td class="angka">'.$rp($value).'</td></tr></table>';
+    // "Rp"/"USD" rata kiri, angka rata kanan dalam satu baris (format akuntansi tabel Excel di dokumen asli).
+    $uang = fn ($value, $mataUang = 'IDR') => '<table class="uang"><tr><td class="rp">'.\App\Services\InvoiceTotalRows::symbol($mataUang).'</td><td class="angka">'.\App\Services\InvoiceTotalRows::format($value, $mataUang, 4).'</td></tr></table>';
 
     $units = $items->pluck('unit')->filter()->unique()->values();
     $sharedUnit = $units->count() === 1 ? $units->first() : null;
     $rinci = $items->contains(fn ($item) => (float) $item->quantity !== 1.0);
     $kolom = $rinci ? 5 : 3;
-    // Baris total memakai kata "Debit Note", bukan "Invoice".
-    $labelTotal = fn (array $baris) => $baris['jenis'] === 'total' ? 'Total Debit Note' : $baris['label'];
+    // Harga per unit bertarif USD: USD di tagihan USD, Rupiah hasil kurs di tagihan Rupiah.
+    $harga = fn ($item) => match (true) {
+        $item->foreign_unit_price === null => $uang($item->unit_price),
+        $invoice->isForeign() => $uang($item->foreign_unit_price, 'USD'),
+        default => $uang(round((float) $item->foreign_unit_price * (float) $invoice->exchange_rate, 2)),
+    };
+    $hargaUsd = $invoice->isForeign() && $items->isNotEmpty() && $items->every(fn ($item) => $item->foreign_unit_price !== null);
+    // Baris total memakai kata "Debit Note", bukan "Invoice"; tagihan USD menyebut GRAND TOTAL dalam Rupiah.
+    $labelTotal = fn (array $baris) => match (true) {
+        $baris['jenis'] === 'total' => 'Total Debit Note',
+        $baris['label'] === 'GRAND TOTAL' && $invoice->isForeign() => 'GRAND TOTAL (IDR)',
+        default => $baris['label'],
+    };
 @endphp
 
 @section('nama-dokumen', 'Debit Note')
@@ -100,6 +110,16 @@
             font-size: 12pt;
         }
 
+        /* Tagihan USD: TOTAL OUTSTANDING (USD) — utang klien — tebal, di tengah, garis bawah ganda. */
+        .totals-table tr.baris-tagihan_usd td {
+            font-weight: bold;
+            border-bottom: 3px double #000;
+        }
+
+        .totals-table tr.baris-tagihan_usd td.label {
+            text-align: center;
+        }
+
         .totals-table tr.baris-diterima td.c-total {
             color: #ff0000;
         }
@@ -141,7 +161,7 @@
                 <th class="c-ket">Keterangan</th>
                 @if ($rinci)
                     <th class="c-qty">Quantity{{ $sharedUnit ? ' ('.mb_strtoupper($sharedUnit).')' : '' }}</th>
-                    <th class="c-price">PRICE</th>
+                    <th class="c-price">PRICE{{ $hargaUsd ? ' (USD)' : '' }}</th>
                 @endif
                 <th class="c-total">TOTAL (Rp)</th>
             </tr>
@@ -158,7 +178,7 @@
                     </td>
                     @if ($rinci)
                         <td class="c-qty">{{ $qty($item->quantity) }}{{ $sharedUnit ? '' : ' '.$item->unit }}</td>
-                        <td class="c-price">{!! $uang($item->unit_price) !!}</td>
+                        <td class="c-price">{!! $harga($item) !!}</td>
                     @endif
                     <td class="c-total">{!! $uang($item->amount) !!}</td>
                 </tr>
@@ -185,7 +205,7 @@
                 @else
                     <td colspan="{{ $kolom - 1 }}" class="label">{{ $labelTotal($baris) }}</td>
                 @endif
-                <td class="c-total">{!! $uang($baris['jumlah']) !!}</td>
+                <td class="c-total">{!! $uang($baris['jumlah'], $baris['mata_uang']) !!}</td>
             </tr>
         @endforeach
     </table>

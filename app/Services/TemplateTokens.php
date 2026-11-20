@@ -104,6 +104,20 @@ class TemplateTokens
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) ($inv->total_amount ?? 0)),
             ],
             [
+                'path' => 'invoice.exchange_rate',
+                'label' => __('Kurs (Rp per 1 USD)'),
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => $inv->exchange_rate !== null
+                    ? 'Rp '.InvoiceTotalRows::format($inv->exchange_rate)
+                    : '',
+            ],
+            [
+                'path' => 'invoice.total_foreign',
+                'label' => __('Total tagihan USD'),
+                'resolve' => fn (Invoice $inv, array $ctx = []): string => $inv->isForeign()
+                    ? 'USD '.InvoiceTotalRows::format($inv->total_foreign, Invoice::CURRENCY_USD)
+                    : '',
+            ],
+            [
                 'path' => 'invoice.amount_paid',
                 'label' => __('Sudah Dibayar'),
                 'resolve' => fn (Invoice $inv, array $ctx = []): string => self::formatRupiah((int) $inv->amount_paid),

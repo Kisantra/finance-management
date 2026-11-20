@@ -85,6 +85,18 @@ export const guide: ModuleGuide = {
             ],
         },
         {
+            title: 'Menagih dalam USD (kurs manual)',
+            role: ROLES.staff,
+            steps: [
+                'Hanya untuk perusahaan yang menyalakan **Tagihan USD** di **Pengaturan › Profil perusahaan** (mis. klien luar negeri PT Bahtera Cipta Bersama). Perusahaan lain tidak melihat pilihan ini.',
+                'Di **Detail invoice**, pilih **Mata uang tagihan: USD**, lalu isi **Kurs (Rp per 1 USD)** hari itu. Kurs terakhir yang dipakai terisi otomatis sebagai awalan.',
+                'Isi item seperti biasa. Untuk harga per ton/unit dalam USD (mis. $0,82/MT), nyalakan **Harga USD** di baris itu dan ketik harga USD-nya; Rupiahnya = jumlah × harga USD × kurs. Baris lain boleh tetap berharga Rupiah (mis. transport TKBM).',
+                'PPN dan potongan PPh 23 tetap dihitung dalam Rupiah. Ringkasan menampilkan **Tagihan USD (total ÷ kurs)** — inilah yang harus dibayar klien. PDF mencetak GRAND TOTAL (IDR), kurs, dan **TOTAL OUTSTANDING (USD)**, beserta rekening USD dari Profil perusahaan.',
+                'Invoice **Rupiah** bertarif USD (mis. invoice FINAL stevedoring: $0,75 × kurs = Rp 13.423,50/MT) cukup memakai **Harga USD** + **Kurs** tanpa mengganti mata uang tagihan; PDF mencetak baris Exchange Rate dan Rate Stevedoring seperti dokumen Word.',
+                'Mata uang tagihan tidak bisa diganti setelah invoice menerima pembayaran.',
+            ],
+        },
+        {
             title: 'Menagih ke beberapa klien sekaligus',
             role: ROLES.staff,
             steps: ['Nyalakan **Tagih ke beberapa klien**, lalu pilih klien di setiap baris item. Invoice tetap ditujukan ke klien di kolom **Klien**.'],
@@ -105,6 +117,7 @@ export const guide: ModuleGuide = {
                 'Buka invoice berstatus **Terbit** atau **Sebagian**, lalu klik **Catat pembayaran**.',
                 '**Jumlah** terisi sisa tagihan. Pilih **Sisa penuh**, **50%**, atau **Nominal lain**; tidak boleh melebihi sisa.',
                 'Isi **Tanggal** uang diterima, pilih **Rekening tujuan** (wajib) dan **Metode** (**Transfer bank** / **Tunai**).',
+                'Tagihan **USD**: isi **Diterima (USD)** dan **Kurs saat diterima** (terisi kurs invoice; ganti dengan kurs saat uang dikonversi). Aplikasi menghitung **Masuk ke rekening: Rp …** dan mencatatnya ke rekening Rupiah yang dipilih. Batas sisa dihitung dalam USD.',
                 'Kotak **Jurnal · Pratinjau** menunjukkan pembagiannya: rekening didebit penuh; kreditnya menutup **Titipan Pajak Klien** dulu, lalu **PPN Keluaran**, sisanya **Pendapatan dari Invoice** — sama dengan cara Laba Rugi mengakui pendapatan. Uang muka kecil bisa seluruhnya masuk titipan. Pembayaran **Debit Note** seluruhnya dikredit ke **Talangan Biaya Klien**.',
                 'Isi **Nomor referensi** dan unggah bukti transfer (JPG, PNG, PDF, maks 5 MB) bila ada, lalu klik **Simpan pembayaran**.',
                 'Status otomatis menjadi **Sebagian** atau **Lunas**. Pembayaran yang salah bisa diubah (ikon pensil) atau dihapus (ikon tempat sampah) di kartu **Pembayaran**, tetapi hanya oleh Finance manager / Admin.',
@@ -174,6 +187,7 @@ export const guide: ModuleGuide = {
                 'Status menjadi **Sebagian** / **Lunas**; ringkasan invoice dan **Dashboard** (saldo & pemasukan) ikut berubah.',
                 'Invoice yang **dipotong PPh 23**: transfer sebesar Total (setelah potongan) langsung **Lunas**. Potongannya tidak masuk rekening, tetapi tetap pendapatan: jurnal mendebit **PPh 23 Dibayar di Muka** (kredit pajak) dan Laba Rugi mencatatnya di **Catatan · PPh 23 dipotong klien**. Simpan bukti potong dari klien untuk SPT.',
                 '**Debit Note**: saldo dan pemasukan arus kas bertambah seperti invoice, tetapi pendapatan & laba (Laba Rugi, Ringkasan, rekap) tidak berubah — uangnya mengganti talangan yang dicatat lewat kategori **Bayar Talangan Klien**.',
+                '**Tagihan USD**: invoice **Lunas** saat USD-nya terbayar penuh, berapa pun Rupiah yang masuk. Pendapatan di Laba Rugi tetap sebesar tagihan dengan kurs invoice; bila kurs saat diterima lebih tinggi/rendah, selisihnya tercatat sebagai **Laba selisih kurs** (Pendapatan Lain) atau **Rugi selisih kurs** (Beban Lain), dan jurnalnya memakai akun **Selisih Kurs**.',
             ],
         },
         {
@@ -239,6 +253,10 @@ export const guide: ModuleGuide = {
         {
             title: 'Potongan PPh 23 hanya mengikuti isian invoice',
             body: 'Aplikasi tidak tahu apakah klien benar-benar memotong PPh 23. Bila klien mentransfer penuh tanpa memotong, matikan **Dipotong PPh 23 oleh klien** di invoice itu (Finance manager) agar Total dan sisa tagihannya kembali benar. Mematikan pengaturan PPh 23 di Profil perusahaan tidak mengubah invoice yang sudah dipotong. Invoice berulang selalu diterbitkan tanpa potongan PPh.',
+        },
+        {
+            title: 'Tagihan USD: satu kurs manual, uang muka belum didukung',
+            body: 'Kurs diisi manual dan dipakai untuk semua hitungan Rupiah invoice itu, termasuk PPN. Bila faktur pajak harus memakai kurs Menteri Keuangan (KMK), pastikan kurs yang diisi sesuai atau konsultasikan dengan tim pajak. Tagihan USD hanya bisa dicetak **Penuh** (belum uang muka/pelunasan), diskon tetap dalam Rupiah, dan rekap Excel tetap Rupiah.',
         },
         {
             title: 'Nomor Debit Note lama tidak berubah jenis',
