@@ -27,7 +27,7 @@ import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { parseQty } from './components/item-table-helpers';
 import { QuickClientDialog } from './components/quick-client-dialog';
-import { BTN, CARD, FIELD, FIELD_SM, rp, SumRow, SURFACE, usd } from './components/ob';
+import { BTN, CARD, FIELD, FIELD_SM, rp, rpSen, SumRow, SURFACE, usd } from './components/ob';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -215,11 +215,6 @@ function emptyItem(): ItemRow {
 function lineAmount(item: ItemRow, exchangeRate: number): number {
     const qty = parseQty(item.quantity);
     return item.foreign_unit_price !== null && exchangeRate > 0 ? Math.round(qty * item.foreign_unit_price * exchangeRate) : Math.round(item.unit_price * qty);
-}
-
-/** Rupiah per unit dari tarif USD, dengan sen bila ada ("Rp 13.423,50"). */
-function formatRupiahDecimal(amount: number): string {
-    return `Rp ${(Math.round(amount * 100) / 100).toLocaleString('id-ID', { maximumFractionDigits: 2 })}`;
 }
 
 
@@ -1241,7 +1236,8 @@ function ItemEditorRow({
                             id={`price-${index}`}
                         />
                     ) : (
-                        <CurrencyInput value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
+                        // Harga Rupiah boleh bersen ("0,85", "9.459,46"); jumlah baris tetap dibulatkan ke Rupiah.
+                        <CurrencyInput decimals={2} value={item.unit_price} onChange={(v) => onChange({ unit_price: v })} className={cn('w-full min-w-0 bg-ob-card text-right', error('unit_price') && 'border-ob-late')} id={`price-${index}`} />
                     )}
                 </div>
                 <span className={cn(ITEM_AT.amount, 'whitespace-nowrap text-sm font-semibold text-ob-ink')}>
@@ -1321,8 +1317,8 @@ function ItemEditorRow({
                 <p className="pl-7 text-[13px] text-ob-ink-2">
                     {exchangeRate > 0
                         ? foreignInvoice
-                            ? t('Harga USD × kurs {{rate}} = {{price}} per unit dalam pembukuan.', { rate: rp(exchangeRate), price: formatRupiahDecimal((item.foreign_unit_price ?? 0) * exchangeRate) })
-                            : t('Harga USD × kurs {{rate}} = {{price}} per unit.', { rate: rp(exchangeRate), price: formatRupiahDecimal((item.foreign_unit_price ?? 0) * exchangeRate) })
+                            ? t('Harga USD × kurs {{rate}} = {{price}} per unit dalam pembukuan.', { rate: rp(exchangeRate), price: rpSen((item.foreign_unit_price ?? 0) * exchangeRate) })
+                            : t('Harga USD × kurs {{rate}} = {{price}} per unit.', { rate: rp(exchangeRate), price: rpSen((item.foreign_unit_price ?? 0) * exchangeRate) })
                         : t('Isi kurs di Detail invoice untuk menghitung Rupiahnya.')}
                 </p>
             )}

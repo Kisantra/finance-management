@@ -58,7 +58,7 @@ npm run video:render -- <Id> out/x.mp4 # Render video, mis. ReimbursementStaff
 
 ### Currency Storage (integer)
 
-Mata uang disimpan sebagai **integer** di DB (rupiah penuh, tanpa desimal). Pengecualian: sisi USD tagihan USD (`invoices.total_foreign`, `invoice_items.foreign_unit_price`, `payments.foreign_amount`, kurs) berupa decimal; pembukuan tetap Rupiah integer (lihat `docs/module/invoices.md` › Tagihan USD & kurs manual).
+Mata uang disimpan sebagai **integer** di DB (rupiah penuh, tanpa desimal). Pengecualian: harga satuan item invoice/Debit Note `invoice_items.unit_price` (decimal 15,2, boleh bersen; `amount` tetap integer = `round(qty × harga)`), dan sisi USD tagihan USD (`invoices.total_foreign`, `invoice_items.foreign_unit_price`, `payments.foreign_amount`, kurs) berupa decimal; pembukuan tetap Rupiah integer (lihat `docs/module/invoices.md` › Tagihan USD & kurs manual).
 
 ```
 DB: 150000 → Display: Rp 150.000
@@ -127,7 +127,7 @@ Semua komponen sudah bergaya **Obsidian** sebagai bawaan (spesifikasi per kompon
 | `Pagination` | `@/components/shared/pagination` | Pagination navigasi. Props: `currentPage`, `lastPage`, `perPage`, `total`, `onPageChange`. |
 | `EmptyState` | `@/components/shared/empty-state` | State kosong. Props: `icon`, `title`, `description`, `action`. |
 | `ConfirmDialog` | `@/components/shared/confirm-dialog` | Dialog konfirmasi. Props: `open`, `onOpenChange`, `onConfirm`, `title`, `description`, `variant` (`danger`\|`warning`). |
-| `CurrencyInput` | `@/components/shared/currency-input` | **Input Rupiah — WAJIB untuk semua input mata uang.** Props: `value`, `onChange`, `label`, `hint`, `error`, `prefix` (bawaan `Rp`), `decimals` (bawaan 0 = Rupiah bulat; valas mis. `prefix="USD" decimals={2}`, koma = desimal). Display `Rp 1.500.000`. |
+| `CurrencyInput` | `@/components/shared/currency-input` | **Input Rupiah — WAJIB untuk semua input mata uang.** Props: `value`, `onChange`, `label`, `hint`, `error`, `prefix` (bawaan `Rp`), `decimals` (bawaan 0 = Rupiah bulat; harga satuan invoice bersen `decimals={2}`; valas mis. `prefix="USD" decimals={2}`; koma = desimal, pecahan tampil minimal 2 desimal). Display `Rp 1.500.000`. |
 | `FinancingBadge`, `FinancingHint`, `ManagedByNote`, `withFinancingGroup()` | `@/components/shared/financing` | **Penanda Pendanaan — WAJIB di mana pun kategori `financing` tampil/dipilih.** Badge `outline` + `Landmark`; petunjuk "saldo … bertambah/berkurang, Laba Rugi tidak berubah"; catatan hanya-lihat "kelola di Utang/Piutang"; opsi kategori server → Combobox dengan bagian "Pendanaan · tidak masuk Laba Rugi". |
 | `JournalBox` | `@/components/shared/journal-box` | **Kotak Jurnal (debit/kredit) — WAJIB di mana pun jurnal transaksi/pembayaran tampil.** Props: `lines` (`JournalLine[]` dari `@/lib/journal`; null/kosong → `placeholder`), `mode` (`saved` = dari server \| `preview` = berpenanda "Pratinjau"), `placeholder`, `caption` (bawaan "Jurnal otomatis dari rekening & kategori · belum buku besar"). Jurnal tersimpan WAJIB dari server (`JournalService`); pratinjau formulir lewat cermin di `@/lib/journal` (`cashJournal`, `transferJournal`, `paymentJournal`). |
 | `FileUpload` | `@/components/shared/file-upload` | **Upload file/gambar — WAJIB, bukan `<input type="file">`.** Berbasis react-dropzone. Props: `value` (File|null), `onChange`, `label`, `hint`, `error`, `accept` (array ekstensi). Single file. |

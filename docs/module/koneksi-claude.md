@@ -37,7 +37,7 @@ di samping `use claude`. Penolakan memakai satu pesan yang sama untuk "tidak ada
 dan "tanpa izin" (keberadaan perusahaan lain tidak dibocorkan).
 
 Semua daftar: `halaman`, maks. 50 baris per halaman; ringkasan/total selalu menghitung SELURUH hasil
-filter, bukan hanya halaman itu. Nominal integer rupiah, tanggal Y-m-d, status mentah + label.
+filter, bukan hanya halaman itu. Nominal integer rupiah (kecuali `harga_satuan` item invoice yang boleh bersen), tanggal Y-m-d, status mentah + label.
 
 | Alat | Izin modul | Argumen | Isi & aturan yang disalin |
 |------|-----------|---------|---------------------------|

@@ -124,7 +124,8 @@ class TagihanUsdTest extends TestCase
         $this->assertSame('44116.00', $invoice->total_foreign);
         $item = $invoice->items->first();
         $this->assertSame('0.8200', $item->foreign_unit_price);
-        $this->assertSame(14_965, $item->unit_price);
+        // Rupiah per unit (ke sen) = harga USD × kurs; jumlah baris tetap dari harga USD.
+        $this->assertSame(14_965.0, $item->unit_price);
         $this->assertSame(805_117_000, $item->amount);
         $this->assertSame(805_117_000, $invoice->amount_remaining);
         $this->assertSame(44116.0, $invoice->foreign_remaining);

@@ -26,7 +26,9 @@ class InvoiceItem extends Model
 
     protected $casts = [
         'quantity' => 'decimal:3',
-        'unit_price' => 'integer',
+        // Rupiah per unit, boleh bersen (decimal 15,2); float agar tetap angka di JSON & Blade. Jumlah baris
+        // (amount) tetap Rupiah bulat.
+        'unit_price' => 'float',
         'foreign_unit_price' => 'decimal:4',
         'amount' => 'integer',
         'cogs_amount' => 'integer',

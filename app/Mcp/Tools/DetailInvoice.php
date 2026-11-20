@@ -26,7 +26,7 @@ class DetailInvoice extends AlatKeuangan
 
     protected string $name = 'detail-invoice';
 
-    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga, HPP, titipan pajak), diskon, DPP, PPN, PPh 23 yang dipotong klien, faktur, total (= yang ditransfer klien, sudah dikurangi PPh 23), pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
+    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga satuan — boleh bersen —, HPP, titipan pajak), diskon, DPP, PPN, PPh 23 yang dipotong klien, faktur, total (= yang ditransfer klien, sudah dikurangi PPh 23), pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
 
     protected function izin(): string
     {
@@ -111,7 +111,8 @@ class DetailInvoice extends AlatKeuangan
                     : null,
                 'qty' => (float) $item->quantity,
                 'satuan' => $item->unit,
-                'harga_satuan' => (int) $item->unit_price,
+                // Harga satuan boleh bersen (mis. 9459.46); nominal lain tetap rupiah penuh.
+                'harga_satuan' => fmod((float) $item->unit_price, 1.0) !== 0.0 ? round((float) $item->unit_price, 2) : (int) $item->unit_price,
                 'jumlah' => (int) $item->amount,
                 'hpp' => (int) $item->cogs_amount,
                 'titipan_pajak' => (bool) $item->is_tax_deposit,

@@ -218,7 +218,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
         $items = collect($data['items'])->map(fn (array $item): array => [
             ...$item,
             'client_id' => $client->id,
-            'unit_price' => isset($item['foreign_unit_price']) ? (int) round($item['foreign_unit_price'] * $kurs) : $item['unit_price'],
+            'unit_price' => isset($item['foreign_unit_price']) ? round($item['foreign_unit_price'] * $kurs, 2) : $item['unit_price'],
             'amount' => isset($item['foreign_unit_price'])
                 ? Invoice::foreignLineAmount((float) $item['quantity'], $item['foreign_unit_price'], $kurs)
                 : (int) round($item['unit_price'] * $item['quantity']),

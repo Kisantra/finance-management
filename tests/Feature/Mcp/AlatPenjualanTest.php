@@ -222,6 +222,18 @@ class AlatPenjualanTest extends TestCase
 
     // ── detail-invoice ───────────────────────────────────────────────────────
 
+    public function test_detail_invoice_harga_satuan_bersen_tetap_bersen(): void
+    {
+        $klien = Client::factory()->company()->create(['name' => 'PT Harga Bersen']);
+        $invoice = $this->invoice($klien, ['invoice_number' => '008/INV/UJI/X/2026', 'total_amount' => 529_729_760]);
+        $this->item($invoice, $klien, ['service_name' => 'Stevedoring', 'quantity' => 56000, 'unit' => 'MT', 'unit_price' => 9459.46, 'amount' => 529_729_760]);
+
+        $item = $this->isi($this->panggil(DetailInvoice::class, ['nomor' => '008/INV/UJI/X/2026']))['item'][0];
+
+        $this->assertSame(9459.46, $item['harga_satuan']);
+        $this->assertSame(529_729_760, $item['jumlah']);
+    }
+
     public function test_detail_invoice_memuat_item_pajak_pembayaran_dan_laba_seperti_drawer(): void
     {
         $klien = Client::factory()->company()->create(['name' => 'PT Detail Uji', 'NPWP' => '01.234.567.8-901.000']);

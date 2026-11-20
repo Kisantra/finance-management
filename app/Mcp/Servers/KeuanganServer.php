@@ -35,7 +35,7 @@ class KeuanganServer extends Server
         Cara memakai:
         - Panggil `daftar-perusahaan` lebih dulu. Setiap alat lain wajib diberi argumen `perusahaan` berisi kode dari daftar itu.
         - Pengguna bisa saja anggota beberapa perusahaan (satu grup). Data tiap perusahaan terpisah; bandingkan atau jumlahkan sendiri bila diminta, dan sebutkan perusahaan mana yang dihitung.
-        - Semua nominal dalam rupiah penuh (integer, tanpa desimal). Tanggal berformat YYYY-MM-DD.
+        - Semua nominal dalam rupiah penuh (integer, tanpa desimal), kecuali harga satuan item invoice yang boleh bersen (mis. 9459.46). Tanggal berformat YYYY-MM-DD.
         - Daftar yang panjang dibagi per halaman: perhatikan `halaman`, `total_halaman`, dan panggil lagi dengan `halaman` berikutnya bila perlu data lengkap.
         - Bila alat menjawab tidak punya izin, sampaikan apa adanya; jangan menebak angka.
         - Jawab dalam bahasa pengguna; sebut sumber angka (nama alat dan rentang tanggal) bila pengguna mengambil keputusan dari angka itu.

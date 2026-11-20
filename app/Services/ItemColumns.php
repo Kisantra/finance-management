@@ -66,7 +66,7 @@ class ItemColumns
                 'align' => 'right',
                 'format' => 'rupiah',
                 'default' => true,
-                'resolve' => fn (InvoiceItem $item, int $idx): string => TemplateTokens::formatRupiah((int) $item->unit_price),
+                'resolve' => fn (InvoiceItem $item, int $idx): string => TemplateTokens::formatRupiah($item->unit_price),
             ],
             [
                 'key' => 'amount',

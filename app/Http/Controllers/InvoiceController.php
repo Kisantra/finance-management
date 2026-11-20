@@ -692,9 +692,12 @@ class InvoiceController extends Controller
             $foreignUnitPrice = isset($item['foreign_unit_price']) && $item['foreign_unit_price'] !== '' && $exchangeRate
                 ? round((float) $item['foreign_unit_price'], 4)
                 : null;
-            // Harga USD: Rupiah per unit dibulatkan hanya untuk tampilan; jumlah baris dihitung dari harga USD
-            // supaya sama persis dengan dokumen asli (Invoice::foreignLineAmount).
-            $unitPrice = $foreignUnitPrice !== null ? (int) round($foreignUnitPrice * $exchangeRate) : (int) ($item['unit_price'] ?? 0);
+            // Harga Rupiah per unit boleh bersen; jumlah baris tetap Rupiah bulat. Harga USD: Rupiah per unit
+            // (ke sen) hanya untuk tampilan; jumlah baris dihitung dari harga USD supaya sama persis dengan
+            // dokumen asli (Invoice::foreignLineAmount).
+            $unitPrice = $foreignUnitPrice !== null
+                ? round($foreignUnitPrice * $exchangeRate, 2)
+                : round((float) ($item['unit_price'] ?? 0), 2);
             $amount = $foreignUnitPrice !== null
                 ? Invoice::foreignLineAmount($quantity, $foreignUnitPrice, $exchangeRate)
                 : (int) round($unitPrice * $quantity);
