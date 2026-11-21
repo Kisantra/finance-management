@@ -105,8 +105,10 @@ export function AppLayout({ children, contentClassName }: AppLayoutProps) {
             <ResourceModalHost />
 
             {/* Label aria bawaan Sonner berbahasa Inggris ("Notifications", "Close toast"): diterjemahkan. */}
+            {/* closeButton: setiap toast bisa ditutup tanpa menunggu durasinya habis. */}
             <Toaster
                 richColors
+                closeButton
                 position="top-right"
                 containerAriaLabel={t('Notifikasi')}
                 toastOptions={{ closeButtonAriaLabel: t('Tutup notifikasi') }}
