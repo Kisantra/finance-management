@@ -50,9 +50,10 @@ export interface InvoiceDetail {
     id: number;
     invoice_number: string | null;
     next_invoice_number: string | null;
-    /** Debit Note = semua item talangan (tanpa PPN, bukan pendapatan). */
     document_type: 'invoice' | 'debit_note';
     document_code: string | null;
+    /** Debit Note talangan: semua item talangan (tanpa PPN, bukan pendapatan). false = invoice / Debit Note tagihan jasa. */
+    is_pass_through: boolean;
     status: 'draft' | 'sent' | 'partially_paid' | 'paid';
     issue_date: string;
     due_date: string;
@@ -388,7 +389,7 @@ function DrawerBody({
 }) {
     const [zoom, setZoom] = React.useState<PaperZoom>('fit');
 
-    const isDebitNote = detail.document_type === 'debit_note';
+    const isPassThrough = detail.is_pass_through;
     const services = detail.items.filter((i) => !i.is_tax_deposit);
     const serviceTotal = services.reduce((s, i) => s + i.amount, 0);
     const deposits = detail.items.filter((i) => i.is_tax_deposit).reduce((s, i) => s + i.amount, 0);
@@ -438,7 +439,7 @@ function DrawerBody({
                     </>
                 )}
                 <Metric label={t('Sisa tagihan')} value={remainingLabel} />
-                {isDebitNote ? (
+                {isPassThrough ? (
                     <Metric label={t('Talangan')} value={rp(deposits)} sub={t('Diganti klien · bukan pendapatan')} />
                 ) : (
                     <Metric label={t('Laba kotor')} value={rp(grossProfit)} valueClass={grossProfit < 0 ? 'text-ob-late' : undefined} sub={t('Pendapatan − HPP')} />
@@ -485,14 +486,14 @@ function DrawerBody({
                             </thead>
                             <tbody>
                                 {detail.items.map((item) => (
-                                    <tr key={item.id} className={cn('border-b border-ob-line-soft', item.is_tax_deposit && !isDebitNote && 'bg-ob-inner')}>
+                                    <tr key={item.id} className={cn('border-b border-ob-line-soft', item.is_tax_deposit && !isPassThrough && 'bg-ob-inner')}>
                                         <td className="py-2.5 pl-2.5">
                                             <span className="flex items-center gap-2 font-medium text-ob-ink">
-                                                {item.is_tax_deposit && !isDebitNote && <ReceiptText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />}
+                                                {item.is_tax_deposit && !isPassThrough && <ReceiptText className="h-4 w-4 shrink-0 text-ob-ink-2" aria-hidden="true" />}
                                                 {item.service_name}
                                             </span>
                                             <span className="block text-xs text-ob-ink-2">
-                                                {isDebitNote
+                                                {isPassThrough
                                                     ? t('Talangan · bukan pendapatan')
                                                     : item.is_tax_deposit
                                                       ? t('Titipan pajak · bukan pendapatan')
@@ -508,7 +509,7 @@ function DrawerBody({
                             </tbody>
                         </table>
                         <div className="ml-auto flex w-full max-w-[300px] flex-col gap-1">
-                            {isDebitNote ? (
+                            {isPassThrough ? (
                                 <SumRow label={t('Talangan')} value={rp(deposits)} />
                             ) : (
                                 <>
@@ -800,7 +801,7 @@ function PaymentDialog({
               isForeign ? settle(usdBefore) : paidBefore(detail.payments, form.payment_date, payment?.id ?? null),
               detail.tax_deposit_total,
               detail.ppn_amount,
-              depositAccountFor(detail.document_type),
+              depositAccountFor(detail.is_pass_through),
               detail.pph_amount,
               detail.total_amount,
               isForeign ? settle(usdBefore + form.foreign_amount) - settle(usdBefore) : null,
@@ -953,7 +954,7 @@ function PaymentDialog({
                         mode="preview"
                         lines={journal}
                         caption={
-                            detail.document_type === 'debit_note'
+                            detail.is_pass_through
                                 ? t('Jurnal otomatis dari rekening & Debit Note (talangan, tanpa PPN) · belum buku besar')
                                 : t('Jurnal otomatis dari rekening & invoice (titipan pajak dulu, lalu PPN) · belum buku besar')
                         }

@@ -11,6 +11,7 @@
 > (§3 *Bayar*); AR → 税务客户经理; label "Buat …" diseragamkan ke 新建.
 > **v1.4 (18 Nov 2026):** istilah Debit Note & talangan (fitur Debit Note PT SLU), bertanda **[v1.4]**.
 > **v1.5 (20 Nov 2026):** istilah tagihan USD & kurs (fitur tagihan USD PT BCB), bertanda **[v1.5]**.
+> **v1.6 (21 Nov 2026):** sifat Debit Note (talangan / tagihan jasa) dan isian ATTENTION invoice, bertanda **[v1.6]**.
 > Entri yang istilah Indonesianya berubah bertanda **[baku baru]** beserta ID perapiannya.
 > **Belum ditinjau penutur asli Mandarin.** Setiap pilihan istilah pajak/akuntansi diberi alasan dan rujukan,
 > supaya pemeriksa terjemah-balik (T2) dan peninjau kelak bisa menilai, bukan menebak.
@@ -220,6 +221,8 @@ Kolom **Catatan/alasan**: "dipakai ulang" = pilihan dari berkas `lang/zh` lama y
 | Debit Note (jenis dokumen) | Debit note | 借项通知单 | **[v1.4, 18 Nov 2026]** Dokumen tagihan untuk biaya yang dibayar lebih dulu atas nama klien (talangan), di samping invoice (账单). Judul halaman "Buat/Ubah Debit Note" → 新建/编辑借项通知单 (EN Title Case seperti "Create Invoice"). Judul PDF tetap "DEBIT NOTE" (K2). |
 | Talangan | Disbursement | 代垫款 | **[v1.4]** Uang yang perusahaan bayarkan dulu untuk klien lalu diganti klien: pass-through seperti titipan pajak, bukan pendapatan. PRC mencatatnya di 其他应收款—代垫款项. **Bukan** 预付款 (uang muka ke pemasok) maupun 借款 (pinjaman). |
 | Talangan Biaya Klien (akun) | Client disbursements | 代垫客户费用 | **[v1.4]** Akun jurnal sistem (`JournalService::TALANGAN`), sama persis dengan akun lawan kategori "Bayar Talangan Klien" (nama kategori = data, U6). |
+| Tagihan jasa (sifat Debit Note) | Service charges | 服务收费 | **[v1.6, 21 Nov 2026]** Debit Note yang menagih jasa perusahaan dan dihitung seperti invoice (PPN, PPh 23, HPP), lawan dari Talangan. Label pilihannya "Isi Debit Note" → Debit note for / 借项通知单性质. **Bukan** 服务账单 (账单 = invoice, jenis dokumen lain). |
+| Untuk perhatian (ATTENTION) | Attention (ATTENTION) | 收件人（ATTENTION） | **[v1.6, 21 Nov 2026]** Isian editor invoice untuk baris ATTENTION header PDF perusahaan (mis. "Direktur Finance & Accounting"); kosong = PIC klien. "ATTENTION" tetap kapital karena label PDF (K2). |
 | Jenis dokumen / Kode jenis | Document type / Document code | 单据类型 / 单据代码 | **[v1.4]** Isian editor invoice; kode (FINAL, PNBP, …) ikut ke nomor lewat token `{KODE}`. |
 | Kurs | Exchange rate | 汇率 | **[v1.5, 20 Nov 2026]** Kurs manual Rp per 1 USD di invoice dan pembayaran. "Kurs (Rp per 1 USD)" → 汇率（每 1 USD 兑 Rp）; "kurs {{rate}}" dalam kalimat pendek → EN "rate {{rate}}", ZH 汇率 {{rate}}. **Bukan** 牌价/外汇牌价 (kurs resmi bank). |
 | Selisih kurs / Laba selisih kurs / Rugi selisih kurs | Exchange difference / Exchange gain / Exchange loss | 汇兑差额 / 汇兑收益 / 汇兑损失 | **[v1.5]** Rupiah yang masuk dari pembayaran tagihan USD dikurangi nilainya dengan kurs invoice. "Selisih Kurs" juga akun jurnal sistem (`JournalService::EXCHANGE_DIFFERENCE`; EN server "Exchange Difference"). Laba/rugi tampil di Pendapatan Lain / Beban Lain (其他收入 / 其他费用). PRC: 财务费用—汇兑损益. |

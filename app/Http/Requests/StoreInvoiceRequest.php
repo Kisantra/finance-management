@@ -27,9 +27,13 @@ class StoreInvoiceRequest extends FormRequest
             'issue_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:issue_date'],
             'subject' => ['nullable', 'string', 'max:255'],
-            // Debit Note hanya untuk perusahaan yang punya template Debit Note.
-            'document_type' => ['nullable', Rule::in(self::documentTypes())],
+            // Baris ATTENTION di header PDF template perusahaan; kosong = penanggung jawab di data klien.
+            'attention' => ['nullable', 'string', 'max:255'],
+            // Debit Note hanya untuk perusahaan bertemplate Debit Note yang menyalakannya di Profil perusahaan.
+            'document_type' => ['nullable', Rule::in(self::documentTypes($this->route('invoice')))],
             'document_code' => self::documentCodeRules(),
+            // Sifat Debit Note: true = talangan, false = tagihan jasa (dihitung seperti invoice). Diabaikan untuk invoice.
+            'is_pass_through' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.client_id' => ['nullable', Rule::exists('clients', 'id')->where('status', Client::STATUS_ACTIVE)],
             'items.*.service_name' => ['required', 'string', 'max:255'],
@@ -80,10 +84,15 @@ class StoreInvoiceRequest extends FormRequest
             || ($invoice !== null && ($invoice->isForeign() || $invoice->exchange_rate !== null));
     }
 
-    /** @return list<string> */
-    public static function documentTypes(): array
+    /**
+     * Jenis dokumen yang boleh disimpan: Debit Note hanya bila editor menawarkannya
+     * (CompanyInvoiceTemplate::offersDebitNote), termasuk Debit Note lama walau sakelarnya sudah mati.
+     *
+     * @return list<string>
+     */
+    public static function documentTypes(?Invoice $invoice = null): array
     {
-        return CompanyInvoiceTemplate::supportsDebitNote() ? Invoice::TYPES : [Invoice::TYPE_INVOICE];
+        return CompanyInvoiceTemplate::offersDebitNote($invoice) ? Invoice::TYPES : [Invoice::TYPE_INVOICE];
     }
 
     /**
@@ -113,6 +122,7 @@ class StoreInvoiceRequest extends FormRequest
             'items.required' => __('Tambahkan minimal satu item.'),
             'items.min' => __('Tambahkan minimal satu item.'),
             'subject.max' => __('Perihal maksimal 255 karakter.'),
+            'attention.max' => __('ATTENTION maksimal 255 karakter.'),
             'items.*.service_name.required' => __('Nama layanan baris :position wajib diisi.'),
             'items.*.description.max' => __('Keterangan baris :position maksimal 2000 karakter.'),
             'items.*.quantity.required' => __('Qty baris :position wajib diisi.'),

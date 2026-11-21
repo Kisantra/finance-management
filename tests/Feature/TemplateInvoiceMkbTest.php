@@ -66,6 +66,8 @@ class TemplateInvoiceMkbTest extends TestCase
 
         // Suite ini satu database: satu profil untuk semua perusahaan, berisi data & format nomor MKB.
         CompanyProfile::factory()->create([
+            // Sakelar Debit Note di Profil perusahaan (bawaan mati).
+            'debit_note_enabled' => true,
             'name' => 'PT. Mitra Kellian Baruna',
             'abbreviation' => 'MKB',
             'address' => "Jl. Contoh No. 1 RT.24,\nKota Samarinda, Kalimantan Timur",
@@ -345,9 +347,9 @@ class TemplateInvoiceMkbTest extends TestCase
         $this->assertMatchesRegularExpression('#<td colspan="2" class="label">GRAND TOTAL</td>#', $html);
         $this->assertStringContainsString('12.000.000', $html);
         // Talangan: tanpa baris PPN/PPh (cek penanda baris; logo base64 bisa memuat huruf apa pun).
-        $this->assertStringNotContainsString('baris-ppn', $html);
-        $this->assertStringNotContainsString('baris-pph', $html);
-        $this->assertStringNotContainsString('baris-bruto', $html);
+        $this->assertStringNotContainsString('<tr class="baris-ppn">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-pph">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-bruto">', $html);
         $this->assertStringNotContainsString('I N V O I C E', $html);
 
         $this->actingAs($this->admin)->get(self::BASE."/invoice/{$debitNote->id}/download")

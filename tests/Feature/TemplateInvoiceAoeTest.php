@@ -66,6 +66,8 @@ class TemplateInvoiceAoeTest extends TestCase
 
         // Suite ini satu database: satu profil untuk semua perusahaan, berisi data & format nomor AOE.
         CompanyProfile::factory()->create([
+            // Sakelar Debit Note di Profil perusahaan (bawaan mati).
+            'debit_note_enabled' => true,
             'name' => 'PT. Abdi Ocean Energy',
             'abbreviation' => 'AOE',
             'address' => "Jl. Contoh No. 2, Desa Contoh,\nKabupaten Kutai Kartanegara",
@@ -350,9 +352,9 @@ class TemplateInvoiceAoeTest extends TestCase
         $this->assertMatchesRegularExpression('#<tr class="baris-tagihan">\s*<td colspan="2" class="label">Total Debit Note</td>#', $html);
         $this->assertStringNotContainsString('GRAND TOTAL', $html);
         // Talangan: tanpa baris PPN/PPh (cek penanda baris; logo base64 bisa memuat huruf apa pun).
-        $this->assertStringNotContainsString('baris-ppn', $html);
-        $this->assertStringNotContainsString('baris-pph', $html);
-        $this->assertStringNotContainsString('baris-bruto', $html);
+        $this->assertStringNotContainsString('<tr class="baris-ppn">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-pph">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-bruto">', $html);
         $this->assertStringNotContainsString('I N V O I C E', $html);
 
         $this->actingAs($this->admin)->get(self::BASE."/invoice/{$debitNote->id}/download")

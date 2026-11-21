@@ -51,7 +51,7 @@ class InvoicePphTest extends TestCase
         $this->admin->assignRole('admin');
         $this->client = Client::factory()->create();
 
-        CompanyProfile::factory()->create(['is_pkp' => true, 'ppn_rate' => 11, 'pph_enabled' => true, 'pph_rate' => 2, 'bank_accounts' => []]);
+        CompanyProfile::factory()->create(['is_pkp' => true, 'ppn_rate' => 11, 'pph_enabled' => true, 'pph_rate' => 2, 'debit_note_enabled' => true, 'bank_accounts' => []]);
     }
 
     /** @return array<string, mixed> */

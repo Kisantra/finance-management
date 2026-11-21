@@ -227,7 +227,7 @@ class JournalService
 
         $invoices = Invoice::query()->whereIn('id', $invoiceIds)
             ->withSum(['items as tax_deposit_total' => fn ($q) => $q->where('is_tax_deposit', true)], 'amount')
-            ->get(['id', 'ppn_amount', 'pph_amount', 'total_amount', 'document_type', 'currency', 'exchange_rate', 'total_foreign'])
+            ->get(['id', 'ppn_amount', 'pph_amount', 'total_amount', 'document_type', 'is_pass_through', 'currency', 'exchange_rate', 'total_foreign'])
             ->keyBy('id');
 
         // Jumlah yang sudah dibayar SEBELUM tiap pembayaran. Tagihan USD dinilai dengan kurs invoice dari USD
@@ -263,7 +263,7 @@ class JournalService
                 $dibayarSebelum[$row->id] ?? 0,
                 (int) ($invoice->tax_deposit_total ?? 0),
                 (int) ($invoice->ppn_amount ?? 0),
-                self::depositAccountFor($invoice?->document_type),
+                self::depositAccountFor((bool) $invoice?->isPassThrough()),
                 (int) ($invoice->pph_amount ?? 0),
                 (int) ($invoice->total_amount ?? 0),
                 $dinilai[$row->id] ?? null,
@@ -271,10 +271,13 @@ class JournalService
         })->all();
     }
 
-    /** Akun bagian titipan pembayaran: talangan untuk Debit Note, titipan pajak untuk invoice. */
-    public static function depositAccountFor(?string $documentType): string
+    /**
+     * Akun bagian titipan pembayaran: talangan untuk Debit Note talangan, titipan pajak untuk invoice dan
+     * Debit Note tagihan jasa (baris titipan pajaknya, mis. WHT 23 yang ditambahkan ke tagihan).
+     */
+    public static function depositAccountFor(bool $passThrough): string
     {
-        return $documentType === Invoice::TYPE_DEBIT_NOTE ? self::TALANGAN : self::TAX_DEPOSIT;
+        return $passThrough ? self::TALANGAN : self::TAX_DEPOSIT;
     }
 
     /**

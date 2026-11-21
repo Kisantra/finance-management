@@ -31,6 +31,8 @@ class UpdateCompanyRequest extends FormRequest
             'pph_rate' => ['nullable', 'required_if_accepted:pph_enabled', 'numeric', 'min:0.01', 'max:100'],
             // Tagihan dalam USD dengan kurs manual (editor invoice & pembayaran).
             'foreign_currency_enabled' => ['nullable', 'boolean'],
+            // Editor invoice menawarkan Debit Note (hanya perusahaan bertemplate Debit Note).
+            'debit_note_enabled' => ['nullable', 'boolean'],
             'finance_manager_name' => ['required', 'string', 'not_in:-'],
             'finance_manager_position' => ['required', 'string', 'not_in:-'],
             'signature_city' => ['nullable', 'string', 'max:100'],

@@ -130,9 +130,12 @@ export function foreignPaidBefore(
         .reduce((sum, p) => sum + (p.foreign_amount ?? 0), 0);
 }
 
-/** JournalService::depositAccountFor — bagian titipan Debit Note dikredit ke talangan, invoice ke titipan pajak. */
-export function depositAccountFor(documentType: string | null | undefined): string {
-    return documentType === 'debit_note' ? JOURNAL_ACCOUNTS.talangan : JOURNAL_ACCOUNTS.taxDeposit;
+/**
+ * JournalService::depositAccountFor — bagian titipan Debit Note talangan dikredit ke talangan; invoice dan
+ * Debit Note tagihan jasa ke titipan pajak.
+ */
+export function depositAccountFor(passThrough: boolean): string {
+    return passThrough ? JOURNAL_ACCOUNTS.talangan : JOURNAL_ACCOUNTS.taxDeposit;
 }
 
 /**

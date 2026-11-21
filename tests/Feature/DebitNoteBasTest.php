@@ -63,6 +63,8 @@ class DebitNoteBasTest extends TestCase
 
         // Suite ini satu database: satu profil untuk semua perusahaan, berisi data & format nomor BAS.
         CompanyProfile::factory()->create([
+            // Sakelar Debit Note di Profil perusahaan (bawaan mati).
+            'debit_note_enabled' => true,
             'name' => 'PT. BERKAH ANDALAN SAMBOJA',
             'abbreviation' => 'BAS',
             'address' => "JL. CONTOH NO. 1\nKALIMANTAN TIMUR",

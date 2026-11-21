@@ -68,13 +68,14 @@ class ContohInvoiceBcbSeederTest extends TestCase
                 '102/BCB-CBS/INV-FENDER/XI/2026',
                 '103/BCB-CBS/DN-OT/XI/2026',
                 '104/BCB-CBS/DN-DEM/XI/2026',
-                '105/BCB-CBS/INV-ORBIT/XI/2026',
+                '105/BCB-CBS/DN-ORBIT/XI/2026',
+                '106/BCB-CBS/DN-FINAL/XI/2026',
             ],
             Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_number')->all(),
         );
         $this->assertSame(1, Invoice::where('status', 'draft')->count());
-        $this->assertSame([100, 101, 102, 103, 104, 105], Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_sequence')->all());
-        $this->assertSame('106/BCB-CBS/INV-FINAL/XI/2026', Invoice::generateInvoiceNumber(Carbon::parse('2026-11-19'), Client::where('name', 'PT. CONTOH BINA SAMUDRA')->value('id'), Invoice::TYPE_INVOICE, 'FINAL'));
+        $this->assertSame([100, 101, 102, 103, 104, 105, 106], Invoice::whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('invoice_sequence')->all());
+        $this->assertSame('107/BCB-CBS/INV-FINAL/XI/2026', Invoice::generateInvoiceNumber(Carbon::parse('2026-11-19'), Client::where('name', 'PT. CONTOH BINA SAMUDRA')->value('id'), Invoice::TYPE_INVOICE, 'FINAL'));
 
         $final = Invoice::with('items')->where('invoice_number', '100/BCB-CBS/INV-FINAL/XI/2026')->sole();
         $this->assertSame('Invoice FINAL MV. CONTOH GLORY', $final->subject);
@@ -83,10 +84,15 @@ class ContohInvoiceBcbSeederTest extends TestCase
         $this->assertSame(75_350_000, (int) $final->ppn_amount);
         $this->assertSame(13_700_000, (int) $final->pph_amount);
         $this->assertSame(746_650_000, (int) $final->total_amount);
-        $this->assertSame(['FINAL', 'MOORING', 'FENDER', 'ORBIT'], Invoice::where('document_type', Invoice::TYPE_INVOICE)->whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('document_code')->all());
+        $this->assertSame(['FINAL', 'MOORING', 'FENDER'], Invoice::where('document_type', Invoice::TYPE_INVOICE)->whereNotNull('invoice_number')->orderBy('invoice_number')->pluck('document_code')->all());
 
-        // Tagihan USD: 50.000 MT × $0,82 × 18.250 = Rp 748.250.000, utang $41.000,00, tanpa PPN/PPh; rekening USD tercetak.
-        $usd = Invoice::with('items')->where('invoice_number', '105/BCB-CBS/INV-ORBIT/XI/2026')->sole();
+        // Debit Note tagihan jasa dalam USD: 50.000 MT × $0,82 × 18.250 = Rp 748.250.000, utang $41.000,00, tanpa
+        // PPN/PPh, dan pendapatan (bukan talangan); rekening USD tercetak.
+        $usd = Invoice::with('items')->where('invoice_number', '105/BCB-CBS/DN-ORBIT/XI/2026')->sole();
+        $this->assertTrue($usd->isDebitNote());
+        $this->assertFalse($usd->isPassThrough());
+        $this->assertFalse($usd->items->first()->is_tax_deposit);
+        $this->assertSame(748_250_000, $usd->gross_profit);
         $this->assertSame('USD', $usd->currency);
         $this->assertSame(748_250_000, $usd->total_amount);
         $this->assertSame('41000.00', $usd->total_foreign);
@@ -94,8 +100,17 @@ class ContohInvoiceBcbSeederTest extends TestCase
         $this->assertTrue($profile->foreign_currency_enabled);
         $this->assertSame('USD', $profile->bank_accounts[1]['currency']);
 
-        // Debit Note: talangan, tanpa PPN/PPh, total = yang dibayar BCB.
-        $debitNotes = Invoice::with('items')->where('document_type', Invoice::TYPE_DEBIT_NOTE)->orderBy('invoice_number')->get();
+        // FINAL: sisa tagihan (pendapatan) + WHT 23 2% dari nilai final penuh sebagai baris titipan pajak.
+        $final = Invoice::with('items')->where('invoice_number', '106/BCB-CBS/DN-FINAL/XI/2026')->sole();
+        $this->assertFalse($final->isPassThrough());
+        $this->assertSame([false, true], $final->items->pluck('is_tax_deposit')->all());
+        $this->assertSame(26_413_225, $final->total_amount);
+        $this->assertSame('1447.30', $final->total_foreign);
+        $this->assertSame(0, $final->ppn_amount);
+        $this->assertSame(11_223_750, $final->gross_profit);
+
+        // Debit Note talangan: tanpa PPN/PPh, total = yang dibayar BCB.
+        $debitNotes = Invoice::with('items')->where('document_type', Invoice::TYPE_DEBIT_NOTE)->where('is_pass_through', true)->orderBy('invoice_number')->get();
         $this->assertSame(['OT', 'DEM'], $debitNotes->pluck('document_code')->all());
         $this->assertSame([27_500_000, 15_000_000], $debitNotes->pluck('total_amount')->all());
         $this->assertTrue($debitNotes->every(fn (Invoice $dn) => $dn->items->every('is_tax_deposit') && $dn->ppn_amount === 0 && $dn->pph_rate === null));
@@ -111,8 +126,8 @@ class ContohInvoiceBcbSeederTest extends TestCase
 
         // BCB & MKB sudah dibuat MitraGroupSeeder: tidak diprovisioning ulang.
         Event::assertDispatchedTimes(TenantCreated::class, 10);
-        // Suite ini satu database: 7 dokumen BCB + 6 dokumen MKB, masing-masing satu klien.
-        $this->assertSame(13, Invoice::count());
+        // Suite ini satu database: 8 dokumen BCB + 6 dokumen MKB, masing-masing satu klien.
+        $this->assertSame(14, Invoice::count());
         $this->assertSame(1, Client::where('name', 'PT. CONTOH BINA SAMUDRA')->count());
         $this->assertSame(1, User::where('email', 'admin.bcb@mitragroup.id')->count());
         $this->assertSame([self::BCB], User::where('email', 'admin.bcb@mitragroup.id')->sole()->companies()->pluck('companies.id')->all());

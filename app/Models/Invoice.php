@@ -18,8 +18,9 @@ class Invoice extends Model
     public const TYPE_INVOICE = 'invoice';
 
     /**
-     * Debit Note: menagih kembali biaya yang perusahaan bayar lebih dulu atas nama klien (talangan,
-     * mis. PNBP). Semua itemnya titipan (`is_tax_deposit`), jadi tanpa PPN dan bukan pendapatan.
+     * Debit Note. Sifatnya di `is_pass_through` (isPassThrough()): talangan — menagih kembali biaya yang
+     * perusahaan bayar lebih dulu atas nama klien (mis. PNBP), semua item titipan, tanpa PPN dan bukan
+     * pendapatan — atau tagihan jasa yang dihitung seperti invoice, hanya judul & nomornya Debit Note.
      */
     public const TYPE_DEBIT_NOTE = 'debit_note';
 
@@ -44,8 +45,10 @@ class Invoice extends Model
         'invoice_number',
         'document_type',
         'document_code',
+        'is_pass_through',
         'billed_to_id',
         'subject',
+        'attention',
         'subtotal',
         'discount_amount',
         'discount_type',
@@ -68,6 +71,7 @@ class Invoice extends Model
     protected $casts = [
         'issue_date' => 'date',
         'due_date' => 'date',
+        'is_pass_through' => 'boolean',
         'subtotal' => 'integer',
         'discount_amount' => 'integer',
         'discount_value' => 'integer',
@@ -151,6 +155,15 @@ class Invoice extends Model
     public function isDebitNote(): bool
     {
         return $this->document_type === self::TYPE_DEBIT_NOTE;
+    }
+
+    /**
+     * Debit Note talangan: semua item titipan, tanpa PPN/PPh, dan pembayarannya dijurnal ke Talangan Biaya
+     * Klien. Debit Note tanpa sifat tersimpan (dibuat sebelum kolom ini ada) dianggap talangan.
+     */
+    public function isPassThrough(): bool
+    {
+        return $this->isDebitNote() && $this->is_pass_through !== false;
     }
 
     /**

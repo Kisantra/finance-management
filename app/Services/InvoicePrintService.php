@@ -119,6 +119,8 @@ class InvoicePrintService
         return [
             'invoice' => $invoice,
             'client' => $invoice->client,
+            // Baris ATTENTION template perusahaan: isian editor, kosong = penanggung jawab di data klien.
+            'perhatian' => $invoice->attention ?: $invoice->client?->person_in_charge,
             'items' => $invoice->items,
             'regular_items' => $regularItems,
             'tax_deposit_items' => $taxDepositItems,

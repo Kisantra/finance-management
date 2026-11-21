@@ -26,7 +26,7 @@ class DetailInvoice extends AlatKeuangan
 
     protected string $name = 'detail-invoice';
 
-    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga satuan — boleh bersen —, HPP, titipan pajak), diskon, DPP, PPN, PPh 23 yang dipotong klien, faktur, total (= yang ditransfer klien, sudah dikurangi PPh 23), pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" = tagihan talangan (biaya yang dibayar dulu atas nama klien): semua itemnya titipan, tanpa PPN, bukan pendapatan. Draft belum bernomor: pakai id dari daftar-invoice.';
+    protected string $description = 'Rincian satu invoice (nomor atau id): klien, item (qty, harga satuan — boleh bersen —, HPP, titipan pajak), diskon, DPP, PPN, PPh 23 yang dipotong klien, faktur, total (= yang ditransfer klien, sudah dikurangi PPh 23), pembayaran (tanggal, nominal, rekening), dibayar & sisa, serta HPP dan laba kotor (pendapatan tanpa PPN & titipan pajak dikurangi HPP, sama dengan drawer invoice di aplikasi). Jenis "Debit Note" punya sifat_debit_note: "talangan" (biaya yang dibayar dulu atas nama klien: semua itemnya titipan, tanpa PPN/PPh, bukan pendapatan) atau "tagihan jasa" (dihitung persis seperti invoice, hanya judul & nomornya Debit Note). Draft belum bernomor: pakai id dari daftar-invoice.';
 
     protected function izin(): string
     {
@@ -88,6 +88,8 @@ class DetailInvoice extends AlatKeuangan
                 'nomor' => $invoice->invoice_number,
                 'jenis' => DaftarInvoice::labelJenis($invoice->document_type),
                 'kode_jenis' => $invoice->document_code,
+                // Debit Note talangan = penggantian biaya, bukan pendapatan; tagihan jasa = dihitung seperti invoice.
+                ...($invoice->isDebitNote() ? ['sifat_debit_note' => $invoice->isPassThrough() ? 'talangan' : 'tagihan jasa'] : []),
                 'status' => $invoice->status,
                 'status_label' => DaftarInvoice::labelStatus($invoice->status),
                 'terbit' => $invoice->issue_date?->format('Y-m-d'),

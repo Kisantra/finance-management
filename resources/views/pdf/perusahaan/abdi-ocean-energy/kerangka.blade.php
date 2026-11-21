@@ -311,11 +311,11 @@
                 <td>{!! nl2br(e($client->address)) !!}</td>
             </tr>
         @endif
-        @if (filled($client->person_in_charge))
+        @if (filled($perhatian))
             <tr>
                 <td class="label">ATTENTION</td>
                 <td class="titik">:</td>
-                <td>{{ $client->person_in_charge }}</td>
+                <td>{{ $perhatian }}</td>
             </tr>
         @endif
         <tr>

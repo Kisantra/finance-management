@@ -4,13 +4,15 @@
     kotak alamat & rekening, dan tanda tangan sama dengan invoice (kerangka.blade.php); judulnya DEBIT NOTE dan
     tabelnya bergaya tabel Excel tersemat di dokumen asli — judul kolom biru seperti invoice, No · Keterangan ·
     TOTAL (Rp), tabel selebar 16 cm, baris item setinggi 34,5pt, GRAND TOTAL bergaris tunggal.
-    Debit Note BCB untuk klien luar negeri (USD, kurs, WHT 23, TOTAL OUTSTANDING) bukan talangan dan belum
-    didukung template ini.
+    Debit Note BCB untuk klien luar negeri (jasa per ton dalam USD, kurs, PPN, WHT 23, TOTAL OUTSTANDING)
+    bukan talangan: dibuat sebagai Debit Note tagihan jasa, dan WHT 23 yang ditambahkan ke tagihan ditulis
+    sebagai baris item bertanda titipan pajak (baris bernomor seperti dokumen asli).
     Kolom Quantity & PRICE hanya muncul bila ada item ber-qty selain 1 (mis. 3 hari × tarif harian); tagihan
     sekali bayar cukup No · Keterangan · TOTAL, seperti dokumen asli. Rincian (nomor nota, tanggal, kapal)
     ditulis di keterangan item.
-    Item Debit Note selalu talangan (tanpa PPN/PPh), jadi baris total hanya GRAND TOTAL (atau tagihan uang
-    muka/pelunasan). Adanya berkas ini membuat BCB bisa memilih jenis dokumen Debit Note di editor
+    Debit Note talangan tanpa PPN/PPh, jadi baris totalnya hanya GRAND TOTAL (atau tagihan uang
+    muka/pelunasan); Debit Note tagihan jasa bisa ber-PPN/PPh 23, barisnya ditata seperti invoice BCB.
+    Adanya berkas ini membuat BCB bisa memilih jenis dokumen Debit Note di editor
     (CompanyInvoiceTemplate::supportsDebitNote()).
 --}}
 @extends('pdf.perusahaan.bahtera-cipta-bersama.kerangka')
@@ -97,6 +99,8 @@
 
         /* Gaya baris total per jenis (InvoiceTotalRows). Baris tagihan = GRAND TOTAL dokumen asli:
            tebal, label di tengah, nominal 12pt, garis tunggal (beda dengan invoice). */
+        .totals-table tr.baris-dpp td.label,
+        .totals-table tr.baris-bruto td.label,
         .totals-table tr.baris-total td.label,
         .totals-table tr.baris-tagihan td {
             font-weight: bold;
@@ -120,6 +124,7 @@
             text-align: center;
         }
 
+        .totals-table tr.baris-pph td.c-total,
         .totals-table tr.baris-diterima td.c-total {
             color: #ff0000;
         }

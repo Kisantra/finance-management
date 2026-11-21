@@ -52,6 +52,8 @@ class ContohInvoiceAoeSeeder extends ContohInvoicePerusahaanSeeder
             'finance_manager_position' => 'Direktur Utama',
             'signature_city' => 'Samarinda',
             'bank_accounts' => [['bank' => 'Bank Mandiri', 'account_number' => '148-00-3122555-3', 'account_name' => 'PT. ABDI OCEAN ENERGY']],
+            // Contoh Debit Note ikut dibuat: sakelar Debit Note di Profil perusahaan menyala.
+            'debit_note_enabled' => true,
             'invoice_number_format' => '{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}',
             'invoice_number_padding' => 3,
             'invoice_number_reset' => 'yearly',
