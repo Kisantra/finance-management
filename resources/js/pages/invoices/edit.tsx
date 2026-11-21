@@ -21,6 +21,8 @@ interface InvoiceData {
     status: string;
     document_type: DocumentType;
     document_code: string | null;
+    /** Sifat Debit Note (true = talangan); invoice membawa bawaan talangan bila jenisnya diganti. */
+    is_pass_through: boolean;
     client_id: number;
     issue_date: string;
     due_date: string;
@@ -32,6 +34,7 @@ interface InvoiceData {
     pph_rate: number | null;
     faktur: string | null;
     subject: string | null;
+    attention: string | null;
     currency: Currency;
     /** Kurs tersimpan (Rp per 1 USD); null = tidak memakai kurs. */
     exchange_rate: number | null;
@@ -85,9 +88,11 @@ function EditInvoicePage({ invoice, clients, services, ppn, pph, foreignCurrency
             }}
             initialData={{
                 document_type: invoice.document_type,
+                is_pass_through: invoice.is_pass_through,
                 document_code: invoice.document_code ?? '',
                 client_id: invoice.client_id,
                 subject: invoice.subject ?? '',
+                attention: invoice.attention ?? '',
                 issue_date: invoice.issue_date,
                 due_date: invoice.due_date,
                 discount_type: invoice.discount_type,

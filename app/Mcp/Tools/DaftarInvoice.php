@@ -218,7 +218,7 @@ class DaftarInvoice extends AlatKeuangan
         return $status === null ? null : (self::LABEL_STATUS[$status] ?? $status);
     }
 
-    /** "Invoice" atau "Debit Note" (talangan: tanpa PPN, bukan pendapatan). */
+    /** "Invoice" atau "Debit Note" (sifatnya — talangan atau tagihan jasa — di detail-invoice). */
     public static function labelJenis(?string $documentType): string
     {
         return $documentType === Invoice::TYPE_DEBIT_NOTE ? 'Debit Note' : 'Invoice';

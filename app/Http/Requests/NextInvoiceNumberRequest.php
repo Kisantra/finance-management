@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Invoice;
+use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,7 +23,9 @@ class NextInvoiceNumberRequest extends FormRequest
         return [
             'client_id' => ['required', 'integer', 'exists:clients,id'],
             'issue_date' => ['required', 'date'],
-            'document_type' => ['nullable', Rule::in(StoreInvoiceRequest::documentTypes())],
+            // Hanya menghitung nomor (tanpa menyimpan): draft Debit Note lama tetap bisa diterbitkan walau
+            // sakelar Debit Note sudah dimatikan, jadi cukup diperiksa template-nya.
+            'document_type' => ['nullable', Rule::in(CompanyInvoiceTemplate::supportsDebitNote() ? Invoice::TYPES : [Invoice::TYPE_INVOICE])],
             'document_code' => StoreInvoiceRequest::documentCodeRules(),
         ];
     }

@@ -65,6 +65,8 @@ class TemplateInvoiceBcbTest extends TestCase
 
         // Suite ini satu database: satu profil untuk semua perusahaan, berisi data & format nomor BCB.
         CompanyProfile::factory()->create([
+            // Sakelar Debit Note di Profil perusahaan (bawaan mati).
+            'debit_note_enabled' => true,
             'name' => 'PT. Bahtera Cipta Bersama',
             'abbreviation' => 'BCB',
             'address' => "Jl. Contoh No. 2,\nKota Samarinda, Kalimantan Timur",
@@ -255,9 +257,9 @@ class TemplateInvoiceBcbTest extends TestCase
         $this->assertMatchesRegularExpression('#<td colspan="2" class="label">GRAND TOTAL</td>#', $html);
         $this->assertStringContainsString('27.500.000', $html);
         // Talangan: tanpa baris PPN/PPh (cek penanda baris; logo base64 bisa memuat huruf apa pun).
-        $this->assertStringNotContainsString('baris-ppn', $html);
-        $this->assertStringNotContainsString('baris-pph', $html);
-        $this->assertStringNotContainsString('baris-bruto', $html);
+        $this->assertStringNotContainsString('<tr class="baris-ppn">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-pph">', $html);
+        $this->assertStringNotContainsString('<tr class="baris-bruto">', $html);
 
         $this->actingAs($this->admin)->get(self::BASE."/invoice/{$overtime->id}/download")
             ->assertOk()

@@ -37,6 +37,8 @@ export interface ClientOption {
     email: string | null;
     npwp: string | null;
     type: string;
+    /** Penanggung jawab klien = ATTENTION bawaan bila isian ATTENTION dikosongkan. */
+    person_in_charge?: string | null;
 }
 
 export interface ServiceOption {
@@ -84,13 +86,19 @@ export interface DocumentOptions {
 }
 
 export interface InvoiceFormData {
-    /** Debit Note = semua item talangan: tanpa PPN, bukan pendapatan. */
     document_type: DocumentType;
+    /**
+     * Sifat Debit Note: true = talangan (semua item titipan, tanpa PPN/PPh, bukan pendapatan); false = tagihan
+     * jasa yang dihitung seperti invoice. Diabaikan untuk invoice (InvoiceController::resolvePassThrough).
+     */
+    is_pass_through: boolean;
     /** Kode jenis (FINAL, PNBP, …); ikut ke nomor lewat {KODE}. */
     document_code: string;
     client_id: number | null;
     /** Perihal invoice; tercetak bila template perusahaan memakainya. */
     subject: string;
+    /** Baris ATTENTION template perusahaan; kosong = penanggung jawab di data klien. */
+    attention: string;
     issue_date: string;
     due_date: string;
     discount_type: 'fixed' | 'percentage';
@@ -346,9 +354,11 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
             ? { ...initialData, items: initialData.items.map((i) => ({ ...i, client_id: i.client_id ?? initialData.client_id })) }
             : initialData) ?? {
             document_type: 'invoice',
+            is_pass_through: true,
             document_code: '',
             client_id: null,
             subject: '',
+            attention: '',
             issue_date: today,
             due_date: addDays(today, defaultDueDays),
             discount_type: 'fixed',
@@ -396,6 +406,8 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
     );
     const selectedClient = allClients.find((c) => c.id === data.client_id);
     const isDebitNote = data.document_type === 'debit_note';
+    // Debit Note talangan: semua item titipan tanpa PPN/PPh/HPP. Debit Note tagihan jasa = invoice biasa.
+    const isPassThrough = isDebitNote && data.is_pass_through;
     // Jenis & kode membentuk nomor, jadi hanya bisa diganti selama draft (InvoiceController::resolveDocument).
     const documentLocked = !isDraft;
     // Saran: kode jenis dokumen yang sedang dipilih lebih dulu (urutan tetap paling sering dipakai).
@@ -414,21 +426,21 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
     /* ── angka (sama dengan InvoiceController::buildInvoiceData) ── */
     const amounts = data.items.map((i) => lineAmount(i, data.exchange_rate));
     const subtotal = amounts.reduce((a, b) => a + b, 0);
-    // Debit Note: semua item talangan (titipan), sama dengan buildInvoiceData.
-    const deposits = isDebitNote ? subtotal : data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
+    // Debit Note talangan: semua item titipan, sama dengan buildInvoiceData.
+    const deposits = isPassThrough ? subtotal : data.items.reduce((s, i, idx) => s + (i.is_tax_deposit ? amounts[idx] : 0), 0);
     const discount = data.discount_type === 'percentage' ? Math.round((subtotal * (data.discount_value || 0)) / 100) : data.discount_value || 0;
     // Invoice yang sudah ber-PPN tetap memakai tarif tersimpannya walau PKP dimatikan.
     const ppnRate = invoice?.ppn_rate ?? (ppn.enabled ? ppn.rate : 0);
-    const ppnAmount = !isDebitNote && data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
+    const ppnAmount = !isPassThrough && data.apply_ppn && ppnRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * ppnRate) / 100) : 0;
     // Potongan PPh 23 dari DPP yang sama; total = yang ditransfer klien. Potongannya tetap pendapatan (kredit pajak).
     // Sakelar hanya untuk perusahaan yang memakainya, atau invoice yang sudah dipotong (seperti PPN).
-    const pphAvailable = !isDebitNote && (pph.enabled || (invoice?.pph_rate ?? 0) > 0);
+    const pphAvailable = !isPassThrough && (pph.enabled || (invoice?.pph_rate ?? 0) > 0);
     const pphRate = parseQty(data.pph_rate);
     const pphAmount = pphAvailable && data.apply_pph && pphRate > 0 ? Math.round((Math.max(0, subtotal - deposits - discount) * pphRate) / 100) : 0;
     const total = Math.max(0, Math.max(0, subtotal - discount) + ppnAmount - pphAmount);
     // Utang klien dalam USD = total Rupiah ÷ kurs, dibulatkan ke sen (Invoice::foreignTotalFor).
     const totalForeign = isForeign && data.exchange_rate > 0 ? Math.round((total / data.exchange_rate) * 100) / 100 : null;
-    const cogs = isDebitNote ? 0 : data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
+    const cogs = isPassThrough ? 0 : data.items.reduce((s, i) => s + (i.is_tax_deposit ? 0 : i.cogs_amount || 0), 0);
     const grossProfit = total + pphAmount - ppnAmount - deposits - cogs;
     const pphFinal = Math.round((total + pphAmount - ppnAmount - deposits) * 0.005);
     const termDays = data.issue_date && data.due_date
@@ -707,10 +719,29 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                         <p className="text-[13px] text-ob-ink-2">{t('Jenis dan kode sudah menjadi bagian nomor yang terbit. Kembalikan ke draft untuk menggantinya.')}</p>
                                     )}
                                     {isDebitNote && (
-                                        <p className="flex items-start gap-2 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-[13px] leading-relaxed text-ob-ink-2">
-                                            <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-ob-ink" aria-hidden="true" />
-                                            {t('Debit Note menagih kembali biaya yang sudah dibayar atas nama klien. Semua item dianggap talangan: ditagih tanpa PPN dan tidak dihitung pendapatan, HPP, atau dasar PPh.')}
-                                        </p>
+                                        <>
+                                            {/* Sifat tidak membentuk nomor, jadi tetap bisa diganti setelah terbit. */}
+                                            <div className={cn(FIELD, 'grid items-start gap-3 sm:grid-cols-2')}>
+                                                <SegmentedControl
+                                                    variant="pill"
+                                                    label={t('Isi Debit Note')}
+                                                    options={[
+                                                        { value: 'talangan' as const, label: t('Talangan') },
+                                                        { value: 'jasa' as const, label: t('Tagihan jasa') },
+                                                    ]}
+                                                    value={data.is_pass_through ? 'talangan' : 'jasa'}
+                                                    onChange={(v) => setData('is_pass_through', v === 'talangan')}
+                                                    error={errors.is_pass_through}
+                                                    className="[&>label]:text-[13px] [&>label]:text-ob-ink-2 dark:[&>label]:text-ob-ink-2"
+                                                />
+                                            </div>
+                                            <p className="flex items-start gap-2 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-[13px] leading-relaxed text-ob-ink-2">
+                                                <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-ob-ink" aria-hidden="true" />
+                                                {isPassThrough
+                                                    ? t('Debit Note menagih kembali biaya yang sudah dibayar atas nama klien. Semua item dianggap talangan: ditagih tanpa PPN dan tidak dihitung pendapatan, HPP, atau dasar PPh.')
+                                                    : t('Debit Note ini menagih jasa perusahaan dan dihitung seperti invoice: PPN, PPh 23, HPP, dan titipan pajak mengikuti isian. PPh yang ditambahkan ke tagihan (mis. WHT 23) ditulis sebagai baris item bertanda Titipan pajak.')}
+                                            </p>
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -776,6 +807,20 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                         error={errors.subject}
                                     />
                                 </div>
+                                {/* Baris ATTENTION hanya ada di template perusahaan; template bawaan tidak mencetaknya. */}
+                                {companyTemplate && (
+                                    <div className="sm:col-span-3">
+                                        <Input
+                                            label={t('Untuk perhatian (ATTENTION)')}
+                                            value={data.attention}
+                                            onChange={(e) => setData('attention', e.target.value)}
+                                            placeholder={selectedClient?.person_in_charge || t('mis. Direktur Finance & Accounting')}
+                                            hint={t('Kosong = PIC di data klien.')}
+                                            maxLength={255}
+                                            error={errors.attention}
+                                        />
+                                    </div>
+                                )}
                                 <DatePicker
                                     label={t('Tanggal invoice')}
                                     value={toDate(data.issue_date)}
@@ -862,7 +907,7 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                                 item={item}
                                                 amount={amounts[idx]}
                                                 active={activeRow === idx}
-                                                debitNote={isDebitNote}
+                                                passThrough={isPassThrough}
                                                 foreignAvailable={foreignAvailable}
                                                 exchangeRate={data.exchange_rate}
                                                 foreignInvoice={isForeign}
@@ -944,7 +989,7 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                             error={errors.discount_reason}
                                         />
                                     </AdjustmentRow>
-                                    {ppnRate > 0 && !isDebitNote && (
+                                    {ppnRate > 0 && !isPassThrough && (
                                         <AdjustmentRow
                                             title={t('Tagih PPN {{rate}}%', { rate: ppnRate.toLocaleString('id-ID') })}
                                             description={t('Dari layanan setelah diskon, tanpa titipan pajak. PPN ikut ditagih tetapi bukan pendapatan.')}
@@ -984,7 +1029,7 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                 </div>
 
                                 <div className="flex flex-col gap-2 rounded-2xl border border-ob-line bg-ob-inner p-4">
-                                    {isDebitNote ? (
+                                    {isPassThrough ? (
                                         <SumRow label={t('Talangan')} value={rp(deposits)} />
                                     ) : (
                                         <>
@@ -1006,7 +1051,7 @@ export function InvoiceEditor({ clients, services, ppn, pph, foreignCurrency, do
                                             strong
                                         />
                                     )}
-                                    {isDebitNote ? (
+                                    {isPassThrough ? (
                                         <p className="border-t border-ob-line-soft pt-3 text-[13px] leading-relaxed text-ob-ink-2">
                                             {t('Talangan diganti klien: bukan pendapatan, tanpa PPN dan PPh final.')}
                                         </p>
@@ -1125,7 +1170,7 @@ function ItemEditorRow({
     item,
     amount,
     active,
-    debitNote,
+    passThrough,
     foreignAvailable,
     exchangeRate,
     foreignInvoice,
@@ -1144,8 +1189,8 @@ function ItemEditorRow({
     item: ItemRow;
     amount: number;
     active: boolean;
-    /** Debit Note: semua item talangan, jadi tanpa HPP dan tanpa sakelar titipan pajak. */
-    debitNote: boolean;
+    /** Debit Note talangan: semua item talangan, jadi tanpa HPP dan tanpa sakelar titipan pajak. */
+    passThrough: boolean;
     /** Perusahaan bisa menagih dalam USD: baris boleh berharga USD (× kurs). */
     foreignAvailable: boolean;
     exchangeRate: number;
@@ -1168,8 +1213,8 @@ function ItemEditorRow({
     const foreignPrice = item.foreign_unit_price !== null;
     const [noteOpen, setNoteOpen] = React.useState(item.description !== '');
     const showNote = noteOpen || item.description !== '';
-    // Di Debit Note semua baris talangan; penanda per baris hanya untuk titipan pajak di invoice.
-    const taxDeposit = item.is_tax_deposit && !debitNote;
+    // Di Debit Note talangan semua baris talangan; penanda per baris hanya untuk titipan pajak.
+    const taxDeposit = item.is_tax_deposit && !passThrough;
 
     return (
         <li
@@ -1244,7 +1289,7 @@ function ItemEditorRow({
                     <span aria-hidden="true" className="mr-1.5 font-normal text-ob-ink-3 @2xl:hidden">=</span>
                     {rp(amount)}
                 </span>
-                {(multiClient || !showNote || !debitNote) && (
+                {(multiClient || !showNote || !passThrough) && (
                     <div className={cn(ITEM_AT.options, 'flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ob-ink-2')}>
                         {multiClient && (
                             <span className={cn(FIELD_SM, 'w-full max-w-56')}>
@@ -1264,7 +1309,7 @@ function ItemEditorRow({
                                 {t('Tambah keterangan')}
                             </Button>
                         )}
-                        {!debitNote && (
+                        {!passThrough && (
                             <label className="inline-flex h-8 cursor-pointer items-center gap-2 text-ob-ink">
                                 <Switch checked={item.is_tax_deposit} onCheckedChange={(on) => onChange({ is_tax_deposit: on, ...(on ? { cogs_amount: 0 } : {}) })} />
                                 {t('Titipan pajak')}
@@ -1278,7 +1323,7 @@ function ItemEditorRow({
                         )}
                     </div>
                 )}
-                {!item.is_tax_deposit && !debitNote && (
+                {!item.is_tax_deposit && !passThrough && (
                     <label className={cn(FIELD_SM, ITEM_AT.cogs)} title={t('HPP untuk seluruh baris ini, bukan per unit')}>
                         <span className="sr-only">{t('HPP baris {{n}}', { n: index + 1 })}</span>
                         <CurrencyInput prefix={t('HPP', { context: 'prefiks' })} value={item.cogs_amount} onChange={(v) => onChange({ cogs_amount: v })} className="w-full min-w-0 bg-ob-card" id={`cogs-${index}`} />

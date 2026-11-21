@@ -482,6 +482,8 @@ class InvoiceController extends Controller
                 : null,
             'document_type' => $invoice->document_type,
             'document_code' => $invoice->document_code,
+            // Debit Note talangan (semua item titipan, dijurnal ke Talangan Biaya Klien); false untuk invoice.
+            'is_pass_through' => $invoice->isPassThrough(),
             'status' => $invoice->status,
             'issue_date' => $invoice->issue_date?->format('Y-m-d'),
             'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -565,15 +567,17 @@ class InvoiceController extends Controller
      *
      * @return array{clients: Collection<int, array<string, mixed>>, services: Collection<int, array<string, mixed>>, ppn: array{enabled: bool, rate: float}, defaultDueDays: int, documents: array{debitNote: bool, code: bool, codes: Collection<int, array{value: string, type: string}>}}
      */
-    private function formOptions(?int $includeClientId = null): array
+    private function formOptions(?Invoice $invoice = null): array
     {
+        $includeClientId = $invoice?->billed_to_id;
         $company = CompanyProfile::current();
 
         return [
-            // Jenis dokumen (Debit Note hanya untuk perusahaan bertemplate Debit Note) dan kode jenis
-            // (hanya bila format nomor memakai {KODE}); saran kode = kode yang pernah dipakai.
+            // Jenis dokumen (Debit Note hanya untuk perusahaan bertemplate Debit Note yang menyalakannya di
+            // Profil perusahaan, atau dokumen yang sudah Debit Note) dan kode jenis (hanya bila format nomor
+            // memakai {KODE}); saran kode = kode yang pernah dipakai.
             'documents' => [
-                'debitNote' => CompanyInvoiceTemplate::supportsDebitNote(),
+                'debitNote' => CompanyInvoiceTemplate::offersDebitNote($invoice),
                 'code' => str_contains(app(InvoiceNumberService::class)->settings()['format'], '{KODE}'),
                 'codes' => Invoice::query()
                     ->whereNotNull('document_code')
@@ -604,8 +608,9 @@ class InvoiceController extends Controller
             'clients' => Client::where('status', Client::STATUS_ACTIVE)
                 ->when($includeClientId, fn ($q) => $q->orWhere('id', $includeClientId))
                 ->orderBy('name')
-                ->get(['id', 'name', 'email', 'NPWP', 'type'])
-                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email, 'npwp' => $c->NPWP, 'type' => $c->type]),
+                ->get(['id', 'name', 'email', 'NPWP', 'type', 'person_in_charge'])
+                // person_in_charge = ATTENTION bawaan (isian ATTENTION editor yang kosong).
+                ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email, 'npwp' => $c->NPWP, 'type' => $c->type, 'person_in_charge' => $c->person_in_charge]),
             'services' => Service::orderBy('name')
                 ->get(['id', 'name', 'price', 'type'])
                 ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'price' => $s->price, 'type' => $s->type]),
@@ -674,9 +679,11 @@ class InvoiceController extends Controller
     private function buildInvoiceData(array $validated, ?Invoice $existing = null): array
     {
         ['type' => $documentType, 'code' => $documentCode] = $this->resolveDocument($validated, $existing);
-        // Debit Note menagih kembali talangan: semua itemnya titipan (tanpa HPP), jadi tanpa PPN dan
-        // bukan pendapatan — Laba Rugi, jurnal, dan statistik membacanya lewat is_tax_deposit.
-        $isDebitNote = $documentType === Invoice::TYPE_DEBIT_NOTE;
+        $passThrough = $this->resolvePassThrough($documentType, $validated, $existing);
+        // Debit Note talangan: semua itemnya titipan (tanpa HPP), jadi tanpa PPN/PPh dan bukan pendapatan —
+        // Laba Rugi, jurnal, dan statistik membacanya lewat is_tax_deposit. Debit Note tagihan jasa dihitung
+        // persis seperti invoice.
+        $isPassThrough = $passThrough === true;
         // Tagihan USD / harga USD: pembukuan tetap Rupiah (kurs invoice), USD hanya sisi tagihannya.
         $currency = $this->resolveCurrency($validated, $existing);
         $exchangeRate = isset($validated['exchange_rate']) && (float) $validated['exchange_rate'] > 0
@@ -701,7 +708,7 @@ class InvoiceController extends Controller
             $amount = $foreignUnitPrice !== null
                 ? Invoice::foreignLineAmount($quantity, $foreignUnitPrice, $exchangeRate)
                 : (int) round($unitPrice * $quantity);
-            $isTaxDeposit = $isDebitNote || (bool) ($item['is_tax_deposit'] ?? false);
+            $isTaxDeposit = $isPassThrough || (bool) ($item['is_tax_deposit'] ?? false);
             $usesForeignPrice = $usesForeignPrice || $foreignUnitPrice !== null;
 
             $items[] = [
@@ -713,7 +720,7 @@ class InvoiceController extends Controller
                 'unit_price' => $unitPrice,
                 'foreign_unit_price' => $foreignUnitPrice,
                 'amount' => $amount,
-                'cogs_amount' => $isDebitNote ? 0 : (int) ($item['cogs_amount'] ?? 0),
+                'cogs_amount' => $isPassThrough ? 0 : (int) ($item['cogs_amount'] ?? 0),
                 'is_tax_deposit' => $isTaxDeposit,
             ];
 
@@ -731,9 +738,9 @@ class InvoiceController extends Controller
 
         // PPN dari DPP (layanan − diskon, tanpa titipan pajak), ikut dalam total yang ditagih. PPh 23 yang
         // dipotong klien dari DPP yang sama mengurangi total: total = yang ditransfer klien (GRAND TOTAL).
-        $ppnRate = $isDebitNote ? 0.0 : $this->resolvePpnRate($validated, $existing);
+        $ppnRate = $isPassThrough ? 0.0 : $this->resolvePpnRate($validated, $existing);
         $ppnAmount = Invoice::ppnFor($subtotal - $taxDeposits - $discountAmount, $ppnRate);
-        $pphRate = $isDebitNote ? null : $this->resolvePphRate($validated, $existing);
+        $pphRate = $isPassThrough ? null : $this->resolvePphRate($validated, $existing);
         $pphAmount = Invoice::pphFor($subtotal - $taxDeposits - $discountAmount, $pphRate);
         $total = max(0, max(0, $subtotal - $discountAmount) + $ppnAmount - $pphAmount);
         $isForeign = $currency !== Invoice::CURRENCY_IDR && $exchangeRate !== null;
@@ -742,8 +749,11 @@ class InvoiceController extends Controller
             'attributes' => [
                 'document_type' => $documentType,
                 'document_code' => $documentCode,
+                'is_pass_through' => $passThrough,
                 'billed_to_id' => $validated['client_id'] ?? null,
                 'subject' => trim((string) ($validated['subject'] ?? '')) ?: null,
+                // Baris ATTENTION template perusahaan; kosong = penanggung jawab di data klien.
+                'attention' => trim((string) ($validated['attention'] ?? '')) ?: null,
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'discount_type' => $discountType,
@@ -759,7 +769,7 @@ class InvoiceController extends Controller
                 'exchange_rate' => $isForeign || $usesForeignPrice ? $exchangeRate : null,
                 'total_foreign' => $isForeign ? Invoice::foreignTotalFor($total, $exchangeRate) : null,
                 'faktur' => match (true) {
-                    $isDebitNote => null,
+                    $isPassThrough => null,
                     array_key_exists('faktur', $validated) => trim((string) $validated['faktur']) ?: null,
                     default => $existing?->faktur,
                 },
@@ -789,6 +799,26 @@ class InvoiceController extends Controller
                 ? Invoice::normalizeDocumentCode($validated['document_code'])
                 : $existing?->document_code,
         ];
+    }
+
+    /**
+     * Sifat Debit Note: true = talangan, false = tagihan jasa; null untuk invoice. Isian kosong = sifat
+     * tersimpan, atau talangan untuk Debit Note baru. Berbeda dengan jenis & kode, sifat tidak membentuk
+     * nomor sehingga tetap bisa diganti setelah terbit (seperti isi item).
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolvePassThrough(string $documentType, array $validated, ?Invoice $existing): ?bool
+    {
+        if ($documentType !== Invoice::TYPE_DEBIT_NOTE) {
+            return null;
+        }
+
+        if (isset($validated['is_pass_through'])) {
+            return (bool) $validated['is_pass_through'];
+        }
+
+        return $existing?->isDebitNote() ? $existing->isPassThrough() : true;
     }
 
     /**
@@ -932,13 +962,15 @@ class InvoiceController extends Controller
         $invoice->load(['items']);
 
         return Inertia::render('invoices/edit', [
-            ...$this->formOptions($invoice->billed_to_id),
+            ...$this->formOptions($invoice),
             'invoice' => [
                 'id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
                 'status' => $invoice->status,
                 'document_type' => $invoice->document_type,
                 'document_code' => $invoice->document_code,
+                // Sifat Debit Note; invoice membawa bawaan talangan bila jenisnya diganti ke Debit Note.
+                'is_pass_through' => ! $invoice->isDebitNote() || $invoice->isPassThrough(),
                 'client_id' => $invoice->billed_to_id,
                 'issue_date' => $invoice->issue_date?->format('Y-m-d'),
                 'due_date' => $invoice->due_date?->format('Y-m-d'),
@@ -949,6 +981,7 @@ class InvoiceController extends Controller
                 'pph_rate' => (float) $invoice->pph_rate > 0 ? (float) $invoice->pph_rate : null,
                 'faktur' => $invoice->faktur,
                 'subject' => $invoice->subject,
+                'attention' => $invoice->attention,
                 'currency' => $invoice->currency ?? Invoice::CURRENCY_IDR,
                 'exchange_rate' => $invoice->exchange_rate !== null ? (float) $invoice->exchange_rate : null,
                 // Sudah ada pembayaran: mata uang terkunci (InvoiceController::resolveCurrency).

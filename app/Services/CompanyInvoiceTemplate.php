@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\View;
 
@@ -15,8 +16,9 @@ use Illuminate\Support\Facades\View;
  * Perusahaan yang punya folder ini HANYA memakai template ini: template bawaan milik perusahaan
  * lain tidak ditawarkan dan ditolak rute. Perusahaan tanpa folder tetap memakai template bawaan.
  *
- * `debit-note.blade.php` di folder yang sama membuat perusahaan itu bisa menerbitkan Debit Note
- * (jenis dokumen di editor); dokumen berjenis Debit Note dicetak dengan template itu.
+ * `debit-note.blade.php` di folder yang sama membuat perusahaan itu bisa menerbitkan Debit Note; editor
+ * baru menawarkannya setelah dinyalakan di Profil perusahaan (offersDebitNote()). Dokumen berjenis Debit
+ * Note dicetak dengan template itu.
  */
 class CompanyInvoiceTemplate
 {
@@ -38,10 +40,21 @@ class CompanyInvoiceTemplate
         return self::view() !== null ? self::viewNamed('debit-note') : null;
     }
 
-    /** Perusahaan aktif bisa menerbitkan Debit Note (editor menawarkan jenis dokumen). */
+    /** Perusahaan aktif punya template Debit Note (Profil perusahaan menampilkan sakelar Debit Note). */
     public static function supportsDebitNote(): bool
     {
         return self::debitNoteView() !== null;
+    }
+
+    /**
+     * Editor menawarkan jenis dokumen Invoice / Debit Note: perusahaan punya template Debit Note dan
+     * menyalakannya di Profil perusahaan (bawaan mati), atau dokumen yang diedit sudah Debit Note (tetap
+     * bisa diubah walau sakelarnya dimatikan belakangan).
+     */
+    public static function offersDebitNote(?Invoice $invoice = null): bool
+    {
+        return self::supportsDebitNote()
+            && ((bool) CompanyProfile::current()?->debit_note_enabled || (bool) $invoice?->isDebitNote());
     }
 
     public static function exists(): bool

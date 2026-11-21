@@ -69,6 +69,8 @@ class DebitNoteTest extends TestCase
 
         // Suite ini satu database: satu profil untuk semua perusahaan, berformat nomor SLU.
         CompanyProfile::factory()->create([
+            // Sakelar Debit Note di Profil perusahaan (bawaan mati).
+            'debit_note_enabled' => true,
             'name' => 'PT. SAMBOJA LAJU UTAMA',
             'abbreviation' => 'SLU',
             'is_pkp' => true,

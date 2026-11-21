@@ -71,6 +71,8 @@ interface Company {
     pph_rate: number;
     /** Bisa menagih dalam USD: editor invoice menampilkan mata uang tagihan, kurs, dan harga USD. */
     foreign_currency_enabled: boolean;
+    /** Menerbitkan Debit Note: editor invoice menampilkan jenis dokumen Invoice / Debit Note. */
+    debit_note_enabled: boolean;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
@@ -89,6 +91,8 @@ interface Props extends SharedProps {
     companyProfile: Company | null;
     missingFields: string[];
     lastInvoiceNumber: string | null;
+    /** Perusahaan punya template Debit Note: sakelar Debit Note ditampilkan. */
+    debitNoteTemplate: boolean;
 }
 
 interface CompanyFormData {
@@ -103,6 +107,7 @@ interface CompanyFormData {
     pph_enabled: boolean;
     pph_rate: string;
     foreign_currency_enabled: boolean;
+    debit_note_enabled: boolean;
     finance_manager_name: string;
     finance_manager_position: string;
     signature_city: string;
@@ -152,7 +157,7 @@ const COLOR_MAP: Record<string, { bg: string; text: string }> = {
 };
 
 export default function CompanySettings() {
-    const { companyProfile: company, missingFields, lastInvoiceNumber } = usePage<Props>().props;
+    const { companyProfile: company, missingFields, lastInvoiceNumber, debitNoteTemplate } = usePage<Props>().props;
 
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm<CompanyFormData>({
         name: company?.name ?? '',
@@ -166,6 +171,7 @@ export default function CompanySettings() {
         pph_enabled: company?.pph_enabled ?? false,
         pph_rate: String(company?.pph_rate ?? 2),
         foreign_currency_enabled: company?.foreign_currency_enabled ?? false,
+        debit_note_enabled: company?.debit_note_enabled ?? false,
         finance_manager_name: company?.finance_manager_name ?? '',
         finance_manager_position: company?.finance_manager_position ?? '',
         signature_city: company?.signature_city ?? '',
@@ -366,6 +372,29 @@ export default function CompanySettings() {
                             </p>
                         </div>
                     </FormSection>
+
+                    {/* Section: Debit Note (hanya perusahaan bertemplate Debit Note) */}
+                    {debitNoteTemplate && (
+                        <FormSection
+                            title={t('Debit Note')}
+                            description={t('Dokumen tagihan selain invoice, mis. untuk menagih kembali biaya yang dibayar atas nama klien.')}
+                        >
+                            <div className="flex flex-col gap-1.5">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <Checkbox
+                                        checked={data.debit_note_enabled}
+                                        onCheckedChange={(c) => setData('debit_note_enabled', Boolean(c))}
+                                    />
+                                    <span className="text-sm text-dark-900 dark:text-dark-50">
+                                        <Trans i18nKey="Perusahaan ini menerbitkan <b>Debit Note</b>" components={{ b: <strong /> }} />
+                                    </span>
+                                </label>
+                                <p className="pl-7 text-[13px] text-ob-ink-2">
+                                    {t('Editor invoice menampilkan pilihan jenis dokumen Invoice / Debit Note. Selama mati, dokumen baru selalu invoice; Debit Note yang sudah ada tetap bisa dibuka dan diubah.')}
+                                </p>
+                            </div>
+                        </FormSection>
+                    )}
 
                     {/* Section: Rekening pembayaran */}
                     <FormSection

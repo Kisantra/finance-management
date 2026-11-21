@@ -8,8 +8,9 @@
     Kolom QUANTITY & PRICE hanya muncul bila ada item ber-qty selain 1 (mis. 3 hari × tarif harian); tagihan
     sekali bayar cukup NO · KETERANGAN · TOTAL, seperti dokumen asli. Rincian (kode billing, NTPN, kapal) ditulis
     di keterangan item, satu per baris.
-    Item Debit Note selalu talangan (tanpa PPN/PPh), jadi baris total hanya Total Debit Note (atau tagihan uang
-    muka/pelunasan). Adanya berkas ini membuat AOE bisa memilih jenis dokumen Debit Note di editor
+    Debit Note talangan tanpa PPN/PPh, jadi baris totalnya hanya Total Debit Note (atau tagihan uang
+    muka/pelunasan); Debit Note tagihan jasa bisa ber-PPN/PPh 23, barisnya ditata seperti invoice AOE.
+    Adanya berkas ini membuat AOE bisa memilih jenis dokumen Debit Note di editor
     (CompanyInvoiceTemplate::supportsDebitNote()).
 --}}
 @extends('pdf.perusahaan.abdi-ocean-energy.kerangka')
@@ -108,6 +109,16 @@
         .totals-table tr.baris-total td,
         .totals-table tr.baris-tagihan td {
             font-weight: bold;
+        }
+
+        /* Debit Note tagihan jasa ber-PPN/PPh: subtotal tebal dan potongan PPh 23 merah, seperti invoice AOE. */
+        .totals-table tr.baris-dpp td.label,
+        .totals-table tr.baris-bruto td.label {
+            font-weight: bold;
+        }
+
+        .totals-table tr.baris-pph td.c-total {
+            color: #ff0000;
         }
 
         /* Tagihan USD: TOTAL OUTSTANDING (USD) — utang klien — tebal, di tengah, garis bawah ganda. */

@@ -7,8 +7,9 @@
     Kolom Quantity & PRICE hanya muncul bila ada item ber-qty selain 1 (mis. 3 hari × tarif harian); tagihan
     sekali bayar cukup No · Keterangan · TOTAL, seperti dokumen asli. Rincian (nomor nota, tanggal, kapal)
     ditulis di keterangan item.
-    Item Debit Note selalu talangan (tanpa PPN/PPh), jadi baris total hanya GRAND TOTAL (atau tagihan uang
-    muka/pelunasan). Adanya berkas ini membuat MKB bisa memilih jenis dokumen Debit Note di editor
+    Debit Note talangan tanpa PPN/PPh, jadi baris totalnya hanya GRAND TOTAL (atau tagihan uang
+    muka/pelunasan); Debit Note tagihan jasa bisa ber-PPN/PPh 23, barisnya ditata seperti invoice MKB.
+    Adanya berkas ini membuat MKB bisa memilih jenis dokumen Debit Note di editor
     (CompanyInvoiceTemplate::supportsDebitNote()).
 --}}
 @extends('pdf.perusahaan.mitra-kellian-baruna.kerangka')
@@ -94,6 +95,8 @@
 
         /* Gaya baris total per jenis (InvoiceTotalRows). Baris tagihan = GRAND TOTAL dokumen asli:
            tebal, label di tengah, nominal 12pt, garis bawah ganda. */
+        .totals-table tr.baris-dpp td.label,
+        .totals-table tr.baris-bruto td.label,
         .totals-table tr.baris-total td.label,
         .totals-table tr.baris-tagihan td {
             font-weight: bold;
@@ -121,6 +124,7 @@
             text-align: center;
         }
 
+        .totals-table tr.baris-pph td.c-total,
         .totals-table tr.baris-diterima td.c-total {
             color: #ff0000;
         }

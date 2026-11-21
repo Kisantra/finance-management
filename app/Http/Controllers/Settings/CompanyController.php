@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateCompanyRequest;
 use App\Models\CompanyProfile;
 use App\Models\Invoice;
+use App\Services\CompanyInvoiceTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,8 @@ class CompanyController extends Controller
             'missingFields' => $company ? $company->missingFields() : ['name', 'abbreviation', 'address', 'email', 'phone', 'finance_manager_name', 'finance_manager_position'],
             // Rujukan saat mengisi singkatan: kode di nomor terakhir yang sudah terkirim ke klien.
             'lastInvoiceNumber' => Invoice::query()->whereNotNull('invoice_number')->latest('id')->value('invoice_number'),
+            // Sakelar Debit Note hanya untuk perusahaan yang punya template Debit Note.
+            'debitNoteTemplate' => CompanyInvoiceTemplate::supportsDebitNote(),
             // Dinamai companyProfile, BUKAN company. Prop bersama bernama
             // `company` dikirim HandleInertiaRequests dan berisi identitas
             // tenant ({slug, name, abbreviation}); prop halaman dengan nama
@@ -44,6 +47,7 @@ class CompanyController extends Controller
                 'pph_enabled' => (bool) $company->pph_enabled,
                 'pph_rate' => (float) ($company->pph_rate ?? Invoice::DEFAULT_PPH_RATE),
                 'foreign_currency_enabled' => (bool) $company->foreign_currency_enabled,
+                'debit_note_enabled' => (bool) $company->debit_note_enabled,
                 'finance_manager_name' => $isian($company->finance_manager_name),
                 'finance_manager_position' => $isian($company->finance_manager_position),
                 'signature_city' => (string) $company->signature_city,
@@ -80,6 +84,9 @@ class CompanyController extends Controller
             'pph_rate' => $validated['pph_rate'] ?? $company->pph_rate ?? Invoice::DEFAULT_PPH_RATE,
             // Mematikan tagihan USD tidak mengubah invoice yang sudah ber-USD.
             'foreign_currency_enabled' => (bool) ($validated['foreign_currency_enabled'] ?? false),
+            // Mematikan Debit Note hanya menyembunyikan pilihan jenis dokumen untuk dokumen baru; Debit Note
+            // yang sudah ada tetap bisa dibuka & diubah.
+            'debit_note_enabled' => (bool) ($validated['debit_note_enabled'] ?? false),
             'finance_manager_name' => $validated['finance_manager_name'],
             'finance_manager_position' => $validated['finance_manager_position'],
             'signature_city' => $validated['signature_city'] ?? null,

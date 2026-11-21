@@ -1,6 +1,6 @@
 # Debit Note PT SLU: penjelasan & pilihan keputusan
 
-> **Status:** **diimplementasikan** (18 Nov 2026) dengan semua rekomendasi: K1 A, K2 A, K3 A, K4 A, K6 A (sudah selesai di PR template BAS, 12 Nov 2026). **K5 digabung ke PR Debit Note** (pilihan A), karena tanpa itu seluruh Debit Note tampil sebagai laba. Cara kerjanya kini di [`docs/module/invoices.md` › Debit Note](../../module/invoices.md#debit-note-talangan--perusahaan-bertemplate-debit-note-pt-slu-pt-bas).
+> **Status:** **diimplementasikan** (18 Nov 2026) dengan semua rekomendasi: K1 A, K2 A, K3 A, K4 A, K6 A (sudah selesai di PR template BAS, 12 Nov 2026). **K5 digabung ke PR Debit Note** (pilihan A), karena tanpa itu seluruh Debit Note tampil sebagai laba. Cara kerjanya kini di [`docs/module/invoices.md` › Debit Note](../../module/invoices.md#debit-note-talangan-atau-tagihan-jasa--perusahaan-bertemplate-debit-note-pt-slu-pt-bas-pt-mkb-pt-bcb-pt-aoe).
 > **Asumsi utama (masih perlu dikonfirmasi SLU):** Debit Note `DN-PNBP` menagih kembali biaya yang SLU bayar lebih dulu atas nama klien persis sebesar yang dibayar, **bukan** jasa SLU (K2), dan nomornya berbagi urutan dengan invoice (K3). Bila jawaban SLU berbeda, lihat "Bila asumsi tidak tepat" di bawah.
 > Desain PDF Debit Note meniru invoice SLU (hanya judul berganti) sampai contoh Debit Note asli diterima.
 
@@ -199,7 +199,7 @@ Template SLU sekarang menulis langsung alamat, telepon, rekening, dan nama penan
 | K4 A | Isian Kode jenis teks bebas dengan saran dari kode yang pernah dipakai |
 | K5 A | Statistik daftar invoice, Ringkasan, rekap Excel/PDF (omzet, profit, PPh final), dan accessor `gross_profit` mengecualikan titipan. **Mengubah angka semua perusahaan yang memakai titipan pajak** (laba/omzet turun menjadi benar); rekap JSM tetap menampilkan total tagihan |
 
-**Bila asumsi tidak tepat:** K2 = B (Debit Note adalah pendapatan) → hapus pemaksaan titipan di `InvoiceController::buildInvoiceData()` (satu tempat) dan kembalikan PPN mengikuti sakelar. K3 = B (urutan sendiri) → `nextSequence()`/`isLatestInPeriod()` perlu disaring per `document_type`.
+**Bila asumsi tidak tepat:** K2 = B (Debit Note adalah pendapatan) → sejak 21 Nov 2026 cukup pilih sifat **Tagihan jasa** di editor (`invoices.is_pass_through = false`), dibuat untuk Debit Note BCB yang menagih jasa; tidak perlu mengubah kode. K3 = B (urutan sendiri) → `nextSequence()`/`isLatestInPeriod()` perlu disaring per `document_type`.
 
 ## 6. Di luar cakupan
 

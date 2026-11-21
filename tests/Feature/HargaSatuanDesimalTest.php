@@ -49,7 +49,7 @@ class HargaSatuanDesimalTest extends TestCase
         $this->admin = User::factory()->create();
         $this->admin->assignRole('admin');
 
-        CompanyProfile::factory()->create(['is_pkp' => true, 'ppn_rate' => 11, 'bank_accounts' => []]);
+        CompanyProfile::factory()->create(['is_pkp' => true, 'ppn_rate' => 11, 'debit_note_enabled' => true, 'bank_accounts' => []]);
         $this->client = Client::factory()->company()->create(['name' => 'PT. CONTOH HARGA BERSEN', 'alias' => 'CHB']);
 
         $this->travelTo(Carbon::parse('2026-11-20 10:00:00'));

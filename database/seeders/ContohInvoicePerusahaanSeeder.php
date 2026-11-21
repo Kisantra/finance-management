@@ -52,13 +52,14 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     abstract protected function client(): array;
 
     /**
-     * Invoice contoh; `number` null = draft. Opsional: `type` (Invoice::TYPE_DEBIT_NOTE = semua item
-     * talangan, tanpa PPN), `code` (kode jenis, mis. FINAL), `pph` (tarif PPh 23 yang dipotong klien;
+     * Invoice contoh; `number` null = draft. Opsional: `type` (Invoice::TYPE_DEBIT_NOTE), `talangan`
+     * (sifat Debit Note, bawaan true = semua item talangan, tanpa PPN/PPh; false = tagihan jasa yang dihitung
+     * seperti invoice, item boleh `is_tax_deposit`), `code` (kode jenis, mis. FINAL), `pph` (tarif PPh 23 yang dipotong klien;
      * bawaan = tarif profil bila profil memotong PPh 23, 0 = sengaja tidak dipotong), `ppn` (tarif PPN;
      * bawaan = tarif profil), `currency` + `kurs` (tagihan USD, kurs Rp per 1 USD), dan per item
      * `foreign_unit_price` (harga USD; Rupiahnya = harga USD × kurs).
      *
-     * @return list<array{number: ?string, type?: string, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
+     * @return list<array{number: ?string, type?: string, talangan?: bool, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}>
      */
     abstract protected function invoices(): array;
 
@@ -196,7 +197,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
     }
 
     /**
-     * @param  array{number: ?string, type?: string, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
+     * @param  array{number: ?string, type?: string, talangan?: bool, code?: string, pph?: float|int, ppn?: float|int, currency?: string, kurs?: float|int, date: string, subject: string, discount: int, items: list<array<string, mixed>>}  $data
      */
     private function seedInvoice(Client $client, array $data): void
     {
@@ -210,6 +211,7 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
 
         $type = $data['type'] ?? Invoice::TYPE_INVOICE;
         $isDebitNote = $type === Invoice::TYPE_DEBIT_NOTE;
+        $isPassThrough = $isDebitNote && ($data['talangan'] ?? true);
 
         $kurs = isset($data['kurs']) ? (float) $data['kurs'] : null;
         $currency = $data['currency'] ?? Invoice::CURRENCY_IDR;
@@ -223,29 +225,32 @@ abstract class ContohInvoicePerusahaanSeeder extends Seeder
                 ? Invoice::foreignLineAmount((float) $item['quantity'], $item['foreign_unit_price'], $kurs)
                 : (int) round($item['unit_price'] * $item['quantity']),
             'cogs_amount' => 0,
-            'is_tax_deposit' => $isDebitNote,
+            'is_tax_deposit' => $isPassThrough || ($item['is_tax_deposit'] ?? false),
         ]);
 
         $ppnRate = match (true) {
-            $isDebitNote => 0.0,
+            $isPassThrough => 0.0,
             isset($data['ppn']) => (float) $data['ppn'],
             default => (float) $this->profile()['ppn_rate'],
         };
         $subtotal = (int) $items->sum('amount');
-        $ppnAmount = Invoice::ppnFor($subtotal - $data['discount'], $ppnRate);
+        // DPP = layanan − titipan pajak − diskon, sama dengan editor (InvoiceController::buildInvoiceData).
+        $dpp = $subtotal - (int) $items->where('is_tax_deposit', true)->sum('amount') - $data['discount'];
+        $ppnAmount = Invoice::ppnFor($dpp, $ppnRate);
         $pphRate = match (true) {
-            $isDebitNote => null,
+            $isPassThrough => null,
             isset($data['pph']) => (float) $data['pph'],
             (bool) ($this->profile()['pph_enabled'] ?? false) => (float) $this->profile()['pph_rate'],
             default => null,
         };
-        $pphAmount = Invoice::pphFor($subtotal - $data['discount'], $pphRate);
+        $pphAmount = Invoice::pphFor($dpp, $pphRate);
         $total = max(0, $subtotal - $data['discount']) + $ppnAmount - $pphAmount;
         $issueDate = Carbon::parse($data['date']);
 
         $invoice = Invoice::create([
             'document_type' => $type,
             'document_code' => $data['code'] ?? null,
+            'is_pass_through' => $isDebitNote ? $isPassThrough : null,
             'billed_to_id' => $client->id,
             'subject' => $data['subject'],
             'subtotal' => $subtotal,

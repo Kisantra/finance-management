@@ -9,10 +9,11 @@ use App\Models\Invoice;
  * Contoh lokal PT Bahtera Cipta Bersama (BCB) lengkap dengan template invoice & Debit Note-nya
  * (resources/views/pdf/perusahaan/bahtera-cipta-bersama): perusahaan BCB saja, akun khusus BCB, profil +
  * format nomor BCB (dengan {KODE}), satu klien, tiga invoice terbit untuk satu kapal yang meniru invoice Word
- * asli (FINAL stevedoring, MOORING, FENDER), dua Debit Note (talangan) — overtime hari libur seperti Debit
- * Note Word asli, dan demurrage berkolom Quantity/PRICE —, satu tagihan USD seperti PROFORMA 103 (harga USD per
- * ton, kurs manual, dibayar ke rekening USD), ditambah satu draft untuk editor. Semua datanya FIKTIF (lihat
- * ContohInvoicePerusahaanSeeder).
+ * asli (FINAL stevedoring, MOORING, FENDER), dua Debit Note talangan — overtime hari libur seperti Debit
+ * Note Word asli, dan demurrage berkolom Quantity/PRICE —, dua Debit Note tagihan jasa dalam USD seperti
+ * dokumen AVRA BCB (PROFORMA 103: harga USD per ton, kurs manual, dibayar ke rekening USD; FINAL 099: sisa
+ * tagihan + WHT 23 yang ditambahkan sebagai baris titipan pajak), ditambah satu draft untuk editor. Semua
+ * datanya FIKTIF (lihat ContohInvoicePerusahaanSeeder).
  *
  *   php artisan db:seed --class=ContohInvoiceBcbSeeder
  *
@@ -57,6 +58,8 @@ class ContohInvoiceBcbSeeder extends ContohInvoicePerusahaanSeeder
                 ['bank' => 'Bank Mandiri', 'account_number' => '148-00-2281085-0', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'IDR', 'branch' => null, 'swift' => null],
                 ['bank' => 'Bank Mandiri', 'account_number' => '148-00-2885477-9', 'account_name' => 'PT. BAHTERA CIPTA BERSAMA', 'currency' => 'USD', 'branch' => 'Samarinda Sempaja Branch', 'swift' => 'BMRIIDJA'],
             ],
+            // Contoh Debit Note ikut dibuat: sakelar Debit Note di Profil perusahaan menyala.
+            'debit_note_enabled' => true,
             'invoice_number_format' => '{NO}/{PT}-{KLIEN}/{KODE}/{BLN_ROMAWI}/{THN}',
             'invoice_number_padding' => 3,
             'invoice_number_reset' => 'yearly',
@@ -155,24 +158,59 @@ class ContohInvoiceBcbSeeder extends ContohInvoicePerusahaanSeeder
                     'unit_price' => 5000000,
                 ]],
             ],
-            // Tagihan USD seperti PROFORMA 103: tarif per ton dalam USD, kurs manual; utang klien $41.000,00.
+            // Debit Note tagihan jasa (bukan talangan) dalam USD seperti PROFORMA 103: tarif per ton dalam USD,
+            // kurs manual, tanpa PPN/PPh; utang klien $41.000,00.
             [
-                'number' => '105/BCB-CBS/INV-ORBIT/XI/2026',
+                'number' => '105/BCB-CBS/DN-ORBIT/XI/2026',
+                'type' => Invoice::TYPE_DEBIT_NOTE,
+                'talangan' => false,
                 'code' => 'ORBIT',
                 'currency' => 'USD',
                 'kurs' => 18250,
                 'ppn' => 0,
                 'pph' => 0,
                 'date' => '2026-11-18',
-                'subject' => 'Proforma Invoice MV. CONTOH FLAME',
+                'subject' => 'Proforma Debit Note for MV. CONTOH FLAME',
                 'discount' => 0,
                 'items' => [[
                     'service_name' => 'MV. CONTOH FLAME',
-                    'description' => '(Proforma Invoice)',
+                    'description' => '(Proforma Debit Note)',
                     'quantity' => 50000,
                     'unit' => 'MT',
                     'foreign_unit_price' => 0.82,
                 ]],
+            ],
+            // Seperti FINAL 099: sisa tagihan setelah proforma (tonase akhir ditulis di keterangan, qty 1) dan
+            // WHT 23 2% dari nilai final penuh (50.750 MT × $0,82 × 18.250) yang ditambahkan ke tagihan sebagai
+            // baris titipan pajak: ikut ditagih, bukan pendapatan, tanpa PPN/PPh.
+            [
+                'number' => '106/BCB-CBS/DN-FINAL/XI/2026',
+                'type' => Invoice::TYPE_DEBIT_NOTE,
+                'talangan' => false,
+                'code' => 'FINAL',
+                'currency' => 'USD',
+                'kurs' => 18250,
+                'ppn' => 0,
+                'pph' => 0,
+                'date' => '2026-11-19',
+                'subject' => 'Final Debit Note MV. CONTOH FLAME',
+                'discount' => 0,
+                'items' => [
+                    [
+                        'service_name' => 'MV. CONTOH FLAME',
+                        'description' => "(Final)\nQuantity : 50.750 MT",
+                        'quantity' => 1,
+                        'unit' => 'LS',
+                        'unit_price' => 11223750,
+                    ],
+                    [
+                        'service_name' => 'WHT 23 (2%)',
+                        'quantity' => 1,
+                        'unit' => 'LS',
+                        'unit_price' => 15189475,
+                        'is_tax_deposit' => true,
+                    ],
+                ],
             ],
             [
                 'number' => null,
