@@ -7,10 +7,18 @@ use App\Mcp\Tools\DaftarPerusahaan;
 use App\Mcp\Tools\RekeningBank;
 use App\Models\BankAccount;
 use App\Models\User;
+use Carbon\CarbonInterval;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Laravel\Passport\Client;
 use Laravel\Passport\Passport;
+use League\OAuth2\Server\AuthorizationServer;
+use League\OAuth2\Server\Exception\OAuthServerException;
+use League\OAuth2\Server\ResourceServer;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -154,5 +162,133 @@ class KoneksiClaudeTest extends TestCase
                 ->where('form.state', 'abc123')
                 ->where('readableCompanies.0.kode', self::TEST_COMPANY)
             );
+    }
+
+    /**
+     * Watchpost #20: token akses berumur 1 jam. Claude yang kembali setelah itu masih mengirim
+     * token lama, ditolak 401 + WWW-Authenticate, lalu memakai refresh token. Itu alur normal,
+     * bukan error, tetapi Passport memanggil report() untuk penolakannya.
+     */
+    public function test_token_kedaluwarsa_ditolak_tanpa_dilaporkan_lalu_refresh_token_menyambung_lagi(): void
+    {
+        Exceptions::fake();
+
+        // JWT diperiksa dengan jam sistem, bukan Carbon, sehingga travel() tidak berlaku:
+        // terbitkan token yang sudah habis masa berlakunya sejak awal. AuthorizationServer
+        // menyimpan umur token saat dibuat (dan controller /oauth/token menyimpan server itu),
+        // jadi keduanya dibuat ulang agar refresh menerbitkan token 1 jam seperti di produksi.
+        Passport::tokensExpireIn(CarbonInterval::minutes(-1));
+        $token = $this->sambungkanClaude();
+        Passport::tokensExpireIn(CarbonInterval::hour());
+        app()->forgetInstance(AuthorizationServer::class);
+        Route::getRoutes()->getByName('passport.token')->flushController();
+
+        $this->initializeMcp($token['access_token'])
+            ->assertUnauthorized()
+            ->assertHeader('WWW-Authenticate');
+
+        Exceptions::assertNotReported(OAuthServerException::class);
+
+        $baru = $this->post('/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $token['refresh_token'],
+            'client_id' => $token['client_id'],
+            'scope' => 'mcp:use',
+        ])->assertOk()->json();
+
+        $this->initializeMcp($baru['access_token'])->assertOk();
+    }
+
+    public function test_token_yang_dicabut_dari_pengaturan_ditolak_tanpa_dilaporkan(): void
+    {
+        Exceptions::fake();
+        $token = $this->sambungkanClaude();
+
+        $this->actingAs($this->admin)
+            ->delete('/settings/claude/'.$token['client_id'])
+            ->assertRedirect();
+
+        $this->initializeMcp($token['access_token'])
+            ->assertUnauthorized()
+            ->assertHeader('WWW-Authenticate');
+
+        Exceptions::assertNotReported(OAuthServerException::class);
+    }
+
+    /**
+     * Tanda tangan yang tidak cocok tidak pernah terjadi dalam operasi normal: kunci OAuth
+     * server berubah atau token berasal dari server lain. Itu tetap harus sampai ke Watchpost.
+     */
+    public function test_token_dengan_tanda_tangan_tidak_cocok_tetap_dilaporkan(): void
+    {
+        Exceptions::fake();
+        $token = $this->sambungkanClaude();
+
+        $kunciLain = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        config(['passport.public_key' => openssl_pkey_get_details($kunciLain)['key']]);
+        app()->forgetInstance(ResourceServer::class);
+        Auth::forgetGuards();
+
+        $this->initializeMcp($token['access_token'])->assertUnauthorized();
+
+        Exceptions::assertReported(fn (OAuthServerException $e) => $e->getHint() === 'Access token could not be verified');
+    }
+
+    /**
+     * Alur OAuth yang dijalani Claude: persetujuan admin → kode otorisasi (PKCE) → token.
+     *
+     * @return array{access_token: string, refresh_token: string, client_id: string}
+     */
+    private function sambungkanClaude(): array
+    {
+        $redirect = 'https://claude.ai/api/mcp/auth_callback';
+        $client = Client::query()->forceCreate([
+            'name' => 'Claude',
+            'secret' => null,
+            'provider' => null,
+            'redirect_uris' => [$redirect],
+            'grant_types' => ['authorization_code', 'refresh_token'],
+            'revoked' => false,
+        ]);
+
+        $verifier = Str::random(64);
+        $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+        $form = $this->actingAs($this->admin)
+            ->get('/oauth/authorize?'.http_build_query([
+                'client_id' => $client->getKey(),
+                'redirect_uri' => $redirect,
+                'response_type' => 'code',
+                'scope' => 'mcp:use',
+                'state' => 'abc123',
+                'code_challenge' => $challenge,
+                'code_challenge_method' => 'S256',
+            ]))
+            ->assertOk()
+            ->inertiaProps('form');
+
+        $kembali = $this->actingAs($this->admin)->post('/oauth/authorize', $form)->assertRedirect();
+        parse_str((string) parse_url((string) $kembali->headers->get('Location'), PHP_URL_QUERY), $query);
+
+        $token = $this->post('/oauth/token', [
+            'grant_type' => 'authorization_code',
+            'client_id' => $client->getKey(),
+            'redirect_uri' => $redirect,
+            'code_verifier' => $verifier,
+            'code' => $query['code'],
+        ])->assertOk()->json();
+
+        // Permintaan berikutnya hanya membawa token Bearer, seperti dari server Claude.
+        Auth::forgetGuards();
+
+        return [...$token, 'client_id' => (string) $client->getKey()];
+    }
+
+    private function initializeMcp(string $accessToken): TestResponse
+    {
+        return $this->postJson('/mcp/keuangan', [
+            'jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize',
+            'params' => ['protocolVersion' => '2025-06-18', 'capabilities' => (object) [], 'clientInfo' => ['name' => 'uji', 'version' => '1']],
+        ], ['Accept' => 'application/json, text/event-stream', 'Authorization' => 'Bearer '.$accessToken]);
     }
 }
