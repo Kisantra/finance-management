@@ -81,6 +81,7 @@ punya `pl_group` (revenue/other_income/cogs/opex/other_expense/tax) — lihat
   `locale.dokumen`, isi dokumen di request tampilan lewat `withDocumentLocale()`. Rupiah & angka tetap format
   `id-ID`; tanggal lewat `formatDate()`/`formatTanggal()`. Pemindai: `npm run i18n:check` +
   `tests/Unit/TeksServerMultiBahasaTest.php`. Konvensi lengkap & contoh: CLAUDE.md › "Multi Bahasa".
+  Panduan pengguna cara mengganti bahasa: `/panduan/bahasa` (`video/bahasa/`, capture `video/capture/bahasa.js` — mengembalikan bahasa akun staff ke Indonesia di akhir).
 - **Permission**: Spatie Permission; gate di route (`can:...`), FormRequest, dan UI (`useCan`).
   Struktur lengkap: `database/seeders/MasterPermissionSeeder.php`.
 - **Frontend**: Inertia + React; controller mengirim props, halaman di `resources/js/pages/<modul>/`.
