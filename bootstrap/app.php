@@ -5,6 +5,7 @@ use App\Http\Middleware\RedirectToFirstRunSetup;
 use App\Http\Middleware\SetDocumentLocale;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\SetPermissionsTeam;
+use App\Mcp\TokenDitolak;
 use App\Services\ErrorReportService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -43,6 +44,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->context(fn () => ['error_id' => ErrorReportService::referenceId(request())]);
+
+        // Token Claude yang kedaluwarsa atau dicabut: 401 biasa, bukan error (Watchpost #20).
+        $exceptions->dontReportWhen(TokenDitolak::wajar(...));
 
         // respond(), bukan render(): Handler mengubah TokenMismatchException menjadi
         // HttpException(419) SEBELUM callback render dicocokkan, sehingga callback

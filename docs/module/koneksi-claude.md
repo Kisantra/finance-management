@@ -21,6 +21,7 @@ non-teknis): [`docs/guides/KONEKSI-CLAUDE.md`](../guides/KONEKSI-CLAUDE.md). Per
 | Pengaturan | `/c/{company}/settings/claude` (lihat [settings.md](settings.md)) | Alamat konektor, cara menghubungkan, status kunci OAuth, sambungan aktif + Cabut. |
 | Kunci OAuth | `app/Mcp/KunciOAuth.php` | Membuat pasangan kunci Passport saat pemegang `use claude` (di perusahaan mana pun) membuka Pengaturan › Koneksi Claude: `ada()` (berkas lengkap & tidak kosong, atau `PASSPORT_*_KEY` di env) dan `pastikan()` (`passport:keys --force` di dalam `Cache::lock`, hanya bila pasangan belum lengkap). Status ke halaman: `siap` / `baru` / `gagal` (dicatat di log) / `belum` (pengguna tanpa izin; tidak membuat apa pun). |
 | Konfigurasi | `config/auth.php` (guard `api` = passport), `AppServiceProvider` | `passport.connection` = koneksi central; `Passport::loadKeysFrom(storage_path())` mematok kunci ke storage pusat; token akses 1 jam, refresh token 30 hari. |
+| Token ditolak | `app/Mcp/TokenDitolak.php` + `bootstrap/app.php` (`dontReportWhen`) | Guard Passport memanggil `report()` setiap kali menolak token Bearer. Token yang **kedaluwarsa** (pelanggaran `LooseValidAt` saja) atau **dicabut** adalah alur normal, jadi tidak dicatat ke log/Watchpost. Tanda tangan tidak cocok dan token rusak tetap dilaporkan. |
 | Izin | migration `2026_11_05_120000_add_use_claude_permission_to_roles` + `MasterPermissionSeeder` | `use claude`: bawaan admin & finance manager; bisa diubah di Izin & Peran. |
 
 ## Alur
@@ -29,6 +30,7 @@ non-teknis): [`docs/guides/KONEKSI-CLAUDE.md`](../guides/KONEKSI-CLAUDE.md). Per
 2. Claude memanggil server tanpa token → `401` + `WWW-Authenticate` (middleware `AddWwwAuthenticateHeader` dari `Mcp::web`) → Claude membaca `/.well-known/oauth-protected-resource` & `/.well-known/oauth-authorization-server`, mendaftar diri di `/oauth/register`, lalu membuka `/oauth/authorize` (PKCE S256, scope `mcp:use`).
 3. Belum login → halaman login aplikasi; `redirect()->intended()` mengembalikan ke persetujuan. Pengguna klik **Izinkan** → Passport mengarahkan kembali ke Claude dengan kode → Claude menukar token di `/oauth/token`.
 4. Di chat, Claude memanggil `daftar-perusahaan`, lalu alat lain dengan argumen `perusahaan`.
+5. Token akses habis setelah 1 jam atau dicabut (Cabut di Pengaturan, atau token lama setelah refresh) → `401` + `WWW-Authenticate` → Claude memakai refresh token (30 hari) atau meminta login ulang. Penolakan ini bukan error dan tidak dilaporkan ([Watchpost #20](https://watchpost.kisantra.com/errors/20)).
 
 ## Alat
 
@@ -82,7 +84,7 @@ OAuth dan izin `use claude` datang lewat `migrate` biasa. PHP produksi wajib pun
 
 ## Pengujian
 
-- `tests/Feature/Mcp/KoneksiClaudeTest.php`: 401 + `WWW-Authenticate` tanpa token, discovery publik, `daftar-perusahaan` hanya yang berizin, penolakan alat, koneksi & team pulih setelah alat, `readOnlyHint`, halaman persetujuan.
+- `tests/Feature/Mcp/KoneksiClaudeTest.php`: 401 + `WWW-Authenticate` tanpa token, discovery publik, `daftar-perusahaan` hanya yang berizin, penolakan alat, koneksi & team pulih setelah alat, `readOnlyHint`, halaman persetujuan; alur OAuth lengkap (persetujuan → kode PKCE → token): token kedaluwarsa dan token yang dicabut ditolak 401 tanpa dilaporkan lalu refresh token menyambung lagi, tanda tangan tidak cocok tetap dilaporkan.
 - `tests/Feature/Mcp/Alat*Test.php`: isi, filter, penolakan izin, dan aturan visibilitas per alat.
 - `tests/Feature/Mcp/PengaturanKoneksiClaudeTest.php`: sambungan aktif per klien, cabut hanya token milik sendiri, 404 untuk klien tanpa token; kunci OAuth dibuat saat halaman dibuka dan tidak ditimpa, pasangan setengah jadi dibuat ulang, kunci env dihormati, kegagalan tidak menjatuhkan halaman (status `gagal` + log), pengguna tanpa izin tidak memicu pembuatan. Kunci ditulis ke folder sementara per test.
 - `tests/Tenancy/StoragePerTenantTest.php` (`test_kunci_oauth_tetap_di_storage_pusat_saat_tenancy_aktif`): patok path kunci bertahan saat `FilesystemTenancyBootstrapper` aktif; hanya suite `TenancyReal` yang menjalankan bootstrapper itu.
