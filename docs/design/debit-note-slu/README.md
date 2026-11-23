@@ -204,7 +204,7 @@ Template SLU sekarang menulis langsung alamat, telepon, rekening, dan nama penan
 ## 6. Di luar cakupan
 
 - **Potongan PPh 23** pada invoice SLU: PR terpisah (mengubah hitungan total & status Lunas).
-- **Debit Note untuk perusahaan lain:** otomatis tersedia bila perusahaan itu diberi template `debit-note` sendiri; tidak ada yang berubah sampai saat itu. PT BAS menyusul 19 Nov 2026 dengan desain dari Debit Note Word aslinya (PNBP, DEMMURAGE, OPERASIONAL), lalu PT MKB dan PT BCB di hari yang sama (OVERTIME), dan PT AOE 20 Nov 2026 (PNBP) — lihat modul Invoice.
+- **Debit Note untuk perusahaan lain:** otomatis tersedia bila perusahaan itu diberi template `debit-note` sendiri; tidak ada yang berubah sampai saat itu. PT BAS menyusul 19 Nov 2026 dengan desain dari Debit Note Word aslinya (PNBP, DEMMURAGE, OPERASIONAL), lalu PT MKB dan PT BCB di hari yang sama (OVERTIME), PT AOE 20 Nov 2026 (PNBP), dan PT NBM 23 Nov 2026 (OVERTIME, desain BCB dengan logo & warna NBM) — lihat modul Invoice.
 - **Credit Note** (pengurangan tagihan): tidak termasuk.
 
 ---
