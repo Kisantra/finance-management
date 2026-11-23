@@ -54,7 +54,7 @@ export const guide: ModuleGuide = {
             role: ROLES.admin,
             steps: [
                 'Buka menu akun di kanan atas › **Pengaturan** › **Profil perusahaan** (admin atau finance manager).',
-                'Gulir ke bagian **Debit Note**, lalu centang **Perusahaan ini menerbitkan Debit Note**. Bagian ini hanya muncul untuk perusahaan yang punya desain Debit Note (saat ini PT Samboja Laju Utama, PT Berkah Andalan Samboja, PT Mitra Kellian Baruna, PT Bahtera Cipta Bersama, dan PT Abdi Ocean Energy).',
+                'Gulir ke bagian **Debit Note**, lalu centang **Perusahaan ini menerbitkan Debit Note**. Bagian ini hanya muncul untuk perusahaan yang punya desain Debit Note (saat ini PT Samboja Laju Utama, PT Berkah Andalan Samboja, PT Mitra Kellian Baruna, PT Bahtera Cipta Bersama, PT Abdi Ocean Energy, dan PT Namora Berlian Mahakam).',
                 'Klik **Simpan Perubahan**. Sejak itu editor invoice menampilkan pilihan **Jenis dokumen: Invoice / Debit Note**. Mematikannya lagi tidak menghapus Debit Note yang sudah ada.',
             ],
         },
