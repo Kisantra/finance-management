@@ -42,6 +42,9 @@
         $baris['label'] === 'GRAND TOTAL' => 'Total Debit Note',
         default => $baris['label'],
     };
+    // Lebar tabel item (cm). kerangka.blade.php memakainya juga untuk kotak alamat & rekening agar tepi
+    // kanannya sejajar dengan tabel.
+    $lebarTabel = 15.54;
 @endphp
 
 @section('nama-dokumen', 'Debit Note')
@@ -56,7 +59,7 @@
 
         .items-table,
         .totals-table {
-            width: 15.54cm;
+            width: {{ $lebarTabel }}cm;
             border-collapse: collapse;
         }
 
