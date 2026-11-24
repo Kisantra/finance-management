@@ -293,6 +293,28 @@ class TemplateInvoiceAoeTest extends TestCase
         $this->assertStringContainsString('<div>3 November 2026</div>', $html);
     }
 
+    /**
+     * Tepi kanan kotak alamat & rekening sejajar dengan tabel item. Di dokumen Word kotak selebar 16,73 cm,
+     * sehingga kotak rekening menjorok melewati tabel Debit Note yang hanya 15,54 cm.
+     */
+    public function test_kotak_alamat_dan_rekening_selebar_tabel_item(): void
+    {
+        $debitNote = $this->render($this->debitNotePnbp());
+
+        $this->assertMatchesRegularExpression('/\.items-table,\s*\.totals-table \{\s*width: 15\.54cm;/', $debitNote);
+        $this->assertMatchesRegularExpression('/table\.info \{\s*width: 15\.54cm;/', $debitNote);
+        // (15,54 − sela 0,17) dibagi 7,6 : 8,96, lalu dikurangi padding & garis kotak 0,54 cm.
+        $this->assertStringContainsString('<td class="kotak" style="width: 6.51cm;">', $debitNote);
+        $this->assertStringContainsString('<td class="kotak" style="width: 7.78cm;">', $debitNote);
+
+        // Invoice: tabel item selebar area cetak (16,86 cm), kotak mengikutinya.
+        $invoice = $this->render($this->invoiceFinal());
+
+        $this->assertMatchesRegularExpression('/table\.info \{\s*width: 16\.86cm;/', $invoice);
+        $this->assertStringContainsString('<td class="kotak" style="width: 7.12cm;">', $invoice);
+        $this->assertStringContainsString('<td class="kotak" style="width: 8.49cm;">', $invoice);
+    }
+
     public function test_editor_aoe_menawarkan_debit_note_dan_nomornya_seperti_dokumen_asli(): void
     {
         $this->actingAs($this->admin)->get(self::BASE.'/invoices/create')->assertInertia(fn ($page) => $page
