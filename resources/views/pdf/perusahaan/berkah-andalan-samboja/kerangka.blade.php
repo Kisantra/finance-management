@@ -9,6 +9,8 @@
       judul         teks di kotak judul
       gaya          CSS tabel item & baris total
       tabel         tabel item & baris total ($baris_total, InvoiceTotalRows)
+    dan boleh menyetel $lebarTabel (cm, bawaan selebar area cetak 16,86 cm) bila tabel itemnya lebih sempit:
+    kotak alamat & rekening mengikuti lebar itu supaya tepi kanannya sejajar dengan tabel.
     Logo: logo.jpg di folder ini ($aset('logo.jpg')). Font di fonts/: Tinos (pengganti Times New Roman, teks
     utama), Carlito (pengganti Calibri, judul), dan Caladea (pengganti Cambria, alamat klien & kotak info),
     semuanya berukuran identik dengan aslinya.
@@ -27,6 +29,11 @@
     $fontJudul = $font('Carlito-Bold.ttf');
     $fontIsi = $font('Caladea-Regular.ttf');
     $fontIsiTebal = $font('Caladea-Bold.ttf');
+    // Kotak alamat & rekening selebar tabel item, dibagi seperti dokumen Word (alamat 8,45 : rekening 8,17,
+    // sela 0,19 cm). Garis & padding ada di div.kotak di dalam sel, jadi lebar sel = lebar kotak.
+    $lebarInfo = (float) ($lebarTabel ?? 16.86);
+    $lebarAlamat = round(($lebarInfo - 0.19) * 8.45 / 16.62, 2);
+    $lebarRekening = round(($lebarInfo - 0.19) * 8.17 / 16.62, 2);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -196,9 +203,10 @@
             text-align: right;
         }
 
-        /* Dua kotak terpisah dengan tinggi masing-masing (kotak rekening lebih pendek), rata atas. */
+        /* Dua kotak terpisah dengan tinggi masing-masing (kotak rekening lebih pendek), rata atas. Lebarnya
+           mengikuti tabel item ($lebarInfo; di dokumen Word 16,81 cm, 0,05 cm lebih sempit dari tabel). */
         table.info {
-            width: 16.81cm;
+            width: {{ $lebarInfo }}cm;
             margin-top: 1.3cm;
             border-collapse: collapse;
             page-break-inside: avoid;
@@ -317,7 +325,7 @@
 
     <table class="info">
         <tr>
-            <td style="width: 8.45cm;">
+            <td style="width: {{ $lebarAlamat }}cm;">
                 <div class="kotak">
                     <span class="tebal">{{ $namaPerusahaan }}</span><br>
                     {!! nl2br(e($alamatPerusahaan)) !!}<br>
@@ -325,7 +333,7 @@
                 </div>
             </td>
             <td class="sela"></td>
-            <td style="width: 8.17cm;">
+            <td style="width: {{ $lebarRekening }}cm;">
                 <div class="kotak rekening">
                     @foreach ($company['bank_accounts'] ?? [] as $rekening)
                         @if (! $loop->first)

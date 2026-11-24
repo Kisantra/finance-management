@@ -10,6 +10,8 @@
       judul         judul di bawah kop
       gaya          CSS tabel item & baris total
       tabel         tabel item & baris total ($baris_total, InvoiceTotalRows)
+    dan boleh menyetel $lebarTabel (cm, bawaan selebar area cetak 16,86 cm) bila tabel itemnya lebih sempit:
+    kotak alamat & rekening mengikuti lebar itu supaya tepi kanannya sejajar dengan tabel.
     Logo: logo.png di folder ini ($aset('logo.png'), diambil dari dokumen Word, 100×104 px). Font di fonts/:
     Tinos (pengganti Times New Roman, semua teks dokumen), Caladea (pengganti Cambria, kedua kotak info), dan
     Arimo (pengganti Arial, alamat di kotak alamat), semuanya berukuran identik dengan aslinya.
@@ -36,6 +38,12 @@
     $fontKotak = $font('Caladea-Regular.ttf');
     $fontKotakTebal = $font('Caladea-Bold.ttf');
     $fontAlamat = $font('Arimo-Regular.ttf');
+    // Kotak alamat & rekening selebar tabel item, dibagi seperti dokumen Word (alamat 7,6 : rekening 8,66,
+    // sela 0,16 cm). DomPDF tidak menghitung padding (0,25 cm kiri-kanan) maupun garis kotak (0,5 pt kiri-kanan)
+    // dalam lebar sel, jadi lebar sel = lebar kotak − 0,54 cm; tanpa itu tepi kanan kotak menjorok ±0,08 cm.
+    $lebarInfo = (float) ($lebarTabel ?? 16.86);
+    $lebarAlamat = round(($lebarInfo - 0.16) * 7.6 / 16.26 - 0.54, 2);
+    $lebarRekening = round(($lebarInfo - 0.16) * 8.66 / 16.26 - 0.54, 2);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -210,12 +218,13 @@
             text-align: right;
         }
 
-        /* Dua kotak teks Word setinggi 2,75 cm berdampingan: alamat 7,6 cm di kiri, rekening 8,66 cm di
-           kanannya. Sel di baris yang sama, jadi keduanya tetap sama tinggi bila isinya lebih panjang. DomPDF
-           menghitung lebar & tinggi sel tanpa padding (0,25 cm kiri-kanan, 0,13 cm atas-bawah), jadi ukuran
-           di sini = ukuran kotak dikurangi padding. */
+        /* Dua kotak teks Word setinggi 2,75 cm berdampingan (alamat di kiri, rekening di kanan). Lebarnya
+           mengikuti tabel item ($lebarInfo; di dokumen Word 16,42 cm sehingga lebih sempit dari tabel invoice dan
+           lebih lebar dari tabel Debit Note). Sel di baris yang sama, jadi keduanya tetap sama tinggi bila isinya
+           lebih panjang. DomPDF menghitung lebar & tinggi sel tanpa padding (0,25 cm kiri-kanan, 0,13 cm
+           atas-bawah), jadi ukuran sel = ukuran kotak dikurangi padding. */
         table.info {
-            width: 16.42cm;
+            width: {{ $lebarInfo }}cm;
             margin-top: 0.9cm;
             border-collapse: collapse;
             page-break-inside: avoid;
@@ -375,7 +384,7 @@
 
     <table class="info">
         <tr>
-            <td class="kotak" style="width: 7.1cm;">
+            <td class="kotak" style="width: {{ $lebarAlamat }}cm;">
                 <div class="tebal">{{ $namaPerusahaan }}</div>
                 @if (filled($company['address']))
                     <div class="arial">{!! nl2br(e($company['address'])) !!}</div>
@@ -385,7 +394,7 @@
                 @endif
             </td>
             <td class="sela"></td>
-            <td class="kotak" style="width: 8.16cm;">
+            <td class="kotak" style="width: {{ $lebarRekening }}cm;">
                 @foreach ($company['bank_accounts'] ?? [] as $rekening)
                     <div class="bank{{ $loop->first ? '' : ' rekening-lain' }}">{{ $rekening['bank'] }}</div>
                     <div><span class="tebal">An</span>. <span class="tebal">{{ $rekening['account_name'] }}</span></div>
