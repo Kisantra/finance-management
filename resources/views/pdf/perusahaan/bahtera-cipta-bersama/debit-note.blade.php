@@ -39,6 +39,9 @@
         $baris['label'] === 'GRAND TOTAL' && $invoice->isForeign() => 'GRAND TOTAL (IDR)',
         default => $baris['label'],
     };
+    // Lebar tabel item (cm). kerangka.blade.php memakainya juga untuk kotak alamat & rekening agar tepi
+    // kanannya sejajar dengan tabel.
+    $lebarTabel = 16;
 @endphp
 
 @section('nama-dokumen', 'Debit Note')
@@ -48,7 +51,7 @@
 @section('gaya')
         .items-table,
         .totals-table {
-            width: 16cm;
+            width: {{ $lebarTabel }}cm;
             border-collapse: collapse;
         }
 

@@ -13,6 +13,8 @@
       judul         teks di kotak judul
       gaya          CSS tabel item & baris total
       tabel         tabel item & baris total ($baris_total, InvoiceTotalRows)
+    dan boleh menyetel $lebarTabel (cm, bawaan selebar area cetak 16,06 cm) bila tabel itemnya lebih sempit:
+    kotak alamat & rekening mengikuti lebar itu supaya tepi kanannya sejajar dengan tabel.
     Logo: logo.jpg di folder ini ($aset('logo.jpg'), dari dokumen Word, 222×195 px). Font di fonts/: Tinos
     (pengganti Times New Roman, nomor, perihal & alamat klien), Carlito (pengganti Calibri, judul, blok klien
     lainnya, baris total, kotak info, tanda tangan), dan Arimo (pengganti Arial, tabel item), semuanya
@@ -37,6 +39,12 @@
     $fontCalibri = $font('Carlito-Regular.ttf');
     $fontCalibriTebal = $font('Carlito-Bold.ttf');
     $fontArial = $font('Arimo-Regular.ttf');
+    // Kotak alamat & rekening selebar tabel item, dibagi seperti dokumen Word (alamat 7,6 : rekening 8,01,
+    // sela 0,19 cm). DomPDF tidak menghitung padding (0,25 cm kiri-kanan) maupun garis kotak (0,5 pt kiri-kanan)
+    // dalam lebar sel, jadi lebar sel = lebar kotak − 0,54 cm.
+    $lebarInfo = (float) ($lebarTabel ?? 16.06);
+    $lebarAlamat = round(($lebarInfo - 0.19) * 7.6 / 15.61 - 0.54, 2);
+    $lebarRekening = round(($lebarInfo - 0.19) * 8.01 / 15.61 - 0.54, 2);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -187,16 +195,15 @@
 
         @yield('gaya')
 
-        /* Dua kotak teks Word setinggi 2,75 cm berdampingan: alamat 7,6 cm (0,09 cm keluar margin kiri),
-           rekening 8,01 cm 0,25 cm di kanannya, mulai 1,1 cm di bawah baris total terakhir. Sel di baris yang
-           sama, jadi keduanya tetap sama tinggi bila isinya lebih panjang. DomPDF menghitung lebar & tinggi sel
-           tanpa padding (0,25 cm kiri-kanan; 0,13 cm atas-bawah ditambah jarak baris Calibri yang Word taruh
-           di atas teks), jadi ukuran di sini = ukuran kotak dikurangi padding; sela & lebar tabel diukur ulang
-           dari render agar tepi kotak jatuh di posisi dokumen asli. */
+        /* Dua kotak teks Word setinggi 2,75 cm berdampingan (alamat di kiri, rekening di kanan), mulai 1,1 cm di
+           bawah baris total terakhir. Lebar & tepi kirinya mengikuti tabel item ($lebarInfo; di dokumen Word kotak
+           0,09 cm keluar margin kiri dan 0,25 cm lebih sempit dari tabel). Sel di baris yang sama, jadi keduanya
+           tetap sama tinggi bila isinya lebih panjang. DomPDF menghitung lebar & tinggi sel tanpa padding
+           (0,25 cm kiri-kanan; 0,13 cm atas-bawah ditambah jarak baris Calibri yang Word taruh di atas teks),
+           jadi ukuran sel = ukuran kotak dikurangi padding. */
         table.info {
-            width: 15.8cm;
+            width: {{ $lebarInfo }}cm;
             margin-top: 1.1cm;
-            margin-left: -0.09cm;
             border-collapse: collapse;
             page-break-inside: avoid;
         }
@@ -328,7 +335,7 @@
 
     <table class="info">
         <tr>
-            <td class="kotak" style="width: 7.1cm;">
+            <td class="kotak" style="width: {{ $lebarAlamat }}cm;">
                 <div class="tebal">{{ $namaPerusahaan }}</div>
                 @if (filled($company['address']))
                     <div>{!! nl2br(e($company['address'])) !!}</div>
@@ -338,7 +345,7 @@
                 @endif
             </td>
             <td class="sela"></td>
-            <td class="kotak" style="width: 7.51cm;">
+            <td class="kotak" style="width: {{ $lebarRekening }}cm;">
                 @foreach ($company['bank_accounts'] ?? [] as $rekening)
                     <div class="bank{{ $loop->first ? '' : ' rekening-lain' }}">{{ $rekening['bank'] }}</div>
                     <div>An. <span class="tebal">{{ $rekening['account_name'] }}</span></div>
