@@ -19,7 +19,7 @@ import { openResource, parseResource, resourceHref, showResource, useResource } 
 import { cn, toastErrors, toLocalIso } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { Avatar, BTN, CARD, DebitNoteChip, dueInfo, FIELD, issuedAgo, longDate, monthLabel, OverdueChip, rp, shortDate, InvoiceStatusPill, type InvoiceStatus, usd } from './components/ob';
-import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './components/print-invoice-dialog';
+import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate, type PrintImages } from './components/print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -86,6 +86,7 @@ interface Props extends SharedProps {
     clients: { label: string; value: number }[];
     customTemplates: CustomTemplate[];
     companyTemplate: CompanyTemplate | null;
+    printImages: PrintImages;
     selectedInvoiceId: number | null;
     filters: Filters;
     /** Perusahaan PKP (Pengaturan › Profil perusahaan). */
@@ -134,7 +135,7 @@ const PILL =
 
 /* ─────────────────────────────────── halaman ─── */
 
-function InvoicesPage({ invoices, stats, clients, customTemplates, companyTemplate, selectedInvoiceId, filters, ppnEnabled }: Props) {
+function InvoicesPage({ invoices, stats, clients, customTemplates, companyTemplate, printImages, selectedInvoiceId, filters, ppnEnabled }: Props) {
     const f = {
         search: filters.search ?? '',
         status: filters.status ?? '',
@@ -464,6 +465,7 @@ function InvoicesPage({ invoices, stats, clients, customTemplates, companyTempla
                     amountPaid={printRow.amount_paid}
                     customTemplates={customTemplates}
                     companyTemplate={companyTemplate}
+                    printImages={printImages}
                     foreignCurrency={printRow.currency === 'USD'}
                 />
             )}

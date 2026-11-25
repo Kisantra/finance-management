@@ -25,8 +25,10 @@ export function DialogHead({ title, sub, onClose }: { title: string; sub?: React
 
 /**
  * Nomor invoice sebelum terbit: terisi nomor berikutnya sesuai format Pengaturan › Penomoran
- * invoice dan tetap bisa diubah. Dipakai "Terbitkan invoice" (drawer draft) dan "Simpan & terbitkan"
- * (editor). Pengirimannya diurus pemanggil; galat nomor dari server dikembalikan lewat `error`.
+ * invoice dan tetap bisa diubah. Dipakai "Terbitkan invoice" (drawer draft), "Simpan & terbitkan"
+ * (editor), dan "Ubah nomor" (drawer invoice terbit; `suggested` = nomor sekarang, dengan `hint`,
+ * `resetLabel`, `icon` sendiri). Pengirimannya diurus pemanggil; galat nomor dari server dikembalikan
+ * lewat `error`.
  */
 export function InvoiceNumberDialog({
     open,
@@ -37,6 +39,9 @@ export function InvoiceNumberDialog({
     suggested,
     loading = false,
     editable = true,
+    hint,
+    resetLabel,
+    icon = <Send className="h-4 w-4" />,
     clientName,
     total,
     submitting,
@@ -54,6 +59,11 @@ export function InvoiceNumberDialog({
     loading?: boolean;
     /** false = hanya ditampilkan (pengguna tanpa izin `edit invoices` tidak memilih nomor sendiri). */
     editable?: boolean;
+    /** Ganti petunjuk bawaan (nomor berikutnya sesuai format). */
+    hint?: string;
+    /** Label tautan pengembali ke `suggested` saat nomor ditolak; bawaan "Pakai nomor yang disarankan". */
+    resetLabel?: string;
+    icon?: React.ReactNode;
     clientName: string;
     total: number;
     submitting: boolean;
@@ -92,9 +102,10 @@ export function InvoiceNumberDialog({
                             className="font-mono"
                             error={error ?? undefined}
                             hint={
-                                editable
+                                hint ??
+                                (editable
                                     ? t('Nomor berikutnya sesuai format di Pengaturan › Penomoran invoice. Boleh diubah selama belum dipakai. Bisa dikembalikan ke draft selama ini nomor urut terakhir di periodenya.')
-                                    : t('Nomor diberikan otomatis sesuai format di Pengaturan › Penomoran invoice.')
+                                    : t('Nomor diberikan otomatis sesuai format di Pengaturan › Penomoran invoice.'))
                             }
                             autoFocus={editable}
                         />
@@ -108,7 +119,7 @@ export function InvoiceNumberDialog({
                             }}
                             className="-mt-2 self-start text-[13px] font-semibold text-ob-act hover:underline"
                         >
-                            {t('Pakai nomor yang disarankan')}
+                            {resetLabel ?? t('Pakai nomor yang disarankan')}
                         </button>
                     )}
                     <div className="flex items-center justify-between gap-3 rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-sm">
@@ -119,7 +130,7 @@ export function InvoiceNumberDialog({
                         <Button type="button" variant="ghost" className={BTN.ghost} onClick={() => onOpenChange(false)}>
                             {t('Batal')}
                         </Button>
-                        <Button type="submit" className={BTN.primary} loading={submitting} disabled={loading || !number.trim()} icon={<Send className="h-4 w-4" />}>
+                        <Button type="submit" className={BTN.primary} loading={submitting} disabled={loading || !number.trim()} icon={icon}>
                             {confirmLabel}
                         </Button>
                     </div>

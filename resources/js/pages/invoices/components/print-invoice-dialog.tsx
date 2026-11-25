@@ -3,12 +3,13 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Switch } from '@/components/ui/switch';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { t, tk } from '@/i18n';
 import { companyUrl } from '@/lib/company';
 import { cn } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
-import { BTN, FIELD, rp, SumRow, SURFACE } from './ob';
+import { BTN, FIELD, readPref, rp, SumRow, SURFACE, writePref } from './ob';
 
 type PrintType = 'full' | 'dp' | 'pelunasan';
 
@@ -24,6 +25,12 @@ export interface CompanyTemplate {
     label: string;
 }
 
+/** Gambar yang sudah diunggah di Profil perusahaan (InvoicePrintService::printImages). */
+export interface PrintImages {
+    signature: boolean;
+    stamp: boolean;
+}
+
 interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -36,6 +43,8 @@ interface Props {
     companyTemplate?: CompanyTemplate | null;
     /** Tagihan USD: hanya cetak penuh (uang muka & pelunasan dihitung dalam Rupiah, belum untuk USD). */
     foreignCurrency?: boolean;
+    /** Pilihan "Sertakan di PDF" hanya aktif untuk gambar yang sudah diunggah. */
+    printImages?: PrintImages;
 }
 
 /* Warna strip mini = aksen masing-masing template PDF, supaya kartu mudah dikenali. */
@@ -46,7 +55,11 @@ const BUILTIN = [
     { value: 'invoice', label: tk('Generik'), accent: '#64748b' },
 ];
 
-export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [], companyTemplate = null, foreignCurrency = false }: Props) {
+/* Pilihan cetak terakhir diingat per browser, mis. perusahaan yang selalu menandatangani basah. */
+const PREF_SIGNATURE = 'invoice.print.signature';
+const PREF_STAMP = 'invoice.print.stamp';
+
+export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumber, totalAmount, amountPaid, customTemplates = [], companyTemplate = null, foreignCurrency = false, printImages = { signature: false, stamp: false } }: Props) {
     const remaining = totalAmount - amountPaid;
     const settlementAvailable = !foreignCurrency && amountPaid > 0 && remaining > 0;
 
@@ -55,6 +68,13 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
     const defaultTemplate = companyTemplate?.value ?? 'kisantra-invoice';
     const [template, setTemplate] = React.useState(defaultTemplate);
     const [zoom, setZoom] = React.useState<PaperZoom>('fit');
+    const [withSignature, setWithSignature] = React.useState(() => readPref(PREF_SIGNATURE, '1') === '1');
+    const [withStamp, setWithStamp] = React.useState(() => readPref(PREF_STAMP, '1') === '1');
+
+    // Template builder memasang gambarnya sendiri di editor; template Generik tidak punya stempel.
+    const builder = template.startsWith('builder:');
+    const signatureAvailable = !builder && printImages.signature;
+    const stampAvailable = !builder && printImages.stamp && template !== 'invoice';
 
     React.useEffect(() => {
         if (open) {
@@ -70,8 +90,10 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
         const params = new URLSearchParams({ template });
         if (printType === 'dp' && dpAmount > 0 && dpAmount <= totalAmount) params.set('dp_amount', String(dpAmount));
         if (printType === 'pelunasan') params.set('pelunasan_amount', String(remaining));
+        if (signatureAvailable && !withSignature) params.set('signature', '0');
+        if (stampAvailable && !withStamp) params.set('stamp', '0');
         return params.toString();
-    }, [template, printType, dpAmount, totalAmount, remaining]);
+    }, [template, printType, dpAmount, totalAmount, remaining, signatureAvailable, withSignature, stampAvailable, withStamp]);
 
 
     const typeOptions = [
@@ -175,6 +197,43 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                             </div>
                         </div>
 
+                        <div>
+                            <p className="mb-2 text-[13px] font-medium text-ob-ink-2">{t('Sertakan di PDF')}</p>
+                            {builder ? (
+                                <p className="rounded-2xl border border-ob-line bg-ob-inner px-4 py-3 text-[13px] leading-relaxed text-ob-ink-2">
+                                    {t('Gambar di template ini diatur di Pengaturan › Template PDF.')}
+                                </p>
+                            ) : (
+                                <>
+                                    <div className="flex flex-col divide-y divide-ob-line rounded-2xl border border-ob-line bg-ob-inner">
+                                        <IncludeRow
+                                            label={t('Tanda tangan')}
+                                            note={printImages.signature ? null : t('Belum diunggah di Profil perusahaan')}
+                                            checked={signatureAvailable && withSignature}
+                                            disabled={!signatureAvailable}
+                                            onCheckedChange={(on) => {
+                                                setWithSignature(on);
+                                                writePref(PREF_SIGNATURE, on ? '1' : '0');
+                                            }}
+                                        />
+                                        <IncludeRow
+                                            label={t('Stempel')}
+                                            note={!printImages.stamp ? t('Belum diunggah di Profil perusahaan') : template === 'invoice' ? t('Template Generik tidak mencetak stempel') : null}
+                                            checked={stampAvailable && withStamp}
+                                            disabled={!stampAvailable}
+                                            onCheckedChange={(on) => {
+                                                setWithStamp(on);
+                                                writePref(PREF_STAMP, on ? '1' : '0');
+                                            }}
+                                        />
+                                    </div>
+                                    {(signatureAvailable || stampAvailable) && (
+                                        <p className="mt-2 text-[13px] leading-relaxed text-ob-ink-2">{t('Matikan untuk ditandatangani atau distempel basah setelah dicetak; ruangnya tetap tersedia.')}</p>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
                         <div className="mt-auto flex flex-wrap justify-end gap-2">
                             <Button asChild variant="outline" className={BTN.secondary}>
                                 <a href={companyUrl(`/invoice/${invoiceId}/preview?${query}`)} target="_blank" rel="noreferrer" aria-disabled={!!dpError} onClick={(e) => dpError && e.preventDefault()}>
@@ -203,5 +262,25 @@ export function PrintInvoiceDialog({ open, onOpenChange, invoiceId, invoiceNumbe
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/** Satu pilihan "Sertakan di PDF": label kiri, sakelar kanan; alasan nonaktif di bawah label. */
+function IncludeRow({ label, note, checked, disabled, onCheckedChange }: { label: string; note: string | null; checked: boolean; disabled: boolean; onCheckedChange: (on: boolean) => void }) {
+    const id = React.useId();
+    return (
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+                <label htmlFor={id} className={cn('text-sm font-medium', disabled ? 'text-ob-ink-3' : 'cursor-pointer text-ob-ink')}>
+                    {label}
+                </label>
+                {note && (
+                    <p id={`${id}-note`} className="text-xs text-ob-ink-3">
+                        {note}
+                    </p>
+                )}
+            </div>
+            <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} aria-describedby={note ? `${id}-note` : undefined} />
+        </div>
     );
 }

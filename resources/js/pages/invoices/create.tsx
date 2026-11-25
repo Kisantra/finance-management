@@ -27,7 +27,7 @@ import { InvoicePaper, type PaperZoom } from './components/invoice-paper';
 import type { CompanyTemplate } from './components/print-invoice-dialog';
 import { parseQty } from './components/item-table-helpers';
 import { QuickClientDialog } from './components/quick-client-dialog';
-import { BTN, CARD, FIELD, FIELD_SM, rp, rpSen, SumRow, SURFACE, usd } from './components/ob';
+import { BTN, CARD, FIELD, FIELD_SM, readPref, rp, rpSen, SumRow, SURFACE, usd, writePref } from './components/ob';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -234,22 +234,6 @@ function addDays(iso: string, days: number): string {
 
 function toDate(iso: string): Date | null {
     return iso ? new Date(iso + 'T00:00:00') : null;
-}
-
-function readPref<T extends string>(key: string, fallback: T): T {
-    try {
-        return (localStorage.getItem(key) as T) ?? fallback;
-    } catch {
-        return fallback;
-    }
-}
-
-function writePref(key: string, value: string): void {
-    try {
-        localStorage.setItem(key, value);
-    } catch {
-        /* penyimpanan diblokir: preferensi tidak diingat */
-    }
 }
 
 /** Isian editor → payload server (qty "1,5" → "1.5"). Dipakai simpan maupun pratinjau. */
