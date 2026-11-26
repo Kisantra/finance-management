@@ -183,6 +183,23 @@ export function SumRow({ label, value, strong, className }: { label: React.React
     );
 }
 
+/** Preferensi tampilan per browser (template pratinjau, pilihan cetak); gagal diam bila penyimpanan diblokir. */
+export function readPref<T extends string>(key: string, fallback: T): T {
+    try {
+        return (localStorage.getItem(key) as T) ?? fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+export function writePref(key: string, value: string): void {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        /* penyimpanan diblokir: preferensi tidak diingat */
+    }
+}
+
 export function getCsrfToken(): string {
     return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 }

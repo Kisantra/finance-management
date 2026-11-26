@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Check, Link2, MoreHorizontal, Pencil, Printer, ReceiptText, RotateCcw, Send, Trash2, Wallet, X } from 'lucide-react';
+import { Check, Hash, Link2, MoreHorizontal, Pencil, Printer, ReceiptText, RotateCcw, Send, Trash2, Wallet, X } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { CurrencyInput } from '@/components/shared/currency-input';
 import { AttachmentPreviewButton } from '@/components/shared/file-preview-dialog';
 import { FileUpload } from '@/components/shared/file-upload';
 import { JournalBox } from '@/components/shared/journal-box';
+import { useCan } from '@/hooks/use-can';
 import { t } from '@/i18n';
 import { api } from '@/lib/api';
 import { companyUrl } from '@/lib/company';
@@ -25,7 +26,7 @@ import { cn, toastError, toastErrors, toLocalIso } from '@/lib/utils';
 import { InvoicePaper, type PaperZoom } from './invoice-paper';
 import { BTN, dateTime, DebitNoteChip, dueInfo, FIELD, InvoiceStatusPill, longDate, OverdueChip, rp, rpSen, SumRow, SURFACE, usd } from './ob';
 import { DIALOG, DialogHead, InvoiceNumberDialog } from './invoice-number-dialog';
-import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate } from './print-invoice-dialog';
+import { PrintInvoiceDialog, type CompanyTemplate, type CustomTemplate, type PrintImages } from './print-invoice-dialog';
 
 /* ─────────────────────────────────── types ─── */
 
@@ -85,6 +86,7 @@ export interface InvoiceDetail {
     rollbackable: boolean;
     custom_templates: CustomTemplate[];
     company_template: CompanyTemplate | null;
+    print_images: PrintImages;
     client: { id: number; name: string; type: string; email: string | null; NPWP: string | null; address: string | null };
     items: Array<{
         id: number;
@@ -114,7 +116,7 @@ type LoadState = { kind: 'loading' } | { kind: 'ready'; detail: InvoiceDetail } 
  * Aksi invoice lewat fetch JSON, bukan kunjungan Inertia: redirect back akan mengganti halaman
  * di belakang modal dan membuang hash #invoice/{id}. Galat validasi 422 dikembalikan per field.
  */
-async function invoiceAction(url: string, method: 'POST' | 'DELETE', body?: Record<string, unknown>) {
+async function invoiceAction(url: string, method: 'POST' | 'PUT' | 'DELETE', body?: Record<string, unknown>) {
     const res = await api(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -145,7 +147,8 @@ interface DrawerProps {
 export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
     const [state, setState] = React.useState<LoadState>({ kind: 'loading' });
     const [tab, setTab] = React.useState<'summary' | 'print'>('summary');
-    const [dialog, setDialog] = React.useState<null | 'send' | 'pay' | 'print' | 'delete'>(null);
+    const [dialog, setDialog] = React.useState<null | 'send' | 'number' | 'pay' | 'print' | 'delete'>(null);
+    const { can } = useCan();
     const [editPayment, setEditPayment] = React.useState<Payment | null>(null);
     const [deletePayment, setDeletePayment] = React.useState<Payment | null>(null);
     const [busy, setBusy] = React.useState(false);
@@ -281,6 +284,11 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                                             <DropdownMenuItem onClick={() => router.visit(companyUrl(`/invoices/${detail.id}/edit`))}>
                                                 <Pencil className="h-4 w-4" /> {t('Ubah invoice')}
                                             </DropdownMenuItem>
+                                            {detail.invoice_number && can('edit invoices') && (
+                                                <DropdownMenuItem onClick={() => setDialog('number')}>
+                                                    <Hash className="h-4 w-4" /> {t('Ubah nomor')}
+                                                </DropdownMenuItem>
+                                            )}
                                             {rollbackable && (
                                                 <DropdownMenuItem onClick={rollback} disabled={busy}>
                                                     <RotateCcw className="h-4 w-4" /> {t('Kembalikan ke draft')}
@@ -326,6 +334,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
             {detail && (
                 <>
                     <SendDialog open={dialog === 'send'} onOpenChange={(o) => setDialog(o ? 'send' : null)} detail={detail} onSent={refresh} />
+                    <EditNumberDialog open={dialog === 'number'} onOpenChange={(o) => setDialog(o ? 'number' : null)} detail={detail} onSaved={refresh} />
                     <PaymentDialog
                         open={dialog === 'pay'}
                         onOpenChange={(o) => { setDialog(o ? 'pay' : null); if (!o) setEditPayment(null); }}
@@ -343,6 +352,7 @@ export function InvoiceDrawer({ invoiceId, onClose, onChanged }: DrawerProps) {
                         amountPaid={detail.amount_paid}
                         customTemplates={detail.custom_templates}
                         companyTemplate={detail.company_template}
+                        printImages={detail.print_images}
                     />
                     <ConfirmDialog
                         open={dialog === 'delete'}
@@ -691,6 +701,53 @@ function SendDialog({ open, onOpenChange, detail, onSent }: { open: boolean; onO
             error={error}
             onClearError={() => setError(null)}
             onConfirm={send}
+        />
+    );
+}
+
+/* ─────────────────────────────────── dialog: ubah nomor ─── */
+
+/** Ganti nomor invoice yang sudah terbit tanpa kembali ke draft; nomor sama = tutup tanpa permintaan. */
+function EditNumberDialog({ open, onOpenChange, detail, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; detail: InvoiceDetail; onSaved: () => void }) {
+    const [error, setError] = React.useState<string | null>(null);
+    const [saving, setSaving] = React.useState(false);
+    const current = detail.invoice_number ?? '';
+
+    React.useEffect(() => {
+        if (open) setError(null);
+    }, [open]);
+
+    const save = async (number: string) => {
+        if (number === current) return onOpenChange(false);
+        setSaving(true);
+        const result = await invoiceAction(`/invoices/${detail.id}/number`, 'PUT', { invoice_number: number }).catch(() => null);
+        setSaving(false);
+        if (!result?.ok) {
+            setError(result?.errors.invoice_number ?? null);
+            return toastErrors(result?.errors ?? { _: t('Periksa koneksi lalu coba lagi.') }, 'UpdateInvoiceNumber');
+        }
+        toast.success(result.message ?? t('Nomor diubah menjadi {{number}}', { number }));
+        onOpenChange(false);
+        onSaved();
+    };
+
+    return (
+        <InvoiceNumberDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            title={t('Ubah nomor')}
+            sub={t('Status, item, dan pembayaran tidak berubah. PDF yang sudah dikirim ke klien masih memakai nomor lama.')}
+            confirmLabel={t('Simpan nomor')}
+            icon={<Check className="h-4 w-4" />}
+            suggested={current}
+            hint={t('Harus unik. Nomor berikutnya melanjutkan nomor urut tertinggi di periodenya.')}
+            resetLabel={t('Kembalikan nomor semula')}
+            clientName={detail.client.name}
+            total={detail.total_amount}
+            submitting={saving}
+            error={error}
+            onClearError={() => setError(null)}
+            onConfirm={save}
         />
     );
 }

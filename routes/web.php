@@ -248,6 +248,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
         // menarik nomornya lagi.
         Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->middleware('can:edit invoices')->name('send');
         Route::post('/{invoice}/rollback', [InvoiceController::class, 'rollback'])->middleware('can:edit invoices')->name('rollback');
+        Route::put('/{invoice}/number', [InvoiceController::class, 'updateNumber'])->middleware('can:edit invoices')->name('number.update');
         Route::post('/{invoice}/payments', [PaymentController::class, 'store'])->middleware('can:create invoices')->name('payments.store');
     });
 
@@ -257,6 +258,8 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
     });
 
     // Invoice PDF Operations — dokumen, selalu Bahasa Indonesia (locale.dokumen).
+    // `signature=0` / `stamp=0` = cetak tanpa gambar tanda tangan / stempel (template Blade; template
+    // builder memasang gambarnya sendiri). Tanpa parameter keduanya ikut, seperti sebelumnya.
     Route::prefix('invoice')->name('invoice.')->middleware('locale.dokumen')->group(function () {
         Route::get('/{invoice}/download', function (Invoice $invoice, Request $request) {
             $dpAmount = $request->query('dp_amount') ? (int) $request->query('dp_amount') : null;
@@ -273,7 +276,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             } else {
                 abort_unless(in_array($template, CompanyInvoiceTemplate::allowed(), true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
-                $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
+                $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template, $request->boolean('signature', true), $request->boolean('stamp', true));
                 $invoiceType = $dpAmount ? 'DP-' : ($pelunasanAmount ? 'Pelunasan-' : '');
                 $filename = $invoiceType.($invoice->isDebitNote() ? 'Debit-Note-' : 'Invoice-').str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '-', $invoice->invoice_number).'.pdf';
             }
@@ -300,7 +303,7 @@ Route::prefix('c/{company}')->middleware($companyMiddleware)->group(function () 
             } else {
                 abort_unless(in_array($template, CompanyInvoiceTemplate::allowed(), true), 404, __('Template PDF tidak dikenal.'));
                 $service = new InvoicePrintService;
-                $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template);
+                $pdf = $service->generateSingleInvoicePdf($invoice, $dpAmount, $pelunasanAmount, $template, $request->boolean('signature', true), $request->boolean('stamp', true));
             }
 
             return response($pdf->output(), 200, [

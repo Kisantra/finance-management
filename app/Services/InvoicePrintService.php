@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CompanyProfile;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class InvoicePrintService
 {
@@ -17,11 +18,11 @@ class InvoicePrintService
      */
     public const BLADE_TEMPLATES = ['kisantra-invoice', 'semesta-invoice', 'agsa-invoice', 'invoice'];
 
-    public function generateSingleInvoicePdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice')
+    public function generateSingleInvoicePdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', bool $withSignature = true, bool $withStamp = true)
     {
         $invoice->load(['client', 'items.client', 'payments.bankAccount']);
 
-        return $this->renderPdf($invoice, $dpAmount, $pelunasanAmount, $template);
+        return $this->renderPdf($invoice, $dpAmount, $pelunasanAmount, $template, withSignature: $withSignature, withStamp: $withStamp);
     }
 
     /**
@@ -30,10 +31,12 @@ class InvoicePrintService
      * Relasi client, items.client, dan payments harus sudah terpasang (boleh model yang belum disimpan).
      *
      * $highlightRow (0-based) hanya untuk pratinjau editor: mewarnai baris item yang sedang diedit.
+     * $withSignature / $withStamp = false: gambar tanda tangan / stempel tidak dicetak (pilihan dialog cetak),
+     * ruangnya tetap ada untuk tanda tangan basah.
      */
-    public function renderPdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', ?int $highlightRow = null): \Barryvdh\DomPDF\PDF
+    public function renderPdf(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', ?int $highlightRow = null, bool $withSignature = true, bool $withStamp = true): \Barryvdh\DomPDF\PDF
     {
-        $html = view(CompanyInvoiceTemplate::viewFor($template, $invoice), $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template))->render();
+        $html = view(CompanyInvoiceTemplate::viewFor($template, $invoice), $this->buildViewData($invoice, $dpAmount, $pelunasanAmount, $template, $withSignature, $withStamp))->render();
 
         if ($highlightRow !== null) {
             $style = '<style>.items-table tbody tr:nth-child('.($highlightRow + 1).') td{background-color:#dbeafe !important;}</style>';
@@ -70,9 +73,19 @@ class InvoicePrintService
      *
      * @return array<string, mixed>
      */
-    public function buildViewData(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice'): array
+    public function buildViewData(Invoice $invoice, ?int $dpAmount = null, ?int $pelunasanAmount = null, string $template = 'kisantra-invoice', bool $withSignature = true, bool $withStamp = true): array
     {
         $company = CompanyProfile::current();
+
+        // Template bawaan membaca gambar dari $company[...], template perusahaan dari $tanda_tangan/$stempel:
+        // keduanya dikosongkan bersama agar pilihan dialog cetak berlaku di semua template Blade.
+        $companyInfo = $this->getCompanyInfo($company, $invoice);
+        if (! $withSignature) {
+            $companyInfo['signature_base64'] = '';
+        }
+        if (! $withStamp) {
+            $companyInfo['stamp_base64'] = '';
+        }
 
         $isDownPayment = ! is_null($dpAmount) && $dpAmount > 0;
         $isPelunasan = ! is_null($pelunasanAmount) && $pelunasanAmount > 0;
@@ -125,7 +138,7 @@ class InvoicePrintService
             'regular_items' => $regularItems,
             'tax_deposit_items' => $taxDepositItems,
             'payments' => $invoice->payments,
-            'company' => $this->getCompanyInfo($company, $invoice),
+            'company' => $companyInfo,
             'terbilang' => $this->numberToWords($grandTotal),
             'is_down_payment' => $isDownPayment,
             'is_pelunasan' => $isPelunasan,
@@ -142,8 +155,8 @@ class InvoicePrintService
             'aset' => fn (string $file): string => CompanyInvoiceTemplate::asset($file),
             // Template perusahaan: baris total disusun sistem, template hanya menata tampilannya.
             'baris_total' => InvoiceTotalRows::for($invoice, $dpAmount, $pelunasanAmount, $dpPercentage),
-            'tanda_tangan' => $company?->signature_base64 ?? '',
-            'stempel' => $company?->stamp_base64 ?? '',
+            'tanda_tangan' => $withSignature ? ($company?->signature_base64 ?? '') : '',
+            'stempel' => $withStamp ? ($company?->stamp_base64 ?? '') : '',
             'financial_summary' => [
                 'net_revenue' => $netRevenue,
                 'total_cogs' => $totalCogs,
@@ -152,6 +165,22 @@ class InvoicePrintService
                 'has_tax_deposits' => $taxDepositItems->isNotEmpty(),
                 'profit_margin' => $netRevenue > 0 ? ($grossProfit / $netRevenue) * 100 : 0,
             ],
+        ];
+    }
+
+    /**
+     * Gambar tanda tangan & stempel yang sudah diunggah di Profil perusahaan. Dialog cetak hanya
+     * menawarkan pilihan "sertakan" untuk gambar yang ada.
+     *
+     * @return array{signature: bool, stamp: bool}
+     */
+    public static function printImages(): array
+    {
+        $company = CompanyProfile::current();
+
+        return [
+            'signature' => filled($company?->signature_path),
+            'stamp' => filled($company?->stamp_path),
         ];
     }
 
@@ -224,8 +253,18 @@ class InvoicePrintService
         ];
     }
 
+    /**
+     * Gambar untuk template bawaan. Unggahan Profil perusahaan ada di disk `public` milik perusahaan
+     * aktif (storage/tenant{slug}/app/public); dulu hanya dicari lewat symlink public/storage (folder
+     * pusat), sehingga tanda tangan & stempel yang diunggah setelah multi-perusahaan tidak pernah
+     * tercetak. Symlink tetap jadi cadangan untuk berkas lama.
+     */
     private function getImageBase64(string $path): string
     {
+        if (Storage::disk('public')->exists($path)) {
+            return 'data:image/png;base64,'.base64_encode(Storage::disk('public')->get($path));
+        }
+
         $fullPath = public_path('storage/'.$path);
 
         return file_exists($fullPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($fullPath)) : '';

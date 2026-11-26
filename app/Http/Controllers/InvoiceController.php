@@ -8,6 +8,7 @@ use App\Http\Requests\InvoicePreviewRequest;
 use App\Http\Requests\NextInvoiceNumberRequest;
 use App\Http\Requests\SendInvoiceRequest;
 use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceNumberRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Client;
 use App\Models\CompanyProfile;
@@ -210,6 +211,7 @@ class InvoiceController extends Controller
             'clients' => $clients,
             'customTemplates' => $customTemplates,
             'companyTemplate' => CompanyInvoiceTemplate::option(),
+            'printImages' => InvoicePrintService::printImages(),
             'selectedInvoiceId' => $selectedInvoiceId,
             'filters' => [
                 'search' => $search,
@@ -514,6 +516,7 @@ class InvoiceController extends Controller
             'custom_templates' => PdfTemplate::query()->orderByDesc('is_default')->orderBy('name')->get()
                 ->map(fn (PdfTemplate $t) => ['id' => $t->id, 'name' => $t->name, 'isDefault' => (bool) $t->is_default]),
             'company_template' => CompanyInvoiceTemplate::option(),
+            'print_images' => InvoicePrintService::printImages(),
             'created_at' => $invoice->created_at?->toIso8601String(),
             'updated_at' => $invoice->updated_at?->toIso8601String(),
             'client' => [
@@ -1065,6 +1068,22 @@ class InvoiceController extends Controller
         return $this->actionResult($request, true, $invoice->isDebitNote()
             ? __('Debit Note diterbitkan: :nomor', ['nomor' => $request->invoice_number])
             : __('Invoice diterbitkan: :nomor', ['nomor' => $request->invoice_number]));
+    }
+
+    /**
+     * Ganti nomor invoice yang sudah terbit (salah ketik, menyamakan dengan nomor manual lama) tanpa
+     * mengembalikannya ke draft. Hook `saving` model membaca ulang `invoice_sequence` dari nomor baru,
+     * jadi urutan nomor berikutnya ikut nomor ini. Draft belum bernomor: nomornya diberikan saat terbit.
+     */
+    public function updateNumber(UpdateInvoiceNumberRequest $request, Invoice $invoice): JsonResponse|RedirectResponse
+    {
+        if ($invoice->invoice_number === null) {
+            return $this->actionResult($request, false, __('Invoice draft belum bernomor. Nomor diberikan saat diterbitkan.'));
+        }
+
+        $invoice->update(['invoice_number' => $request->validated('invoice_number')]);
+
+        return $this->actionResult($request, true, __('Nomor diubah menjadi :nomor', ['nomor' => $invoice->invoice_number]));
     }
 
     public function rollback(Request $request, Invoice $invoice): JsonResponse|RedirectResponse

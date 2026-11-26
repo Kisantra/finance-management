@@ -111,6 +111,7 @@ export const guide: ModuleGuide = {
                 'Buka invoice yang sudah bernomor, lalu klik **Cetak**.',
                 'Pilih **Jenis tagihan**: **Penuh**, **Uang muka** (isi nominal DP), atau **Pelunasan** (hanya muncul bila sudah dibayar sebagian; menagih sisanya).',
                 'Pilih **Template**, periksa pratinjau di kanan (PDF yang sama persis dengan unduhan), lalu klik **Unduh PDF** atau **Buka PDF**. Perusahaan yang punya desain invoice sendiri hanya melihat template perusahaannya.',
+                'Di **Sertakan di PDF**, matikan **Tanda tangan** dan/atau **Stempel** bila dokumen akan ditandatangani atau distempel basah setelah dicetak; ruangnya tetap tersedia di PDF. Pilihan terakhir diingat di browser ini. Sakelar tidak bisa dipakai bila gambarnya belum diunggah di **Pengaturan › Profil perusahaan**; template Generik tidak mencetak stempel, dan template dari **Template PDF** memakai gambar yang dipasang di editornya.',
             ],
         },
         {
@@ -142,6 +143,15 @@ export const guide: ModuleGuide = {
                 'Klik pil **Draft** di daftar, lalu buka invoice yang akan diterbitkan.',
                 'Klik **Terbitkan invoice**. **Nomor invoice** terisi otomatis sesuai format di **Pengaturan › Penomoran invoice**; boleh diubah, tetapi harus unik.',
                 'Klik **Terbitkan invoice**. Status menjadi **Terbit**. Aplikasi tidak mengirim email ke klien: unduh PDF lalu kirimkan sendiri.',
+            ],
+        },
+        {
+            title: 'Mengubah nomor invoice yang sudah terbit',
+            role: ROLES.fm,
+            steps: [
+                'Buka invoice bernomor (**Terbit**, **Sebagian**, atau **Lunas**), klik menu **•••**, lalu **Ubah nomor**.',
+                'Ketik nomor baru (harus unik; bila ditolak, **Kembalikan nomor semula** mengisi ulang nomor lama), lalu klik **Simpan nomor**. Status, item, dan pembayaran tidak berubah.',
+                'Nomor otomatis berikutnya melanjutkan nomor urut tertinggi di periodenya: mengubah 001 menjadi 005 membuat nomor berikutnya 006. PDF yang sudah dikirim ke klien masih memakai nomor lama, jadi unduh ulang dan kirim lagi bila perlu.',
             ],
         },
         {
@@ -200,6 +210,7 @@ export const guide: ModuleGuide = {
                 'Hapus pembayaran: saldo turun, pemasukan & laba rugi berkurang, status dihitung ulang.',
                 'Invoice dengan pembayaran tidak bisa dihapus.',
                 'Mengubah item invoice yang sudah dibayar mengubah laba rugi periode lalu.',
+                'Mengubah nomor: daftar invoice, pembayaran di **Arus Kas** & **Kas & Bank**, dan rekap langsung menampilkan nomor baru; urutan nomor berikutnya ikut nomor baru. Teks notifikasi lama tetap memuat nomor lama.',
             ],
         },
     ],
@@ -279,6 +290,7 @@ export const guide: ModuleGuide = {
         { action: 'Melihat, mencetak PDF & ekspor rekap', cells: [true, true, true] },
         { action: 'Membuat (simpan draft / terbitkan)', cells: [true, true, true] },
         { action: 'Menerbitkan draft tersimpan & mengembalikannya ke draft', cells: [false, true, true] },
+        { action: 'Mengubah nomor invoice yang sudah terbit', cells: [false, true, true] },
         { action: 'Mengubah invoice', cells: [false, true, true] },
         { action: 'Mencatat pembayaran', cells: [true, true, true] },
         { action: 'Mengubah / menghapus pembayaran', cells: [false, true, true] },
